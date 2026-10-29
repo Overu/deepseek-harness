@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for insight-baseline-changes.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/insight-baseline-changes.md
+/insight-baseline-integration-record:
+  en: bacb14217c8e36d9
+  zh: dfc676127ce20852
+/insight-baseline-integration-record/scope:
+  en: 85c0f28c8e24ddc8
+  zh: 4b7820fbbe507029
+/insight-baseline-integration-record/existing-file-changes:
+  en: 905ee2877f233564
+  zh: 028790b2e02a78ef
+/insight-baseline-integration-record/new-integration-owners:
+  en: 07b450da296e0f6d
+  zh: 8be3e5309458081c
+/insight-baseline-integration-record/baseline-synchronization:
+  en: 9b32877e91b57db7
+  zh: abbdae1c51792d56
+/insight-baseline-integration-record/host-value-dependency-classification:
+  en: 4bf257830c77c70f
+  zh: d73836339fd62d15
+/insight-baseline-integration-record/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

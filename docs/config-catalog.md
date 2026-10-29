@@ -4807,6 +4807,90 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:dsh-memory-evolve -->
+<a id="dsh-memory-evolve"></a>
+
+## `dsh-memory-evolve`
+
+- `inject`: `tools` · `systemPrompt` · `agents` · `sessionTitle` · `sessionPersistence` · `settings` · `llm`
+- `source`: [`packages/insight/memory-evolve/src/index.ts:22`](../packages/insight/memory-evolve/src/index.ts)
+
+```ts config-catalog
+/**
+ * Configuration accepted by the fixed upstream Host snapshot.
+ *
+ * The Host resolves and validates these fields through its own `resolveConfig`
+ * routine because the archived JavaScript source has no static schema.
+ */
+export type Config = Record<string, unknown>
+```
+<!-- END GENERATED config-catalog:dsh-memory-evolve -->
+
+<!-- BEGIN GENERATED config-catalog:dsh-prompt-enhance -->
+<a id="dsh-prompt-enhance"></a>
+
+## `dsh-prompt-enhance`
+
+- `inject`: `llm` · `webServer`
+- `source`: [`packages/insight/prompt-enhance/src/config.ts:17`](../packages/insight/prompt-enhance/src/config.ts)
+
+```ts config-catalog
+/** The plugin's deployed configuration. */
+export interface Config {
+  /** Master switch; off hides the composer button and disables all triggers. */
+  enabled: boolean
+  /** Explicit provider override; must be paired with `model`. */
+  provider?: string
+  /** Explicit model override; must be paired with `provider`. */
+  model?: string
+  /** Sampling temperature; low keeps the rewrite faithful to the original. */
+  temperature: number
+  /** Output token budget of one enhancement call. */
+  maxOutputTokens: number
+  /** Input character cap; over-length drafts are rejected, never truncated. */
+  maxInputChars: number
+  /** End-to-end deadline of one enhancement call. */
+  timeoutMs: number
+  /** System prompt; default is the built-in enhancement strategy. */
+  systemPrompt: string
+  /**
+   * How a non-empty `systemPrompt` combines with the built-in strategy.
+   * `replace-default` (the default, matching earlier versions) swaps the
+   * built-in strategy out entirely — its hard rules are NOT retained and must
+   * be carried into the custom text. `extend-default` appends the custom text
+   * after the built-in strategy, keeping those rules in force.
+   */
+  strategyMode: StrategyMode
+  /** Composer keyboard shortcut, e.g. "ctrl+alt+e"; empty disables it. */
+  shortcut: string
+  /** Max concurrently running enhancements (host-side resource cap). */
+  maxConcurrent: number
+  /** Sliding-window rate cap: enhancements per minute (host-side). */
+  rateLimitPerMinute: number
+  /**
+   * Show the model's output in the panel as it streams instead of waiting for
+   * the whole rewrite. Display-only: the final text is still the normalized
+   * full result, so the output the user applies never changes.
+   */
+  streaming: boolean
+  /**
+   * Read the current conversation's recent history and use it to ground the
+   * rewrite (resolve references, supply the established stack/constraints).
+   * With no session, no history, or this switch off, the call degrades to the
+   * original single-prompt enhancement.
+   */
+  contextAware: boolean
+  /** Context window breadth: how many recent turns may ground the rewrite; 0 admits none. */
+  contextMaxMessages: number
+  /** Context window depth: character budget of the assembled history snippet; 0 admits none. */
+  contextMaxChars: number
+}
+
+/** How a non-empty `systemPrompt` combines with the built-in strategy. */
+export type StrategyMode = 'replace-default' | 'extend-default'
+```
+<!-- END GENERATED config-catalog:dsh-prompt-enhance -->
+
 ## Loadable plugins with no config
 
 These load from a `cordis.yml` entry with no `config:` block; they declare no configuration API.
@@ -5041,4 +5125,5 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 | `@deepseek-ai/dsh-util-values` | — | [`packages/util/values/src/index.ts`](../packages/util/values/src/index.ts) |
 | `@deepseek-ai/dsh-util-workspace-path` | — | [`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts) |
 | `@deepseek-ai/dsh-win32-process` | — | [`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts) |
+| `@insight-ai/desktop-canvas-plugin` | — | [`packages/insight/canvas/src/index.ts`](../packages/insight/canvas/src/index.ts) |
 <!-- END GENERATED config-catalog:library -->

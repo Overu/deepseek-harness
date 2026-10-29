@@ -1,0 +1,21 @@
+{
+  "name": "inspiration-api",
+  "version": "1.0.0",
+  "description": "Test Base Platform Inspiration API Client",
+  "main": "index.js",
+  "scripts": {
+    "fetch:all": "node scripts/fetch-all.js",
+    "fetch:demo": "node scripts/demo.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.6"
+  },
+  "keywords": [
+    "api",
+    "inspiration",
+    "cases",
+    "creative"
+  ],
+  "author": "",
+  "license": "MIT"
+}

@@ -227,6 +227,9 @@ it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the
     expect(build).toBe(unsigned ? 'run build --profile local' : 'run build:official')
     expect(stages.some(stage => stage.startsWith('exec tsx apps/desktop/scripts/pack-local-packages.ts'))).toBe(unsigned)
     expect(stages.some(stage => stage.startsWith('run release:pack --family dsh'))).toBe(!unsigned)
+    for (const component of ['canvas', 'memory-evolve', 'prompt-enhance']) {
+      expect(stages.some(stage => stage.startsWith(`--dir packages/insight/${component} pack --pack-destination `))).toBe(true)
+    }
   }
 })
 

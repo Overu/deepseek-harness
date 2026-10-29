@@ -1,0 +1,116 @@
+.sendButton {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0;
+  background-blend-mode: overlay, normal;
+  gap: 16px;
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: inset 0px 0px 20px 4px rgba(64, 185, 248, 0.5);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background:
+      linear-gradient(0deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)), linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0;
+    background-blend-mode: normal, overlay, normal;
+  }
+
+  &.locked {
+    background: linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0;
+    background-blend-mode: overlay, normal;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.addButton {
+  border-radius: 8px;
+  background-image: url('@/assets/images/default_add.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: background-image 0.2s ease;
+
+  &.active {
+    background-image: url('@/assets/images/active_add.png');
+  }
+
+  &:hover {
+    background-image: url('@/assets/images/active_add.png');
+  }
+}
+
+.bg {
+  background:
+    linear-gradient(0deg, rgba(38, 38, 38, 0.5), rgba(38, 38, 38, 0.5)),
+    linear-gradient(114deg, rgba(19, 10, 77, 0.4) -3%, rgba(0, 36, 197, 0.4) 46%, rgba(116, 126, 255, 0.4) 64%, rgba(0, 175, 255, 0.4) 76%);
+
+  /* 2. 保持前缀 */
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+}
+
+.nodeItem {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  gap: 8px;
+  text-align: left;
+
+  &:hover:not(:global(.nodeItemDisabled)) {
+    background: rgba(255, 255, 255, 0.1);
+    -webkit-backdrop-filter: blur(60px);
+    backdrop-filter: blur(60px);
+  }
+}
+
+.excute_btn {
+  position: relative;
+  padding: 8px;
+  height: 32px;
+  border-radius: 8px;
+  background-image: url('@/assets/images/excute_btn.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+}
+
+// SelectCustom.module.css
+.customSelect {
+  display: flex;
+  white-space: nowrap;
+  justify-content: flex-start;
+  height: 36px;
+  line-height: 36px;
+  gap: 4px;
+  border: none !important;
+  outline: none !important;
+  background: transparent;
+  box-shadow: none !important;
+  width: auto;
+
+  &[data-state='open'] {
+    color: #fff;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.45) !important;
+  }
+
+  &:hover {
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.hideSelectIcon {
+  >svg {
+    display: none;
+  }
+}

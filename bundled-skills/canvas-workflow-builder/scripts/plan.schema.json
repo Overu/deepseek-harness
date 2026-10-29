@@ -1,0 +1,403 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "canvas-workflow-builder plan",
+  "description": "画布工作流计划。先写计划、过 validate_plan.py、再动工具。",
+  "type": "object",
+  "required": [
+    "goal",
+    "archetype",
+    "nodes",
+    "edges",
+    "runs"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "goal": {
+      "type": "string",
+      "description": "一句话交付目标，例如「为商品 X 生成 3 张 3:4 电商主图」"
+    },
+    "archetype": {
+      "type": "string",
+      "description": "结构原型代号；A1–A11 见 references/archetypes.md，custom 表示自定结构",
+      "enum": [
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        "A5",
+        "A6",
+        "A7",
+        "A8",
+        "A9",
+        "A10",
+        "A11",
+        "custom"
+      ]
+    },
+    "brief": {
+      "type": "object",
+      "description": "S0 需求解析结果（七要素）",
+      "additionalProperties": false,
+      "properties": {
+        "deliverables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "count"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video",
+                  "text"
+                ]
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "ratio": {
+                "type": "string",
+                "description": "如 3:4 / 1:1 / 9:16"
+              },
+              "resolution": {
+                "type": "string",
+                "description": "如 1K / 2K / 4K / 720p / 1080p"
+              },
+              "duration": {
+                "type": "integer",
+                "description": "视频时长（秒）"
+              },
+              "platform": {
+                "type": "string",
+                "description": "用途/平台，如 详情页首图、小红书首图"
+              }
+            }
+          }
+        },
+        "assets": {
+          "type": "array",
+          "description": "素材清点：每份素材都必须标注来源与上传方",
+          "items": {
+            "type": "object",
+            "required": [
+              "role",
+              "kind",
+              "uploader"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "role": {
+                "type": "string",
+                "description": "用途，如 商品图 / 模特图 / 参考视频"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "video",
+                  "audio"
+                ]
+              },
+              "uploader": {
+                "type": "string",
+                "enum": [
+                  "agent",
+                  "user"
+                ],
+                "description": "image/video/audio/text 均可由 agent 通过 attachment/conversation_asset/canvas_node/workspace_file 导入；user 仅表示必须由用户在画布内上传"
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "attachment",
+                  "conversation_asset",
+                  "canvas_node",
+                  "user_upload"
+                ],
+                "description": "attachment=用户附件；conversation_asset=本会话生成图；canvas_node=画布已有产物；user_upload=用户在画布上传视频/音频"
+              },
+              "nodeLocalId": {
+                "type": "string",
+                "description": "该素材落在哪个节点"
+              }
+            }
+          }
+        },
+        "text": {
+          "type": "object",
+          "description": "要写进画面的文字内容（标题/卖点/价格/CTA 等）"
+        },
+        "style": {
+          "type": "string",
+          "description": "风格调性与主色"
+        },
+        "compliance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "合规约束，如 无绝对化用语、品牌 logo 需授权"
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "localId",
+          "role",
+          "type",
+          "title"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "localId": {
+            "type": "string",
+            "description": "计划内唯一标识（非画布真实 ID）"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "input",
+              "text",
+              "generator"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "video",
+              "audio"
+            ],
+            "description": "节点类型：text/image/video/audio"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 32768,
+            "description": "仅文本节点正文（T2 代笔内容）"
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 32768,
+            "description": "生成节点提示词；文本节点则作为 LLM 指令（T1）"
+          },
+          "textMode": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "copy"
+            ],
+            "description": "仅文本节点：llm=写指令由用户点生成（T1）；copy=agent 直接写正文（T2）"
+          },
+          "config": {
+            "type": "object",
+            "description": "仅 image/video 生成节点",
+            "additionalProperties": false,
+            "properties": {
+              "modelType": {
+                "type": "string",
+                "description": "必须来自实时 canvas_models 返回的 value"
+              },
+              "model": {
+                "type": "string",
+                "description": "必须来自实时 canvas_models 返回的 value"
+              },
+              "params": {
+                "type": "object",
+                "description": "仅标量参数；禁 model/modelType/prompt"
+              },
+              "voiceId": {
+                "type": "string",
+                "description": "仅 TTS：真实音色 ID（canvas_models view:voices）"
+              },
+              "seniorParams": {
+                "type": "object",
+                "description": "仅 TTS：高级标量参数（language_boost/emotion/speed/vol/pitch），字段与范围以 seniorParamHints 为准",
+                "additionalProperties": true
+              }
+            }
+          },
+          "placement": {
+            "type": "object",
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "absolute",
+                  "after"
+                ]
+              },
+              "anchor": {
+                "type": "string",
+                "description": "mode=after 时的锚节点 localId"
+              },
+              "position": {
+                "type": "object",
+                "required": [
+                  "x",
+                  "y"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "x": {
+                    "type": "number"
+                  },
+                  "y": {
+                    "type": "number"
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "type": "object",
+            "description": "已废弃：与 placement 互斥，工具层会报 INVALID_ARGUMENT",
+            "required": [
+              "x",
+              "y"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "x": {
+                "type": "number"
+              },
+              "y": {
+                "type": "number"
+              }
+            }
+          },
+          "allowNoInput": {
+            "type": "boolean",
+            "description": "确为纯文生图/零入边 TTS（台词写在 prompt）时显式声明，避免 R4 误报"
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "sourceHandle",
+          "targetHandle"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "来源节点 localId"
+          },
+          "to": {
+            "type": "string",
+            "description": "目标节点 localId"
+          },
+          "sourceHandle": {
+            "type": "string",
+            "enum": [
+              "text_source",
+              "image_source",
+              "video_source",
+              "audio_source"
+            ]
+          },
+          "targetHandle": {
+            "type": "string",
+            "enum": [
+              "text_target",
+              "image_target",
+              "video_target",
+              "audio_target"
+            ]
+          }
+        }
+      }
+    },
+    "runs": {
+      "type": "array",
+      "description": "执行顺序（拓扑序），可含 image/video 生成节点与 TTS audio 节点；纯文本 LLM 节点不可运行",
+      "items": {
+        "type": "string"
+      }
+    },
+    "manualSteps": {
+      "type": "array",
+      "description": "必须人工介入的步骤（T1 文本节点生成、视频/音频上传、模型选择等）",
+      "items": {
+        "type": "object",
+        "required": [
+          "node",
+          "reason"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "node": {
+            "type": "string",
+            "description": "节点 localId"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "description": "要用户做什么"
+          }
+        }
+      }
+    },
+    "estimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "images": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "videos": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "points": {
+          "type": "string",
+          "description": "计费点估算（区间），来源 references/model-matrix.md"
+        },
+        "needsConfirmation": {
+          "type": "boolean",
+          "description": "images>30 或 videos>6 时必须为 true"
+        },
+        "audios": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "TTS 音频产物数（不占总图/视频阈值）"
+        }
+      }
+    },
+    "acceptance": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "逐条验收标准"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/insight/canvas/README.md
+/:
+  en: 4597791c32b9e699
+  zh: f3418e55504caded
+/insight-ai-desktop-canvas-plugin:
+  en: c8ce950b230cd2b9
+  zh: a5504b72b24b042a
+/insight-ai-desktop-canvas-plugin/summary:
+  en: 4f3b2a2d08bbe246
+  zh: 5eeb1e9c0718effa
+/insight-ai-desktop-canvas-plugin/table-of-contents:
+  en: 76368b6b1da79c80
+  zh: 8d96a89a79ec4a89
+/insight-ai-desktop-canvas-plugin/use-this-package:
+  en: ac58c6f6587f5e58
+  zh: 88b84920b9ec2f69
+/insight-ai-desktop-canvas-plugin/understand-the-implementation:
+  en: 0d038cdf435c6748
+  zh: 0730bef4b2520621
+/insight-ai-desktop-canvas-plugin/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/insight-ai-desktop-canvas-plugin/model-experience/canvas-tools-and-guidance:
+  en: 396e734274c6c95d
+  zh: d8739da7a7110f08
+/insight-ai-desktop-canvas-plugin/model-experience/canvas-tools-and-guidance/what-the-model-sees:
+  en: 6ae248cb3aad610b
+  zh: 9137e764d6538bc4
+/insight-ai-desktop-canvas-plugin/model-experience/canvas-tools-and-guidance/token-effect:
+  en: 3809f9debe1ebe8c
+  zh: b5b54a3e549a1cd9
+/insight-ai-desktop-canvas-plugin/model-experience/canvas-tools-and-guidance/kv-cache-effect:
+  en: d2b5971924653b8b
+  zh: 19854f063c3389eb
+/insight-ai-desktop-canvas-plugin/known-limitations-and-deferred-work:
+  en: 32c8ca428203f1c7
+  zh: 15b8db2d4e85e116
+/insight-ai-desktop-canvas-plugin/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

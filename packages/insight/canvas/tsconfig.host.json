@@ -1,0 +1,61 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": [
+    "src/index.ts",
+    "src/host/**/*.ts",
+    "src/shared/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis/tsconfig.json"
+    },
+    {
+      "path": "../../core/agent/tsconfig.json"
+    },
+    {
+      "path": "../../attachment/attachment/tsconfig.json"
+    },
+    {
+      "path": "../../fs/fs/tsconfig.json"
+    },
+    {
+      "path": "../../host/webserver/tsconfig.json"
+    },
+    {
+      "path": "../../jobs/jobs/tsconfig.json"
+    },
+    {
+      "path": "../../llm/llm/tsconfig.json"
+    },
+    {
+      "path": "../../core/session/tsconfig.json"
+    },
+    {
+      "path": "../../session-query/session-query/tsconfig.json"
+    },
+    {
+      "path": "../../skill/skill/tsconfig.json"
+    },
+    {
+      "path": "../../storage/storage-domain/tsconfig.json"
+    },
+    {
+      "path": "../../core/system-prompt/tsconfig.json"
+    },
+    {
+      "path": "../../core/tools/tsconfig.json"
+    },
+    {
+      "path": "../../interaction/user-questions/tsconfig.json"
+    },
+    {
+      "path": "../../util/crypto/tsconfig.json"
+    }
+  ]
+}

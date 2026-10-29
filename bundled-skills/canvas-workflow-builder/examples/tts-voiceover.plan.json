@@ -1,0 +1,65 @@
+{
+  "goal": "把一段 30 秒口播文案配成中文 TTS 人声（A8）",
+  "archetype": "A8",
+  "brief": {
+    "deliverables": [
+      {
+        "kind": "text",
+        "count": 1,
+        "platform": "短视频口播配音"
+      }
+    ],
+    "assets": [],
+    "text": {
+      "script": "这支白色无线鼠标，充一次电能用一个月。"
+    },
+    "style": "自然、克制的中文口播",
+    "compliance": [
+      "不写绝对化用语",
+      "续航数据需与官方一致"
+    ]
+  },
+  "nodes": [
+    {
+      "localId": "a_voice",
+      "role": "generator",
+      "type": "audio",
+      "title": "口播配音（TTS）",
+      "prompt": "这支白色无线鼠标，充一次电能用一个月。桌面极简，从这一只开始。",
+      "config": {
+        "modelType": "tts",
+        "model": "speech-2.8-turbo",
+        "voiceId": "male-qn-jingying",
+        "seniorParams": {
+          "language_boost": "Chinese",
+          "emotion": "calm",
+          "speed": 1.0
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    }
+  ],
+  "edges": [],
+  "runs": [
+    "a_voice"
+  ],
+  "manualSteps": [],
+  "estimate": {
+    "images": 0,
+    "videos": 0,
+    "audios": 1,
+    "points": "TTS 按所选模型时长计费，实时以账务为准",
+    "needsConfirmation": false
+  },
+  "acceptance": [
+    "音频可播放且与文案逐字一致",
+    "音色与语速符合口播场景",
+    "无背景噪声"
+  ]
+}

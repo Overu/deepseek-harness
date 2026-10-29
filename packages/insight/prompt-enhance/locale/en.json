@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Prompt enhancement",
+    "description": "Rewrites composer drafts with the configured model before you send them."
+  }
+}

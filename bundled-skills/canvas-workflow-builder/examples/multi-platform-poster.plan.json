@@ -1,0 +1,99 @@
+{
+  "goal": "用一张产品图 + 活动 Brief，生成小红书 3:4 / 朋友圈 1:1 / 抖音 9:16 / 微博 16:9 四平台海报",
+  "archetype": "A3",
+  "brief": {
+    "deliverables": [
+      { "kind": "image", "count": 1, "ratio": "3:4", "resolution": "2K", "platform": "小红书" },
+      { "kind": "image", "count": 1, "ratio": "1:1", "resolution": "2K", "platform": "朋友圈/公众号" },
+      { "kind": "image", "count": 1, "ratio": "9:16", "resolution": "2K", "platform": "抖音/视频号" },
+      { "kind": "image", "count": 1, "ratio": "16:9", "resolution": "2K", "platform": "微博/官网" }
+    ],
+    "assets": [
+      { "role": "产品参考图", "kind": "image", "uploader": "agent", "source": "attachment", "nodeLocalId": "in_product" }
+    ],
+    "text": { "title": "充一次电，续航长达 1 个月", "product": "白色无线鼠标" },
+    "style": "极简留白，深墨绿 + 米白 + 暖金",
+    "compliance": ["不写绝对化用语", "续航数据需与官方一致"]
+  },
+  "nodes": [
+    {
+      "localId": "in_product",
+      "role": "input",
+      "type": "image",
+      "title": "产品参考图",
+      "source": "attachment",
+      "placement": { "mode": "absolute", "position": { "x": 520, "y": 0 } }
+    },
+    {
+      "localId": "t_brief",
+      "role": "text",
+      "type": "text",
+      "title": "活动 Brief",
+      "textMode": "copy",
+      "text": "品牌：____\n产品：白色无线鼠标\n主张：充一次电，续航长达 1 个月\n卖点：1. 充一次电，续航长达 1 个月\n调性：极简留白，深墨绿 + 米白 + 暖金",
+      "placement": { "mode": "absolute", "position": { "x": 0, "y": 840 } }
+    },
+    {
+      "localId": "t_copy",
+      "role": "text",
+      "type": "text",
+      "title": "多平台文案适配",
+      "textMode": "llm",
+      "prompt": "# Role\n你是品牌视觉文案指导。\n## 任务目标\n把上游 Brief 改写成 4 组平台海报文案：小红书、朋友圈/公众号、抖音/视频号、微博/官网，各 1 组。\n## 核心约束\n四组共用同一主张；不写绝对化用语；不编价格与时间；只输出中文，不用 Markdown。\n## 输出格式约束\n严格按以下格式输出，不要输出解释：\n【小红书文案】\n标题：\n【朋友圈文案】\n主标题：\n【抖音文案】\n大标题：\n【微博官网文案】\n主标题：",
+      "placement": { "mode": "absolute", "position": { "x": 520, "y": 840 } }
+    },
+    {
+      "localId": "g_xhs",
+      "role": "generator",
+      "type": "image",
+      "title": "小红书 · 3:4",
+      "prompt": "图1 为产品参考，保持白色无线鼠标外观、比例与滚轮细节一致。生成 3:4 小红书海报：主标题「一只鼠标 续航一整月」，三行卖点，底部话题标签；米白背景，深墨绿文字。",
+      "config": { "modelType": "reference_image_to_image", "model": "gpt-image-2", "params": { "aspect_ratio": "3:4", "resolution": "2K", "quality": "high", "gen_count": 1 } },
+      "placement": { "mode": "absolute", "position": { "x": 1040, "y": 0 } }
+    },
+    {
+      "localId": "g_wx",
+      "role": "generator",
+      "type": "image",
+      "title": "朋友圈 · 1:1",
+      "prompt": "图1 为产品参考，保持白色无线鼠标外观、比例与滚轮细节一致。生成 1:1 卡片：主标题「充一次电 用满一个月」，副标题、行动引导、右下角纯色二维码位。",
+      "config": { "modelType": "reference_image_to_image", "model": "gpt-image-2", "params": { "aspect_ratio": "1:1", "resolution": "2K", "quality": "high", "gen_count": 1 } },
+      "placement": { "mode": "absolute", "position": { "x": 1040, "y": 560 } }
+    },
+    {
+      "localId": "g_dy",
+      "role": "generator",
+      "type": "image",
+      "title": "抖音 · 9:16",
+      "prompt": "图1 为产品参考，保持白色无线鼠标外观、比例与滚轮细节一致。生成 9:16 全屏：超大两行标题「充一次电」「用一个月」，底部续航信息条，上下留 12% 安全区。",
+      "config": { "modelType": "reference_image_to_image", "model": "gpt-image-2", "params": { "aspect_ratio": "9:16", "resolution": "2K", "quality": "high", "gen_count": 1 } },
+      "placement": { "mode": "absolute", "position": { "x": 1040, "y": 1120 } }
+    },
+    {
+      "localId": "g_wb",
+      "role": "generator",
+      "type": "image",
+      "title": "微博官网 · 16:9",
+      "prompt": "图1 为产品参考，保持白色无线鼠标外观、比例与滚轮细节一致。生成 16:9 左文右图 Banner：主标题、英文 Slogan「ONE CHARGE. ONE MONTH.」、按钮、信息条；左上角留空白品牌位。",
+      "config": { "modelType": "reference_image_to_image", "model": "gpt-image-2", "params": { "aspect_ratio": "16:9", "resolution": "2K", "quality": "high", "gen_count": 1 } },
+      "placement": { "mode": "absolute", "position": { "x": 1040, "y": 1960 } }
+    }
+  ],
+  "edges": [
+    { "from": "in_product", "to": "g_xhs", "sourceHandle": "image_source", "targetHandle": "image_target" },
+    { "from": "in_product", "to": "g_wx", "sourceHandle": "image_source", "targetHandle": "image_target" },
+    { "from": "in_product", "to": "g_dy", "sourceHandle": "image_source", "targetHandle": "image_target" },
+    { "from": "in_product", "to": "g_wb", "sourceHandle": "image_source", "targetHandle": "image_target" },
+    { "from": "t_brief", "to": "t_copy", "sourceHandle": "text_source", "targetHandle": "text_target" },
+    { "from": "t_copy", "to": "g_xhs", "sourceHandle": "text_source", "targetHandle": "text_target" },
+    { "from": "t_copy", "to": "g_wx", "sourceHandle": "text_source", "targetHandle": "text_target" },
+    { "from": "t_copy", "to": "g_dy", "sourceHandle": "text_source", "targetHandle": "text_target" },
+    { "from": "t_copy", "to": "g_wb", "sourceHandle": "text_source", "targetHandle": "text_target" }
+  ],
+  "runs": ["g_xhs", "g_wx", "g_dy", "g_wb"],
+  "manualSteps": [
+    { "node": "t_copy", "reason": "文本 LLM 节点 agent 不能运行", "action": "在画布选模型并点一次生成，再运行 4 张海报" }
+  ],
+  "estimate": { "images": 4, "videos": 0, "audios": 0, "points": "4 张 2K high（gpt-image-2，区间计费）", "needsConfirmation": false },
+  "acceptance": ["四张画幅为 3:4/1:1/9:16/16:9，产品外观一致", "文案无绝对化用语", "文字不被裁切"]
+}

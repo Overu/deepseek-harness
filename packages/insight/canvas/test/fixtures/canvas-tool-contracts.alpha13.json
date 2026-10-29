@@ -1,0 +1,576 @@
+{
+  "date": "2026-10-14",
+  "pluginVersion": "0.3.0-alpha.13",
+  "scope": "Registered tool catalog only; no execute() invocation or business API call",
+  "tools": [
+    {
+      "name": "canvas_create",
+      "timeoutMs": 90000,
+      "description": "创建空画布并准备当前对话的画布服务，无需打开画布。名称可省略，默认新画布。只创建，不生成素材。created即已有真实画布ID；runtime:not_ready时保留该ID，待服务恢复后操作同画布，勿重建。create_unknown时先核对画布列表，不能自动重试。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "可选画布名称，1–100字符。"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "canvas_get",
+      "timeoutMs": 90000,
+      "description": "读取已有画布，不打开画布。summary返回最多20个摘要，不能作写前版本依据；nodes返回节点正文/素材/参数、可信version和consistency，nodeIds省略时前20个；graph返回真实节点端口、允许输入类型及连线，outputs素材URL不是连线。graph的nodeOffset与edgeOffset独立分页，limit默认20；续页必须带第一页confirmed版本expectedVersion，版本变更时重新从第一页读取，勿混合不同版本。position有parentId时相对父组。普通写前和写后读取默认refresh:false，confirmed版本即可作写入依据，无需逐次重载。refresh:true仅用于明确要求的权威同步，或冲突/未知回执的恢复核对，会触发可见画布重载；unconfirmed或内容截断不能声称完整确认。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "canvasId": {
+            "type": "string",
+            "description": "正Long十进制字符串画布ID。"
+          },
+          "view": {
+            "type": "string",
+            "description": "默认summary；写前使用nodes或graph的confirmed版本。",
+            "enum": [
+              "summary",
+              "nodes",
+              "graph"
+            ]
+          },
+          "nodeIds": {
+            "type": "array",
+            "description": "仅nodes可用，1–20个唯一节点ID；省略前20个。",
+            "items": {
+              "type": "string"
+            }
+          },
+          "refresh": {
+            "type": "boolean",
+            "description": "仅nodes/graph可用；默认false，普通confirmed读取足够。true仅用于显式权威同步或冲突/未知回执恢复，会触发可见画布重载。"
+          },
+          "nodeOffset": {
+            "type": "number",
+            "description": "仅graph，非负整数；续页带expectedVersion。"
+          },
+          "edgeOffset": {
+            "type": "number",
+            "description": "仅graph，非负整数；续页带expectedVersion。"
+          },
+          "limit": {
+            "type": "number",
+            "description": "仅graph，各节点/边页长度1–20整数，默认20。"
+          },
+          "expectedVersion": {
+            "type": "string",
+            "description": "仅graph，第一页confirmed版本；任何offset大于0时必填。"
+          }
+        },
+        "required": [
+          "canvasId"
+        ]
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "canvas_node_edit",
+      "timeoutMs": 90000,
+      "description": "已有画布普通节点的保存操作，无需打开画布；action:add添加text/image/video/audio；update修改原节点的title/text/prompt/合法标量params；delete删除nodeIds及原生关联边；configure为普通image/video生成节点选择真实modelType/model和合法参数。上传/工具产物媒体只允许改标题或删除，不能改生成参数。严格按action提供一组字段：add仅node、update仅nodeId+changes、delete仅nodeIds、configure仅nodeId+configuration。不会执行生成/模板。默认自动放置，absolute仅精确位置，after只是坐标延展不建边。expectedVersion取最新confirmed读取或服务就绪created版本；普通读取已经足够，不需逐次refresh；冲突先重读，不覆盖。saved才是保存完成；submission_unknown保留真实ID，先权威读取，不能自动重复操作。error.retry仅说明恢复前提，不是自动重试许可；effect:none只表示未写入，不代表授权重试。用户要求失败停止时，参数校验失败或rejected也须停止，不换source、参数或调用继续尝试。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "canvasId": {
+            "type": "string",
+            "description": "已有画布ID，正Long十进制字符串。"
+          },
+          "expectedVersion": {
+            "type": "string",
+            "description": "最新confirmed版本原样传入。"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "update",
+              "delete",
+              "configure"
+            ]
+          },
+          "node": {
+            "type": "object",
+            "description": "仅add，例如{\"type\":\"text\",\"changes\":{\"title\":\"测试文本\",\"text\":\"hello\"}}；title/text/prompt/params放在changes内，不是node根字段。",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "image",
+                  "video",
+                  "audio"
+                ]
+              },
+              "placement": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "const": "auto"
+                      }
+                    },
+                    "required": [
+                      "mode"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "const": "absolute"
+                      },
+                      "position": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                          "x": {
+                            "type": "number"
+                          },
+                          "y": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "x",
+                          "y"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "position"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "const": "after"
+                      },
+                      "anchorNodeId": {
+                        "type": "string",
+                        "description": "当前画布中的真实节点ID，最多100字符。"
+                      }
+                    },
+                    "required": [
+                      "mode",
+                      "anchorNodeId"
+                    ]
+                  }
+                ],
+                "description": "省略或auto由插件追加放置，不移动旧节点；absolute仅用户明确要求精确画布坐标时使用；after按指定节点的世界位置放在右侧，不建立连线，也不保证消除附近其他节点的重叠。"
+              },
+              "changes": {
+                "type": "object",
+                "description": "仅add的初始内容，title/text/prompt/params必须嵌套在node.changes内；省略用原生默认。",
+                "additionalProperties": false,
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "最多100字符，遵循原生命名规则。"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "仅文本节点正文，最多32768字符。"
+                  },
+                  "prompt": {
+                    "type": "string",
+                    "description": "普通生成节点的提示词，最多32768字符，不触发生成。"
+                  },
+                  "params": {
+                    "type": "object",
+                    "description": "仅当前模型允许的标量技术参数；不能含model/modelType/prompt，不支持高级嵌套参数。",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "nodeId": {
+            "type": "string",
+            "description": "仅update/configure，真实目标节点ID。"
+          },
+          "changes": {
+            "type": "object",
+            "description": "仅update，至少一个变化字段；不会清空其他内容。",
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "最多100字符，遵循原生命名规则。"
+              },
+              "text": {
+                "type": "string",
+                "description": "仅文本节点正文，最多32768字符。"
+              },
+              "prompt": {
+                "type": "string",
+                "description": "普通生成节点的提示词，最多32768字符，不触发生成。"
+              },
+              "params": {
+                "type": "object",
+                "description": "仅当前模型允许的标量技术参数；不能含model/modelType/prompt，不支持高级嵌套参数。",
+                "additionalProperties": true
+              }
+            }
+          },
+          "nodeIds": {
+            "type": "array",
+            "description": "仅delete，1–20个真实普通节点ID。删除会同时移除原生关联边。",
+            "items": {
+              "type": "string"
+            }
+          },
+          "configuration": {
+            "type": "object",
+            "description": "仅configure，至少一个配置字段；先canvas_models读取当前账号可用值，不猜模型。",
+            "additionalProperties": false,
+            "properties": {
+              "modelType": {
+                "type": "string",
+                "description": "原生真实模式值，不使用中文展示名。"
+              },
+              "model": {
+                "type": "string",
+                "description": "当前模式内可用的真实模型值。"
+              },
+              "params": {
+                "type": "object",
+                "description": "仅当前模型允许的标量技术参数；不能含model/modelType/prompt，不支持高级嵌套参数。",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "required": [
+          "canvasId",
+          "expectedVersion",
+          "action"
+        ]
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "canvas_edges",
+      "timeoutMs": 90000,
+      "description": "编辑真实画布连线并保存，不移动节点、不执行生成。add连接sourceNodeId/targetNodeId，端口省略时使用原生合法默认；delete删除edgeIds；reconnect用edgeId调整端点，保留原边ID；reorder对targetNodeId的全部入边提供完整edgeIds顺序，只调整该目标输入顺序。先canvas_get(view:graph)核对真实ID/端口/允许输入，不能把outputs素材URL当边。允许四类普通节点作为来源连接原生合法目标，包括已有工具的输入；禁止工具本体作为来源，禁止修改工具到产物的内部管理边；组不支持。expectedVersion取最新confirmed版本。saved才表示保存完成；submission_unknown先权威读取，不能自动重复写。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "canvasId": {
+            "type": "string",
+            "description": "已有画布ID，正Long十进制字符串。"
+          },
+          "expectedVersion": {
+            "type": "string",
+            "description": "最新confirmed版本原样传入。"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "add",
+              "delete",
+              "reconnect",
+              "reorder"
+            ]
+          },
+          "connection": {
+            "type": "object",
+            "description": "仅add/reconnect；使用真实节点ID。",
+            "additionalProperties": false,
+            "properties": {
+              "sourceNodeId": {
+                "type": "string"
+              },
+              "targetNodeId": {
+                "type": "string"
+              },
+              "sourceHandle": {
+                "type": "string",
+                "description": "可选真实source端口ID，省略自动解析。"
+              },
+              "targetHandle": {
+                "type": "string",
+                "description": "可选真实target端口ID，省略自动解析。"
+              }
+            },
+            "required": [
+              "sourceNodeId",
+              "targetNodeId"
+            ]
+          },
+          "edgeId": {
+            "type": "string",
+            "description": "仅reconnect，已有真实边ID。"
+          },
+          "targetNodeId": {
+            "type": "string",
+            "description": "仅reorder，真实目标节点ID。"
+          },
+          "edgeIds": {
+            "type": "array",
+            "description": "仅delete/reorder，1–20个唯一真实边ID；reorder必须包含目标全部入边。",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "canvasId",
+          "expectedVersion",
+          "action"
+        ]
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "canvas_models",
+      "timeoutMs": 90000,
+      "description": "只读当前账号普通image/video生成节点的可用模式、模型与标量参数选项，不打开画布、不修改参数、不生成。modelType/model使用返回的value，勿猜或用label；省略时读取原生可用默认。modeOffset/modelOffset独立分页，limit默认20；任何offset大于0必须传第一页catalogVersion为expectedCatalogVersion，配置变更须重新读取，不混合不同配置页。通过canvas_node_edit(action:configure)保存配置；paramHints依据所选模型的默认父参数组合，不代表已有节点当前选择；configure后用canvas_get(view:nodes)查询该节点实时参数及选项。高级嵌套参数本期不开放。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "canvasId": {
+            "type": "string",
+            "description": "已有画布ID，正Long十进制字符串。"
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video"
+            ]
+          },
+          "modelType": {
+            "type": "string",
+            "description": "原生真实模式value；省略选原生可用默认。"
+          },
+          "model": {
+            "type": "string",
+            "description": "当前模式内真实模型value；省略选原生可用默认。"
+          },
+          "modeOffset": {
+            "type": "number",
+            "description": "非负整数；续页必须带expectedCatalogVersion。"
+          },
+          "modelOffset": {
+            "type": "number",
+            "description": "非负整数；续页必须带expectedCatalogVersion。"
+          },
+          "limit": {
+            "type": "number",
+            "description": "各模式/模型页长度1–20整数，默认20。"
+          },
+          "expectedCatalogVersion": {
+            "type": "string",
+            "description": "第一页catalogVersion；任何offset大于0时必填。"
+          }
+        },
+        "required": [
+          "canvasId",
+          "nodeType"
+        ]
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "canvas_assets",
+      "timeoutMs": 90000,
+      "description": "列出当前对话可见用户消息中的图片附件引用，供canvas_asset_import使用。不读取其他会话/本机路径，不上传/创建节点。列表按最近出现排序，最多20条；多图用途不明时询问绑定，不能猜。图片是Harness已归一化内容，可能缩尺寸/调整朝向，非原文件字节；文件附件/被压缩移除的旧图片需用户重新提供图片或指定已有画布图片节点。",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    },
+    {
+      "name": "canvas_asset_import",
+      "timeoutMs": 180000,
+      "description": "将指定的当前聊天图片或授权画布图片节点产物，添加为原生image/upload来源节点。只保存，不生成、不打开画布。默认自动追加放置；仅用户指定精确坐标才用placement:absolute，沿已有节点延展用after，不建连线。旧position不再接受，请用placement。attachmentId取canvas_assets；canvas_node明确来源ID，多产物需outputIndex。expectedVersion必须为可信当前版本，冲突不自动覆盖。saved表示节点已保存；assetRegistration独立报告素材入库，失败不能重加节点。upload_unknown/submission_unknown不能换调用自动重试；上传已确认但保存失败时asset引用保留，同账号/会话后续导入可复用上传。普通写前/写后用refresh:false读取最新confirmed版本即可。error.retry只表示恢复前提，effect:none只表示未写入，均不授权自动重试；用户要求失败停止时，参数校验失败或rejected立即停止，不换source、参数或调用继续尝试。",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "canvasId": {
+            "type": "string"
+          },
+          "expectedVersion": {
+            "type": "string"
+          },
+          "source": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "attachment",
+                  "canvas_node"
+                ]
+              },
+              "attachmentId": {
+                "type": "string"
+              },
+              "canvasId": {
+                "type": "string"
+              },
+              "nodeId": {
+                "type": "string"
+              },
+              "outputIndex": {
+                "type": "integer",
+                "description": "来源节点产物序号，0开始。"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "可选素材节点标题，最多100字符。"
+          },
+          "placement": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "auto"
+                  }
+                },
+                "required": [
+                  "mode"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "absolute"
+                  },
+                  "position": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "x": {
+                        "type": "number"
+                      },
+                      "y": {
+                        "type": "number"
+                      }
+                    },
+                    "required": [
+                      "x",
+                      "y"
+                    ]
+                  }
+                },
+                "required": [
+                  "mode",
+                  "position"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "const": "after"
+                  },
+                  "anchorNodeId": {
+                    "type": "string",
+                    "description": "当前画布中的真实节点ID，最多100字符。"
+                  }
+                },
+                "required": [
+                  "mode",
+                  "anchorNodeId"
+                ]
+              }
+            ],
+            "description": "省略或auto由插件追加放置，不移动旧节点；absolute仅用户明确要求精确画布坐标时使用；after按指定节点的世界位置放在右侧，不建立连线，也不保证消除附近其他节点的重叠。"
+          }
+        },
+        "required": [
+          "canvasId",
+          "expectedVersion",
+          "source"
+        ]
+      },
+      "outputSchema": {
+        "type": "string"
+      }
+    }
+  ],
+  "registrationOrder": [
+    "canvas_create",
+    "canvas_get",
+    "canvas_node_edit",
+    "canvas_edges",
+    "canvas_models",
+    "canvas_assets",
+    "canvas_asset_import"
+  ],
+  "apiCalls": 0,
+  "sourceSha256": {
+    "src/host/canvas-tools.ts": "fcbf6166dc7d0bc55c98cd389137470b3a84b798e77489ebc100c50f4baf2b34",
+    "src/host/canvas-graph-tools.ts": "11d8ab35665cf72c9feb42b47ba3eb02934e3eea897683b6d58881eacd976d18",
+    "src/host/canvas-asset-tools.ts": "195eaa73970434e14614cfdc7ad2c6cec5e7fa2bae0fab32c6d2e803e922acf1",
+    "src/host/index.ts": "5253e98e76b5c46c21ed4b944d1453088396b4d7edf4ec60aeb6f97fc9a87668",
+    "src/shared/canvas-agent-protocol.ts": "219ef7c78d4f72629e19b2e917f2795ad3819e85e858d9020863b64a0c749d1f",
+    "src/shared/canvas-bridge-protocol.ts": "9dd23702a8723b4aa5a7cc56729c22c0b9f8a3d904aaaf24132e3b78df01042f",
+    "src/shared/canvas-service-runtime.ts": "53541d258bc76d6b537cc2cf70d84def75c42f1af5066f5347933920b9f0dd7c",
+    "src/shared/protocol.ts": "40c43ce0a2f9f4263b6d21adfdc749f3a2264bfb35553dfff427975ab638348f",
+    "src/host/asset-resolver.ts": "7cfeb9750f803127ee3430a95ddc908045f74e3ee3a9d9cc385621d293c42dde",
+    "src/host/canvas-assets.ts": "cfa98d930d17b18b376141fc6f4686b16f7feb2d8ac64c147e130b547d8e909a",
+    "src/host/canvas-get.ts": "cb38c39c7784613153f6cfc455b916168e4374c0478dffe993f7ab9197cb453c",
+    "src/client/canvas-bridge.ts": "63869f12d879b5465263317c2706b3fbe7703405ca6f02a4d53c2193de715cc6",
+    "src/client/canvas-service.ts": "f090e52c47237b0f10a26647aeba8926c23b570b078962739364288538c1c795",
+    "canvas-app/src/agent-adapter.ts": "38673a8a691437e49b91ff9908b46253951ce25724201a1453c176ce24fd1c92",
+    "canvas-app/src/agent-node-policy.ts": "53e35d5166cb71cb188858b5eb1da723b383d8343dcd0aa411323fc595c3a1cb",
+    "canvas-app/src/agent-edge-policy.ts": "609d19da4cd6abfa964c5b21d161697729633a549d80add9d4800b193c385324",
+    "canvas-app/src/agent-model-policy.ts": "b218a31c2b1d526efed4145d43e2b9f1b478e0eea28fb62d9e3e090c5133b4b8",
+    "canvas-app/src/canvas-context.ts": "41a92660594619ae9ec322c1374b246fd5d398259f631b9ca3f0c35781edc0a0",
+    "canvas-app/src/canvas-service.ts": "5aec8d809c9d136df3b19997da9d739a7c686b51a944efce51beac0bcb88cb52",
+    "canvas-app/legacy/src/store/flowStoreCore.ts": "a340831cab0366d439d90cbd8ae4790dbe954388732c13e021cf99c4563d90ba",
+    "test/canvas-tools.test.mjs": "ab680bdeb72d93320992a7f0eb33c6daf78ecf87b7fcbd9c49b457b67fba4f99",
+    "test/canvas-graph-tools.test.mjs": "db492bb8682e3e8d419a0813dac13fdb44a275d9abae1639dd30815d8738f560",
+    "test/canvas-asset-tools.test.mjs": "db9d468f1d4537c9d581f1b4a196baeb1e63dc473217af9430bfd81b32097ec1"
+  }
+}

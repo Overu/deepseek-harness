@@ -1,0 +1,121 @@
+#root {
+  margin: 0 auto;
+}
+
+* {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 5px;
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 10px;
+    background-color: #5e5e5e;
+    /* background-color: var(--muted); */
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: var(--muted-foreground);
+    /* background: var(--muted-foreground); */
+  }
+}
+
+/* For Webkit-based browsers (Chrome, Safari) */
+.hide-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.hide-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hide-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.hide-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+}
+
+.hide-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.hide-scrollbar:hover {
+  scrollbar-color: #d1d5db transparent;
+}
+
+.chat-send-button {
+  display: flex;
+  align-items: center;
+  /* 不能加宽度, 否则赛点值超出宽度会导致样式有问题 */
+  /* width: 80px; */
+  line-height: normal;
+  box-shadow: none !important;
+  border: none !important;
+  background: linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0 !important;
+  background-blend-mode: overlay, normal;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 6px 16px;
+  box-shadow: inset 0px 0px 20px 4px rgba(64, 185, 248, 0.5);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-send-button.ant-sender-actions-btn-disabled {
+  opacity: 0.6;
+}
+
+.chat-send-button:hover {
+  background:
+    linear-gradient(0deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)), linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0 !important;
+  background-blend-mode: normal, overlay, normal;
+}
+
+/* 公共背景样式：平铺图片并填充空白(白色) */
+.bg-pattern-fill {
+  /* 填充底层背景颜色（防止透明部分透出网页底色） */
+  background-color: #ffffff;
+  /* background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABHNCSVQICAgIfAhkiAAAAGJJREFUWIXt17EJADEMxdAk3ALef0iP4Fvhg4qk0KuNEWmC98zMCnR3MraqKppL951o6iIDKQMpAykDqe/WD5Hue/4FDaQMpAykDKS2NwlkIGUgZSBlIOVNQhlIGUgZSBlI/ZT6H+VDrQkQAAAAAElFTkSuQmCC'); */
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAARzQklUCAgICHwIZIgAAABQSURBVFiF7daxCQAwCETRJDiFpfvP5RrJBmdlkuJfewgPQXBGxB4i7q7qkZmyr+aXbC8EAAAA1n3n1fzzDQAAAMC675x/AACA7wH8AwAAADiIQhb5jSq56gAAAABJRU5ErkJggg==');
+  background-repeat: repeat;
+  background-position: top left;
+  /* opacity: 0.1; */
+  /* 如果图片在高分屏下显得模糊，可以固定背景尺寸(可选) */
+  background-size: 40px 40px;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* 脉冲动画 */
+@keyframes im-pulse {
+  0% {
+    box-shadow: 0 0 0 0px rgba(255, 255, 255, 0.4);
+  }
+
+  70% {
+    box-shadow: 0 0 0 15px rgba(255, 255, 255, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0px rgba(255, 255, 255, 0);
+  }
+}

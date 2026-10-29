@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会话与 agent loop（智能体循环）、面向模型的工具、shell 与文件系统执行、Web 访问、subagent 等等。把本页当作顶层地图使用：先找到拥有某能力的组，再打开其 README 查看包列表。每个包都以 `@deepseek-ai/dsh-*` 为作用域、只属于一个组；每个组的 README 都是该能力系列的权威包映射。
+按能力分组查找包，再打开所属组的 README。公开 harness 包使用 `@deepseek-ai/dsh-*`，Insight 私有组件保留原有插件名。每个包只属于一个组，其 README 列出该组的包。
 
 ## 目录
 
@@ -78,6 +78,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`boot/`](boot/README.zh.md) | 共享的 app bin 启动粘合层 |
 | [`host/`](host/README.zh.md) | Web GUI 宿主服务、目录选择、应用启动、插件清单和产品遥测 |
 | [`client/`](client/README.zh.md) | web GUI 浏览器半侧：shell、协议层、对象服务、slot、`ui-*` 插件 |
+| [`insight/`](insight/README.zh.md) | Insight 私有产品组件 |
 | [`test-support/`](test-support/README.zh.md) | 测试基础设施（testkit、回放、Loader 冒烟测试） |
 | [`util/`](util/README.zh.md) | 组间共享的低层工具与纯数据包列表（`Branded<B>`、home／路径辅助函数、超时、留存、官方组合包列表） |
 

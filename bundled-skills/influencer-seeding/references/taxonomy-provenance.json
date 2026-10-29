@@ -1,0 +1,16 @@
+{
+  "snapshot_date": "2026-09-22",
+  "human_needs": {
+    "source": "human-needs-insight/data/human-needs.json",
+    "source_sha256": "33d4d52c6b1d307d33a3636fa417089d022d36925c89c69c27b06c459024dd69",
+    "categories": 7,
+    "count": 224
+  },
+  "creative_techniques": {
+    "source": "human-needs-insight/references/knowledge-creative-techniques.md",
+    "source_sha256": "d2152de3eed8891af9f434179be651c7026939ea0b96c411619ac812d1f45bd0",
+    "categories": 3,
+    "count": 98,
+    "correction": "原包声明97，但其分组计数与当前完整维护字典均为98；不再传播错误总数。"
+  }
+}

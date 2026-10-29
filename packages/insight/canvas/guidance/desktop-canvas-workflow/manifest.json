@@ -1,0 +1,13 @@
+{
+  "name": "desktop-canvas-workflow",
+  "description": "创建编辑画布、查找打开定位、复用素材、生成及高清/分层/抠图处理时使用；按需读取章节并简洁交付。",
+  "routingHint": "涉及画布或画布素材处理时按需加载desktop-canvas-workflow；工具事实以当前目录和回执为准。",
+  "references": [
+    "references/media-reuse.md",
+    "references/graph-and-generation.md",
+    "references/interaction-and-output.md",
+    "references/recovery.md",
+    "references/navigation-and-layout.md",
+    "references/specialized-processing.md"
+  ]
+}

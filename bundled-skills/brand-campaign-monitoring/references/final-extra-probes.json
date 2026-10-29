@@ -1,0 +1,5 @@
+[
+  {"id":"instagram.detail","platform":"instagram","method":"GET","path":"/api/v1/instagram/v1/fetch_post_by_id","params":{"post_id":"3965800142503447439"}},
+  {"id":"linkedin.post_detail","platform":"linkedin","method":"GET","path":"/api/v1/linkedin/web_v2/get_post_detail","params":{"url":"https://www.linkedin.com/posts/satyanadella_open-weights-and-american-ai-leadership-ugcPost-7486411389083996160-dCD3"}},
+  {"id":"linkedin.post_comments","platform":"linkedin","method":"GET","path":"/api/v1/linkedin/web_v2/get_post_comments","params":{"urn":"7486454224008998913","share_urn":"7486411389083996160","sort_by":"Most relevant","page":1}}
+]

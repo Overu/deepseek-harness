@@ -1,0 +1,264 @@
+<presentation xmlns="https://www.larkoffice.com/sml/2.0" width="960" height="540">
+  <!-- Local native chart syntax fixtures only; sample data is not business evidence. Use the current font/readability contract for final slides. -->
+  <title>Native chart syntax examples</title>
+  <slide>
+    <!-- column -->
+    <data>
+      <chart width="270" height="350" topLeftX="42" topLeftY="132">
+        <chartPlotArea>
+          <chartPlot type="column">
+            <chartExtra />
+          </chartPlot>
+          <chartAxes>
+            <chartAxis type="x">
+              <chartLabel fontSize="9" />
+            </chartAxis>
+            <chartAxis type="y" position="left">
+              <chartGridLine color="rgb(226, 232, 240)" />
+              <chartLabel fontSize="9" />
+            </chartAxis>
+          </chartAxes>
+        </chartPlotArea>
+        <chartData>
+          <dim1>
+            <chartField name="季度">Q1,Q2,Q3,Q4</chartField>
+          </dim1>
+          <dim2>
+            <chartField name="营收">52,48,55,68</chartField>
+          </dim2>
+        </chartData>
+        <chartStyle>
+          <chartBackground color="rgba(0, 0, 0, 0)" />
+          <chartBorder color="rgb(222, 224, 227)" width="0" />
+          <chartColorTheme>
+            <color value="rgb(28, 71, 120)" />
+          </chartColorTheme>
+        </chartStyle>
+      </chart>
+    </data>
+  </slide>
+  <slide>
+    <!-- line -->
+    <data>
+      <chart width="270" height="350" topLeftX="345" topLeftY="132">
+        <chartPlotArea>
+          <chartPlot type="line">
+            <chartExtra />
+          </chartPlot>
+          <chartAxes>
+            <chartAxis type="x">
+              <chartLabel fontSize="9" />
+            </chartAxis>
+            <chartAxis type="y" position="left">
+              <chartGridLine color="rgb(226, 232, 240)" />
+              <chartLabel fontSize="9" />
+            </chartAxis>
+          </chartAxes>
+        </chartPlotArea>
+        <chartData>
+          <dim1>
+            <chartField name="月份">1月,2月,3月,4月,5月</chartField>
+          </dim1>
+          <dim2>
+            <chartField name="活跃用户">30,42,39,55,60</chartField>
+          </dim2>
+        </chartData>
+        <chartStyle>
+          <chartBackground color="rgba(0, 0, 0, 0)" />
+          <chartBorder color="rgb(222, 224, 227)" width="0" />
+          <chartColorTheme>
+            <color value="rgb(28, 71, 120)" />
+          </chartColorTheme>
+        </chartStyle>
+      </chart>
+    </data>
+  </slide>
+  <slide>
+    <!-- pie -->
+    <data>
+      <chart width="270" height="166" topLeftX="648" topLeftY="126">
+        <chartPlotArea>
+          <chartPlot type="pie" yAxisPosition="right">
+            <chartExtra />
+            <chartLabels position="outside" category="true" value="true" percentage="true" fontSize="10" />
+          </chartPlot>
+        </chartPlotArea>
+        <chartData>
+          <dim1>
+            <chartField name="渠道">直营,分销,线上</chartField>
+          </dim1>
+          <dim2>
+            <chartField name="占比">45,30,25</chartField>
+          </dim2>
+        </chartData>
+        <chartStyle>
+          <chartBackground color="rgba(0, 0, 0, 0)" />
+          <chartBorder color="rgb(222, 224, 227)" width="0" />
+          <chartColorTheme>
+            <color value="rgb(28, 71, 120)" />
+            <color value="rgb(240, 129, 54)" />
+            <color value="rgb(56, 142, 60)" />
+          </chartColorTheme>
+        </chartStyle>
+      </chart>
+    </data>
+  </slide>
+  <slide>
+    <!-- pie with innerRadius (doughnut) -->
+    <data>
+      <chart width="270" height="158" topLeftX="648" topLeftY="330">
+        <chartPlotArea>
+          <chartPlot type="pie" yAxisPosition="right">
+            <chartExtra />
+            <chartLabels position="outside" category="true" value="true" percentage="true" fontSize="10" />
+            <chartSeriesList>
+              <chartSeries index="1">
+                <chartSectors innerRadius="0.5" offsetRadius="0" startAngle="0" />
+              </chartSeries>
+            </chartSeriesList>
+          </chartPlot>
+        </chartPlotArea>
+        <chartData>
+          <dim1>
+            <chartField name="业务">硬件,服务,其他</chartField>
+          </dim1>
+          <dim2>
+            <chartField name="占比">50,30,20</chartField>
+          </dim2>
+        </chartData>
+        <chartStyle>
+          <chartBackground color="rgba(0, 0, 0, 0)" />
+          <chartBorder color="rgb(222, 224, 227)" width="0" />
+          <chartColorTheme>
+            <color value="rgb(28, 71, 120)" />
+            <color value="rgb(240, 129, 54)" />
+            <color value="rgb(56, 142, 60)" />
+          </chartColorTheme>
+        </chartStyle>
+      </chart>
+    </data>
+  </slide>
+  <slide>
+    <!-- bar -->
+    <data>
+      <chart width="270" height="350" topLeftX="42" topLeftY="132">
+        <chartPlotArea>
+          <chartPlot type="bar">
+            <chartExtra />
+          </chartPlot>
+          <chartAxes>
+            <chartAxis type="y" position="left">
+              <chartLabel fontSize="9" />
+            </chartAxis>
+            <chartAxis type="x">
+              <chartGridLine color="rgb(226, 232, 240)" />
+              <chartLabel fontSize="9" />
+            </chartAxis>
+          </chartAxes>
+        </chartPlotArea>
+        <chartLegend position="bottom" fontSize="10" />
+        <chartData>
+          <dim1>
+            <chartField name="品类">手机,平板,手表,耳机</chartField>
+          </dim1>
+          <dim2>
+            <chartField name="2025">180,68,42,96</chartField>
+            <chartField name="2026">210,82,58,132</chartField>
+          </dim2>
+        </chartData>
+        <chartTitle fontSize="12" color="rgba(15, 30, 58, 1)" bold="true">品类销售对比（万台）</chartTitle>
+        <chartStyle>
+          <chartBackground color="rgba(0, 0, 0, 0)" />
+          <chartBorder color="rgb(222, 224, 227)" width="0" />
+          <chartColorTheme>
+            <color value="rgb(28, 71, 120)" />
+            <color value="rgb(240, 129, 54)" />
+          </chartColorTheme>
+        </chartStyle>
+      </chart>
+    </data>
+  </slide>
+  <slide>
+    <!-- area -->
+    <data>
+      <chart width="270" height="350" topLeftX="42" topLeftY="132">
+        <chartPlotArea>
+          <chartPlot type="area">
+            <chartExtra />
+          </chartPlot>
+          <chartAxes>
+            <chartAxis type="x">
+              <chartLabel fontSize="9" />
+            </chartAxis>
+            <chartAxis type="y" position="left">
+              <chartGridLine color="rgb(226, 232, 240)" />
+              <chartLabel fontSize="9" />
+            </chartAxis>
+          </chartAxes>
+        </chartPlotArea>
+        <chartLegend position="bottom" fontSize="10" />
+        <chartData>
+          <dim1>
+            <chartField name="年份">2021,2022,2023,2024,2025,2026</chartField>
+          </dim1>
+          <dim2>
+            <chartField name="北美">180,210,245,268,295,322</chartField>
+            <chartField name="亚太">120,155,180,220,258,296</chartField>
+          </dim2>
+        </chartData>
+        <chartTitle fontSize="12" color="rgba(15, 30, 58, 1)" bold="true">全年营收走势（亿美元）</chartTitle>
+        <chartStyle>
+          <chartBackground color="rgba(0, 0, 0, 0)" />
+          <chartBorder color="rgb(222, 224, 227)" width="0" />
+          <chartColorTheme>
+            <color value="rgb(28, 71, 120)" />
+            <color value="rgb(240, 129, 54)" />
+          </chartColorTheme>
+        </chartStyle>
+      </chart>
+    </data>
+  </slide>
+  <slide>
+    <!-- radar -->
+    <data>
+      <chart width="270" height="350" topLeftX="42" topLeftY="132">
+        <chartPlotArea>
+          <chartPlot type="radar">
+            <chartExtra>
+              <chartRadar />
+            </chartExtra>
+            <chartAreas />
+          </chartPlot>
+          <chartAxes>
+            <chartAxis type="angle">
+              <chartLabel fontSize="9" />
+            </chartAxis>
+            <chartAxis type="radius" max="10">
+              <chartGridLine color="rgb(226, 232, 240)" />
+              <chartLabel fontSize="8" />
+            </chartAxis>
+          </chartAxes>
+        </chartPlotArea>
+        <chartLegend position="bottom" fontSize="10" />
+        <chartData>
+          <dim1>
+            <chartField name="维度">性能,续航,拍照,屏幕,系统,生态</chartField>
+          </dim1>
+          <dim2>
+            <chartField name="品牌 A">9,7,8,9,8,9</chartField>
+            <chartField name="品牌 B">7,9,9,7,8,6</chartField>
+          </dim2>
+        </chartData>
+        <chartTitle fontSize="12" color="rgba(15, 30, 58, 1)" bold="true">旗舰机型能力评估</chartTitle>
+        <chartStyle>
+          <chartBackground color="rgba(0, 0, 0, 0)" />
+          <chartBorder color="rgb(222, 224, 227)" width="0" />
+          <chartColorTheme>
+            <color value="rgb(28, 71, 120)" />
+            <color value="rgb(240, 129, 54)" />
+          </chartColorTheme>
+        </chartStyle>
+      </chart>
+    </data>
+  </slide>
+</presentation>

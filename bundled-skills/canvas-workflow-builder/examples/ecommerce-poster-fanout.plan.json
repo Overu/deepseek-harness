@@ -1,0 +1,227 @@
+{
+  "goal": "为「奥迪超级跑车」搭建可复用的电商海报工作流：1 张素材图 + 2 个文本节点 → 3 张 3:4 主图（4K，三版式并行）",
+  "archetype": "A2",
+  "brief": {
+    "deliverables": [
+      {
+        "kind": "image",
+        "count": 3,
+        "ratio": "3:4",
+        "resolution": "4K",
+        "platform": "详情页首图 / 投放主图"
+      }
+    ],
+    "assets": [
+      {
+        "role": "商品实拍图（超跑）",
+        "kind": "image",
+        "uploader": "agent",
+        "source": "attachment",
+        "nodeLocalId": "in_product"
+      }
+    ],
+    "text": {
+      "title": "奥迪超级跑车",
+      "selling_points": [
+        "超跑",
+        "0-100km/h 1.2s（官方数据）",
+        "199 万"
+      ],
+      "price": "199万",
+      "cta": "立即预约试驾"
+    },
+    "style": "高级黑银科技感 + 赛道速度感；主色银灰 #C9CCD1，辅助赛道红 #E2001A 与深空黑 #0B0B0D",
+    "compliance": [
+      "不使用绝对化用语",
+      "品牌 logo 与商标需授权",
+      "性能数据需标注官方来源"
+    ]
+  },
+  "nodes": [
+    {
+      "localId": "in_product",
+      "role": "input",
+      "type": "image",
+      "title": "① 商品实拍图（输入）",
+      "source": "attachment",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0,
+          "y": 280.0
+        }
+      }
+    },
+    {
+      "localId": "t_copy",
+      "role": "text",
+      "type": "text",
+      "title": "③ 画面文案",
+      "textMode": "copy",
+      "text": "标题：奥迪超级跑车\n卖点行：超跑｜0-100km/h 1.2s（官方数据）｜199 万\n价格：￥199 万\n按钮：立即预约试驾",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 520,
+          "y": 840.0
+        }
+      }
+    },
+    {
+      "localId": "t_brief",
+      "role": "text",
+      "type": "text",
+      "title": "② 产品信息 Brief",
+      "textMode": "copy",
+      "text": "【产品】奥迪超级跑车\n【卖点】官方 0-100km/h 1.2s、碳纤维车身\n【价格】￥199 万",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0,
+          "y": 840
+        }
+      }
+    },
+    {
+      "localId": "g_dark",
+      "role": "generator",
+      "type": "image",
+      "title": "④ 主图·暗色展厅",
+      "prompt": "图1 为商品参考，保持车身造型、银灰金属车漆、黑色轮毂、红色灯带与车头 logo 完全一致，不得改变车型与比例。深空黑展厅背景，顶部柔光箱 + 左右轮廓光，低机位 3/4 前侧视角，车身占画面高度约 55%，地面自然投影与轻微速度拖影；顶部标题「奥迪超级跑车」，右侧竖排三条卖点「超跑｜0-100km/h 1.2s｜199 万」，底部价格「￥199 万」与圆角按钮「立即预约试驾」。3:4 竖版，商业汽车摄影质感，中文文字清晰锐利无错字，无水印、无多余人物、无乱码。",
+      "config": {
+        "modelType": "reference_image_to_image",
+        "model": "gpt-image-2",
+        "params": {
+          "aspect_ratio": "3:4",
+          "resolution": "4K",
+          "quality": "high",
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 1040,
+          "y": 0.0
+        }
+      }
+    },
+    {
+      "localId": "g_promo",
+      "role": "generator",
+      "type": "image",
+      "title": "⑤ 促销海报·价格角标",
+      "prompt": "图1 为商品参考，保持车身造型、车漆颜色、轮毂与 logo 一致，不得改形。深灰到黑渐变背景 + 红色光斑点缀，画面右上角红色圆形角标写「199 万」，中部低角度展示车身，底部通栏深色条写「超跑｜1.2s 破百｜立即预约试驾」。整体促销氛围但保持高级感，不堆砌装饰；3:4 竖版，中文文字无错字，无水印、无乱码。",
+      "config": {
+        "modelType": "reference_image_to_image",
+        "model": "gpt-image-2",
+        "params": {
+          "aspect_ratio": "3:4",
+          "resolution": "4K",
+          "quality": "high",
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 1040,
+          "y": 560.0
+        }
+      }
+    },
+    {
+      "localId": "g_clean",
+      "role": "generator",
+      "type": "image",
+      "title": "⑥ 主图·极简棚拍",
+      "prompt": "图1 为商品参考，保持车身外观、logo 与比例一致。银灰渐变纯色背景，无场景元素，车身居中占画面 60%，均匀柔光 + 底部反射投影，极简高级；顶部无文字，底部一行小字卖点「超跑｜1.2s 破百｜199 万」。3:4 竖版，电商主图规范：主体清晰、留白充足、文字距边缘 ≥5%，无水印、无乱码。",
+      "config": {
+        "modelType": "reference_image_to_image",
+        "model": "gpt-image-2",
+        "params": {
+          "aspect_ratio": "3:4",
+          "resolution": "4K",
+          "quality": "high",
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 1040,
+          "y": 1120.0
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "in_product",
+      "to": "g_dark",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "in_product",
+      "to": "g_promo",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "in_product",
+      "to": "g_clean",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "t_copy",
+      "to": "g_dark",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    },
+    {
+      "from": "t_copy",
+      "to": "g_promo",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    },
+    {
+      "from": "t_copy",
+      "to": "g_clean",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    },
+    {
+      "from": "t_brief",
+      "to": "t_copy",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    }
+  ],
+  "runs": [
+    "g_dark",
+    "g_promo",
+    "g_clean"
+  ],
+  "manualSteps": [
+    {
+      "node": "t_copy",
+      "reason": "文案节点在下游（有入边），需用户在画布内运行/确认后才能供图节点使用",
+      "action": "在画布内点运行并检查文案"
+    }
+  ],
+  "estimate": {
+    "images": 3,
+    "videos": 0,
+    "points": "3 张 4K/high（gpt-image-2 计费点 13-895 区间，4K+high 落高档；快照口径，实时以 canvas_models/账务为准）",
+    "needsConfirmation": false
+  },
+  "acceptance": [
+    "三张图的车辆造型/颜色/logo 与参考图一致",
+    "三张版式确有差异（展厅 / 促销 / 极简）且都符合 3:4 主图规范",
+    "中文标题、卖点、价格无错字无乱码",
+    "文字距画面边缘 ≥5%",
+    "无绝对化用语，性能数据标注官方来源"
+  ]
+}

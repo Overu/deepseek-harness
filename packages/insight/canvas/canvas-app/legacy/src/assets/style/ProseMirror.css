@@ -1,0 +1,20 @@
+.ProseMirror {
+  outline: none !important;
+  min-height: 100px;
+  padding: 0;
+  background: transparent;
+}
+
+/* Custom styling for the mention node when focused */
+.ProseMirror-selectednode {
+  outline: none !important;
+  filter: brightness(0.95);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}

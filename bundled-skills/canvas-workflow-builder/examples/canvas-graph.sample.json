@@ -1,0 +1,106 @@
+{
+ "canvasId": "103442",
+ "version": "17",
+ "nodeCount": 6,
+ "edgeCount": 7,
+ "nodes": [
+  {
+   "id": "79f38c0a-6b86-422e-85fe-937f2b60c38b",
+   "type": "image",
+   "title": "① 商品实拍图（输入）",
+   "position": {
+    "x": 0,
+    "y": 0
+   }
+  },
+  {
+   "id": "9e886130-61e5-4599-8154-5e2d42cd174e",
+   "type": "text",
+   "title": "② 产品信息 Brief",
+   "position": {
+    "x": 0,
+    "y": 620
+   }
+  },
+  {
+   "id": "1e52a8b3-d38a-48c9-9f92-e0ac69e2aea6",
+   "type": "text",
+   "title": "③ 画面文案",
+   "position": {
+    "x": 0,
+    "y": 1240
+   }
+  },
+  {
+   "id": "909617ad-9c75-48ad-bf48-83d2e529d852",
+   "type": "image",
+   "title": "④ 主图·暗色展厅",
+   "position": {
+    "x": 1500,
+    "y": 0
+   }
+  },
+  {
+   "id": "1a1afed6-e6f9-496f-a514-606a34c0ac4c",
+   "type": "image",
+   "title": "⑤ 促销海报·价格角标",
+   "position": {
+    "x": 1500,
+    "y": 620
+   }
+  },
+  {
+   "id": "209a1c59-c947-4132-a533-037f420561d6",
+   "type": "image",
+   "title": "⑥ 主图·极简棚拍",
+   "position": {
+    "x": 1500,
+    "y": 1240
+   }
+  }
+ ],
+ "edges": [
+  {
+   "source": "9e886130-61e5-4599-8154-5e2d42cd174e",
+   "target": "1e52a8b3-d38a-48c9-9f92-e0ac69e2aea6",
+   "sourceHandle": "text_source",
+   "targetHandle": "text_target"
+  },
+  {
+   "source": "79f38c0a-6b86-422e-85fe-937f2b60c38b",
+   "target": "909617ad-9c75-48ad-bf48-83d2e529d852",
+   "sourceHandle": "image_source",
+   "targetHandle": "image_target"
+  },
+  {
+   "source": "1e52a8b3-d38a-48c9-9f92-e0ac69e2aea6",
+   "target": "909617ad-9c75-48ad-bf48-83d2e529d852",
+   "sourceHandle": "text_source",
+   "targetHandle": "text_target"
+  },
+  {
+   "source": "79f38c0a-6b86-422e-85fe-937f2b60c38b",
+   "target": "1a1afed6-e6f9-496f-a514-606a34c0ac4c",
+   "sourceHandle": "image_source",
+   "targetHandle": "image_target"
+  },
+  {
+   "source": "1e52a8b3-d38a-48c9-9f92-e0ac69e2aea6",
+   "target": "1a1afed6-e6f9-496f-a514-606a34c0ac4c",
+   "sourceHandle": "text_source",
+   "targetHandle": "text_target"
+  },
+  {
+   "source": "79f38c0a-6b86-422e-85fe-937f2b60c38b",
+   "target": "209a1c59-c947-4132-a533-037f420561d6",
+   "sourceHandle": "image_source",
+   "targetHandle": "image_target"
+  },
+  {
+   "source": "1e52a8b3-d38a-48c9-9f92-e0ac69e2aea6",
+   "target": "209a1c59-c947-4132-a533-037f420561d6",
+   "sourceHandle": "text_source",
+   "targetHandle": "text_target"
+  }
+ ]
+}

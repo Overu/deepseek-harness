@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/insight/memory-evolve/README.md
+/:
+  en: d9a2594d5ba8c13b
+  zh: 8efbc813ea92c6ca
+/dsh-memory-evolve:
+  en: 13a06e023b440a48
+  zh: f5eb74c11ee80f61
+/dsh-memory-evolve/summary:
+  en: d166702636307425
+  zh: 21d83524c001d110
+/dsh-memory-evolve/table-of-contents:
+  en: 76368b6b1da79c80
+  zh: 52384aee991ac542
+/dsh-memory-evolve/use-this-package:
+  en: b74331529812c9be
+  zh: aca005670e68d583
+/dsh-memory-evolve/understand-the-implementation:
+  en: 3403ccfa4307f776
+  zh: ffe930f02d14246c
+/dsh-memory-evolve/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/dsh-memory-evolve/model-experience/layered-memory-context:
+  en: 141670b438f1f808
+  zh: 8f6f495da753f257
+/dsh-memory-evolve/model-experience/layered-memory-context/what-the-model-sees:
+  en: da09e3fc52279a44
+  zh: 6841db1ea16fb249
+/dsh-memory-evolve/model-experience/layered-memory-context/token-effect:
+  en: d81446d44986839b
+  zh: c472169a7b32b135
+/dsh-memory-evolve/model-experience/layered-memory-context/kv-cache-effect:
+  en: a95f7f8c4a1e74bf
+  zh: 97ceb84d1254c8ea
+/dsh-memory-evolve/known-limitations-and-deferred-work:
+  en: 9e680eafe8bdc76f
+  zh: bb3ab6e4fb49b4b0
+/dsh-memory-evolve/known-limitations-and-deferred-work/dev-note:
+  en: d54467a34f0b85b4
+  zh: debd7c3cad85acad

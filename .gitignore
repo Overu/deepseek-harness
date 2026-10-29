@@ -1,5 +1,6 @@
 CLAUDE.local.md
 .env
+!packages/insight/canvas/canvas-app/.env
 apps/desktop/.env.windows
 apps/desktop/.env.macos
 apps/desktop/*.p12
@@ -47,3 +48,7 @@ worktrees/
 .agents/worktrees/
 .typert-*/
 native/system/test/bin/
+
+# Generated Insight client labels; source skills remain an externally synchronized directory.
+/build/skill-presentations.json
+packages/insight/canvas/canvas-app/dist/

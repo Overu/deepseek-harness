@@ -1,0 +1,544 @@
+{
+  "schema_version": "1.2",
+  "last_updated_at": "2026-10-16",
+  "transport": "enterprise_proxy",
+  "connection_id": "tikhub",
+  "status_vocabulary": {
+    "live": "本轮或既有 POC 已取得有效业务数据",
+    "fallback": "可用，但必须固定指定版本或参数",
+    "catalog": "OpenAPI 存在、尚未逐条实测；先做单对象健康检查（调用器 --allow-catalog）再扩样",
+    "failed": "已知返回错误、空发现或嵌套超时，不进入默认链路",
+    "seed_only": "只支持用户给定账号、URL 或内容 ID 的背调"
+  },
+  "rules": [
+    "任何按达人 ID 返回画像/传播/地域/市场/商业能力的路由，首次使用或状态变更后必须先做双对象语义健康检查（scripts/tikhub_guard.py canary）",
+    "先做每条路由一笔探测再批量扩样；任务台账内 upstream_error/invalid_response 会熔断该路由，修正后仅用 --recheck-route 做一次诊断复测",
+    "HTTP 200 仍须检查 detail.code 与 data.base_resp.status_code；正常空搜索记 empty，不据此全局停用端点；403 无明确鉴权错误证据时不能判定密钥失效",
+    "失败调用若平台声明不计费则不重复计费，但失败本身必须写进查询台账"
+  ],
+  "endpoints": [
+    {
+      "name": "xingtu_search_kol_v2",
+      "response_validation": {
+        "result_path": "data.authors",
+        "result_type": "list"
+      },
+      "path": "/api/v1/douyin/xingtu/search_kol_v2",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "抖音星图达人候选发现（当前首选发现路由）",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "query"
+        },
+        "followerRange": {
+          "location": "query",
+          "meaning": "粉丝范围，如 10-100 表示 10万-100万；实测 '1-5' 返回空数组"
+        },
+        "contentTag": {
+          "location": "query",
+          "meaning": "内容标签，如 tag-1 或 tag_level_two-7"
+        }
+      },
+      "response_fields": [
+        "data.authors[].star_id",
+        "data.authors[].attribute_datas.nick_name",
+        "data.authors[].attribute_datas.core_user_id",
+        "data.authors[].attribute_datas.follower",
+        "data.authors[].attribute_datas.province/city",
+        "data.authors[].attribute_datas.gender",
+        "data.authors[].attribute_datas.price_20_60",
+        "data.authors[].attribute_datas.price_60",
+        "data.authors[].attribute_datas.last_10_items（item_title/vv/like_cnt/comment_cnt/share_cnt/item_publish_time）",
+        "data.authors[].attribute_datas.content_theme_labels_180d",
+        "data.authors[].attribute_datas.tags_relation",
+        "data.authors[].attribute_datas.interact_rate_within_30d",
+        "data.authors[].attribute_datas.play_over_rate_within_30d",
+        "data.authors[].attribute_datas.expected_play_num",
+        "data.authors[].attribute_datas.link_spread_index/link_convert_index/link_shopping_index",
+        "data.authors[].task_infos[].price_infos[]（task_category/video_type/price/start_time/end_time，online_status=1 表示在架接单）"
+      ],
+      "limitations": [
+        "单次最多返回 20 位；不声明 page，调用器拒绝伪翻页；按多关键词与 followerRange 切分后以 star_id 去重",
+        "online_status=1、报价有效期和抓取时间只证明接单可用性，不证明近90天发生过商单；last_10_items 默认也是普通内容样本"
+      ],
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调多关键词均返回作者列表（含报价/粉丝/近10条作品）"
+    },
+    {
+      "name": "xingtu_search_creator",
+      "fallback_path": "/api/v1/douyin/xingtu/search_kol_v2",
+      "path": "/api/v1/douyin/xingtu_v2/search_creator",
+      "method": "GET",
+      "status": "failed",
+      "last_verified_at": "2026-09-21",
+      "last_failure_at": "2026-10-16",
+      "failure": "上游 400（Request failed. Please retry；明确不计费）。2026-10-16 按官方 OpenAPI 逐条核对后复测 5 种形态全部 400：① 官方示例2（keyword=飞机&seach_type=3&time_range_days=180）；② 官方示例3 纯条件筛选（keyword 留空+tag/gender/fans_min/fans_max/extra_filter 原样照抄）；③ 最小纯条件筛选；④ 仅报价筛选（price_type=2+price_min/price_max）；⑤ 精确昵称（seach_type=2&keyword=足球张雨琦）。同族 search_anchor、search_toutiao_creator、xingtu/search_kol_v1 同时段同样 400，而 xingtu/search_kol_v2 正常 → 判定为TikHub 星图 v2 搜索族后端故障，与调用方参数无关。request_id 例：4e292fe6-0b54-4736-a00e-345b74838ac8（可提交支持）。",
+      "recovery_note": "恢复后：keyword 可留空，留空即纯条件筛选（官方示例3）；服务端原生支持报价（price_type=1/2/3 配合 price_min/price_max，必须成对提供）、粉丝（fans_min/max）、效果（expected_play_*、cpm_*、cpe_*、interact_rate_*、play_over_rate_*、burst_text_rate_*）、达人属性（tag/persona_tags/gender）与 extra_filter（内容主题 content_theme_labels_180d、观众性别/年龄/八大人群 link_crowd_profile、地域等动态字段）；筛选值来源：tag/persona_tags 用 get_author_market_fields，动态画像字段用 get_search_field_options。该形态比「先全量拉取再本地过滤」更省调用与费用，恢复后应优先使用。seach_type=3 为按内容发现，seach_type=2 仅用于已知昵称核验。",
+      "parameter_transport": "query",
+      "required_parameters": [],
+      "parameters": {
+        "keyword": {
+          "location": "query"
+        },
+        "seach_type": {
+          "location": "query",
+          "default": 2,
+          "meaning": "3=按内容/作品语义发现候选；2=按昵称，仅适用于已知账号核验",
+          "api_default": 2,
+          "policy_required_value": 3,
+          "policy_note": "API 默认值为 2（按昵称找人）；按内容/作品语义发现必须显式传 seach_type=3，否则会退化成昵称搜索并把结果当成类目候选池"
+        },
+        "time_range_days": {
+          "location": "query",
+          "default": 180,
+          "allowed": [
+            30,
+            90,
+            180
+          ]
+        },
+        "page": {
+          "location": "query",
+          "default": 1
+        }
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "xingtu_search_anchor",
+      "fallback_note": "无已验证的等价直播主播搜索替代；search_kol_v2 仅短视频候选，不视为主播候选覆盖",
+      "path": "/api/v1/douyin/xingtu_v2/search_anchor",
+      "method": "GET",
+      "status": "failed",
+      "last_failure_at": "2026-10-16",
+      "failure": "与 search_creator 同一时段的上游 400",
+      "recovery_note": "主播搜索；直播报价类型固定为 9，筛选参数与 search_creator 同构",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "query"
+        },
+        "page": {
+          "location": "query",
+          "default": 1
+        }
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "xingtu_search_kol_v1",
+      "fallback_path": "/api/v1/douyin/xingtu/search_kol_v2",
+      "path": "/api/v1/douyin/xingtu/search_kol_v1",
+      "method": "GET",
+      "status": "failed",
+      "last_failure_at": "2026-10-16",
+      "failure": "上游 400（keyword 与 platformSource、page 均已提供）",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword",
+        "platformSource",
+        "page"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "query"
+        },
+        "platformSource": {
+          "location": "query"
+        },
+        "page": {
+          "location": "query"
+        }
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "xingtu_author_fans_distribution",
+      "response_validation": {
+        "result_path": "data.distributions",
+        "result_type": "list"
+      },
+      "path": "/api/v1/douyin/xingtu_v2/get_author_fans_distribution",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "达人粉丝画像：兴趣/城市等级/年龄/省份/城市/设备品牌/八大人群/性别/客单价/消费品类分布",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        },
+        "platform_source": {
+          "location": "query",
+          "default": 1
+        },
+        "platform_channel": {
+          "location": "query",
+          "default": 1
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "format": "19-digit string observed in live responses",
+        "two_object_canary_required": true
+      },
+      "response_fields": [
+        "data.distributions[].type_display",
+        "data.distributions[].distribution_list[].distribution_key/value",
+        "data.distributions[].description",
+        "data.last_update_time"
+      ],
+      "evidence_note": "平台模型标签，只能用于投放方向判断与 cohort 内比较；不得写成真实身份、家庭结构或购买行为核验",
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 双对象语义健康检查通过，返回省份/城市/年龄/兴趣等分布"
+    },
+    {
+      "name": "xingtu_author_spread_info",
+      "response_validation": {
+        "result_path": "data.play_mid"
+      },
+      "path": "/api/v1/douyin/xingtu_v2/get_author_spread_info",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "达人近30/90天传播表现：中位播放、完播率、互动率、稳定性、预期 CPM/CPE，并附同行业分位（overtake）",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        },
+        "platform_source": {
+          "location": "query",
+          "default": 1
+        },
+        "platform_channel": {
+          "location": "query",
+          "default": 1
+        },
+        "type": {
+          "location": "query",
+          "default": 1
+        },
+        "flow_type": {
+          "location": "query",
+          "default": 0
+        },
+        "only_assign": {
+          "location": "query",
+          "default": "false"
+        },
+        "range": {
+          "location": "query",
+          "default": 2,
+          "meaning": "2=近30天，3=近90天"
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "response_fields": [
+        "data.play_mid",
+        "data.play_over_rate.value/overtake",
+        "data.interact_rate.value/overtake",
+        "data.play_stability",
+        "data.item_rate.play_mid.overtake",
+        "data.expect_cpm",
+        "data.expect_cpe",
+        "data.sales_expect_cpm",
+        "data.avg_duration"
+      ],
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调返回近30天中位播放/完播率/互动率/预期CPM·CPE 与同业分位"
+    },
+    {
+      "name": "xingtu_author_local_info",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_local_info",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "达人常驻地（province_resident/city_resident），用于地域（如广东省 IP）判断",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        },
+        "platform_source": {
+          "location": "query",
+          "default": 1
+        },
+        "platform_channel": {
+          "location": "query",
+          "default": 1
+        },
+        "time_range": {
+          "location": "query",
+          "default": 30
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调返回 province_resident/city_resident"
+    },
+    {
+      "name": "xingtu_author_link_info",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_link_info",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "format": "19-digit string observed in live responses",
+        "two_object_canary_required": true
+      },
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调返回星图连接/种草/转化指数"
+    },
+    {
+      "name": "xingtu_author_market_fields",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_market_fields",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "data_level": "static_option_catalog",
+      "trap": "2026-10-16 双对象检查：传两个不同 star_id 返回完全相同的 39 键选项字典（author_gpm/avg_sale_amount/aweme_label 等），属筛选枚举而非达人画像；不得作为达人级富集结果写进报告。双对象语义健康检查可捕获此类固定默认响应。"
+    },
+    {
+      "name": "xingtu_hot_comment_tokens",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_hot_comment_tokens",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "author_id"
+      ],
+      "parameters": {
+        "author_id": {
+          "location": "query"
+        }
+      },
+      "id_contract": {
+        "parameter": "author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调返回 10 个热词及热度"
+    },
+    {
+      "name": "douyin_encrypt_uid_to_sec_uid",
+      "path": "/api/v1/douyin/web/encrypt_uid_to_sec_user_id",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "抖音 uid（星图 core_user_id）→ sec_user_id，用于生成达人抖音主页链接 https://www.douyin.com/user/{sec_user_id}",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "uid"
+      ],
+      "parameters": {
+        "uid": {
+          "location": "query"
+        }
+      },
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调 uid→sec_user_id 成功，用于生成抖音主页链接"
+    },
+    {
+      "name": "douyin_general_search_v2",
+      "path": "/api/v1/douyin/search/fetch_general_search_v2",
+      "method": "POST",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "抖音公共内容搜索，用于内容导向发现与「uid↔昵称」身份交叉核验",
+      "parameter_transport": "body",
+      "required_parameters": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "body"
+        },
+        "offset": {
+          "location": "body",
+          "default": 0
+        },
+        "count": {
+          "location": "body",
+          "default": 20
+        },
+        "cursor": {
+          "location": "body",
+          "default": 0,
+          "meaning": "OpenAPI 声明的翻页游标；offset/count 写法 2026-10-16 实测可用"
+        }
+      },
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调用于 5 位达人的 uid↔昵称交叉核验"
+    },
+    {
+      "name": "xingtu_audience_distribution",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_audience_distribution",
+      "method": "GET",
+      "status": "failed",
+      "last_failure_at": "2026-09-21",
+      "failure": "HTTP/业务 400（真实对象与官方示例参数均失败）；2026-10-16 复测仍不在默认链路，人群一律改用 get_author_fans_distribution",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      }
+    },
+    {
+      "name": "xingtu_author_base_info",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_base_info",
+      "method": "GET",
+      "status": "failed",
+      "last_failure_at": "2026-09-21",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      }
+    },
+    {
+      "name": "xingtu_kolid_by_uid",
+      "path": "/api/v1/douyin/xingtu_v2/get_xingtu_kolid_by_uid",
+      "method": "GET",
+      "status": "catalog",
+      "provenance": "live OpenAPI 2026-10-16；catalog=目录存在未实测，先用 --allow-catalog 做单对象健康检查",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "uid"
+      ],
+      "parameters": {
+        "uid": {
+          "location": "query"
+        }
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "xingtu_kolid_by_sec_user_id",
+      "path": "/api/v1/douyin/xingtu_v2/get_xingtu_kolid_by_sec_user_id",
+      "method": "GET",
+      "status": "catalog",
+      "provenance": "live OpenAPI 2026-10-16；用于把抖音侧发现的账号反查星图达人 ID",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "sec_user_id"
+      ],
+      "parameters": {
+        "sec_user_id": {
+          "location": "query"
+        }
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "xingtu_author_convert_ability",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_convert_ability",
+      "method": "GET",
+      "status": "catalog",
+      "provenance": "目录路由；2026-09-21 未通过业务健康检查，2026-10-16 未复测。GMV/点击/转化区间默认 platform_estimate",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "xiaohongshu_search_notes_v2",
+      "path": "/api/v1/xiaohongshu/app_v2/search_notes",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-10-16",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "query"
+        },
+        "page": {
+          "location": "query",
+          "default": 1
+        }
+      },
+      "price_usd": 0.002,
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 实调 keyword=啤酒 返回 20 条笔记；业务字段在 data.data.items[].note"
+    }
+  ]
+}

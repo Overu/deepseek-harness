@@ -1,0 +1,23 @@
+/* 颜色选择器 */
+.editor-custom_colorPicker {
+  width: 100%;
+
+  :global(.rcp-body > .rcp-section:first-child) {
+    width: 80%;
+    align-self: flex-end;
+  }
+
+  :global(.rcp-body > .rcp-section:last-child .rcp-fields-floor > .rcp-field) {
+    // width: 80% !important;
+    // justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    flex-direction: row-reverse;
+  }
+
+  .color-pen {
+    position: absolute;
+    left: 10px;
+    bottom: 84px;
+  }
+}

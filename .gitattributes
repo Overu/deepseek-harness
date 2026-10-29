@@ -6,6 +6,11 @@
 * text=auto eol=lf
 *.cmd text eol=crlf
 
+# Preserve byte-exact assets owned by the synchronized skill and Canvas sources.
+bundled-skills/** -text
+packages/insight/canvas/canvas-app/legacy/src/assets/aggrements/userPrivacy_zh_cn.html -text
+packages/insight/canvas/canvas-app/legacy/src/assets/aggrements/userService_zh_cn.html -text
+
 *.pdf binary
 
 # The persistence catalog is the readable projection of these generated schemas.

@@ -1,6 +1,7 @@
 packages:
   - vendor/*
   - packages/*/*
+  - packages/insight/canvas/canvas-app
   # The Landlock launcher is developed with its harness consumers but keeps
   # its native build and publication scripts under native/system.
   - native/system
@@ -15,6 +16,10 @@ packages:
   - python/sdk-runtime
 
 overrides:
+  # Canvas's retained renderer requires matching Motion modules.
+  'framer-motion@12.23.12>motion-dom': '12.23.12'
+  'framer-motion@12.23.12>motion-utils': '12.23.6'
+  'motion-dom@12.23.12>motion-utils': '12.23.6'
   'extract-zip>yauzl': '3.4.0'
   '@deepseek-ai/cosmokit': 'link:vendor/cosmokit'
   '@deepseek-ai/schemastery': 'link:vendor/schemastery'
@@ -29,6 +34,11 @@ peerDependencyRules:
 # default and only allow scripts we need. esbuild (native binary) and lefthook
 # (git hooks) genuinely need theirs.
 allowBuilds:
+  # Canvas uses the browser renderer; its Node canvas build is not part of Desktop.
+  canvas: false
+  core-js: false
+  es5-ext: false
+  '@tailwindcss/oxide': true
   esbuild: true
   lefthook: true
   # Cross-platform boundary for the persistent PTY backend, including ConPTY on Windows.

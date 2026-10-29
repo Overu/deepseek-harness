@@ -1,0 +1,49 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/insight/prompt-enhance/README.md
+/:
+  en: 9e197b1335cf22e7
+  zh: 2408084aa01940f0
+/dsh-prompt-enhance:
+  en: 3a32e6a4ac4d6e5b
+  zh: 087546753d2e59de
+/dsh-prompt-enhance/summary:
+  en: 9f7545b5b21c6a2f
+  zh: e373d978c3efc291
+/dsh-prompt-enhance/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: bda879a892f240f0
+/dsh-prompt-enhance/use-this-package:
+  en: d6a474e59800396f
+  zh: 5a63e11ee89b9db6
+/dsh-prompt-enhance/use-this-package/what-you-get:
+  en: a3044c6d4cb8c4ea
+  zh: a0f28818dfe58d3b
+/dsh-prompt-enhance/understand-the-implementation:
+  en: 444b114f8be2bd6c
+  zh: 21392e498454c5bb
+/dsh-prompt-enhance/further-exploration:
+  en: f5fbba2e2404e88c
+  zh: 93e58da7ba5fe2e3
+/dsh-prompt-enhance/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/dsh-prompt-enhance/model-experience/draft-enhancement-request:
+  en: e8cd053b99d9f405
+  zh: 7ffc7d75a7e4787c
+/dsh-prompt-enhance/model-experience/draft-enhancement-request/what-the-model-sees:
+  en: 358b72885edfaf9d
+  zh: 1253d65809b1c453
+/dsh-prompt-enhance/model-experience/draft-enhancement-request/token-effect:
+  en: 4fbd0f34a2ee2195
+  zh: 8ef5f7212d3e51fa
+/dsh-prompt-enhance/model-experience/draft-enhancement-request/kv-cache-effect:
+  en: 53ad899b48a2b917
+  zh: 5ec7d84349a55be0
+/dsh-prompt-enhance/known-limitations-and-deferred-work:
+  en: 186627bf9a9c12e6
+  zh: d48025ed5ae615f9
+/dsh-prompt-enhance/known-limitations-and-deferred-work/dev-note:
+  en: 8524200af8a42e5b
+  zh: 4946b637b0dc1215

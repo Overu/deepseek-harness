@@ -238,6 +238,12 @@ describe('package dependency scope', () => {
       '@deepseek-ai/dsh-util-values',
     ])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-deque']).toEqual(['Deque'])
+    expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-llm'])
+      .toEqual(['BlockAssembler', 'callConfigEquals', 'createUserMessage'])
+    expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-storage-domain'])
+      .toEqual(['defineDomain', 'domainTable'])
+    expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-tools']).toBeUndefined()
+    expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-tools']).toEqual(['defineTool'])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/schemastery']).toEqual(['default'])
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-session/types']).toBeUndefined()
     expect(PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports['@deepseek-ai/dsh-typert-protocol']).toBeUndefined()
@@ -255,6 +261,56 @@ describe('package dependency scope', () => {
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-session'])
       .toEqual(['SESSION_FORMAT_VERSION', 'appendPluginRecord', 'pluginRecordOf'])
     expect(PACKAGE_DEPENDENCY_POLICY.peerRequiredHostExports['@deepseek-ai/dsh-timeout']).toEqual(['deadline'])
+  })
+
+  it.each([
+    ['@deepseek-ai/dsh-llm', 'default'],
+    ['@deepseek-ai/dsh-storage-domain', 'apply'],
+  ])('admits reviewed %s values without admitting an unreviewed sibling export', (specifier, sibling) => {
+    const exportNames = PACKAGE_DEPENDENCY_POLICY.safeHostDependencyExports[specifier] ?? []
+    expect(exportNames.length).toBeGreaterThan(0)
+    const use = (exportName: string) => ({
+      packageName: specifier, specifier, exportName,
+      sourcePath: 'packages/core/probe/src/index.ts', line: 1, column: 10, sourceLine: '',
+    })
+    const subject = {
+      ...facts({ name: '@deepseek-ai/dsh-probe' }),
+      hostRuntimeExportUses: exportNames.map(use),
+    }
+    const exactPolicy = { safeHostDependencyExports: { [specifier]: exportNames }, peerRequiredHostExports: {} }
+    const names = new Set([specifier])
+    expect(collectHostDependencyExportPolicyViolations([subject], names, exactPolicy)).toEqual([])
+    expect(collectHostDependencyExportPolicyViolations([
+      { ...subject, hostRuntimeExportUses: [...subject.hostRuntimeExportUses, use(sibling)] },
+    ], names, exactPolicy)).toEqual([
+      expect.stringContaining(`${specifier}#${sibling} is not classified as safe or peer-required`),
+    ])
+  })
+
+  it('rejects a private tools dependency for defineTool and requires the shared peer', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dsh-tools-peer-'))
+    roots.push(root)
+    const tools = '@deepseek-ai/dsh-tools'
+    const consumer = pkg('@fixture/consumer', 'packages/g/consumer/package.json', {
+      dependencies: { [tools]: 'workspace:*' },
+      devDependencies: { [CORDIS]: 'workspace:~' },
+      peerDependencies: { [CORDIS]: 'workspace:~' },
+    })
+    const source = join(root, consumer.dir, 'src/index.ts')
+    mkdirSync(dirname(source), { recursive: true })
+    writeFileSync(source, `export { defineTool } from '${tools}'`)
+    const names = new Set([CORDIS, tools, consumer.name])
+    const subject = await readPackageDependencyFacts(root, consumer, 'client-host', names)
+    const state = { facts: [subject], packages: [], policyViolations: [], workspaceNames: names }
+    expect(expectedPackageDependencies(subject).get(tools)?.section).toBe('peer-dev')
+    expect(collectPackageDependencyViolations(state)).toEqual([
+      expect.stringContaining(`${tools} must be matching peerDependencies + devDependencies`),
+    ])
+    repairPackageDependencyManifest(subject)
+    expect(subject.manifest.dependencies?.[tools]).toBeUndefined()
+    expect(subject.manifest.peerDependencies?.[tools]).toBe('workspace:*')
+    expect(subject.manifest.devDependencies?.[tools]).toBe('workspace:*')
+    expect(collectPackageDependencyViolations(state)).toEqual([])
   })
 
   it('discovers the Client directory, dsh.client declarations, and configured Host packages', () => {

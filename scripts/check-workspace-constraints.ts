@@ -28,6 +28,7 @@ import {
   PACKAGE_ASSET_FILES_ENTRY,
 } from '../packages/client/modules/src/assets.ts'
 import { collectProjectReferenceFaceViolations } from './project-reference-faces.ts'
+import { INSIGHT_PRODUCT_PACKAGES } from './insight-package-policy.ts'
 
 const root = resolve(import.meta.dirname, '..')
 // Publication rules cover these package trees; dependency rules read all pnpm members.
@@ -458,6 +459,7 @@ export function checkExperimentalNameExceptions(manifests: readonly WorkspaceMan
 }
 
 function isReleaseMemberDirectory(dir: string): boolean {
+  if (INSIGHT_PRODUCT_PACKAGES[dir] !== undefined) return false
   // The SSH carrier is distributed as executable archives, never as an npm application.
   if (dir === 'packages/ssh/ssh-helper-runtime') return false
   return standardReleaseMemberDirectory.test(dir) || isPublicExperimentalPackageDirectory(dir)
@@ -500,7 +502,13 @@ export function checkWorkspaceManifest({ dir, manifest }: WorkspaceManifest): st
     && manifest.name !== undefined
     && publicNativePackages.has(manifest.name)
 
-  if (isPublicNativePackage) {
+  const insightName = INSIGHT_PRODUCT_PACKAGES[dir]
+  if (insightName !== undefined) {
+    if (manifest.name !== insightName) errors.push(`${dir}: Insight package name must remain ${insightName}`)
+    if (manifest.private !== true) errors.push(`${dir}: Insight product package must set "private": true`)
+    if (manifest.publishConfig !== undefined) errors.push(`${dir}: Insight product package must not declare publishConfig`)
+    if (manifest.version !== repositoryVersion) errors.push(`${dir}: Insight product version must match root version ${repositoryVersion}`)
+  } else if (isPublicNativePackage) {
     if (manifest.private === true) {
       errors.push(`${label}: published Landlock package must not set "private": true`)
     }
@@ -708,6 +716,20 @@ export function checkWorkspaceProtocol(manifests: readonly WorkspaceManifest[]):
   return errors
 }
 
+/**
+ * Require each private product identity to have exactly one declared workspace owner.
+ * @param manifests - Discovered workspace manifests.
+ * @returns Missing, duplicated, or renamed product identities.
+ */
+export function checkInsightPackageOwners(manifests: readonly WorkspaceManifest[]): string[] {
+  return Object.entries(INSIGHT_PRODUCT_PACKAGES).flatMap(([directory, name]) => {
+    const owners = manifests.filter(item => item.dir === directory)
+    const identities = manifests.filter(item => item.manifest.name === name)
+    return owners.length === 1 && identities.length === 1 && owners[0]?.manifest.name === name
+      ? [] : [`${directory}: Insight product identity ${name} requires exactly one workspace owner`]
+  })
+}
+
 /** Run the repository constraint gate. */
 export function main(): void {
   const manifests = readWorkspaceManifests(root)
@@ -717,6 +739,7 @@ export function main(): void {
     ...checkWorkspaceProtocol(manifests),
     ...checkExperimentalNameExceptions(manifests),
     ...checkExperimentalDependencyIsolation(manifests),
+    ...checkInsightPackageOwners(manifests),
     ...checkHierarchyShape(),
     ...collectProjectReferenceFaceViolations(root),
   ]

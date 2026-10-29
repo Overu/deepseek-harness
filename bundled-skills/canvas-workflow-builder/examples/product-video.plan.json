@@ -1,0 +1,156 @@
+{
+  "goal": "用商品图 + 用户提供的参考视频，生成一条 15s 9:16 产品带货短视频",
+  "archetype": "A10",
+  "brief": {
+    "deliverables": [
+      {
+        "kind": "video",
+        "count": 1,
+        "ratio": "9:16",
+        "resolution": "720p",
+        "duration": 15,
+        "platform": "抖音/信息流"
+      }
+    ],
+    "assets": [
+      {
+        "role": "商品图",
+        "kind": "image",
+        "uploader": "agent",
+        "source": "attachment",
+        "nodeLocalId": "in_product"
+      },
+      {
+        "role": "参考视频（运镜/节奏参考）",
+        "kind": "video",
+        "uploader": "user",
+        "source": "user_upload",
+        "nodeLocalId": "in_video"
+      }
+    ],
+    "text": {
+      "product": "银色全钢厨房剪刀",
+      "selling_points": [
+        "全钢一体",
+        "剪骨不费力",
+        "可拆洗"
+      ]
+    },
+    "style": "真实手机拍摄质感、明亮通透、节奏轻快",
+    "compliance": [
+      "全程不出现字幕以外的夸张宣称",
+      "不编造材质与认证"
+    ]
+  },
+  "nodes": [
+    {
+      "localId": "in_product",
+      "role": "input",
+      "type": "image",
+      "title": "商品图",
+      "source": "attachment",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0.0,
+          "y": 0.0
+        }
+      }
+    },
+    {
+      "localId": "in_video",
+      "role": "input",
+      "type": "video",
+      "title": "上传｜参考视频",
+      "source": "user_upload",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0.0,
+          "y": 960.0
+        }
+      }
+    },
+    {
+      "localId": "t_script",
+      "role": "text",
+      "type": "text",
+      "title": "分镜脚本",
+      "textMode": "copy",
+      "text": "0-3s：厨房台面特写，剪刀剪开鸡骨，金属反光；\n3-8s：手持演示剪硬质食材，一镜到底；\n8-12s：拆洗展示，水冲即净；\n12-15s：产品静置收尾，画面干净。",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0.0,
+          "y": 1920.0
+        }
+      }
+    },
+    {
+      "localId": "g_video",
+      "role": "generator",
+      "type": "video",
+      "title": "带货成片",
+      "prompt": "【产品】参考图1，保持银色全钢厨房剪刀的外观、颜色与比例一致，不得改形。【参考视频】参考图2 的运镜与节奏（推近、手持跟拍、结尾静置）。\n0-3s：镜头缓缓推进，展示剪刀整体外观与金属光泽，随后剪开硬质骨头；\n3-8s：中近景手持演示剪多种食材，动作利落；\n8-12s：拆开冲洗，水珠与反光细节；\n12-15s：产品静置收尾，画面干净。\n全程无字幕、无夸张宣称，真实手机拍摄质感，明亮通透，9:16 竖屏，15 秒。",
+      "config": {
+        "modelType": "reference_image_to_video",
+        "model": "seedance-2.5-vip-r2v",
+        "params": {
+          "aspect_ratio": "9:16",
+          "resolution": "720p",
+          "duration": 15,
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 520.0,
+          "y": 804.5
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "in_product",
+      "to": "g_video",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "in_video",
+      "to": "g_video",
+      "sourceHandle": "video_source",
+      "targetHandle": "video_target"
+    },
+    {
+      "from": "t_script",
+      "to": "g_video",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    }
+  ],
+  "runs": [
+    "g_video"
+  ],
+  "manualSteps": [
+    {
+      "node": "in_video",
+      "reason": "视频素材没有 agent 导入通路（canvas_asset_import 只支持图片）",
+      "action": "请在画布「上传｜参考视频」节点用上传功能放入参考视频；上传后 agent 会读回确认最终链接再接入生成"
+    }
+  ],
+  "estimate": {
+    "images": 0,
+    "videos": 1,
+    "points": "seedance-2.5-vip-r2v 计费点区间较大，按分辨率/时长实时计算",
+    "needsConfirmation": false
+  },
+  "acceptance": [
+    "成片 15s / 9:16 / 720p，时长与画幅符合平台要求",
+    "产品外观与商品图一致，无变形",
+    "运镜与参考视频节奏一致",
+    "全程无字幕堆砌、无夸大宣称"
+  ]
+}

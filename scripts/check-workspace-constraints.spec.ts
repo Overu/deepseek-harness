@@ -11,6 +11,7 @@ import {
 } from './experimental-package-policy.ts'
 import {
   checkDshFamilyVersion,
+  checkInsightPackageOwners,
   checkWorkspaceManifest,
   checkWorkspaceProtocol,
   checkExperimentalDependencyIsolation,
@@ -21,6 +22,7 @@ import {
   readWorkspaceManifests,
   type WorkspaceManifest,
 } from './check-workspace-constraints.ts'
+import { INSIGHT_PRODUCT_PACKAGES } from './insight-package-policy.ts'
 
 const experimental = {
   dir: 'packages/experimental/prototype',
@@ -29,6 +31,45 @@ const experimental = {
     publishConfig: { access: 'public' },
   },
 } satisfies WorkspaceManifest
+
+describe('Insight product package publication', () => {
+  const version = (JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }).version
+  const directory = 'packages/insight/canvas'
+  const name = '@insight-ai/desktop-canvas-plugin'
+  const valid = (): WorkspaceManifest => ({ dir: directory, manifest: { name, version, private: true } })
+
+  it('retains a private product identity without public npm metadata', () => {
+    expect(checkWorkspaceManifest(valid())).toEqual([])
+  })
+
+  it('rejects renaming, public publication and a divergent product version', () => {
+    const renamed = valid()
+    renamed.manifest.name = '@other/canvas'
+    expect(checkWorkspaceManifest(renamed).join('\n')).toContain('Insight package name must remain')
+    const published = valid()
+    published.manifest.private = false
+    published.manifest.publishConfig = { access: 'public' }
+    const errors = checkWorkspaceManifest(published).join('\n')
+    expect(errors).toContain('must set "private": true')
+    expect(errors).toContain('must not declare publishConfig')
+    const divergent = valid()
+    divergent.manifest.version = '0.0.0'
+    expect(checkWorkspaceManifest(divergent).join('\n')).toContain('Insight product version must match root version')
+  })
+
+  it('keeps nearby unregistered directories under ordinary publication rules', () => {
+    expect(checkWorkspaceManifest({ dir: 'packages/insight/canvas-extra', manifest: { name: '@other/extra', private: true } })
+      .join('\n')).toContain('release member must not set "private": true')
+  })
+
+  it('requires one workspace owner for each retained identity', () => {
+    const owners = Object.entries(INSIGHT_PRODUCT_PACKAGES).map(([dir, identity]) => ({ dir, manifest: { name: identity } }))
+    expect(checkInsightPackageOwners(owners)).toEqual([])
+    expect(checkInsightPackageOwners(owners.slice(1))).toHaveLength(1)
+    expect(checkInsightPackageOwners([...owners, owners[0]!])).toHaveLength(1)
+    expect(checkInsightPackageOwners([...owners, { dir: 'packages/insight/other', manifest: { name } }])).toHaveLength(1)
+  })
+})
 
 describe('workspace dependency ranges', () => {
   const dependency = { dir: 'packages/core/runtime', manifest: { name: '@deepseek-ai/dsh-runtime' } }

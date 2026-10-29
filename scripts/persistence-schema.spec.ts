@@ -204,6 +204,31 @@ declare module '@deepseek-ai/dsh-session/types' { interface SessionEventMap exte
     expect(() => extractPersistenceSchema(root)).toThrow('uses extends')
   })
 
+  it('keeps referenced TypeScript declarations without promoting leaf JavaScript into the root program', () => {
+    const root = fixture('export interface Payload {id: string}')
+    const config = join(root, 'tsconfig.host.json')
+    const settings = JSON.parse(readFileSync(config, 'utf8')) as { include: string[]; references?: { path: string }[] }
+    settings.include = [
+      'packages/core/session/src/**/*.ts',
+      'packages/session/session-persistence-jsonl/src/**/*.ts',
+    ]
+    settings.references = [{ path: './packages/domain/payload' }]
+    writeFileSync(config, JSON.stringify(settings))
+    put(root, 'packages/domain/payload/tsconfig.json', JSON.stringify({
+      compilerOptions: { allowJs: true },
+      include: ['src/**/*'],
+    }))
+    put(root, 'packages/domain/payload/src/helper.js', 'export const helper = 1\n')
+    put(root, 'packages/domain/payload/src/extension.ts', `import '@deepseek-ai/dsh-session/types'; declare module '@deepseek-ai/dsh-session/types' {
+interface SessionEventMap {
+/** An event declared by a referenced TypeScript project. */
+'plugin/referenced': { value: number }
+}}
+`)
+
+    expect(extractPersistenceSchema(root).roots.some(root => root.event === 'plugin/referenced')).toBe(true)
+  })
+
   it('rejects an event map whose compiler vocabulary exceeds the discovered source corpus', () => {
     const root = fixture("import '../../../../vendor/events.ts'; export interface Payload {id: string}")
     put(root, 'vendor/events.ts', `import '@deepseek-ai/dsh-session/types'; declare module '@deepseek-ai/dsh-session/types' {

@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { PRIVATE_EXPERIMENTAL_PACKAGE_DIRECTORIES } from './experimental-package-policy.ts'
 import { discoverNpmBaselineManifests } from './npm-baseline-packages.ts'
+import { INSIGHT_PRODUCT_PACKAGES } from './insight-package-policy.ts'
 
 function fixture(manifests: readonly string[]): string {
   const root = mkdtempSync(join(tmpdir(), 'dsh-baseline-discovery-'))
@@ -19,6 +20,11 @@ function fixture(manifests: readonly string[]): string {
 }
 
 describe('npm baseline package discovery', () => {
+  it('never publishes exact Insight inputs and still discovers neighboring packages', () => {
+    const neighbor = 'packages/insight/canvas-tools/package.json'
+    const root = fixture([...Object.keys(INSIGHT_PRODUCT_PACKAGES).map(directory => `${directory}/package.json`), neighbor])
+    expect(discoverNpmBaselineManifests(root, [])).toEqual([neighbor])
+  })
   it('discovers ordinary package roots and unlisted experimental packages', () => {
     const expected = [
       'apps/cli/package.json',

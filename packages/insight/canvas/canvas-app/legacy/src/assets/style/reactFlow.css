@@ -1,0 +1,75 @@
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__node-group {
+  padding: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__nodesselection-rect,
+.react-flow__selection {
+  background: rgba(255, 255, 255, 0.25) !important;
+}
+
+.image_source:hover .react-flow__edge-path,
+.image_source:focus .react-flow__edge-path {
+  stroke: #52c41acc !important;
+  stroke-width: 3 !important;
+}
+
+.text_source:hover .react-flow__edge-path,
+.text_source:focus .react-flow__edge-path {
+  stroke: #4155f0cc !important;
+  stroke-width: 3 !important;
+}
+
+.video_source:hover .react-flow__edge-path,
+.video_source:focus .react-flow__edge-path {
+  stroke: #b37febcc !important;
+  stroke-width: 3 !important;
+}
+
+.audio_source:hover .react-flow__edge-path,
+.audio_source:focus .react-flow__edge-path {
+  stroke: #fa8c16cc !important;
+  stroke-width: 3 !important;
+}
+
+.image_source.selected .react-flow__edge-path,
+.text_source.selected .react-flow__edge-path,
+.video_source.selected .react-flow__edge-path,
+.audio_source.selected .react-flow__edge-path,
+.audio_target.selected .react-flow__edge-path {
+  stroke: rgba(255, 255, 255, 0.65) !important;
+  stroke-width: 3 !important;
+}
+
+.react-flow__node-toolbar {
+  transition: none !important;
+}
+
+/* Prompt Selection 下拉打开时禁止命中堆叠节点（hover:ring-2 在节点内层 div） */
+body[data-canvas-param-select-open] .react-flow__node,
+body[data-canvas-param-select-open] .react-flow__node * {
+  pointer-events: none !important;
+}
+
+/* 隐藏所有边框线条 */
+.react-flow__resize-control.line {
+  border: none !important;
+  display: none !important;
+}
+
+/* 四角圆点 */
+.react-flow__resize-control.top.left,
+.react-flow__resize-control.top.right,
+.react-flow__resize-control.bottom.left,
+.react-flow__resize-control.bottom.right {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid white;
+}

@@ -1,0 +1,4 @@
+[
+  {"id":"threads.profile_by_id","platform":"threads","method":"GET","path":"/api/v1/threads/web/fetch_user_info_by_id","params":{"user_id":"63055343223"}},
+  {"id":"threads.posts","platform":"threads","method":"GET","path":"/api/v1/threads/web/fetch_user_posts","params":{"user_id":"63055343223"}}
+]

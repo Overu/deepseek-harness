@@ -1,0 +1,4 @@
+[
+  {"id":"threads.detail","platform":"threads","method":"GET","path":"/api/v1/threads/web/fetch_post_detail_v2","params":{"post_id":"Db2wI-DilLt"}},
+  {"id":"threads.comments","platform":"threads","method":"GET","path":"/api/v1/threads/web/fetch_post_comments","params":{"post_id":"3960564644938666733_63055343223"}}
+]

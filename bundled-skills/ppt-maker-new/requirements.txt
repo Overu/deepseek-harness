@@ -1,0 +1,7 @@
+# Python 3.10+; install into the SAME interpreter used by ppt.py.
+# No Office, LibreOffice, font download or image/PDF renderer is required.
+python-pptx>=1.0.2,<2
+Pillow>=10,<13
+lxml>=5,<7
+fonttools>=4.50,<5
+psutil>=5.9.8,<8; sys_platform == "win32"

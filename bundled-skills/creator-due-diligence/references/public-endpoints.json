@@ -1,0 +1,2255 @@
+{
+  "schema_version": "1.0",
+  "source": "https://api.tikhub.io/openapi.json",
+  "source_checked_at": "2026-10-19",
+  "transport": "enterprise_proxy",
+  "connection_id": "tikhub",
+  "pricing_note": "price_usd为内置USD/请求单价，随技能维护更新；业务执行直接据此累计预留，不逐次联网查价，不将快照估算冒充实际账单。",
+  "status_note": "全部为文档已核对，未声称本版本逐条实测；线上调用返回仍需人工核对身份、结构和分页",
+  "endpoints": [
+    {
+      "path": "/api/v1/douyin/app/v3/handler_user_profile",
+      "method": "GET",
+      "platform": "douyin",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取指定用户的信息/Get information of specified user",
+      "parameter_location": "query",
+      "required": [
+        "sec_user_id"
+      ],
+      "parameters": {
+        "sec_user_id": {
+          "type": "string",
+          "description": "用户sec_user_id/User sec_user_id"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/douyin/app/v3/fetch_user_post_videos",
+      "execution_observation": {
+        "observed_at": "2026-10-22",
+        "scope": "本地实测快照；不代表企业网关已验收",
+        "minimal_parameters": ["sec_user_id"],
+        "pagination_parameter": "max_cursor",
+        "excluded_parameters": ["count"],
+        "note": "携带 count=20 的请求失败；仅 sec_user_id 及续页 max_cursor 的快照成功。其余可选参数不自动补入。"
+      },
+      "method": "GET",
+      "platform": "douyin",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/186826223e0",
+      "summary": "获取用户主页作品数据/Get user homepage video data",
+      "parameter_location": "query",
+      "required": [
+        "sec_user_id"
+      ],
+      "parameters": {
+        "sec_user_id": {
+          "type": "string",
+          "description": "用户sec_user_id/User sec_user_id"
+        },
+        "max_cursor": {
+          "type": "integer",
+          "description": "最大游标/Maximum cursor"
+        },
+        "sort_type": {
+          "type": "integer",
+          "description": "排序类型/Sort type",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "channel": {
+          "type": "string",
+          "description": "抖音渠道版本/Douyin channel: normal(正常版-默认), lite(极速版)",
+          "enum": [
+            "normal",
+            "lite"
+          ]
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/douyin/app/v3/fetch_video_comments",
+      "response_contract": {
+        "kind": "comments",
+        "items_path": "data.comments",
+        "id_fields": ["cid", "comment_id", "id"],
+        "text_fields": ["text", "content"],
+        "success_paths": []
+      },
+      "method": "GET",
+      "platform": "douyin",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/186826225e0",
+      "summary": "获取单个视频评论数据/Get single video comments data",
+      "parameter_location": "query",
+      "required": [
+        "aweme_id"
+      ],
+      "parameters": {
+        "aweme_id": {
+          "type": "string",
+          "description": "作品id/Video id"
+        },
+        "cursor": {
+          "type": "integer",
+          "default": 0,
+          "description": "游标/Cursor"
+        },
+        "count": {
+          "type": "integer",
+          "default": 20,
+          "description": "数量/Number",
+          "enum": [
+            20
+          ]
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "默认排序未明确；不得标成最新评论或热评分层"
+      ]
+    },
+    {
+      "path": "/api/v1/douyin/app/v3/fetch_video_comment_replies",
+      "method": "GET",
+      "platform": "douyin",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取指定视频的评论回复数据/Get comment replies data of specified video",
+      "parameter_location": "query",
+      "required": [
+        "item_id",
+        "comment_id"
+      ],
+      "parameters": {
+        "item_id": {
+          "type": "string",
+          "description": "作品id/Video id"
+        },
+        "comment_id": {
+          "type": "string",
+          "description": "评论id/Comment id"
+        },
+        "cursor": {
+          "type": "integer",
+          "default": 0,
+          "description": "游标/Cursor"
+        },
+        "count": {
+          "type": "integer",
+          "default": 20,
+          "description": "数量/Number",
+          "enum": [
+            20
+          ]
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "默认排序未明确；不得标成最新评论或热评分层"
+      ]
+    },
+    {
+      "path": "/api/v1/douyin/search/fetch_general_search_v3",
+      "method": "POST",
+      "platform": "douyin",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/501036593e0",
+      "summary": "获取综合搜索 V3/Fetch general search V3",
+      "parameter_location": "body",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "description": "搜索关键词 / Search keyword",
+          "minLength": 1
+        },
+        "offset": {
+          "type": "integer",
+          "default": 0,
+          "description": "翻页游标，从上一次响应的 data.pagination.offset 获取，首次请求传 0 / Offset cursor for pagination, obtained from data.pagination.offset of the last response, 0 for the first request"
+        },
+        "page": {
+          "type": "integer",
+          "default": 1,
+          "description": "页码，取值 1~200，首次请求传 1，之后每次加 1 / Page number, 1-200, start with 1 and increment by 1 each time"
+        },
+        "search_id": {
+          "type": "string",
+          "default": "",
+          "description": "搜索ID，从上一次响应的 data.pagination.search_id 获取，首次请求传空字符串 / Search ID, obtained from data.pagination.search_id of the last response, empty for the first request"
+        },
+        "backtrace": {
+          "type": "string",
+          "default": "",
+          "description": "翻页回溯标识，从上一次响应的 data.pagination.backtrace 获取，首次请求传空字符串 / Backtrace, obtained from data.pagination.backtrace of the last response, empty for the first request"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/douyin/search/fetch_user_search_v2",
+      "method": "POST",
+      "platform": "douyin",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取用户搜索 V2/Fetch user search V2",
+      "parameter_location": "body",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "description": "关键词 / Keyword",
+          "minLength": 1
+        },
+        "cursor": {
+          "type": "integer",
+          "default": 0,
+          "description": "偏移游标，用于翻页，从上一次请求返回的响应中获取 / Offset cursor for pagination, obtained from the last response"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/xiaohongshu/app_v2/get_note_comments",
+      "response_contract": {
+        "kind": "comments",
+        "items_path": "data.data.comments",
+        "id_fields": ["id"],
+        "text_fields": ["content"],
+        "success_paths": ["data.success"]
+      },
+      "method": "GET",
+      "platform": "xiaohongshu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/420136394e0",
+      "summary": "获取笔记评论列表/Get note comments",
+      "parameter_location": "query",
+      "required": [],
+      "parameters": {
+        "note_id": {
+          "type": "string",
+          "default": "",
+          "description": "笔记ID/Note ID"
+        },
+        "share_text": {
+          "type": "string",
+          "default": "",
+          "description": "分享链接，支持xiaohongshu.com/xhslink.com/xhslink.cn/Share link, supports xiaohongshu.com, xhslink.com, xhslink.cn"
+        },
+        "cursor": {
+          "type": "string",
+          "default": "",
+          "description": "分页游标，首次请求留空/Pagination cursor, leave empty for first request"
+        },
+        "index": {
+          "type": "integer",
+          "default": 0,
+          "description": "评论索引，首次请求传0/Comment index, pass 0 for first request"
+        },
+        "pageArea": {
+          "type": "string",
+          "default": "UNFOLDED",
+          "description": "折叠状态: UNFOLDED(默认-展开), FOLDED(折叠)",
+          "enum": [
+            "UNFOLDED",
+            "FOLDED"
+          ]
+        },
+        "sort_strategy": {
+          "type": "string",
+          "default": "latest_v2",
+          "description": "排序策略/Sort strategy: default, latest_v2, like_count",
+          "enum": [
+            "latest_v2",
+            "like_count"
+          ]
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "只用ID或分享链接；返回业务异常也可能计费"
+      ],
+      "require_any": [
+        [
+          "note_id",
+          "share_text"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v1/xiaohongshu/app_v2/get_note_sub_comments",
+      "method": "GET",
+      "platform": "xiaohongshu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/420748830e0",
+      "summary": "获取笔记二级评论列表/Get note sub comments",
+      "parameter_location": "query",
+      "required": [
+        "comment_id"
+      ],
+      "parameters": {
+        "note_id": {
+          "type": "string",
+          "default": "",
+          "description": "笔记ID/Note ID"
+        },
+        "share_text": {
+          "type": "string",
+          "default": "",
+          "description": "分享链接，支持xiaohongshu.com/xhslink.com/xhslink.cn/Share link, supports xiaohongshu.com, xhslink.com, xhslink.cn"
+        },
+        "comment_id": {
+          "type": "string",
+          "description": "父评论ID/Parent comment ID"
+        },
+        "cursor": {
+          "type": "string",
+          "default": "",
+          "description": "分页游标，首次留空，翻页时从$.data.data.cursor中提取cursor值/Pagination cursor, leave empty for first request, extract cursor from $.data.data.cursor for next page"
+        },
+        "index": {
+          "type": "integer",
+          "default": 1,
+          "description": "分页索引，首次传1，翻页时从$.data.data.cursor中提取index值/Pagination index, pass 1 for first request, extract index from $.data.data.cursor for next page"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [],
+      "require_any": [
+        [
+          "note_id",
+          "share_text"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v1/xiaohongshu/app_v2/get_user_info",
+      "method": "GET",
+      "platform": "xiaohongshu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取用户信息/Get user info",
+      "parameter_location": "query",
+      "required": [],
+      "parameters": {
+        "user_id": {
+          "type": "string",
+          "default": "",
+          "description": "用户ID/User ID"
+        },
+        "share_text": {
+          "type": "string",
+          "default": "",
+          "description": "分享链接，支持xiaohongshu.com/xhslink.com/xhslink.cn/Share link, supports xiaohongshu.com, xhslink.com, xhslink.cn"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [],
+      "require_any": [
+        [
+          "user_id",
+          "share_text"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v1/xiaohongshu/app_v2/get_user_posted_notes",
+      "method": "GET",
+      "platform": "xiaohongshu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取用户笔记列表/Get user posted notes",
+      "parameter_location": "query",
+      "required": [],
+      "parameters": {
+        "user_id": {
+          "type": "string",
+          "default": "",
+          "description": "用户ID/User ID"
+        },
+        "share_text": {
+          "type": "string",
+          "default": "",
+          "description": "分享链接，支持xiaohongshu.com/xhslink.com/xhslink.cn/Share link, supports xiaohongshu.com, xhslink.com, xhslink.cn"
+        },
+        "cursor": {
+          "type": "string",
+          "default": "",
+          "description": "分页游标，首次请求留空/Pagination cursor, leave empty for first request"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [],
+      "require_any": [
+        [
+          "user_id",
+          "share_text"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v1/xiaohongshu/app_v2/search_notes",
+      "method": "GET",
+      "platform": "xiaohongshu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/420136398e0",
+      "summary": "搜索笔记/Search notes",
+      "parameter_location": "query",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "description": "搜索关键词/Search keyword",
+          "minLength": 1
+        },
+        "page": {
+          "type": "integer",
+          "default": 1,
+          "description": "页码，从1开始/Page number, start from 1"
+        },
+        "sort_type": {
+          "type": "string",
+          "default": "general",
+          "description": "排序方式/Sort type"
+        },
+        "note_type": {
+          "type": "string",
+          "default": "不限",
+          "description": "笔记类型/Note type: 不限, 视频笔记, 普通笔记, 直播笔记"
+        },
+        "time_filter": {
+          "type": "string",
+          "default": "不限",
+          "description": "发布时间筛选/Time filter: 不限, 一天内, 一周内, 半年内"
+        },
+        "search_id": {
+          "type": "string",
+          "default": "",
+          "description": "搜索ID，翻页时传入首次搜索返回的值/Search ID for pagination"
+        },
+        "search_session_id": {
+          "type": "string",
+          "default": "",
+          "description": "搜索会话ID，翻页时传入首次搜索返回的值/Search session ID for pagination"
+        },
+        "source": {
+          "type": "string",
+          "default": "explore_feed",
+          "description": "来源/Source"
+        },
+        "ai_mode": {
+          "type": "integer",
+          "default": 0,
+          "description": "AI模式：0=关闭, 1=开启/AI mode: 0=off, 1=on"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/xiaohongshu/app_v2/search_users",
+      "method": "GET",
+      "platform": "xiaohongshu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "搜索用户/Search users",
+      "parameter_location": "query",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "description": "搜索关键词/Search keyword",
+          "minLength": 1
+        },
+        "page": {
+          "type": "integer",
+          "default": 1,
+          "description": "页码，从1开始/Page number, start from 1"
+        },
+        "search_id": {
+          "type": "string",
+          "default": "",
+          "description": "搜索ID，翻页时传入首次搜索返回的值/Search ID for pagination"
+        },
+        "source": {
+          "type": "string",
+          "default": "explore_feed",
+          "description": "来源/Source"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/kuaishou/web/fetch_user_info",
+      "method": "GET",
+      "platform": "kuaishou",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取用户信息/Fetch user info",
+      "parameter_location": "query",
+      "required": [
+        "user_id"
+      ],
+      "parameters": {
+        "user_id": {
+          "type": "string"
+        }
+      },
+      "price_usd": 0.002,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/kuaishou/app/fetch_video_comment",
+      "method": "GET",
+      "platform": "kuaishou",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取单个作品评论数据/Get single video comment data",
+      "parameter_location": "query",
+      "required": [
+        "photo_id"
+      ],
+      "parameters": {
+        "photo_id": {
+          "type": "string"
+        },
+        "pcursor": {
+          "type": "string"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/kuaishou/app/fetch_user_post_v2",
+      "method": "GET",
+      "platform": "kuaishou",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "用户视频列表V2/User video list V2",
+      "parameter_location": "query",
+      "required": [
+        "user_id"
+      ],
+      "parameters": {
+        "user_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "pcursor": {
+          "type": "string",
+          "default": "",
+          "description": "第一次请求留空，后续传上一页响应的 pcursor"
+        },
+        "sort": {
+          "type": "string",
+          "enum": [
+            "latest",
+            "hot"
+          ],
+          "default": "latest",
+          "description": "latest(最新, 默认) / hot(热门)"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "仅数字user_id；主页eID须先解析为数字ID"
+      ]
+    },
+    {
+      "path": "/api/v1/kuaishou/app/search_comprehensive",
+      "method": "GET",
+      "platform": "kuaishou",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "综合搜索/Comprehensive search",
+      "parameter_location": "query",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pcursor": {
+          "type": "string"
+        },
+        "sort_type": {
+          "type": "string",
+          "enum": [
+            "all",
+            "newest",
+            "most_likes"
+          ],
+          "default": "all",
+          "description": "可选值: all(综合排序), newest(最新发布), most_likes(最多点赞)"
+        },
+        "publish_time": {
+          "type": "string",
+          "enum": [
+            "all",
+            "one_day",
+            "one_week",
+            "one_month"
+          ],
+          "default": "all",
+          "description": "可选值: all(全部), one_day(近一日), one_week(近一周), one_month(近一月)"
+        },
+        "duration": {
+          "type": "string",
+          "enum": [
+            "all",
+            "under_1_min",
+            "1_to_5_min",
+            "over_5_min"
+          ],
+          "default": "all",
+          "description": "可选值: all(全部), under_1_min(1分钟以内), 1_to_5_min(1-5分钟), over_5_min(5分钟以上)"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/kuaishou/app/search_user_v2",
+      "method": "GET",
+      "platform": "kuaishou",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "搜索用户V2/Search user V2",
+      "parameter_location": "query",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pcursor": {
+          "type": "string",
+          "default": "",
+          "description": "首次留空，翻页传上一页响应的 pcursor / Empty for first page"
+        },
+        "user_relation": {
+          "type": "string",
+          "enum": [
+            "all",
+            "same_city",
+            "verified",
+            "live",
+            "following"
+          ],
+          "default": "all",
+          "description": "all / same_city / verified / live / following"
+        },
+        "user_gender": {
+          "type": "string",
+          "enum": [
+            "all",
+            "male",
+            "female"
+          ],
+          "default": "all",
+          "description": "all / male / female"
+        },
+        "fans_sort": {
+          "type": "string",
+          "enum": [
+            "default",
+            "most_to_least",
+            "least_to_most"
+          ],
+          "default": "default",
+          "description": "default / most_to_least / least_to_most"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/zhihu/web/fetch_article_search_v3",
+      "method": "GET",
+      "platform": "zhihu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取知乎文章搜索V3/Get Zhihu Article Search V3",
+      "parameter_location": "query",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "description": "搜索关键词/Search Keywords",
+          "minLength": 1
+        },
+        "offset": {
+          "type": "string",
+          "default": "0",
+          "description": "偏移量/Offset"
+        },
+        "limit": {
+          "type": "string",
+          "default": "20",
+          "description": "每页文章数量/Number of articles per page"
+        },
+        "show_all_topics": {
+          "type": "integer",
+          "default": 0,
+          "description": "显示所有主题/Show all topics"
+        },
+        "search_source": {
+          "type": "string",
+          "default": "Normal",
+          "description": "搜索来源/Search Source"
+        },
+        "search_hash_id": {
+          "type": "string",
+          "default": "",
+          "description": "搜索哈希ID/Search Hash ID"
+        },
+        "vertical": {
+          "type": "string",
+          "default": "",
+          "description": "垂类/Vertical Type"
+        },
+        "sort": {
+          "type": "string",
+          "default": "",
+          "description": "排序/Sort"
+        },
+        "time_interval": {
+          "type": "string",
+          "default": "",
+          "description": "时间间隔/Time Interval"
+        },
+        "vertical_info": {
+          "type": "string",
+          "default": "",
+          "description": "垂类信息/Vertical Info"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/zhihu/web/fetch_user_search_v3",
+      "method": "GET",
+      "platform": "zhihu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取知乎用户搜索V3/Get Zhihu User Search V3",
+      "parameter_location": "query",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "description": "搜索关键词/Search Keywords",
+          "minLength": 1
+        },
+        "offset": {
+          "type": "string",
+          "default": "0",
+          "description": "偏移量/Offset"
+        },
+        "limit": {
+          "type": "string",
+          "default": "25",
+          "description": "每页用户数量/Number of users per page"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/zhihu/web/fetch_comment_v5",
+      "method": "GET",
+      "platform": "zhihu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/262614090e0",
+      "summary": "获取知乎评论区V5/Get Zhihu Comment V5",
+      "parameter_location": "query",
+      "required": [
+        "answer_id"
+      ],
+      "parameters": {
+        "answer_id": {
+          "type": "string",
+          "description": "回答ID/Answer ID"
+        },
+        "order_by": {
+          "type": "string",
+          "default": "score",
+          "description": "排序/Sort",
+          "enum": [
+            "score",
+            "ts"
+          ]
+        },
+        "limit": {
+          "type": "string",
+          "default": "20",
+          "description": "每页评论数量/Number of comments per page"
+        },
+        "offset": {
+          "type": "string",
+          "default": "",
+          "description": "偏移量/Offset"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "只用于回答answer_id评论，不能套用文章ID"
+      ]
+    },
+    {
+      "path": "/api/v1/zhihu/web/fetch_user_info",
+      "method": "GET",
+      "platform": "zhihu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取知乎用户信息/Get Zhihu User Info",
+      "parameter_location": "query",
+      "required": [
+        "user_url_token"
+      ],
+      "parameters": {
+        "user_url_token": {
+          "type": "string",
+          "description": "用户ID/User ID"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/zhihu/web/fetch_user_articles",
+      "method": "GET",
+      "platform": "zhihu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/438163230e0",
+      "summary": "获取知乎用户的文章列表/Get Zhihu User Articles",
+      "parameter_location": "query",
+      "required": [
+        "user_url_token"
+      ],
+      "parameters": {
+        "user_url_token": {
+          "type": "string",
+          "description": "用户ID/User ID"
+        },
+        "offset": {
+          "type": "string",
+          "default": "0",
+          "description": "偏移量/Offset"
+        },
+        "limit": {
+          "type": "string",
+          "default": "20",
+          "description": "每页文章数量/Number of articles per page"
+        },
+        "sort_type": {
+          "type": "string",
+          "enum": [
+            "created",
+            "voteups"
+          ],
+          "default": "created",
+          "description": "排序类型/Sort Type"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/zhihu/web/fetch_question_answers",
+      "method": "GET",
+      "platform": "zhihu",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/350606794e0",
+      "summary": "获取知乎问题回答列表/Get Zhihu Question Answers",
+      "parameter_location": "query",
+      "required": [
+        "question_id"
+      ],
+      "parameters": {
+        "question_id": {
+          "type": "string",
+          "description": "问题ID/Question ID"
+        },
+        "cursor": {
+          "type": "string",
+          "default": "",
+          "description": "分页游标/Pagination cursor"
+        },
+        "limit": {
+          "type": "integer",
+          "default": 5,
+          "description": "每页回答数量/Number of answers per page"
+        },
+        "offset": {
+          "type": "integer",
+          "default": 0,
+          "description": "偏移量/Offset"
+        },
+        "order": {
+          "type": "string",
+          "default": "default",
+          "description": "排序方式：default=默认排序，updated=按时间排序/Sort order: default=default sort, updated=sort by time"
+        },
+        "session_id": {
+          "type": "string",
+          "default": "",
+          "description": "会话ID/Session ID"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/weibo/web_v2/fetch_user_posts",
+      "method": "GET",
+      "platform": "weibo",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/381269407e0",
+      "summary": "获取微博用户文章数据/Get Weibo user posts",
+      "parameter_location": "query",
+      "required": [
+        "uid"
+      ],
+      "parameters": {
+        "uid": {
+          "type": "string",
+          "description": "用户id/User id"
+        },
+        "page": {
+          "type": "integer",
+          "default": 1,
+          "description": "页数/Page number"
+        },
+        "feature": {
+          "type": "integer",
+          "default": 0,
+          "description": "特征值，控制返回数据的数量和字段：0=返回10条基础数据，1=返回20条扩展数据，2=返回20条图片相关数据，3=返回20条视频相关数据，字段逐级增加/Feature type: 0=10 basic posts, 1=20 extended posts, 2=20 image-related posts, 3=20 video-related posts, fields increase progressively"
+        },
+        "since_id": {
+          "type": "string",
+          "default": "",
+          "description": "翻页标识，用于获取下一页数据/Pagination identifier for getting next page data"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/weibo/web_v2/fetch_advanced_search",
+      "method": "GET",
+      "platform": "weibo",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/381269425e0",
+      "summary": "微博高级搜索/Weibo Advanced Search",
+      "parameter_location": "query",
+      "required": [
+        "q"
+      ],
+      "parameters": {
+        "q": {
+          "type": "string",
+          "description": "搜索关键词/Search keyword"
+        },
+        "search_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "搜索类型/Search type: all(全部), hot(热门), original(原创), verified(认证用户), media(媒体), viewpoint(观点)"
+        },
+        "include_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "包含类型/Include type: all(全部), pic(含图片), video(含视频), music(含音乐), link(含短链)"
+        },
+        "timescope": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "时间范围/Time scope (custom:start:end)"
+        },
+        "page": {
+          "type": "integer",
+          "default": 1,
+          "description": "页码/Page number"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/weibo/web_v2/fetch_user_search",
+      "method": "GET",
+      "platform": "weibo",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/381269428e0",
+      "summary": "用户搜索/User search",
+      "parameter_location": "query",
+      "required": [],
+      "parameters": {
+        "query": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "搜索关键词/Query（提供则视为“全部”搜索；留空则仅应用高级筛选参数）"
+        },
+        "page": {
+          "type": "integer",
+          "default": 1,
+          "description": "页码/Page"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "地区编码，从 /city_list 获取/Region code from /city_list"
+        },
+        "auth": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "认证类型 org_vip(机构)/per_vip(个人)/ord(普通)/Auth type"
+        },
+        "gender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "性别 man / women / Gender"
+        },
+        "age": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "年龄段 18y/22y/29y/39y/40y / Age bucket"
+        },
+        "nickname": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "昵称筛选/Nickname filter"
+        },
+        "tag": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "标签筛选/Tag filter"
+        },
+        "school": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "学校筛选/School filter"
+        },
+        "work": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "公司筛选/Company filter"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [],
+      "require_any": [
+        [
+          "query",
+          "nickname"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v1/weibo/app/fetch_status_comments",
+      "method": "GET",
+      "platform": "weibo",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/410358104e0",
+      "summary": "获取微博评论/Get post comments",
+      "parameter_location": "query",
+      "required": [
+        "status_id"
+      ],
+      "parameters": {
+        "status_id": {
+          "type": "string",
+          "description": "微博ID"
+        },
+        "max_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "翻页游标"
+        },
+        "sort_type": {
+          "type": "string",
+          "default": "0",
+          "description": "排序类型: 0=按热度排序, 1=按时间排序",
+          "enum": [
+            "0",
+            "1"
+          ]
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/wechat_channels/v2/fetch_user_videos",
+      "method": "POST",
+      "platform": "wechat_channels",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/472974841e0",
+      "summary": "获取视频号用户作品列表/Get WeChat Channels User Videos",
+      "parameter_location": "body",
+      "required": [
+        "username"
+      ],
+      "parameters": {
+        "username": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 256,
+          "pattern": "^v2_[0-9a-fA-F]+@finder$",
+          "description": "视频号 finder username（v2_…@finder 格式）/WeChat Channels finder username (v2_…@finder format)"
+        },
+        "last_buffer": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/=_-]*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "翻页游标（base64），首页留空/Pagination cursor (base64), leave empty for first page"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构（推荐做媒体下载）/True=raw response; False=simplified parsed structure (recommended for media download)"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/wechat_channels/v2/fetch_video_detail",
+      "method": "POST",
+      "platform": "wechat_channels",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取视频号作品详情/Get WeChat Channels Video Detail",
+      "parameter_location": "body",
+      "required": [],
+      "parameters": {
+        "object_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9]*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "作品 objectId（纯数字，最优先）/Video objectId (numeric, highest priority)"
+        },
+        "export_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2048,
+              "pattern": "^(export/.+)?$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "搜索结果中的 exportId（export/ 开头，会过期，需尽快使用）/exportId from search results (starts with export/, expires soon)"
+        },
+        "object_nonce_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9]*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "配套 objectNonceId（纯数字，可选，提升命中率）/Optional objectNonceId (numeric, improves hit rate)"
+        },
+        "share_url": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 256,
+              "pattern": "^(https?://weixin\\.qq\\.com/sph/[A-Za-z0-9]+/?)?$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "视频号分享短链（https://weixin.qq.com/sph/…），仅在 object_id 与 export_id 都为空时使用/Share URL (https://weixin.qq.com/sph/…), used only when object_id and export_id are empty"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构（推荐做媒体下载）/True=raw response; False=simplified parsed structure (recommended for media download)"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [],
+      "require_any": [
+        [
+          "object_id",
+          "export_id",
+          "share_url"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v1/wechat_channels/v2/fetch_video_comments",
+      "method": "POST",
+      "platform": "wechat_channels",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/472974843e0",
+      "summary": "获取视频号作品评论/Get WeChat Channels Video Comments",
+      "parameter_location": "body",
+      "required": [
+        "object_id"
+      ],
+      "parameters": {
+        "object_id": {
+          "type": "string",
+          "maxLength": 32,
+          "pattern": "^[0-9]+$",
+          "description": "作品 objectId（纯数字）/Video objectId (numeric)"
+        },
+        "last_buffer": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9+/=_-]*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "翻页游标（base64），首页留空/Pagination cursor (base64), leave empty for first page"
+        },
+        "comment_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9]*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "展开某条评论的二级回复时传其 commentId（纯数字），首页留空/Pass a commentId (numeric) to expand its replies, leave empty for first-level comments"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构/True=raw response; False=simplified parsed structure"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/wechat_channels/v2/fetch_user_profile",
+      "method": "POST",
+      "platform": "wechat_channels",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取视频号账号主页资料+统计/Get WeChat Channels User Profile & Stats",
+      "parameter_location": "body",
+      "required": [
+        "username"
+      ],
+      "parameters": {
+        "username": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 256,
+          "pattern": "^v2_[0-9a-fA-F]+@finder$",
+          "description": "视频号 finder username（v2_…@finder 格式）/WeChat Channels finder username (v2_…@finder format)"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构/True=raw response; False=simplified parsed structure"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/wechat_mp/v2/fetch_article_detail_h5",
+      "method": "POST",
+      "platform": "wechat_mp",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/511928397e0",
+      "summary": "获取公众号文章详情（H5 版本，推荐）/Get WeChat MP Article Detail (H5, Recommended)",
+      "parameter_location": "body",
+      "required": [
+        "url"
+      ],
+      "parameters": {
+        "url": {
+          "type": "string",
+          "maxLength": 2048,
+          "pattern": "^https?://mp\\.weixin\\.qq\\.com/s([/?].+)?$",
+          "description": "公众号文章链接（https://mp.weixin.qq.com/s/… 或带 __biz 的长链）/WeChat MP article URL (https://mp.weixin.qq.com/s/… or long URL with __biz)"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构/True=raw response; False=simplified parsed structure"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/wechat_mp/v2/fetch_article_comments",
+      "method": "POST",
+      "platform": "wechat_mp",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/472974853e0",
+      "summary": "获取公众号文章评论/Get WeChat MP Article Comments",
+      "parameter_location": "body",
+      "required": [
+        "url"
+      ],
+      "parameters": {
+        "url": {
+          "type": "string",
+          "maxLength": 2048,
+          "pattern": "^https?://mp\\.weixin\\.qq\\.com/s([/?].+)?$",
+          "description": "公众号文章链接（https://mp.weixin.qq.com/s/…）/WeChat MP article URL (https://mp.weixin.qq.com/s/…)"
+        },
+        "buffer": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 8192
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "翻页游标，首页留空；翻页传上一页响应的 buffer/Pagination cursor, leave empty for first page; pass buffer from the previous response"
+        },
+        "comment_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9]*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "文章的评论 id（可选，**性能捷径**）：不传时上游要先抓并解析整篇文章 HTML 才能拿到它，约占本接口耗时的一半；已有该值时传进来可显著加快。取自 /fetch_article_detail 或 /fetch_article_detail_h5 响应的 `$.data.content.comment_id`/Article comment id (optional, performance shortcut): when omitted, upstr"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构/True=raw response; False=simplified parsed structure"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "精选评论，即使能分页也不代表全部留言"
+      ]
+    },
+    {
+      "path": "/api/v1/wechat_mp/v2/fetch_account_profile",
+      "method": "POST",
+      "platform": "wechat_mp",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取公众号资料页/Get WeChat MP Account Profile",
+      "parameter_location": "body",
+      "required": [
+        "username"
+      ],
+      "parameters": {
+        "username": {
+          "type": "string",
+          "maxLength": 80,
+          "pattern": "^[0-9A-Za-z][-_0-9A-Za-z]{1,63}(@[0-9A-Za-z]{1,16})?$",
+          "description": "公众号 username。三种形态都支持：`gh_…`、`gh_…@app`（关联小程序的账号）、以及自定义微信号（如 `nikejdi`）。取自文章详情接口响应的 `$.data.content.user_name`/Official account username. Three forms are supported: `gh_…`, `gh_…@app` (mini-program-linked accounts) and custom WeCha"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构/True=raw response; False=simplified parsed structure"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/wechat_mp/v2/fetch_account_articles",
+      "method": "POST",
+      "platform": "wechat_mp",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/472974858e0",
+      "summary": "获取公众号文章列表/Get WeChat MP Account Articles",
+      "parameter_location": "body",
+      "required": [
+        "username"
+      ],
+      "parameters": {
+        "username": {
+          "type": "string",
+          "maxLength": 80,
+          "pattern": "^[0-9A-Za-z][-_0-9A-Za-z]{1,63}(@[0-9A-Za-z]{1,16})?$",
+          "description": "公众号 username。三种形态都支持：`gh_…`、`gh_…@app`（关联小程序的账号）、以及自定义微信号（如 `nikejdi`）。取自文章详情接口响应的 `$.data.content.user_name`/Official account username. Three forms are supported: `gh_…`, `gh_…@app` (mini-program-linked accounts) and custom WeCha"
+        },
+        "page_size": {
+          "type": "integer",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "每页数量（默认 20）。⚠️ 微信当前**忽略**该参数：返回条数由公众号自身决定，实测取 1 与取 40 结果完全相同；翻页请用 offset / next_offset/Articles per page (default 20). NOTE: WeChat currently ignores this parameter — the count is decided by the account itself; paginate with offse"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 8192,
+              "pattern": "^[A-Za-z0-9+/=_-]*$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "",
+          "description": "翻页游标（base64），首页留空；翻页传上一页响应的 next_offset/Pagination cursor (base64), leave empty for first page; for the next page pass next_offset from the previous response"
+        },
+        "item_show_type": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "内容栏目：留空/0=文章（默认）、5=视频、7=音频、8=贴图/Content tab: empty/0=articles (default), 5=videos, 7=audios, 8=image-text posts"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始响应；False=精简解析结构/True=raw response; False=simplified parsed structure"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "page_size可能被上游忽略，以实际返回和next_offset翻页"
+      ]
+    },
+    {
+      "path": "/api/v1/wechat_search/v2/fetch_search",
+      "method": "POST",
+      "platform": "wechat_search",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/472974860e0",
+      "summary": "微信综合搜索（搜一搜）/WeChat Universal Search",
+      "parameter_location": "body",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "搜索关键词（1-100 字）/Search keyword (1-100 chars)"
+        },
+        "business_type": {
+          "type": "string",
+          "enum": [
+            "all",
+            "account",
+            "article",
+            "video"
+          ],
+          "default": "all",
+          "description": "垂类字符串键（共 18 个）。**实测有结果**：综合 all / 公众号·服务号·视频号 account / 文章 article / 视频 video / 表情 sticker。其余键（underline / encyclopedia / live_stream / comment / listen / news / photos / book / moments / image / mini_game / weixin_index / ai_sear"
+        },
+        "sort": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "default",
+          "description": "排序（结果页「排序」下拉，综合与各垂类通用）：不限(相关性) default/0 / 最新(发布时间降序) latest/1 / 最热(点赞降序) hot/2，字符串键或整数均可/Sort (result page 'sort' dropdown, common to all verticals): default/0 (relevance) / latest/1 (newest) / hot/2 (most liked); string key or i",
+          "enum": [
+            "default",
+            "latest",
+            "hot",
+            0,
+            1,
+            2
+          ]
+        },
+        "publish_time": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "default": "all",
+          "description": "发布时间（结果页「时间」下拉，通用）：不限 all/0 / 最近一天 day/1 / 最近七天 week/2 / 最近半年 half_year/3，字符串键或整数均可/Publish time (result page 'time' dropdown, common): all/0 / day/1 / week/2 / half_year/3; string key or integer",
+          "enum": [
+            "all",
+            "day",
+            "week",
+            "half_year",
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "offset": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "首页传 0；翻页请用 cursor（只传 offset 无效，每页都回到第一页）/Pass 0 for the first page; use cursor to paginate (offset alone does not work — it returns the first page every time)"
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "翻页游标：首页留空；翻页时把上一页响应返回的 cursor 原样传回/Pagination cursor: leave empty for the first page; for the next page pass back the cursor returned in the previous response"
+        },
+        "raw": {
+          "type": "boolean",
+          "default": false,
+          "description": "True=原始搜索响应；False=精简解析结构/True=raw search response; False=simplified parsed structure"
+        }
+      },
+      "price_usd": 0.01,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [
+        "朋友圈、评论全局检索等非支持垂类未开放；不代表可取私人数据"
+      ]
+    },
+    {
+      "path": "/api/v1/bilibili/web/fetch_user_post_videos_v2",
+      "method": "GET",
+      "platform": "bilibili",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取用户主页作品数据V2/Get user homepage video data V2",
+      "parameter_location": "query",
+      "required": [
+        "uid",
+        "keyword"
+      ],
+      "parameters": {
+        "uid": {
+          "type": "string",
+          "description": "用户UID"
+        },
+        "pn": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 1,
+          "description": "页码，无上限/Page number, no cap"
+        },
+        "ps": {
+          "type": "integer",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "每页数量，最大100/Page size, max 100"
+        },
+        "keyword": {
+          "type": "string",
+          "description": "关键词，留空返回全部/Keyword, empty returns all",
+          "minLength": 1
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/bilibili/web/fetch_user_profile",
+      "method": "GET",
+      "platform": "bilibili",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://api.tikhub.io/openapi.json",
+      "summary": "获取指定用户的信息/Get information of specified user",
+      "parameter_location": "query",
+      "required": [
+        "uid"
+      ],
+      "parameters": {
+        "uid": {
+          "type": "string",
+          "description": "用户UID"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    },
+    {
+      "path": "/api/v1/bilibili/app/fetch_video_comments",
+      "method": "GET",
+      "platform": "bilibili",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/382707663e0",
+      "summary": "获取视频评论列表/Get video comments",
+      "parameter_location": "query",
+      "required": [],
+      "parameters": {
+        "av_id": {
+          "type": "string",
+          "description": "AV号/AV ID"
+        },
+        "bv_id": {
+          "type": "string",
+          "description": "BV号/BV ID"
+        },
+        "mode": {
+          "type": "integer",
+          "default": 3,
+          "description": "排序模式/Sort mode (3=热门/hot, 2=时间/time)",
+          "enum": [
+            2,
+            3
+          ]
+        },
+        "next_offset": {
+          "type": "integer",
+          "default": 1,
+          "description": "分页游标/Pagination cursor"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": [],
+      "require_any": [
+        [
+          "av_id",
+          "bv_id"
+        ]
+      ]
+    },
+    {
+      "path": "/api/v1/bilibili/app/fetch_search_by_type",
+      "method": "GET",
+      "platform": "bilibili",
+      "status": "docs_confirmed",
+      "docs_checked_at": "2026-10-19",
+      "docs_url": "https://docs.tikhub.io/382707670e0",
+      "summary": "分类搜索/ search by type",
+      "parameter_location": "query",
+      "required": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "type": "string",
+          "description": "搜索关键词/Search keyword",
+          "minLength": 1
+        },
+        "search_type": {
+          "type": "string",
+          "default": "video",
+          "description": "搜索类型/Search type (video/bangumi/pgc/live/article/user)",
+          "enum": [
+            "video",
+            "bangumi",
+            "pgc",
+            "live",
+            "article",
+            "user"
+          ]
+        },
+        "cursor": {
+          "type": "string",
+          "default": "",
+          "description": "翻页游标，首页留空；翻页时传回上一页响应的 data.pagination.next/Pagination cursor, leave empty for the first page; for the next page pass back data.pagination.next from the previous response"
+        },
+        "page_size": {
+          "type": "integer",
+          "default": 20,
+          "description": "每页数量/Page size"
+        },
+        "order": {
+          "type": "integer",
+          "default": 0,
+          "description": "排序方式/Sort order (0=综合, 1=最新, 2=播放量, 3=弹幕数)"
+        }
+      },
+      "price_usd": 0.001,
+      "price_checked_at": "2026-10-19",
+      "price_source": "https://api.tikhub.io/api/v1/tikhub/user/get_endpoint_info",
+      "business_code_paths": [
+        "code",
+        "detail.code",
+        "data.status_code",
+        "data.code",
+        "data.base_resp.status_code",
+        "data.baseResponse.ret"
+      ],
+      "limitations": []
+    }
+  ]
+}

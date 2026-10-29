@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DESKTOP_HOST_RUNTIME_FILES, DESKTOP_PACKAGES_DIR } from '../src/core-package-set.ts'
+import { INSIGHT_PRODUCT_PACKAGES } from '../../../scripts/insight-package-policy.ts'
 import {
   assertDesktopHostPackageFiles,
   prepareDesktopPackageSet,
@@ -82,6 +83,25 @@ describe('desktop package-set selection', () => {
     expect(selectDesktopPackageClosure(available, { platform: 'win32', arch: 'x64' }).map(entry => entry.manifest.name)).toEqual([
       '@deepseek-ai/dsh', '@deepseek-ai/dsh-desktop-host',
     ])
+  })
+
+  it('includes the exact private Insight components from Desktop pack inputs', () => {
+    const names = Object.values(INSIGHT_PRODUCT_PACKAGES)
+    const available = new Map<string, PackedDesktopPackage>([
+      ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
+      ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host', {
+        dependencies: Object.fromEntries(names.map(name => [name, '1.0.0'])),
+      })],
+      ...names.map(name => [name, packed(name, { private: true })] as const),
+    ])
+    expect(selectDesktopPackageClosure(available, { platform: 'darwin', arch: 'arm64' })
+      .map(entry => entry.manifest.name)).toEqual(expect.arrayContaining(names))
+    for (const name of names) {
+      const missing = new Map(available)
+      missing.delete(name)
+      expect(() => selectDesktopPackageClosure(missing, { platform: 'darwin', arch: 'arm64' }))
+        .toThrow(`requires unpacked package ${name}`)
+    }
   })
 
   it('requires both Desktop Host and public CLI entries', () => {

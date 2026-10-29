@@ -291,6 +291,13 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-host-product-telemetry-otel` | yes | Explicit product usage events exported through OpenTelemetry HTTP logs |
 | `@deepseek-ai/dsh-host-webserver` | yes | Web route-registration plugin: HTTP and upgrade routes, per-Peer index transform taps, and static dist fallback |
 
+## insight
+
+| Package | Config | Description |
+|---|---|---|
+| `dsh-memory-evolve` | yes | Layered memory, skill and task management for Insight workspaces |
+| `dsh-prompt-enhance` | yes | Prompt enhancement for the DSH composer |
+
 ## interaction
 
 | Package | Config | Description |

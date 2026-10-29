@@ -1,0 +1,762 @@
+{
+  "schema_version": "1.0",
+  "updated_at": "2026-10-16",
+  "transport": "enterprise_proxy",
+  "connection_id": "tikhub",
+  "note": "历史状态不是当前健康保证；单次价格从本次账户/端点计价输入，无默认统一价格；本轮未发付费请求。",
+  "endpoints": [
+    {
+      "name": "douyin_general_search_v2",
+      "path": "/api/v1/douyin/search/fetch_general_search_v2",
+      "method": "POST",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "body",
+      "required_parameters": [
+        "keyword",
+        "offset",
+        "count"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "body",
+          "max_length": 200
+        },
+        "offset": {
+          "location": "body",
+          "default": 0,
+          "minimum": 0
+        },
+        "count": {
+          "location": "body",
+          "default": 20
+        }
+      },
+      "read_only": true,
+      "provenance": "category-competitor-insight/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "keyword": "string",
+        "offset": "integer",
+        "count": "integer"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：用于 5 位达人 uid↔昵称交叉核验，均返回真实作者"
+    },
+    {
+      "name": "douyin_multi_keyword_hot_trend",
+      "path": "/api/v1/douyin/index/fetch_multi_keyword_hot_trend",
+      "method": "POST",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword_list",
+        "start_date",
+        "end_date"
+      ],
+      "parameters": {
+        "keyword_list": {
+          "location": "query",
+          "format": "comma_separated"
+        },
+        "start_date": {
+          "location": "query",
+          "format": "YYYYMMDD"
+        },
+        "end_date": {
+          "location": "query",
+          "format": "YYYYMMDD"
+        }
+      },
+      "read_only": true,
+      "provenance": "category-competitor-insight/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "keyword_list": "string",
+        "start_date": "string",
+        "end_date": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：keyword_list=啤酒,足球 返回 2 组日度热度指数"
+    },
+    {
+      "name": "douyin_hot_total_list",
+      "path": "/api/v1/douyin/billboard/fetch_hot_total_list",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "type"
+      ],
+      "parameters": {
+        "type": {
+          "location": "query",
+          "allowed": [
+            "range",
+            "snapshot"
+          ]
+        },
+        "start_date": {
+          "location": "query",
+          "required_when": "type=range"
+        },
+        "end_date": {
+          "location": "query",
+          "required_when": "type=range"
+        },
+        "snapshot_time": {
+          "location": "query",
+          "required_when": "type=snapshot"
+        }
+      },
+      "notes": "实测 type=range 加 start_date/end_date 可返回数据；snapshot 未传 snapshot_time 时可能为空。",
+      "read_only": true,
+      "provenance": "category-competitor-insight/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "type": "string",
+        "start_date": "string",
+        "end_date": "string",
+        "snapshot_time": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：type=range + start/end_date 返回 total=945、objs=9；type=snapshot 未传有效 snapshot_time 时为 0 条",
+      "verified_param_recipe": "type=range&start_date=YYYYMMDD&end_date=YYYYMMDD 实测有数据；type=snapshot 必须给有效 snapshot_time（默认值为历史时刻，会返回空）"
+    },
+    {
+      "name": "douyin_video_comments_v3",
+      "path": "/api/v1/douyin/app/v3/fetch_video_comments",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "aweme_id",
+        "cursor"
+      ],
+      "parameters": {
+        "aweme_id": {
+          "location": "query"
+        },
+        "cursor": {
+          "location": "query",
+          "default": 0,
+          "minimum": 0
+        }
+      },
+      "notes": "实测单页约 20 条，count 参数不应作为分页规模保证。",
+      "read_only": true,
+      "provenance": "category-competitor-insight/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "aweme_id": "string",
+        "cursor": "integer"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：单条视频返回 20 条评论、total=346、has_more=1"
+    },
+    {
+      "name": "xiaohongshu_search_notes_v2",
+      "path": "/api/v1/xiaohongshu/app_v2/search_notes",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "query",
+          "max_length": 200
+        },
+        "page": {
+          "location": "query",
+          "default": 1,
+          "minimum": 1
+        },
+        "sort_type": {
+          "location": "query"
+        },
+        "note_type": {
+          "location": "query"
+        },
+        "search_id": {
+          "location": "query"
+        },
+        "search_session_id": {
+          "location": "query"
+        },
+        "time_filter": {
+          "location": "query"
+        }
+      },
+      "notes": "GET 实测可用；POST 返回 405。",
+      "read_only": true,
+      "provenance": "category-competitor-insight/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "keyword": "string",
+        "page": "integer",
+        "sort_type": "string",
+        "note_type": "string",
+        "search_id": "string",
+        "search_session_id": "string",
+        "time_filter": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：keyword=啤酒 返回 20 条笔记；注意业务数据在 data.data.items[].note",
+      "response_path": "data.data.items[].note（笔记正文、作者与互动字段都在 note 内）"
+    },
+    {
+      "name": "xingtu_search_creator",
+      "path": "/api/v1/douyin/xingtu_v2/search_creator",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "query",
+          "max_length": 200
+        },
+        "seach_type": {
+          "location": "query",
+          "default": 2,
+          "meaning": "3=按内容/作品语义发现候选；2=按昵称，仅适用于已知账号核验",
+          "allowed": [
+            2,
+            3
+          ],
+          "api_default": 2,
+          "policy_required_value": 3,
+          "policy_note": "API 默认值为 2（按昵称找人）；按内容/作品语义发现必须显式传 seach_type=3，否则会退化成昵称搜索并把结果当成类目候选池"
+        },
+        "time_range_days": {
+          "location": "query",
+          "default": 180,
+          "allowed": [
+            30,
+            90,
+            180
+          ]
+        },
+        "page": {
+          "location": "query",
+          "default": 1,
+          "minimum": 1
+        }
+      },
+      "read_only": true,
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "keyword": "string",
+        "seach_type": "integer",
+        "time_range_days": "integer",
+        "page": "integer"
+      },
+      "current_status": "failed",
+      "last_failure_at": "2026-10-16",
+      "failure": "上游 400（Request failed. Please retry；明确不计费）。2026-10-16 按官方 OpenAPI 逐条核对后复测 5 种形态全部 400：① 官方示例2（keyword=飞机&seach_type=3&time_range_days=180）；② 官方示例3 纯条件筛选（keyword 留空+tag/gender/fans_min/fans_max/extra_filter 原样照抄）；③ 最小纯条件筛选；④ 仅报价筛选（price_type=2+price_min/price_max）；⑤ 精确昵称（seach_type=2&keyword=足球张雨琦）。同族 search_anchor、search_toutiao_creator、xingtu/search_kol_v1 同时段同样 400，而 xingtu/search_kol_v2 正常 → 判定为TikHub 星图 v2 搜索族后端故障，与调用方参数无关。request_id 例：4e292fe6-0b54-4736-a00e-345b74838ac8（可提交支持）。",
+      "recovery_note": "恢复后：keyword 可留空，留空即纯条件筛选（官方示例3）；服务端原生支持报价（price_type=1/2/3 配合 price_min/price_max，必须成对提供）、粉丝（fans_min/max）、效果（expected_play_*、cpm_*、cpe_*、interact_rate_*、play_over_rate_*、burst_text_rate_*）、达人属性（tag/persona_tags/gender）与 extra_filter（内容主题 content_theme_labels_180d、观众性别/年龄/八大人群 link_crowd_profile、地域等动态字段）；筛选值来源：tag/persona_tags 用 get_author_market_fields，动态画像字段用 get_search_field_options。该形态比「先全量拉取再本地过滤」更省调用与费用，恢复后应优先使用。seach_type=3 为按内容发现，seach_type=2 仅用于已知昵称核验。",
+      "replaced_by": "xingtu_search_kol_v2"
+    },
+    {
+      "name": "xingtu_author_link_info",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_link_info",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "format": "19-digit string observed in live responses",
+        "two_object_canary_required": true
+      },
+      "read_only": true,
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "o_author_id": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：星图连接/种草/转化指数正常返回"
+    },
+    {
+      "name": "xingtu_author_local_info",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_local_info",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "read_only": true,
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "o_author_id": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：返回 province_resident/city_resident，可用于地域判断"
+    },
+    {
+      "name": "xingtu_author_market_fields",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_market_fields",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "read_only": true,
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "o_author_id": "string"
+      },
+      "data_level": "static_option_catalog",
+      "trap": "两个不同 o_author_id 返回完全相同的选项字典（author_gpm、avg_sale_amount、aweme_label…），属于筛选枚举而非达人画像；不得作为达人级富集结果写进报告。双对象语义健康检查可捕获此类固定默认响应。",
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "2026-10-16 双对象检查：两个不同 star_id 返回完全相同的选项字典 → 静态枚举，非达人级数据"
+    },
+    {
+      "name": "xingtu_hot_comment_tokens",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_hot_comment_tokens",
+      "method": "GET",
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "author_id"
+      ],
+      "parameters": {
+        "author_id": {
+          "location": "query"
+        }
+      },
+      "id_contract": {
+        "parameter": "author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "read_only": true,
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_types": {
+        "author_id": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：返回 10 个热词及热度（如 皇马/球迷/俱乐部）"
+    },
+    {
+      "name": "xingtu_audience_distribution",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_audience_distribution",
+      "method": "GET",
+      "status": "failed",
+      "last_failure_at": "2026-09-21",
+      "failure": "HTTP/business 400 for live creator and official demo parameters",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        },
+        "link_type": {
+          "location": "query",
+          "default": 1
+        }
+      },
+      "read_only": true,
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_transport": "query",
+      "parameter_types": {
+        "o_author_id": "string",
+        "link_type": "integer"
+      },
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮未复测，保持 failed"
+    },
+    {
+      "name": "xingtu_author_base_info",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_base_info",
+      "method": "GET",
+      "status": "failed",
+      "last_failure_at": "2026-09-21",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        }
+      },
+      "read_only": true,
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-09-21",
+      "parameter_transport": "query",
+      "parameter_types": {
+        "o_author_id": "string"
+      },
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮未复测，保持 failed"
+    },
+    {
+      "name": "douyin_video_detail_v3",
+      "path": "/api/v1/douyin/app/v3/fetch_one_video",
+      "method": "GET",
+      "read_only": true,
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-07",
+      "documentation_checked_at": "2026-09-22",
+      "provenance": "TikHub接口完整验证报告_2026-09-09.md；本轮未重新调用",
+      "docs_url": "https://docs.tikhub.io/186826219e0",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "aweme_id"
+      ],
+      "parameters": {
+        "aweme_id": {
+          "location": "query"
+        }
+      },
+      "parameter_types": {
+        "aweme_id": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：返回完整 aweme_detail（注意公开接口 play_count 常为 0）"
+    },
+    {
+      "name": "xiaohongshu_image_detail_v2",
+      "path": "/api/v1/xiaohongshu/app_v2/get_image_note_detail",
+      "method": "GET",
+      "read_only": true,
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-07",
+      "documentation_checked_at": "2026-09-22",
+      "provenance": "TikHub接口完整验证报告_2026-09-09.md；本轮未重新调用",
+      "docs_url": "https://docs.tikhub.io/420136391e0",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "note_id"
+      ],
+      "parameters": {
+        "note_id": {
+          "location": "query"
+        }
+      },
+      "parameter_types": {
+        "note_id": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：图文笔记详情正常返回"
+    },
+    {
+      "name": "xiaohongshu_video_detail_v2",
+      "path": "/api/v1/xiaohongshu/app_v2/get_video_note_detail",
+      "method": "GET",
+      "read_only": true,
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-07",
+      "documentation_checked_at": "2026-09-22",
+      "provenance": "TikHub接口完整验证报告_2026-09-09.md；本轮未重新调用",
+      "docs_url": "https://docs.tikhub.io/420136392e0",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "note_id"
+      ],
+      "parameters": {
+        "note_id": {
+          "location": "query"
+        }
+      },
+      "parameter_types": {
+        "note_id": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：视频笔记详情正常返回"
+    },
+    {
+      "name": "xiaohongshu_note_comments_v2",
+      "path": "/api/v1/xiaohongshu/app_v2/get_note_comments",
+      "method": "GET",
+      "read_only": true,
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-07",
+      "documentation_checked_at": "2026-09-22",
+      "provenance": "TikHub接口完整验证报告_2026-09-09.md；本轮未重新调用",
+      "docs_url": "https://docs.tikhub.io/420136394e0",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "note_id"
+      ],
+      "parameters": {
+        "note_id": {
+          "location": "query"
+        },
+        "cursor": {
+          "location": "query",
+          "default": ""
+        },
+        "index": {
+          "location": "query",
+          "default": 0,
+          "minimum": 0
+        },
+        "pageArea": {
+          "location": "query",
+          "default": "UNFOLDED"
+        },
+        "sort_strategy": {
+          "location": "query",
+          "default": "latest_v2"
+        }
+      },
+      "parameter_types": {
+        "note_id": "string",
+        "cursor": "string",
+        "index": "integer",
+        "pageArea": "string",
+        "sort_strategy": "string"
+      },
+      "notes": "分页须沿用实际响应 cursor/index/pageArea；不能把评论 cursor 当数字游标。错误对象也可能计费。",
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：返回 comments 与 comment_count"
+    },
+    {
+      "name": "xiaohongshu_user_info_v2",
+      "path": "/api/v1/xiaohongshu/app_v2/get_user_info",
+      "method": "GET",
+      "read_only": true,
+      "status": "historically_verified",
+      "last_verified_at": "2026-09-07",
+      "documentation_checked_at": "2026-09-22",
+      "provenance": "TikHub接口完整验证报告_2026-09-09.md；本轮未重新调用",
+      "docs_url": "https://tikhub.io/xiaohongshu-api",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "user_id"
+      ],
+      "parameters": {
+        "user_id": {
+          "location": "query"
+        }
+      },
+      "parameter_types": {
+        "user_id": "string"
+      },
+      "current_status": "live",
+      "revalidated_at": "2026-10-16",
+      "revalidation_evidence": "本轮回填：返回用户资料（含 ip_location 等字段）"
+    },
+    {
+      "name": "xingtu_search_kol_v2",
+      "path": "/api/v1/douyin/xingtu/search_kol_v2",
+      "method": "GET",
+      "status": "live",
+      "current_status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "抖音星图达人候选发现（search_creator 失效后的首选发现路由）",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "keyword"
+      ],
+      "parameters": {
+        "keyword": {
+          "location": "query"
+        },
+        "followerRange": {
+          "location": "query"
+        },
+        "contentTag": {
+          "location": "query"
+        }
+      },
+      "notes": "单次最多 20 位，page 参数无效（page=2 与 page=1 结果相同）；followerRange 用 10-100 这类写法，1-5 实测返回空。含报价 price_20_60/price_60、last_10_items、task_infos.price_infos。",
+      "price_usd": 0.002,
+      "read_only": true,
+      "parameter_types": {
+        "keyword": "string",
+        "followerRange": "string",
+        "contentTag": "string"
+      },
+      "provenance": "creator-recommendation/references/tikhub-endpoints.json @2026-10-16"
+    },
+    {
+      "name": "xingtu_author_fans_distribution",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_fans_distribution",
+      "method": "GET",
+      "status": "live",
+      "current_status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "达人粉丝画像（省份/城市/年龄/性别/城市等级/兴趣/八大人群）",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        },
+        "platform_source": {
+          "location": "query",
+          "default": 1
+        },
+        "platform_channel": {
+          "location": "query",
+          "default": 1
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "notes": "2026-10-16 双对象语义健康检查通过；平台模型标签，不得写成真实身份或购买行为核验。",
+      "price_usd": 0.002,
+      "read_only": true,
+      "parameter_types": {
+        "o_author_id": "string",
+        "platform_source": "integer",
+        "platform_channel": "integer"
+      }
+    },
+    {
+      "name": "xingtu_author_spread_info",
+      "path": "/api/v1/douyin/xingtu_v2/get_author_spread_info",
+      "method": "GET",
+      "status": "live",
+      "current_status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "达人近30/90天传播表现（中位播放/完播率/互动率/稳定性/预期 CPM·CPE 与同业分位）",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "o_author_id"
+      ],
+      "parameters": {
+        "o_author_id": {
+          "location": "query"
+        },
+        "platform_source": {
+          "location": "query",
+          "default": 1
+        },
+        "platform_channel": {
+          "location": "query",
+          "default": 1
+        },
+        "type": {
+          "location": "query",
+          "default": 1
+        },
+        "flow_type": {
+          "location": "query",
+          "default": 0
+        },
+        "only_assign": {
+          "location": "query",
+          "default": "false"
+        },
+        "range": {
+          "location": "query",
+          "default": 2
+        }
+      },
+      "id_contract": {
+        "parameter": "o_author_id",
+        "preferred_source": "star_id",
+        "two_object_canary_required": true
+      },
+      "price_usd": 0.002,
+      "read_only": true,
+      "parameter_types": {
+        "o_author_id": "string",
+        "platform_source": "integer",
+        "platform_channel": "integer",
+        "type": "integer",
+        "flow_type": "integer",
+        "only_assign": "string",
+        "range": "integer"
+      }
+    },
+    {
+      "name": "douyin_encrypt_uid_to_sec_uid",
+      "path": "/api/v1/douyin/web/encrypt_uid_to_sec_user_id",
+      "method": "GET",
+      "status": "live",
+      "current_status": "live",
+      "last_verified_at": "2026-10-16",
+      "role": "抖音 uid → sec_user_id，用于生成达人主页链接 https://www.douyin.com/user/{sec_user_id}",
+      "parameter_transport": "query",
+      "required_parameters": [
+        "uid"
+      ],
+      "parameters": {
+        "uid": {
+          "location": "query"
+        }
+      },
+      "price_usd": 0.002,
+      "read_only": true,
+      "parameter_types": {
+        "uid": "string"
+      }
+    }
+  ],
+  "candidates": [
+    {
+      "path": "/api/v1/xiaohongshu/pgy/get_blogger_core_data",
+      "status": "catalog",
+      "source": "https://tikhub.io/xiaohongshu-api",
+      "note": "参数/字段/权限待验收，脚本不可调用；须补合同后启用。"
+    },
+    {
+      "path": "/api/v1/xiaohongshu/pgy/get_blogger_fans_profile",
+      "status": "catalog",
+      "source": "https://tikhub.io/xiaohongshu-api",
+      "note": "无本地成功证据，不能作为已具备的精准受众数据。"
+    }
+  ],
+  "revalidated_at": "2026-10-16",
+  "revalidation_note": "2026-10-16 逐条健康检查：13 条路由回填真实业务数据（顶层 code=200 且业务层非空），xingtu_search_creator 上游 400 判为 failed 并指向 search_kol_v2；xingtu_author_market_fields 两个不同 star_id 返回完全相同 payload（39 键），判为静态选项字典，不是达人级数据。"
+}

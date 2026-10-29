@@ -14,6 +14,11 @@ function expectRoundTrip(file: string, text: string, scoped: string, lines: numb
 }
 
 describe('rescope file selection', () => {
+  it('preserves externally synchronized skill assets', () => {
+    for (const file of ['bundled-skills/example/SKILL.md', 'bundled-skills/example/scripts/helper.mjs']) {
+      expect(isRescopeExcluded(file)).toBe(true)
+    }
+  })
   it('preserves the recorded npm resolution', () => {
     expect(isRescopeExcluded('scripts/dependency-catalog/package-lock.json')).toBe(true)
   })

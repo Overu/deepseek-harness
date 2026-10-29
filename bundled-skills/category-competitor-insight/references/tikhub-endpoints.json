@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "last_updated_at": "2026-09-21",
+  "transport": "enterprise_proxy",
+  "connection_id": "tikhub",
+  "endpoints": [
+    {
+      "name": "douyin_general_search_v2",
+      "path": "/api/v1/douyin/search/fetch_general_search_v2",
+      "method": "POST",
+      "status": "live",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "body",
+      "required_parameters": ["keyword", "offset", "count"],
+      "parameters": {
+        "keyword": {"location": "body"},
+        "offset": {"location": "body", "default": 0},
+        "count": {"location": "body", "default": 20}
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "douyin_multi_keyword_hot_trend",
+      "path": "/api/v1/douyin/index/fetch_multi_keyword_hot_trend",
+      "method": "POST",
+      "status": "live",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": ["keyword_list", "start_date", "end_date"],
+      "parameters": {
+        "keyword_list": {"location": "query", "format": "comma_separated"},
+        "start_date": {"location": "query", "format": "YYYYMMDD"},
+        "end_date": {"location": "query", "format": "YYYYMMDD"}
+      },
+      "price_usd": 0.002
+    },
+    {
+      "name": "douyin_hot_total_list",
+      "path": "/api/v1/douyin/billboard/fetch_hot_total_list",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": ["type"],
+      "parameters": {
+        "type": {"location": "query", "allowed": ["range", "snapshot"]},
+        "start_date": {"location": "query", "required_when": "type=range"},
+        "end_date": {"location": "query", "required_when": "type=range"},
+        "snapshot_time": {"location": "query", "required_when": "type=snapshot"}
+      },
+      "notes": "实测 type=range 加 start_date/end_date 可返回数据；snapshot 未传 snapshot_time 时可能为空。",
+      "price_usd": 0.002
+    },
+    {
+      "name": "douyin_video_comments_v3",
+      "path": "/api/v1/douyin/app/v3/fetch_video_comments",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": ["aweme_id", "cursor"],
+      "parameters": {
+        "aweme_id": {"location": "query"},
+        "cursor": {"location": "query", "default": 0}
+      },
+      "notes": "实测单页约 20 条，count 参数不应作为分页规模保证。",
+      "price_usd": 0.002
+    },
+    {
+      "name": "xiaohongshu_search_notes_v2",
+      "path": "/api/v1/xiaohongshu/app_v2/search_notes",
+      "method": "GET",
+      "status": "live",
+      "last_verified_at": "2026-09-21",
+      "parameter_transport": "query",
+      "required_parameters": ["keyword"],
+      "parameters": {
+        "keyword": {"location": "query"},
+        "page": {"location": "query", "default": 1},
+        "sort_type": {"location": "query"},
+        "note_type": {"location": "query"}
+      },
+      "notes": "GET 实测可用；POST 返回 405。",
+      "price_usd": 0.002
+    }
+  ]
+}

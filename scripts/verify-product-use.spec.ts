@@ -65,6 +65,15 @@ afterEach(() => {
 })
 
 describe('product package use', () => {
+  it('limits the Insight product role to the exact maintained distribution inputs', () => {
+    const root = fixture()
+    const directory = 'packages/insight/memory-evolve'
+    pkg(root, directory, 'dsh-memory-evolve')
+    expect(failures(root, { [directory]: { category: 'insight-product', reason: 'Required by the separate Insight distribution.' } })).toBe('')
+    pkg(root, candidateDir, candidate)
+    expect(failures(root, { [directory]: { category: 'insight-product', reason: 'Insight.' },
+      [candidateDir]: { category: 'insight-product', reason: 'Not an Insight package.' } })).toContain('invalid policy category insight-product')
+  })
   it('accepts a complete effective composition without build outputs', () => {
     expect(verifyProductUse(fixture(), {})).toMatchObject({ failures: [], optionalPackages: [], configCount: 1 })
   })

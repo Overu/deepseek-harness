@@ -1,0 +1,124 @@
+{
+ "canvasId": "103442",
+ "name": "超跑电商海报工作流（7 节点）",
+ "nodeCount": 6,
+ "nodes": [
+  {
+   "id": "79f38c0a",
+   "type": "image",
+   "title": "① 商品实拍图（输入）",
+   "value": "https://game-ai-editor-image-test.oss-cn-guangzhou.aliyuncs.com/110881/7763d773.webp",
+   "params": {},
+   "inputs": [],
+   "outputs": [
+    "https://game-ai-editor-image-test.oss-cn-guangzhou.aliyuncs.com/110881/7763d773.webp"
+   ],
+   "generation": {
+    "images": 0,
+    "videos": 0
+   }
+  },
+  {
+   "id": "9e886130",
+   "type": "text",
+   "title": "② 产品信息 Brief",
+   "value": "一、基础信息\n商品名称：奥迪超级跑车",
+   "params": {
+    "prompt": ""
+   },
+   "inputs": [],
+   "outputs": [],
+   "generation": {
+    "images": 0,
+    "videos": 0
+   }
+  },
+  {
+   "id": "1e52a8b3",
+   "type": "text",
+   "title": "③ 画面文案",
+   "value": "标题：奥迪超级跑车",
+   "params": {
+    "prompt": ""
+   },
+   "inputs": [
+    {
+     "nodeId": "9e886130"
+    }
+   ],
+   "outputs": [],
+   "generation": {
+    "images": 0,
+    "videos": 0
+   }
+  },
+  {
+   "id": "909617ad",
+   "type": "image",
+   "title": "④ 主图·暗色展厅",
+   "value": "https://x/1.jpg",
+   "prompt": "图1 为商品参考，保持外观一致",
+   "params": {
+    "model": "gpt-image-2",
+    "modelType": "reference_image_to_image"
+   },
+   "inputs": [
+    {
+     "nodeId": "79f38c0a"
+    },
+    {
+     "nodeId": "1e52a8b3"
+    }
+   ],
+   "outputs": [
+    "https://x/1.jpg"
+   ],
+   "generation": {
+    "images": 1,
+    "videos": 0
+   }
+  },
+  {
+   "id": "1a1afed6",
+   "type": "image",
+   "title": "⑤ 促销海报·价格角标",
+   "value": "https://x/2.jpg",
+   "prompt": "图1 为商品参考",
+   "params": {
+    "model": "gpt-image-2"
+   },
+   "inputs": [
+    {
+     "nodeId": "79f38c0a"
+    }
+   ],
+   "outputs": [
+    "https://x/2.jpg"
+   ],
+   "generation": {
+    "images": 1,
+    "videos": 0
+   }
+  },
+  {
+   "id": "209a1c59",
+   "type": "image",
+   "title": "⑥ 主图·极简棚拍",
+   "value": "",
+   "prompt": "图1 为商品参考",
+   "params": {
+    "model": "gpt-image-2"
+   },
+   "inputs": [
+    {
+     "nodeId": "79f38c0a"
+    }
+   ],
+   "outputs": [],
+   "generation": {
+    "images": 1,
+    "videos": 0
+   }
+  }
+ ]
+}

@@ -1,0 +1,17 @@
+[
+  {"id":"bilibili.detail_v1","platform":"bilibili","method":"GET","path":"/api/v1/bilibili/web/fetch_one_video","params":{"bv_id":"BV12h9LBREzp"}},
+  {"id":"weibo.detail_v1","platform":"weibo","method":"GET","path":"/api/v1/weibo/web/fetch_post_detail","params":{"post_id":"5328149907773105"}},
+  {"id":"weibo.comments_v1","platform":"weibo","method":"GET","path":"/api/v1/weibo/web/fetch_post_comments","params":{"post_id":"5328149907773105","mid":"5328149907773105"}},
+  {"id":"weibo.profile_v1","platform":"weibo","method":"GET","path":"/api/v1/weibo/web/fetch_user_info","params":{"uid":"5581527691"}},
+  {"id":"wechat_channels.detail_demo","platform":"wechat_channels","method":"POST","path":"/api/v1/wechat_channels/v2/fetch_video_detail","json":{"object_id":"14941130915890399732","raw":false}},
+  {"id":"wechat_channels.comments_demo","platform":"wechat_channels","method":"POST","path":"/api/v1/wechat_channels/v2/fetch_video_comments","json":{"object_id":"14941130915890399732","raw":false}},
+  {"id":"wechat_channels.profile_demo","platform":"wechat_channels","method":"POST","path":"/api/v1/wechat_channels/v2/fetch_channel_info","json":{"username":"v2_060000231003b20faec8c6e4811dc1d4c602ee30b0771bbcf220c67926bb76ab7702ac335a53@finder","raw":false}},
+  {"id":"tiktok.comments_retry","platform":"tiktok","method":"GET","path":"/api/v1/tiktok/web/fetch_post_comment","params":{"aweme_id":"7676076820919373087","cursor":0,"count":20,"current_region":"US"}},
+  {"id":"tiktok.profile","platform":"tiktok","method":"GET","path":"/api/v1/tiktok/web/fetch_user_profile","params":{"uniqueId":"thejunglebadger"}},
+  {"id":"instagram.comments","platform":"instagram","method":"GET","path":"/api/v1/instagram/v1/fetch_post_comments_v2","params":{"media_id":"3965800142503447439","sort_order":"recent"}},
+  {"id":"reddit.detail_retry","platform":"reddit","method":"GET","path":"/api/v1/reddit/app/fetch_post_details","params":{"post_id":"t3_1vvfvxa","need_format":true},"_note":"post_id 必须保留 t3_ 前缀（见 references/platform-capability-matrix.md Reddit 行：去掉前缀详情/评论返回空 data）"},
+  {"id":"reddit.comments_retry","platform":"reddit","method":"GET","path":"/api/v1/reddit/app/fetch_post_comments","params":{"post_id":"t3_1vvfvxa","need_format":true},"_note":"post_id 必须保留 t3_ 前缀；本探针用于验证评论链路的 fallback 路由"},
+  {"id":"threads.search_profiles_retry","platform":"threads","method":"GET","path":"/api/v1/threads/web/search_profiles","params":{"query":"zuck"}},
+  {"id":"lemon8.comments","platform":"lemon8","method":"GET","path":"/api/v1/lemon8/app/fetch_post_comment_list","params":{"group_id":"7676845141121974798","item_id":"7676845141121974798","media_id":"7534519482465125390","offset":"0"}},
+  {"id":"xigua.detail_v1","platform":"xigua","method":"GET","path":"/api/v1/xigua/app/v2/fetch_one_video","params":{"item_id":"7172444148555842084"}}
+]

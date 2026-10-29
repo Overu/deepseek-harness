@@ -1,0 +1,27 @@
+.sendButton {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0;
+  background-blend-mode: overlay, normal;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 6px 16px;
+  box-shadow: inset 0px 0px 20px 4px rgba(64, 185, 248, 0.5);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background:
+      linear-gradient(0deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)), linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0;
+    background-blend-mode: normal, overlay, normal;
+  }
+
+  &.locked {
+    background: linear-gradient(270deg, rgba(124, 165, 242, 0.9) 0%, rgba(177, 32, 250, 0.9) 100%), #4155f0;
+    background-blend-mode: overlay, normal;
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}

@@ -1,7 +1,7 @@
 /** Non-default package roles retained outside the experimental group. */
 
 /** Product role that does not require a default runtime mount. */
-export type ProductPackageCategory = 'optional' | 'sdk' | 'build' | 'test' | 'web-distribution' | 'declarations'
+export type ProductPackageCategory = 'optional' | 'sdk' | 'build' | 'test' | 'web-distribution' | 'declarations' | 'insight-product'
 
 /** One explicitly maintained package role and its reason. */
 export interface ProductPackagePolicy {
@@ -16,6 +16,9 @@ export interface ProductPackagePolicy {
  * Optional integrations may be reached by an optional bundle without becoming default capabilities.
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
+  'packages/insight/canvas': { category: 'insight-product', reason: 'Required by the Insight distribution; the official Desktop composition remains unchanged.' },
+  'packages/insight/memory-evolve': { category: 'insight-product', reason: 'Fixed private memory source for the Insight distribution.' },
+  'packages/insight/prompt-enhance': { category: 'insight-product', reason: 'Fixed private composer enhancement source for the Insight distribution.' },
   'packages/core/agent-tool-presentation': { category: 'optional', reason: 'Deprecated selector retained for existing executor configurations.' },
   'packages/browser-use/browser-use': { category: 'optional', reason: 'Service definition used by explicitly selected browser providers.' },
   'packages/computer-use/computer-use': { category: 'optional', reason: 'Service definition used by explicitly selected computer providers.' },

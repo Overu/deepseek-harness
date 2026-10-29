@@ -12,6 +12,7 @@ import type { DshBundleManifest } from '../packages/util/package-manifest/src/ty
 import { assertNever } from '../packages/util/values/src/index.ts'
 import { isAgentPresetEntry, isCordisGroupEntry, loadCordisYaml } from './cordis-yaml.ts'
 import { PRODUCT_PACKAGE_POLICY, type ProductPackagePolicy } from './product-package-policy.ts'
+import { INSIGHT_PRODUCT_PACKAGES } from './insight-package-policy.ts'
 import { collectRuntimeLocalSourceSpecifiers, collectRuntimeSourceSpecifiers } from './verify-client-packages.ts'
 
 const PROFILE_SOURCE = 'packages/util/official-bundles/src/bundles.ts'
@@ -256,6 +257,7 @@ export function verifyProductUse(
 
 function validCategory(path: string, category: ProductPackagePolicy['category']): boolean {
   switch (category) {
+    case 'insight-product': return INSIGHT_PRODUCT_PACKAGES[path] !== undefined
     case 'optional': return !path.startsWith('packages/test-support/')
     case 'test': return path.startsWith('packages/test-support/')
     case 'sdk': return path === 'packages/sdk/client'

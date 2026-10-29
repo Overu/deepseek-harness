@@ -1,0 +1,21 @@
+{
+  "name": "human-needs-insight",
+  "version": "2.0.0",
+  "description": "人性需求洞察技能 - 将客户 Brief 转化为结构化的人性需求图谱",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "human-needs",
+    "insight",
+    "strategy",
+    "marketing",
+    "openclaw-skill"
+  ],
+  "author": "方正东",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

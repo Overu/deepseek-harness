@@ -1,0 +1,98 @@
+.canvasFlow {
+  width: 100%;
+  height: 100%;
+
+  /* 画布节点拖入分镜表预览时半透明，便于看到目标单元格蓝框 */
+  &.storyboardNodeDropActive :global(.react-flow__node.dragging) {
+    opacity: 0.45;
+  }
+
+  /* 对齐吸附瞬间：拖拽节点轻微提亮（不可改 transform，以免覆盖 RF 定位） */
+  &.helperLineSnapPulse :global(.react-flow__node.dragging) {
+    animation: helperLineSnapPulse 150ms ease;
+  }
+
+  .img {
+    position: absolute;
+    width: 40vw;
+    left: calc((100% - 512px) / 2);
+    top: 50%;
+    transform: translate(-50%, -50%);
+
+    &.smallMode {
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  .operations {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    background-color: #262626;
+    box-shadow:
+      0px 2px 4px -1px rgba(0, 0, 0, 0.12),
+      0px 4px 5px 0px rgba(0, 0, 0, 0.08),
+      0px 1px 10px 0px rgba(0, 0, 0, 0.05);
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    align-items: center;
+    border-radius: 8px;
+
+    .undo,
+    .redo {
+      padding: 4px;
+      color: #fff;
+      cursor: pointer;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+        border-radius: 8px;
+        color: #4155f0;
+      }
+    }
+
+    .divider {
+      color: #d9d9d9;
+    }
+  }
+
+  .controls {
+    position: absolute;
+    bottom: 16px;
+    left: 108px;
+    display: flex;
+    flex-direction: row;
+    background-color: #262626 !important;
+
+    > button {
+      background-color: #262626 !important;
+      border: 1px solid #262626 !important;
+      color: #ffffff !important;
+
+      &:hover {
+        background-color: #333333 !important;
+      }
+    }
+
+    margin: 0;
+  }
+}
+
+@keyframes helperLineSnapPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.12);
+  }
+}
+
+/* 多选批量连线：句柄吸附高亮（不外扩，保持与句柄同尺寸） */
+:global(.react-flow__handle.multi-connect-snap) {
+  box-shadow: inset 0 0 0 2px #fff !important;
+  filter: brightness(1.25);
+  z-index: 10 !important;
+}

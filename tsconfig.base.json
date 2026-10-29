@@ -28,6 +28,12 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "dsh-memory-evolve": ["./packages/insight/memory-evolve/src/index.ts"],
+      "dsh-memory-evolve/client": ["./packages/insight/memory-evolve/src/client/index.ts"],
+      "dsh-prompt-enhance": ["./packages/insight/prompt-enhance/src/index.ts"],
+      "dsh-prompt-enhance/client": ["./packages/insight/prompt-enhance/src/client/index.tsx"],
+      "@insight-ai/desktop-canvas-plugin": ["./packages/insight/canvas/src/index.ts"],
+      "@insight-ai/desktop-canvas-plugin/client": ["./packages/insight/canvas/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-entry-customization": ["./packages/client/ui-entry-customization/src/index.ts"],
       "@deepseek-ai/dsh-client-ui-entry-customization/client": ["./packages/client/ui-entry-customization/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-entry-customization/src/*": ["./packages/client/ui-entry-customization/src/*"],

@@ -1,0 +1,23 @@
+{
+  "extractedAt": "2026-03-13T02:10:15.489Z",
+  "url": "https://test-base-platform.insight-aigc.com/inspiration",
+  "pageTextLength": 71,
+  "scriptsCount": 3,
+  "casesFound": 0,
+  "cardsPreview": [],
+  "scripts": [
+    {
+      "src": "",
+      "length": 108
+    },
+    {
+      "src": "",
+      "length": 400
+    },
+    {
+      "src": "",
+      "length": 314
+    }
+  ],
+  "data": []
+}

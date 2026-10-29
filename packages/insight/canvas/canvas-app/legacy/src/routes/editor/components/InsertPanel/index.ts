@@ -1,0 +1,1 @@
+export { InsertPanel } from './InsertPanel';

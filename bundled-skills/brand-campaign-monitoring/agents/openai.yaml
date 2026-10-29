@@ -1,0 +1,4 @@
+interface:
+  display_name: "品牌口碑与战役监测"
+  short_description: "跨平台品牌口碑、风险预警、营销战役投中效果监测与优化建议"
+  default_prompt: "Use $brand-campaign-monitoring to monitor a brand or live campaign across platforms and recommend evidence-backed actions."

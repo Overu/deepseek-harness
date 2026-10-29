@@ -1,0 +1,54 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "types": [
+      "node",
+      "react",
+      "client-build-environment",
+      "client-assets"
+    ],
+    "exactOptionalPropertyTypes": false,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": [
+    "src/client/**/*",
+    "src/shared/**/*.ts"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis/tsconfig.json"
+    },
+    {
+      "path": "../../client/connection/tsconfig.client.json"
+    },
+    {
+      "path": "../../client/locale/tsconfig.client.json"
+    },
+    {
+      "path": "../../client/ui-chat/tsconfig.client.json"
+    },
+    {
+      "path": "../../client/ui-conversation/tsconfig.client.json"
+    },
+    {
+      "path": "../../client/ui-primitives/tsconfig.json"
+    },
+    {
+      "path": "../../client/ui-renderer/tsconfig.json"
+    },
+    {
+      "path": "../../client/ui-sidebar-right/tsconfig.json"
+    },
+    {
+      "path": "../../client/ui-slots/tsconfig.json"
+    },
+    {
+      "path": "../../core/session/tsconfig.json"
+    },
+    {
+      "path": "../../util/crypto/tsconfig.json"
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "goal": "基于一张商品图生成 4 张统一风格又有差异的场景套图（3:4，2K）",
+  "archetype": "A3",
+  "brief": {
+    "deliverables": [
+      {
+        "kind": "image",
+        "count": 4,
+        "ratio": "3:4",
+        "resolution": "2K",
+        "platform": "小红书/详情页场景图"
+      }
+    ],
+    "assets": [
+      {
+        "role": "商品参考图",
+        "kind": "image",
+        "uploader": "agent",
+        "source": "conversation_asset",
+        "nodeLocalId": "in_product"
+      }
+    ],
+    "text": {
+      "product": "磨砂玻璃瓶精华液",
+      "audience": "注重成分与质感的都市女性"
+    },
+    "style": "极简高级美妆广告调性：干净、通透、自然光",
+    "compliance": [
+      "不得宣称疗效",
+      "不使用绝对化用语"
+    ]
+  },
+  "nodes": [
+    {
+      "localId": "in_product",
+      "role": "input",
+      "type": "image",
+      "title": "商品参考图",
+      "source": "conversation_asset",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0.0,
+          "y": 1466.6
+        }
+      }
+    },
+    {
+      "localId": "t_brief",
+      "role": "text",
+      "type": "text",
+      "title": "产品信息",
+      "textMode": "copy",
+      "text": "一、基础信息\n产品名称：磨砂玻璃瓶精华液\n\n二、核心价值\n核心卖点：1、清透质地易吸收 2、磨砂玻璃瓶身 3、按压泵头控量\n\n三、应用场景与目标用户\n使用场景：1、晨间护肤 2、出差随身\n目标人群：注重成分与质感的都市女性\n\n四、风格与情感表达\n产品风格：极简、通透、自然光",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 0.0,
+          "y": 2426.6
+        }
+      }
+    },
+    {
+      "localId": "t_idea",
+      "role": "text",
+      "type": "text",
+      "title": "套图灵感生成",
+      "textMode": "llm",
+      "prompt": "> **【任务目标】**\n> 基于参考图1（产品）与输入的产品信息，构思并描述 4 张该产品的系列展示图。\n>\n> **【核心约束】**\n> 必须保持与参考图一致的场景氛围、光影色调与产品外观（瓶身形状、磨砂质感、泵头、标签文字与比例），无需在描述中重复这些固定信息；参考图中无模特则不要新增模特。\n>\n> **【差异化生成维度】**\n> 1. 景别切换：特写（强调质感）→ 中景（强调交互）→ 全景（强调氛围）之间切换。\n> 2. 摆放与交互：改变产品摆放方式或与道具（水珠、棉片、绿植）的关系。\n> 3. 光位与情绪：顺光通透 / 侧逆光轮廓 / 顶光投影 / 柔光包裹。\n>\n> **【输出格式约束】**\n> 请严格按以下格式输出，精简中文，不要输出任何引言或解释：\n>\n> 【套图1描述】\n> (景别 + 产品摆放与交互 + 视觉焦点)\n>\n> 【套图2描述】\n> (景别 + 产品摆放与交互 + 视觉焦点)\n>\n> 【套图3描述】\n> (景别 + 产品摆放与交互 + 视觉焦点)\n>\n> 【套图4描述】\n> (景别 + 产品摆放与交互 + 视觉焦点)",
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 520.0,
+          "y": 1946.6
+        }
+      }
+    },
+    {
+      "localId": "g1",
+      "role": "generator",
+      "type": "image",
+      "title": "套图1",
+      "prompt": "图1 为产品参考，保持瓶身形状、磨砂质感、泵头与标签文字比例完全一致。结合【套图1描述】生成画面；极简高级美妆广告调性，自然光，3:4 竖版，2K，商业摄影质感，背景干净、无杂乱道具、无水印、无多余文字。",
+      "config": {
+        "modelType": "reference_image_to_image",
+        "model": "gemini-3-pro-image-preview",
+        "params": {
+          "aspect_ratio": "3:4",
+          "resolution": "2K",
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 1040.0,
+          "y": 0.0
+        }
+      }
+    },
+    {
+      "localId": "g2",
+      "role": "generator",
+      "type": "image",
+      "title": "套图2",
+      "prompt": "图1 为产品参考，保持瓶身形状、磨砂质感、泵头与标签文字比例完全一致。结合【套图2描述】生成画面；极简高级美妆广告调性，自然光，3:4 竖版，2K，商业摄影质感，背景干净、无水印、无多余文字。",
+      "config": {
+        "modelType": "reference_image_to_image",
+        "model": "gemini-3-pro-image-preview",
+        "params": {
+          "aspect_ratio": "3:4",
+          "resolution": "2K",
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 1040.0,
+          "y": 1093.3
+        }
+      }
+    },
+    {
+      "localId": "g3",
+      "role": "generator",
+      "type": "image",
+      "title": "套图3",
+      "prompt": "图1 为产品参考，保持瓶身形状、磨砂质感、泵头与标签文字比例完全一致。结合【套图3描述】生成画面；极简高级美妆广告调性，自然光，3:4 竖版，2K，商业摄影质感，背景干净、无水印、无多余文字。",
+      "config": {
+        "modelType": "reference_image_to_image",
+        "model": "gemini-3-pro-image-preview",
+        "params": {
+          "aspect_ratio": "3:4",
+          "resolution": "2K",
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 1040.0,
+          "y": 2186.6
+        }
+      }
+    },
+    {
+      "localId": "g4",
+      "role": "generator",
+      "type": "image",
+      "title": "套图4",
+      "prompt": "图1 为产品参考，保持瓶身形状、磨砂质感、泵头与标签文字比例完全一致。结合【套图4描述】生成画面；极简高级美妆广告调性，自然光，3:4 竖版，2K，商业摄影质感，背景干净、无水印、无多余文字。",
+      "config": {
+        "modelType": "reference_image_to_image",
+        "model": "gemini-3-pro-image-preview",
+        "params": {
+          "aspect_ratio": "3:4",
+          "resolution": "2K",
+          "gen_count": 1
+        }
+      },
+      "placement": {
+        "mode": "absolute",
+        "position": {
+          "x": 1040.0,
+          "y": 3279.9
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "in_product",
+      "to": "t_idea",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "t_brief",
+      "to": "t_idea",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    },
+    {
+      "from": "in_product",
+      "to": "g1",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "in_product",
+      "to": "g2",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "in_product",
+      "to": "g3",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "in_product",
+      "to": "g4",
+      "sourceHandle": "image_source",
+      "targetHandle": "image_target"
+    },
+    {
+      "from": "t_idea",
+      "to": "g1",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    },
+    {
+      "from": "t_idea",
+      "to": "g2",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    },
+    {
+      "from": "t_idea",
+      "to": "g3",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    },
+    {
+      "from": "t_idea",
+      "to": "g4",
+      "sourceHandle": "text_source",
+      "targetHandle": "text_target"
+    }
+  ],
+  "runs": [
+    "g1",
+    "g2",
+    "g3",
+    "g4"
+  ],
+  "manualSteps": [
+    {
+      "node": "t_idea",
+      "reason": "文本（LLM）节点 agent 不能执行：canvas_run 只支持普通 image/video 节点",
+      "action": "在画布上点该节点生成，得到【套图1-4描述】后再跑下游；或改用 copy 模式由 agent 直接写四段描述"
+    }
+  ],
+  "estimate": {
+    "images": 4,
+    "videos": 0,
+    "points": "按目录实时值估算（gemini-3-pro-image-preview）",
+    "needsConfirmation": false
+  },
+  "acceptance": [
+    "4 张图的产品外观与参考图一致",
+    "4 张在景别/摆放/光位上确有差异且风格统一",
+    "画面无多余文字与水印"
+  ]
+}
