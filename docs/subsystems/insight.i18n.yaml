@@ -2,21 +2,27 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/insight.md
-/insight-desktop-inputs:
-  en: ca434be2c6c77e00
-  zh: e55793125db2ac2b
-/insight-desktop-inputs/summary:
-  en: 88b85d5fdc85e084
-  zh: d92bb820adfd9bfb
-/insight-desktop-inputs/source-ownership:
-  en: 6031d46ac657edee
-  zh: 08e966a7837c0d7d
-/insight-desktop-inputs/skill-assets:
-  en: 5a05c6cd0cfa06a0
-  zh: f90d30af0e6f67be
-/insight-desktop-inputs/desktop-integration:
-  en: 6942a65ee6543ee5
-  zh: c77fc87870d116fe
-/insight-desktop-inputs/dev-note:
+/insight-desktop-product-integration:
+  en: f0b728ec6e782084
+  zh: cafe3fd42d47f979
+/insight-desktop-product-integration/summary:
+  en: ed08abc38d81e307
+  zh: 0bc72ddb56bf9090
+/insight-desktop-product-integration/product-and-runtime-identity:
+  en: 3dad779a7c3618df
+  zh: e9e009c80458eb8b
+/insight-desktop-product-integration/startup-and-account-ownership:
+  en: e2cf72c7d9b3bff6
+  zh: 66b7e7ed6d75da78
+/insight-desktop-product-integration/process-data-flow:
+  en: 0934778b1fc61452
+  zh: 67bb40a2b5e7cd95
+/insight-desktop-product-integration/source-and-release-ownership:
+  en: 11066baf291e69e7
+  zh: a408582f4caa1b5b
+/insight-desktop-product-integration/source-development:
+  en: 9cdbe6e49d675ef9
+  zh: a8787c773f483734
+/insight-desktop-product-integration/dev-note:
   en: b75c8458928b72b9
   zh: 003ba4e17b4b5269

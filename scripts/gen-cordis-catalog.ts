@@ -58,6 +58,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   otel: 'otel.md',
   productTelemetry: 'product-telemetry.md',
   productAnalytics: 'product-telemetry.md',
+  insightAccount: 'insight.md',
   connection: 'web-server.md',
   pluginManager: 'boot.md',
   actionCards: 'boot.md',

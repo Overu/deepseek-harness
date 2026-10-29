@@ -26,6 +26,7 @@ import { desktopBuildCommitEnvironment, readDesktopBuildCommit, resolveDesktopBu
 import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 import { INSIGHT_PRODUCT_PACKAGES } from '../../../scripts/insight-package-policy.ts'
+import { resolveDesktopProduct } from '../src/product.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -135,17 +136,29 @@ function packageVersion(path: string, label: string): string {
   return manifest.version
 }
 
+/**
+ * Resolve the customer-facing version without changing the version of the bundled DSH runtime.
+ * @param environment - Packaging environment after its local or release settings are selected.
+ * @param runtimeVersion - Desktop package version that the runtime declares.
+ * @returns Explicit Insight product version, or the unchanged upstream Desktop version.
+ */
+export function resolveDesktopPackagingProductVersion(environment: NodeJS.ProcessEnv, runtimeVersion: string): string {
+  const product = resolveDesktopProduct({ isPackaged: false, environment })
+  return product.kind === 'insight' ? product.productVersion : runtimeVersion
+}
+
 function writeReleaseRecord(
   target: DesktopPackageTarget,
   environment: NodeJS.ProcessEnv,
   artifactsRoot: string,
 ): void {
-  const desktopVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
+  const runtimeVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   const dshVersion = packageVersion(join(REPOSITORY_ROOT, 'package.json'), 'dsh package')
-  if (desktopVersion !== dshVersion) {
-    throw new Error(`desktop package: desktop version ${desktopVersion} does not match dsh version ${dshVersion}`)
+  if (runtimeVersion !== dshVersion) {
+    throw new Error(`desktop package: desktop runtime version ${runtimeVersion} does not match dsh version ${dshVersion}`)
   }
-  const buildVersion = resolveDesktopBuildVersion(environment, dshVersion)
+  const productVersion = resolveDesktopPackagingProductVersion(environment, runtimeVersion)
+  const buildVersion = resolveDesktopBuildVersion(environment, productVersion)
   const packaged = resolveDesktopBuildCommit(environment)
   const update = resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   const recordPath = join(artifactsRoot, desktopBuildRecordFilename(target.name))
@@ -154,6 +167,7 @@ function writeReleaseRecord(
     schemaVersion: 1,
     target: target.name,
     version: buildVersion,
+    ...(productVersion === runtimeVersion ? {} : { productVersion, runtimeVersion }),
     environment: update.environment,
     channel: update.channel,
     publicUrl: update.publicUrl,
@@ -350,7 +364,8 @@ async function main(): Promise<void> {
     : loadDesktopPackageEnvironment(target.platform, process.env, APP_ROOT, {
       unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
     })
-  const productVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
+  const runtimeVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
+  const productVersion = resolveDesktopPackagingProductVersion(environment, runtimeVersion)
   // Release settings come from the selected configuration files, so the version this run publishes is an
   // argument; the environment variable below only carries it to the child processes that build.
   const buildVersion = await resolveRequestedBuildVersion(invocation, productVersion, environment)

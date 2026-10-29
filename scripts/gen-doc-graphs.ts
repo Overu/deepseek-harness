@@ -108,6 +108,13 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'insightAccount',
+    pkg: '@insight-ai/desktop-integration',
+    title: 'Insight account credential access',
+    mode: 'service',
+    note: 'Provides bounded, cancellable access to the Desktop Main-owned token for trusted Host plugins without a Remote, browser, or HTTP surface.',
+  },
+  {
     key: 'actionCards',
     pkg: 'action-cards',
     title: 'Optional action cards',

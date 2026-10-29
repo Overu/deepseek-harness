@@ -4,6 +4,14 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { join } from 'node:path'
 import { z } from 'zod'
 import type { PlatformSession } from '@deepseek-ai/dsh-deepseek-account'
+import {
+  INSIGHT_ACCOUNT_MAX_PENDING_REQUESTS,
+  insightAccountRequestId,
+  parseInsightAccountHostMessage,
+  parseInsightAccountMainMessage,
+  type InsightAccountRequestId,
+  type InsightAccountResult,
+} from '@insight-ai/desktop-integration/protocol'
 import { desktopNodeEnvironment } from './node-environment.ts'
 import { parsePluginOperationRecord, type PluginOperationRecord, type PluginOperationRunId } from '@deepseek-ai/dsh-plugin-manager/diagnostic'
 
@@ -174,6 +182,7 @@ export class DesktopHostProcess {
     resolve: (response: DesktopHostControlResponse) => void
     reject: (error: Error) => void
   }>()
+  private readonly credentialRequests = new Map<InsightAccountRequestId, AbortController>()
 
   /**
    * @param node - Absolute Electron executable in Node mode.
@@ -187,6 +196,7 @@ export class DesktopHostProcess {
    * @param packageManager - Bundled pnpm entry and Node launcher directory, scoped to package operations.
    * @param onPlatformSession - Private credential updates for embedded Platform views.
    * @param onPluginOperation - Optional diagnostic sink; malformed records are ignored without failing the Host.
+   * @param requestInsightCredential - Main-owned credential reader for the current Insight account.
    */
   constructor(
     private readonly node: string,
@@ -200,6 +210,7 @@ export class DesktopHostProcess {
 
     private readonly onPlatformSession?: (session: PlatformSession | null) => void,
     private readonly onPluginOperation?: (record: PluginOperationRecord) => void,
+    private readonly requestInsightCredential?: (signal: AbortSignal) => Promise<string>,
   ) {}
 
   /**
@@ -227,6 +238,7 @@ export class DesktopHostProcess {
     child.stderr?.on('data', (chunk: string) => { this.stderr = (this.stderr + chunk).slice(-MAX_HOST_DIAGNOSTIC_CHARS) })
     child.stdout?.pipe(process.stdout)
     child.on('message', (message: unknown) => {
+      if (this.handleInsightAccountMessage(child, message)) return
       if (typeof message === 'object' && message !== null && 'type' in message && message.type === 'plugin-operation') {
         const record = 'record' in message ? parsePluginOperationRecord(message.record) : undefined
         if (record !== undefined && record.runId === this.runId) {
@@ -258,8 +270,10 @@ export class DesktopHostProcess {
       }
     })
     child.once('error', (error) => { this.fail(error) })
+    child.once('disconnect', () => { this.abortCredentialRequests() })
     this.exitPromise = new Promise<void>((resolve) => {
       child.once('close', (code) => {
+        this.abortCredentialRequests()
         const suffix = this.stderr.trim() === '' ? '' : `: ${this.stderr.trim()}`
         if (code !== 0 && code !== null) this.fail(new Error(`dsh desktop host exited with ${String(code)}${suffix}`))
         else this.fail(new Error(`dsh desktop host stopped${suffix}`))
@@ -348,6 +362,7 @@ export class DesktopHostProcess {
     const child = this.child
     if (child === undefined) return
     this.stopping = true
+    this.abortCredentialRequests()
     this.onPlatformSession?.(null)
     if (child.connected) child.send({ type: 'shutdown' }, (error) => { if (error !== null) this.fail(error) })
     const exited = this.exitPromise ?? Promise.resolve()
@@ -367,6 +382,7 @@ export class DesktopHostProcess {
   }
 
   private fail(error: Error): void {
+    this.abortCredentialRequests()
     if (this.runId !== undefined) Object.assign(error, { hostRunId: this.runId })
     this.onPlatformSession?.(null)
     this.readyReject(error)
@@ -379,4 +395,89 @@ export class DesktopHostProcess {
       }
     }
   }
+
+  /** Route only valid current-child Insight account messages before normal Host event parsing. */
+  private handleInsightAccountMessage(child: ChildProcess, value: unknown): boolean {
+    const message = parseInsightAccountHostMessage(value)
+    if (message !== undefined) {
+      if (message.kind === 'insight-account-cancel') {
+        const controller = this.credentialRequests.get(message.requestId)
+        if (controller !== undefined) {
+          this.credentialRequests.delete(message.requestId)
+          controller.abort()
+        }
+      } else {
+        this.startInsightCredentialRequest(child, message.requestId)
+      }
+      return true
+    }
+    if (!isInsightAccountRequest(value)) return false
+    const requestId = insightAccountRequestId(value.requestId)
+    if (requestId !== undefined && this.isCurrentCredentialChild(child)) {
+      this.sendInsightAccountResponse(child, requestId, { ok: false, reason: 'failed' })
+    }
+    return true
+  }
+
+  /** Start one Main-owned credential read without retaining provider errors or tokens in diagnostics. */
+  private startInsightCredentialRequest(child: ChildProcess, requestId: InsightAccountRequestId): void {
+    if (!this.isCurrentCredentialChild(child)) {
+      return
+    }
+    if (this.credentialRequests.has(requestId)) {
+      this.sendInsightAccountResponse(child, requestId, { ok: false, reason: 'failed' })
+      return
+    }
+    if (this.credentialRequests.size >= INSIGHT_ACCOUNT_MAX_PENDING_REQUESTS || this.requestInsightCredential === undefined) {
+      this.sendInsightAccountResponse(child, requestId, { ok: false, reason: 'unavailable' })
+      return
+    }
+    const controller = new AbortController()
+    this.credentialRequests.set(requestId, controller)
+    void this.requestInsightCredential(controller.signal).then((accessToken) => {
+      if (!this.finishCredentialRequest(child, requestId, controller)) return
+      this.sendInsightAccountResponse(child, requestId, { ok: true, accessToken })
+    }, () => {
+      if (!this.finishCredentialRequest(child, requestId, controller)) return
+      this.sendInsightAccountResponse(child, requestId, { ok: false, reason: controller.signal.aborted ? 'cancelled' : 'failed' })
+    })
+  }
+
+  /** Remove one request only while the child generation and admission state remain current. */
+  private finishCredentialRequest(child: ChildProcess, requestId: InsightAccountRequestId, controller: AbortController): boolean {
+    if (this.credentialRequests.get(requestId) !== controller) return false
+    this.credentialRequests.delete(requestId)
+    return this.isCurrentCredentialChild(child)
+  }
+
+  /** Reject responses after a closing, failed, disconnected, or replaced child. */
+  private isCurrentCredentialChild(child: ChildProcess): boolean {
+    return this.child === child && child.connected && !this.stopping && !this.failureReported
+  }
+
+  /** Send a parser-validated response without exposing a credential in diagnostic state. */
+  private sendInsightAccountResponse(child: ChildProcess, requestId: InsightAccountRequestId, result: InsightAccountResult): void {
+    if (!child.connected) return
+    const response = parseInsightAccountMainMessage({ kind: 'insight-account-response', requestId, result })
+      ?? parseInsightAccountMainMessage({ kind: 'insight-account-response', requestId, result: { ok: false, reason: 'failed' } })
+    if (response === undefined) return
+    try {
+      child.send(response, () => {})
+    } catch {
+      // Child disconnect races are owned by the child lifecycle.
+    }
+  }
+
+  /** Abort all Main credential reads before the child can be replaced or torn down. */
+  private abortCredentialRequests(): void {
+    for (const controller of this.credentialRequests.values()) controller.abort()
+    this.credentialRequests.clear()
+  }
+}
+
+/** Identify a malformed request that still has a safely correlatable request identifier. */
+function isInsightAccountRequest(value: unknown): value is { readonly kind: 'insight-account-request'; readonly requestId: string } {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    && 'kind' in value && value.kind === 'insight-account-request'
+    && 'requestId' in value && typeof value.requestId === 'string'
 }

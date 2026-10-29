@@ -88,6 +88,7 @@
     "@deepseek-ai/dsh-plugin-manager": "workspace:*",
     "zod": "4.4.3",
     "@deepseek-ai/dsh-util-file-drag": "workspace:*",
-    "tencentcloud-sdk-nodejs-teo": "4.1.330"
+    "tencentcloud-sdk-nodejs-teo": "4.1.330",
+    "@insight-ai/desktop-integration": "workspace:*"
   }
 }

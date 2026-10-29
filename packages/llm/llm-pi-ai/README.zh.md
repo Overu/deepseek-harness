@@ -140,6 +140,8 @@ Config 更新严格验证发生变化的 provider。初始加载将已存储的�
 
 初始提示词文本和可用工具分别使用 pi-ai 的 `Context.systemPrompt` 与 `Context.tools`；后续系统消息和工具更新保留在 `Context.messages` 中。pi-ai 负责规范化这些字段，并应用所选协议的序列化规则。
 
+编程调用方可使用公开 `PiAiAdapter`，通过 `resolveProfiles()` 获取已校验的提供方 profile，并通过 `credentialStoreFrom(ctx)` / `authContextFrom(ctx)` 获取 Host 凭据和环境认证接口。这些 helper 与插件共用实现；调用方提供逐操作的 `resolveApiKey`，并负责适配器注册与请求清理。
+
 ### 源码地图
 
 | 文件 | 职责 |

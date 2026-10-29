@@ -5128,4 +5128,5 @@ export type StrategyMode = 'replace-default' | 'extend-default'
 | `@deepseek-ai/dsh-util-workspace-path` | — | [`packages/util/workspace-path/src/index.ts`](../packages/util/workspace-path/src/index.ts) |
 | `@deepseek-ai/dsh-win32-process` | — | [`packages/subprocess/win32-process/src/index.ts`](../packages/subprocess/win32-process/src/index.ts) |
 | `@insight-ai/desktop-canvas-plugin` | — | [`packages/insight/canvas/src/index.ts`](../packages/insight/canvas/src/index.ts) |
+| `@insight-ai/desktop-integration` | — | [`packages/insight/desktop-integration/src/index.ts`](../packages/insight/desktop-integration/src/index.ts) |
 <!-- END GENERATED config-catalog:library -->

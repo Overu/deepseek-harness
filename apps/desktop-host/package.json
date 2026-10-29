@@ -29,7 +29,8 @@
     "@deepseek-ai/dsh-plugin-manager": "workspace:*",
     "@insight-ai/desktop-canvas-plugin": "workspace:~",
     "dsh-memory-evolve": "workspace:~",
-    "dsh-prompt-enhance": "workspace:~"
+    "dsh-prompt-enhance": "workspace:~",
+    "@insight-ai/desktop-integration": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:~",

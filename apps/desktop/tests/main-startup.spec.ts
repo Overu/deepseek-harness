@@ -1,16 +1,19 @@
 import { parsePluginOperationRecord } from '@deepseek-ai/dsh-plugin-manager/diagnostic'
 import type { DesktopHostProcess } from '../src/host-process.ts'
 import type { AccountView } from '@deepseek-ai/dsh-deepseek-account/types'
+import type { InsightDesktopContext } from '../src/insight-startup.ts'
 import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
-import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import type { MenuItemConstructorOptions, MessageBoxOptions } from 'electron'
 import { DESKTOP_IPC, type DesktopUpdateState } from '../src/ipc.ts'
+import { INSIGHT_DESKTOP_IPC } from '@insight-ai/desktop-integration/protocol'
 import { MANDATORY_IPC } from '../src/mandatory-update-ipc.ts'
 import { DesktopHostFatalError, DesktopHostUncleanExitError } from '../src/host-process.ts'
+import { insightNativeLocale } from '../src/insight-native-brand.ts'
 import { en, zh } from '../src/locale.ts'
 import { DesktopUpdatePreparationError } from '../src/update-error.ts'
 import { writeCrashReport } from '../src/crash-report.ts'
@@ -18,9 +21,23 @@ import { runOperationReportJob } from '../src/operation-report-job.ts'
 
 type InvokeEvent = { sender?: unknown; senderFrame: { url: string } }
 type InvokeHandler = (event: InvokeEvent, ...args: unknown[]) => unknown
+type InsightContextFixture = InsightDesktopContext & {
+  readonly onExpired: Mock<InsightDesktopContext['onExpired']>
+  readonly closeAdmission: Mock<InsightDesktopContext['closeAdmission']>
+  readonly clearAuthentication: Mock<InsightDesktopContext['clearAuthentication']>
+  readonly dismissLogin: Mock<InsightDesktopContext['dismissLogin']>
+}
 
 const fileDrag = vi.hoisted(() => ({ dispose: vi.fn<() => Promise<void>>(), install: vi.fn() }))
 vi.mock('../src/file-drag.ts', () => ({ installDesktopFileDrag: () => { fileDrag.install(); return fileDrag.dispose } }))
+
+const insightStartup = vi.hoisted(() => ({ prepare: vi.fn(), close: vi.fn() }))
+vi.mock('../src/insight-startup.ts', () => ({
+  prepareInsightDesktop: insightStartup.prepare,
+  InsightLoginClosedError: class InsightLoginClosedError extends Error {},
+}))
+vi.mock('../src/insight-account-exit.ts', () => ({ closeInsightAccount: insightStartup.close }))
+const welcomeBackend = vi.hoisted(() => ({ connect: vi.fn() }))
 
 vi.mock('../src/web-document.ts', () => ({ authenticateWebHost: async () => 'test-cookie', serveWebDocument: vi.fn(), forwardWebRequest: vi.fn() }))
 vi.mock('../src/operation-report-job.ts', () => ({ runOperationReportJob: vi.fn(async () => ({ appended: false, timedOut: false, cancelled: false })) }))
@@ -44,6 +61,8 @@ const harness = await vi.hoisted(async () => {
   let windowFailure: Error | undefined
   const powerMonitor = new EventEmitter()
   const hosts: FakeHost[] = []
+  const desktopPathCalls: (string | undefined)[] = []
+  const projectManagerArguments: unknown[][] = []
   const handlers = new Map<string, InvokeHandler>()
   let pluginsEnabled = false
   let prepareUpdate: (() => Promise<boolean>) | undefined
@@ -56,6 +75,7 @@ const harness = await vi.hoisted(async () => {
   let quitCompleted = deferred()
   let policyBlocked = deferred()
   let embeddedPolicy: unknown
+  let applicationManifest: Record<string, unknown> = { dshDesktopAppId: 'com.deepseek.dsh' }
   let closeWindowsOnQuit = false
   let updateState: DesktopUpdateState = { phase: 'idle' }
   let platformDisposeDeferred: ReturnType<typeof deferred> | undefined
@@ -129,7 +149,7 @@ const harness = await vi.hoisted(async () => {
     setMenu() {}
     getContentBounds() { return { x: 0, y: 0, width: 900, height: 650 } }
     setBounds() {}
-    setTitle = vi.fn()
+    setTitle = vi.fn<(title: string) => void>()
     destroy() { this.destroyed = true; this.emit('closed') }
     close() {
       const event = { preventDefault: vi.fn() }
@@ -180,6 +200,8 @@ const harness = await vi.hoisted(async () => {
     getPreferredSystemLanguages: () => ['en-US'],
     getVersion: () => '1.0.0',
     getAppPath: (): string => 'desktop-test-app',
+    setName: vi.fn(),
+    setPath: vi.fn(),
     setAppLogsPath: vi.fn(),
     getPath: vi.fn<(name: string) => string>(),
     setAboutPanelOptions: vi.fn<(options: Electron.AboutPanelOptionsOptions) => void>(),
@@ -214,6 +236,7 @@ const harness = await vi.hoisted(async () => {
   return {
     failWindow(error: Error) { windowFailure = error },
     windows, views, hosts, handlers, app, FakeWindow, FakeView, FakeHost, powerMonitor, nativeTheme, analytics,
+    desktopPathCalls, projectManagerArguments,
     trays, FakeTray, backgroundNotice, shellDialog,
     menu, popup, socketHeaders: vi.fn(), loginShell, readLoginShell, updateCheck, updateDownload, updateInstall,
     platformDispose,
@@ -251,6 +274,8 @@ const harness = await vi.hoisted(async () => {
     get policyBlocked() { return policyBlocked },
     get embeddedPolicy() { return embeddedPolicy },
     set embeddedPolicy(value: unknown) { embeddedPolicy = value },
+    get applicationManifest() { return applicationManifest },
+    set applicationManifest(value: Record<string, unknown>) { applicationManifest = value },
     nextNavigation() { navigated = deferred(); return navigated.promise },
     nextHostStart() { hostStarted = deferred(); return hostStarted.promise },
     deferPlatformDispose() { platformDisposeDeferred = deferred(); return platformDisposeDeferred },
@@ -260,7 +285,7 @@ const harness = await vi.hoisted(async () => {
     set closeWindowsOnQuit(value: boolean) { closeWindowsOnQuit = value },
     reset() {
       accountListener = undefined
-      windows.length = 0
+      windows.length = 0; desktopPathCalls.length = 0; projectManagerArguments.length = 0
       views.length = 0; hosts.length = 0; handlers.clear(); app.removeAllListeners()
       trays.length = 0
       backgroundNotice.markerPath = undefined
@@ -282,6 +307,7 @@ const harness = await vi.hoisted(async () => {
       navigated = deferred(); dialogShown = deferred(); quitCompleted = deferred()
       policyBlocked = deferred()
       embeddedPolicy = undefined
+      applicationManifest = { dshDesktopAppId: 'com.deepseek.dsh' }
       fileDrag.install.mockReset()
       fileDrag.dispose.mockReset().mockResolvedValue(undefined)
       platformDisposeDeferred = undefined
@@ -333,7 +359,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>()
   return { ...original, readFile: vi.fn((path: Parameters<typeof original.readFile>[0], encoding?: 'utf8') => {
     if (path === join('desktop-test-app', 'package.json')) {
-      return Promise.resolve(JSON.stringify({ dshDesktopAppId: 'com.deepseek.dsh', dshMandatoryUpdatePolicy: harness.embeddedPolicy }))
+      return Promise.resolve(JSON.stringify({ ...harness.applicationManifest, dshMandatoryUpdatePolicy: harness.embeddedPolicy }))
     }
     return encoding === undefined ? original.readFile(path) : original.readFile(path, encoding)
   }) }
@@ -342,10 +368,27 @@ vi.mock('../src/login-shell-environment.ts', async importOriginal => ({
   ...await importOriginal<typeof import('../src/login-shell-environment.ts')>(),
   readDesktopLoginShellEnvironment: harness.loginShell,
 }))
+vi.mock('node:fs', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:fs')>()
+  const readFileSync = vi.fn((
+    path: Parameters<typeof original.readFileSync>[0],
+    options?: Parameters<typeof original.readFileSync>[1],
+  ) => {
+    if (path === join('desktop-test-app', 'package.json')) {
+      return JSON.stringify({ ...harness.applicationManifest, dshMandatoryUpdatePolicy: harness.embeddedPolicy })
+    }
+    return original.readFileSync(path, options)
+  })
+  return { ...original, readFileSync }
+})
 vi.mock('../src/runtime-tree.ts', () => ({ readDesktopRuntime: () => ({ release: { version: '1.0.0' } }) }))
-vi.mock('../src/paths.ts', () => ({ resolveDesktopPaths: () => ({ profile: 'desktop-test-profile' }) }))
+vi.mock('../src/paths.ts', () => ({ resolveDesktopPaths: (home?: string) => {
+  harness.desktopPathCalls.push(home)
+  return { profile: 'desktop-test-profile' }
+} }))
 vi.mock('../src/project-manager.ts', () => ({
   DesktopProjectManager: class {
+    constructor(...args: unknown[]) { harness.projectManagerArguments.push(args) }
     readonly applyRelease = harness.applyRelease
     disableAllPlugins = harness.disableAllPlugins
 
@@ -388,15 +431,19 @@ vi.mock('../src/platform-view.ts', async importOriginal => ({
   },
 }))
 vi.mock('../src/welcome-backend.ts', () => ({
-  connectDesktopWelcome: async () => ({
+  connectDesktopWelcome: welcomeBackend.connect,
+}))
+
+function installWelcomeBackendMock(): void {
+  welcomeBackend.connect.mockResolvedValue({
     analyticsEnabled: async () => harness.analyticsEnabled,
     report: harness.analytics,
     readLocalePreference: async () => null,
     read: async (): Promise<unknown> => (await harness.hosts.at(-1)!.fetch()).json() as Promise<unknown>,
     save: async () => ({ ok: true }),
     account: { watch: harness.watchAccount, state: async () => ({ status: 'signed-out', attempt: null }) },
-  }),
-}))
+  })
+}
 
 function configureTestAuthPopup(allow: boolean): void {
   const directory = join(harness.app.getPath('userData'), 'desktop')
@@ -429,6 +476,19 @@ beforeEach(() => {
   harness.dialog.showMessageBox.mockResolvedValue({ response: 1 })
   testAuth.login.mockReset()
   testAuth.login.mockResolvedValue('cancelled')
+  insightStartup.prepare.mockReset()
+  insightStartup.close.mockReset()
+  insightStartup.close.mockImplementation(async (operations: {
+    revoke(): void
+    stop: readonly (() => Promise<void>)[]
+    clearAuthentication(): Promise<void>
+  }) => {
+    operations.revoke()
+    await Promise.all(operations.stop.map(async (stop) => { await stop() }))
+    await operations.clearAuthentication()
+  })
+  welcomeBackend.connect.mockReset()
+  installWelcomeBackendMock()
   vi.useFakeTimers()
   harness.reset()
   const userData = mkdtempSync(join(tmpdir(), 'dsh-main-user-data-'))
@@ -1240,6 +1300,187 @@ describe('desktop main startup', () => {
     await harness.navigated.promise
     return harness.hosts[0]!
   }
+
+  function insightContext(): InsightContextFixture {
+    return {
+      dshHome: 'insight-account-home',
+      summary: { displayName: 'Insight user', maskedPhone: '188****0000' },
+      active: true,
+      info: { productName: '因赛AI', productVersion: '1.3.0', runtimeVersion: '0.2.2-alpha.2', platform: 'win32', environment: 'test' },
+      requestCredential: vi.fn(async () => 'insight-access-token'),
+      onExpired: vi.fn(() => () => {}),
+      closeAdmission: vi.fn(),
+      clearAuthentication: vi.fn(async () => {}),
+      dismissLogin: vi.fn(),
+    }
+  }
+
+  function selectInsightProduct(): void {
+    harness.applicationManifest = {
+      dshDesktopProduct: 'insight',
+      version: '1.3.0',
+      dshDesktopRuntimeVersion: '0.2.2-alpha.2',
+    }
+  }
+
+  it('holds the profile and Host behind the Insight login gate', async () => {
+    selectInsightProduct()
+    const context = insightContext()
+    const gate = Promise.withResolvers<InsightDesktopContext>()
+    insightStartup.prepare.mockReturnValueOnce(gate.promise)
+
+    await import('../src/main.ts')
+    await vi.waitFor(() => { expect(insightStartup.prepare).toHaveBeenCalledOnce() })
+    expect(harness.applyRelease).not.toHaveBeenCalled()
+    expect(harness.hosts).toHaveLength(0)
+    expect(welcomeBackend.connect).not.toHaveBeenCalled()
+
+    gate.resolve(context)
+    await harness.preparing.promise
+    expect(harness.desktopPathCalls).toEqual(['insight-account-home'])
+    expect(harness.projectManagerArguments[0]).toMatchObject([
+      { profile: 'desktop-test-profile' }, expect.anything(), ['@insight-ai/desktop-integration'],
+    ])
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    expect(harness.hosts[0]!.environment).toMatchObject({ DSH_HOME: 'insight-account-home', DSH_INSIGHT_SERVICE_ENVIRONMENT: 'test' })
+  })
+
+  it('enters the Insight workspace without connecting official welcome and scopes account IPC to the workspace frame', async () => {
+    selectInsightProduct()
+    const context = insightContext()
+    insightStartup.prepare.mockResolvedValueOnce(context)
+
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    const host = harness.hosts[0]!
+    host.ready.resolve()
+    await harness.navigated.promise
+
+    expect(welcomeBackend.connect).not.toHaveBeenCalled()
+    await vi.waitFor(() => { expect(context.dismissLogin.mock.calls).toHaveLength(1) })
+    const window = harness.windows[0]!
+    const titleEvent = { preventDefault: vi.fn() }
+    window.emit('page-title-updated', titleEvent, '客户方案 — DSH 本地构建')
+    expect(titleEvent.preventDefault).toHaveBeenCalledOnce()
+    const expected: unknown = JSON.parse(readFileSync(new URL('./expected/insight-account.json', import.meta.url), 'utf8'))
+    expect({
+      summary: await invoke(INSIGHT_DESKTOP_IPC.accountCurrent, 'app'),
+      info: await invoke(INSIGHT_DESKTOP_IPC.accountInfo, 'app'),
+      nativeTitle: window.setTitle.mock.calls.at(-1)?.[0],
+    }).toEqual(expected)
+    expect(() => invoke(INSIGHT_DESKTOP_IPC.accountCurrent, 'shell')).toThrow(/unowned renderer/u)
+    expect(() => invoke(INSIGHT_DESKTOP_IPC.accountInfo, 'shell')).toThrow(/unowned renderer/u)
+  })
+
+  it('relaunches Insight only after the Host stop is confirmed and retains history', async () => {
+    selectInsightProduct()
+    const context = insightContext()
+    context.closeAdmission.mockImplementation(() => { Object.defineProperty(context, 'active', { value: false }) })
+    insightStartup.prepare.mockResolvedValueOnce(context)
+
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    const host = harness.hosts[0]!
+    host.ready.resolve()
+    await harness.navigated.promise
+    await vi.waitFor(() => { expect(context.dismissLogin.mock.calls).toHaveLength(1) })
+    const history = join(harness.app.getPath('userData'), 'harness', 'sessions.json')
+    mkdirSync(join(history, '..'), { recursive: true })
+    writeFileSync(history, 'preserved session history')
+    const signOut = Promise.resolve(invoke(INSIGHT_DESKTOP_IPC.accountSignOut, 'app'))
+    await host.stopping.promise
+    expect(context.closeAdmission.mock.calls).toHaveLength(1)
+    expect(harness.app.relaunch).not.toHaveBeenCalled()
+    const window = harness.windows[0]!
+    const shown = window.show.mock.calls.length
+    harness.app.emit('second-instance')
+    harness.app.emit('activate')
+    expect(window.show.mock.calls).toHaveLength(shown)
+    expect(readFileSync(history, 'utf8')).toBe('preserved session history')
+    host.exited.resolve()
+    await signOut
+    expect(context.clearAuthentication.mock.calls).toHaveLength(1)
+    expect(harness.app.relaunch).toHaveBeenCalledOnce()
+    expect(readFileSync(history, 'utf8')).toBe('preserved session history')
+    expect(harness.desktopPathCalls).toContain('insight-account-home')
+  })
+
+  it('forces an expired Insight account exit without waiting for a cancelled sign-out confirmation', async () => {
+    selectInsightProduct()
+    const context = insightContext()
+    let expire: (() => void) | undefined
+    context.onExpired.mockImplementation((listener) => { expire = listener; return () => {} })
+    insightStartup.prepare.mockResolvedValueOnce(context)
+    const confirmation = Promise.withResolvers<Electron.MessageBoxReturnValue>()
+    harness.dialog.showMessageBox.mockImplementation(() => confirmation.promise)
+
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    const host = harness.hosts[0]!
+    host.inspectQuit.mockResolvedValueOnce({ activeTasks: true, scheduledTasks: false })
+    host.ready.resolve()
+    await harness.navigated.promise
+    await vi.waitFor(() => { expect(context.dismissLogin.mock.calls).toHaveLength(1) })
+
+    const signOut = Promise.resolve(invoke(INSIGHT_DESKTOP_IPC.accountSignOut, 'app'))
+    await vi.waitFor(() => { expect(harness.dialog.showMessageBox).toHaveBeenCalledOnce() })
+    if (expire === undefined) throw new Error('Insight account expiry listener was not registered')
+    expire()
+    await host.stopping.promise
+    expect(harness.app.relaunch).not.toHaveBeenCalled()
+
+    host.exited.resolve()
+    await signOut
+    await vi.waitFor(() => { expect(harness.app.relaunch).toHaveBeenCalledOnce() })
+    confirmation.resolve({ response: 1, checkboxChecked: false })
+    expect(context.clearAuthentication.mock.calls).toHaveLength(1)
+  })
+
+  it('does not relaunch or erase history when Insight Host shutdown fails', async () => {
+    selectInsightProduct()
+    const context = insightContext()
+    insightStartup.prepare.mockResolvedValueOnce(context)
+    const recoveryChoice = Promise.withResolvers<Electron.MessageBoxReturnValue>()
+    const recoveryTitle = insightNativeLocale({ id: 'zh-CN', messages: zh }, context.info.productName).messages.startupFailed
+    harness.dialog.showMessageBox.mockImplementation((options: { title?: string }) => {
+      if (options.title !== recoveryTitle) return Promise.resolve({ response: 1 })
+      harness.dialogShown.resolve()
+      return recoveryChoice.promise
+    })
+
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    const host = harness.hosts[0]!
+    host.ready.resolve()
+    await harness.navigated.promise
+    await vi.waitFor(() => { expect(context.dismissLogin.mock.calls).toHaveLength(1) })
+    const history = join(harness.app.getPath('userData'), 'harness', 'sessions.json')
+    mkdirSync(join(history, '..'), { recursive: true })
+    writeFileSync(history, 'preserved session history')
+    host.stop.mockImplementationOnce(() => {
+      host.stopping.resolve()
+      return Promise.reject(new Error('Host stop failed'))
+    })
+    const signOut = Promise.resolve(invoke(INSIGHT_DESKTOP_IPC.accountSignOut, 'app'))
+    await host.stopping.promise
+    await signOut
+    await harness.dialogShown.promise
+
+    expect(context.closeAdmission.mock.calls).toHaveLength(1)
+    expect(harness.app.relaunch).not.toHaveBeenCalled()
+    expect(readFileSync(history, 'utf8')).toBe('preserved session history')
+    host.exited.resolve()
+    recoveryChoice.resolve({ response: 0, checkboxChecked: false })
+  })
 
   it.each([
     ['win32', ['--updated'], true],

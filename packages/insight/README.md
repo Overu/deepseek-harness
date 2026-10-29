@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This group keeps Insight's Canvas, memory, and prompt enhancement sources together with their build inputs. Each component retains its existing loader identity and records its upstream revision. These private components are delivered through the desktop distribution and are excluded from the public npm baseline. The official Desktop profile does not activate them.
+This group keeps the Insight Desktop integration together with fixed Canvas, memory, and prompt enhancement sources. These private components are delivered through the desktop distribution and are excluded from the public npm baseline. The Insight profile activates only the Desktop integration in P2; Canvas, Memory, and Prompt remain inactive. The official Desktop profile activates none of them.
 
 ## Table of Contents
 
@@ -26,6 +26,7 @@ The components belong to one Insight product distribution.
 
 | Package | Role |
 | --- | --- |
+| [desktop-integration](desktop-integration/README.md) | Login, account-isolated Home, managed models, product settings, and workspace branding |
 | [canvas](canvas/README.md) | Canvas tools, result presentation, and its embedded business page |
 | [memory-evolve](memory-evolve/README.md) | Fixed memory, skills, and task-management source |
 | [prompt-enhance](prompt-enhance/README.md) | Composer prompt enhancement |

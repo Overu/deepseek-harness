@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 摘要
 
-本组集中维护 Insight 的 Canvas、记忆和提示词增强源码及其构建输入。各组件保留已有加载标识，并记录上游版本。私有组件随桌面发行版交付，不进入公开 npm 基线。官方 Desktop profile 不启用这些组件。
+本组集中维护 Insight Desktop 集成以及固定的 Canvas、记忆和提示词增强源码。私有组件随桌面发行版交付，不进入公开 npm 基线。P2 的 Insight profile 只激活 Desktop 集成；Canvas、Memory 和 Prompt 保持未激活。官方 Desktop profile 不激活其中任何组件。
 
 ## 目录
 
@@ -26,6 +26,7 @@ kind: "package-group"
 
 | 包 | 职责 |
 | --- | --- |
+| [desktop-integration](desktop-integration/README.zh.md) | 登录、账号隔离 Home、托管模型、产品设置与工作区品牌 |
 | [canvas](canvas/README.zh.md) | 画布工具、结果呈现与嵌入业务页面 |
 | [memory-evolve](memory-evolve/README.zh.md) | 固定的记忆、技能和任务管理源码 |
 | [prompt-enhance](prompt-enhance/README.zh.md) | 输入区提示词增强 |

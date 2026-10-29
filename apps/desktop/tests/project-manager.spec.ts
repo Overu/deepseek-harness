@@ -43,6 +43,33 @@ afterEach(() => {
 })
 
 describe('desktop external plugin profile', () => {
+  it('retains product bundles through creation, upgrade, and plugin recovery', async () => {
+    const { manager: official } = setup()
+    const required = '@insight-ai/desktop-integration'
+    const manager = new DesktopProjectManager(official.paths, official.runtime, [required, required])
+    await manager.applyRelease()
+    const manifestPath = join(manager.paths.profile, 'package.json')
+    const readBundles = (): string[] => (JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }).dsh.profile.bundles
+    expect(readBundles().filter(bundle => bundle === required)).toEqual([required])
+
+    seedPlugin(manager)
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as {
+      dsh: { profile: { bundles: string[] } }
+    }
+    manifest.dsh.profile.bundles = manifest.dsh.profile.bundles.filter(bundle => bundle !== required)
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+
+    await manager.applyRelease()
+    expect(readBundles()).toContain('plugin')
+    expect(readBundles().filter(bundle => bundle === required)).toEqual([required])
+
+    await manager.disableAllPlugins()
+    expect(readBundles()).not.toContain('plugin')
+    expect(readBundles().filter(bundle => bundle === required)).toEqual([required])
+  })
+
   it('preserves installed packages, profile state, and the lockfile when preparing a launch', async () => {
     const { manager } = setup()
     await manager.applyRelease()

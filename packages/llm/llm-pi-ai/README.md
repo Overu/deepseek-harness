@@ -140,6 +140,8 @@ The adapter is built on immutable snapshots and per-operation resolution. Each o
 
 Initial prompt text and active tools use pi-ai's `Context.systemPrompt` and `Context.tools`; later system and tool updates remain in `Context.messages`. pi-ai normalizes these fields and applies the selected protocol's serialization rules.
 
+Programmatic consumers can construct the public `PiAiAdapter` with `resolveProfiles()` for validated provider profiles and `credentialStoreFrom(ctx)` / `authContextFrom(ctx)` for the Host credential and ambient-auth interfaces. These helpers reuse the same implementations as the plugin; callers supply their per-operation `resolveApiKey` and own adapter registration and request cleanup.
+
 ### Source map
 
 | File | Role |

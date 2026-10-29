@@ -1,0 +1,47 @@
+- insert:
+    - id: insight-desktop-integration
+      name: ./lib/index.js
+      config:
+        requestTimeoutMs: 10000
+        serviceEnvironment: !!js process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+
+- id: agent-default-model
+  config:
+    provider: yinsai-gateway
+    model: deepseek-flash
+
+- id: ui-settings-models
+  disabled: true
+
+- id: llm-deepseek
+  disabled: true
+
+- id: llm-pi-ai
+  disabled: true
+
+# Insight owns authentication and account identity in Desktop Main. Keep the
+# upstream account route and its paired UI/telemetry providers out of this
+# product composition; the ordinary DSH profile remains unchanged.
+- id: ui-brand-official
+  disabled: true
+
+- id: ui-settings-account
+  disabled: true
+
+- id: account-controller
+  disabled: true
+
+- id: product-analytics
+  disabled: true
+
+- id: desktop-product-telemetry
+  disabled: true
+
+# These two rows form the upstream account-provider path. No remaining enabled
+# composition row injects either service after the UI/controller pair above is
+# disabled, so both can be removed without leaving Loader dependencies unmet.
+- id: deepseek-account
+  disabled: true
+
+- id: llm-deepseek-account
+  disabled: true

@@ -71,6 +71,10 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
 
 /** Runtime exports that require every consumer to resolve the provider's shared peer instance. */
 const PEER_REQUIRED_HOST_EXPORTS = {
+  // The managed Gateway shares the Host's adapter classes, errors, and model-profile resolution.
+  '@deepseek-ai/dsh-llm': ['LlmAdapter', 'LlmError', 'resolveImageAttachmentAccess'],
+  '@deepseek-ai/dsh-llm-deepseek': ['resolveAdapterOptions'],
+  '@deepseek-ai/dsh-llm-pi-ai': ['PiAiAdapter', 'authContextFrom', 'credentialStoreFrom', 'resolveProfiles'],
   // Tool argument failures must retain the Host pipeline's HarnessError identity.
   '@deepseek-ai/dsh-tools': ['defineTool'],
   // Profile settings must match the installed Node provider's configuration schema.

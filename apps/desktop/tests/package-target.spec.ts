@@ -3,12 +3,21 @@ import {
   desktopElectronBuilderArguments,
   desktopElectronBuilderEnvironment,
   parseDesktopPackageInvocation,
+  resolveDesktopPackagingProductVersion,
   resolveDesktopPackageTarget,
   withoutDesktopUploadCredentials,
   withoutWindowsSigningEnvironment,
 } from '../scripts/package-target.ts'
 
 describe('desktop package target', () => {
+  it('keeps the DSH runtime version separate from an explicitly selected Insight product version', () => {
+    expect(resolveDesktopPackagingProductVersion({}, '0.2.2')).toBe('0.2.2')
+    expect(resolveDesktopPackagingProductVersion({ DSH_DESKTOP_PRODUCT: 'insight', INSIGHT_DESKTOP_VERSION: '1.3.0' }, '0.2.2'))
+      .toBe('1.3.0')
+    expect(() => resolveDesktopPackagingProductVersion({ DSH_DESKTOP_PRODUCT: 'insight' }, '0.2.2'))
+      .toThrow(/INSIGHT_DESKTOP_VERSION/u)
+  })
+
   it('selects matching runtime and electron-builder architectures', () => {
     expect(resolveDesktopPackageTarget('mac-arm64', 'darwin', 'arm64')).toMatchObject({
       platform: 'darwin', arch: 'arm64', builderPlatform: '--mac', builderArch: '--arm64',

@@ -4,16 +4,25 @@ English | [中文](insight-baseline-changes.zh.md)
 
 ## Scope
 
-This record identifies the existing DSH files changed for the private Insight source intake. It excludes unchanged upstream source and new package implementation files. The official Desktop startup, authentication, profile activation, window policy, and updater are unchanged.
+This record identifies existing DSH files changed for the private Insight source intake and P2 Desktop integration. It excludes unchanged upstream source and implementation files owned by new private packages. The official Desktop remains the default product and retains its startup, profile, account, window, and update behavior; the Insight path is selected explicitly before Electron reads product state.
 
 ## Existing file changes
 
 | Files | Purpose | Retention condition |
 | --- | --- | --- |
-| `apps/desktop-host/package.json` | Include the three private source packages in the existing recursive desktop dependency closure | Required while Insight components ship with the desktop runtime |
-| `apps/desktop/scripts/package-target.ts` and its tests | Pack the exact private components before Desktop closure selection | Keep private desktop packing independent of public release-family membership |
+| `apps/desktop-host/package.json`, `apps/desktop/package.json` | Include the four private Insight packages in the existing recursive runtime and Main-process dependency closures | Required while Insight components ship with the desktop runtime |
+| `apps/desktop/src/main.ts` and its tests | Select the product before `userData`, require Insight login before Host startup, bind one account Home and credential callback to the Host, expose renderer-safe account actions, apply branding, and relaunch only after account shutdown | Keep Insight lifecycle branches explicit while leaving the official path unchanged |
+| `apps/desktop/src/product.ts`, `insight-startup.ts`, `insight-account-exit.ts`, `insight-native-brand.ts` and their tests | Own validated product/runtime identity, isolated authentication, native Home admission, ordered account teardown, and product-specific native labels outside the upstream Main flow | Retain as product modules rather than distributing Insight state through generic Desktop services |
+| `apps/desktop/src/host-process.ts` and its tests | Carry bounded, validated, cancellable account-token requests only between the current Host child and Desktop Main | Preserve token isolation, current-child checks, and teardown cancellation for every Host consumer |
+| `apps/desktop/src/preload-app.ts`, `preload-insight-login.ts`, `client/insight-login.tsx`, their tests, and `tsdown.config.ts` | Build a login renderer bridge and expose account summary/sign-out only to the authenticated top-level Insight workspace | Keep tokens and unrestricted Main IPC out of both renderer contexts |
+| `apps/desktop/src/project-manager.ts`, `fatal-recovery.ts` and their tests | Preserve the product-required Integration bundle during profile creation, existing-profile preparation, and plugin recovery; install account-scoped recovery only after login | Never let pre-authentication recovery open the official or a different account Home |
+| `apps/desktop/scripts/dev.ts`, `development-app.ts`, `electron-builder-config.mjs` and their tests | Apply the Insight application id, names, icons, isolated development data, package metadata, and product/runtime version split | Keep build identity conditional so official artifacts and signing inputs remain unchanged |
+| `apps/desktop/scripts/package-target.ts` and its tests | Pack the exact private components before Desktop closure selection and record the Insight product version separately from the DSH runtime version | Keep private desktop packing and release identity independent of public release-family membership |
+| `apps/desktop/electron-builder.config.d.mts`, `apps/desktop/scripts/smoke-packaged-runtime.ts`, their tests, and `scripts/run-gates.ts` | Validate the product-specific package metadata and run the Integration real-Loader test in the built-smoke inventory | Keep packaged checks aligned with the Insight product artifact and private bundle runtime entry |
+| `apps/desktop/tsconfig.host.json`, `tsconfig.client.json` | Reference the portable Integration Host and Client compiler faces from the Desktop build | Keep Electron imports in Desktop-owned adapters and portable package faces explicit |
+| `packages/llm/llm-pi-ai/src/index.ts` and `tests/adapter.spec.ts` | Publicly export the existing `resolveProfiles`, `credentialStoreFrom`, and `authContextFrom` helpers used to construct the managed Gateway adapter | User-authorized additive exports only; preserve their upstream implementations and remove the local export diff when the baseline provides them |
 | `pnpm-workspace.yaml`, `pnpm-lock.yaml` | Resolve the iframe and its retained Motion dependency edges under one root lock and build policy | Keep until the iframe has another explicit supported build owner |
-| `tsconfig.base.json`, `tsconfig.host.json`, `tsconfig.client.json` | Resolve retained external plugin names to source and compile each face explicitly | Keep while those identities remain outside the generated DSH aliases |
+| `tsconfig.base.json`, `tsconfig.host.json`, `tsconfig.client.json` | Resolve retained external plugin names, including Integration entry points, to source and compile each face explicitly | Keep while those identities remain outside the generated DSH aliases |
 | `scripts/check-workspace-constraints.ts` and its tests | Enforce exact private identity, root version, publication metadata, and unique ownership | Replace only with an equally restrictive upstream product-input rule |
 | `scripts/package-dependency-policy.ts` and its tests | Classify exact Host values, retain the shared tool peer, and reject unreviewed exports | Preserve shared-service peers; never expand this to whole-package safety |
 | `scripts/npm-baseline-packages.ts` and its tests | Exclude the exact private inputs from public npm baseline publication | Keep the publication denial when discovery changes |
@@ -30,7 +39,7 @@ This record identifies the existing DSH files changed for the private Insight so
 
 ## New integration owners
 
-The exact private package roster lives in [insight-package-policy.ts](../../scripts/insight-package-policy.ts). [Insight source ownership](insight.md) describes source snapshots and synchronized skills. Each package's `upstream.json` and the replayable differences under `patches/insight` identify imported code and local adaptation.
+The exact private package roster lives in [insight-package-policy.ts](../../scripts/insight-package-policy.ts). [Insight product integration](insight.md) describes runtime ownership, source snapshots, and synchronized skills. The [Desktop Integration package](../../packages/insight/desktop-integration/README.md) owns authentication and account process behavior. Each fixed business package's `upstream.json` and the replayable differences under `patches/insight` identify imported code and local adaptation.
 
 `bundled-skills` keeps its source repository's internal structure. The imported label generator preserves the previous directory-to-client metadata flow. Its test uses synthetic files; it does not assess built-in skill content or business results.
 
@@ -38,11 +47,13 @@ The exact private package roster lives in [insight-package-policy.ts](../../scri
 
 ## Baseline synchronization
 
-Review every row against an incoming baseline. Remove local changes only after the replacement preserves the listed ownership and publication guarantees. Update this record when an existing official file changes; private package edits remain tracked by their source record and Git history.
+Review every row against an incoming baseline. Remove local changes only after the replacement preserves the listed product selection, login ordering, account isolation, credential containment, release identity, and publication guarantees. Update this record when an existing official file changes; private package edits remain tracked by their package documentation, source record, and Git history.
 
 ## Host value dependency classification
 
 `createUserMessage`, `BlockAssembler`, and `domainTable` are exact safe Host exports. They return structural values or retain caller-owned state; they do not require consumers to share a service constructor or module-level state. Canvas and Prompt declare their corresponding runtime dependency edges. `defineTool` remains a shared peer because its argument failures must retain the Host pipeline’s error-class identity. Other exports from these provider packages retain their existing classifications. A pull request carrying these additions must disclose them under a prominent Host dependency classification heading as required by `scripts/package-dependency-policy.ts`.
+
+The managed Gateway imports `LlmAdapter`, `LlmError`, and `resolveImageAttachmentAccess` from `dsh-llm`, `resolveAdapterOptions` from `dsh-llm-deepseek`, and `PiAiAdapter`, `resolveProfiles`, `credentialStoreFrom`, and `authContextFrom` from `dsh-llm-pi-ai`. These eight exact exports are peer-required: the private bundle uses the Host's adapter, error, profile, and auth implementations rather than installing another provider copy. They add no duplicate-safe exceptions.
 
 ## Dev Note
 

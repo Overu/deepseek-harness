@@ -23,6 +23,23 @@ function fixture(
   return { operations, choice, stopped, recovery: new DesktopFatalRecovery(operations) }
 }
 
+function fixtureWithoutPluginRecovery(
+  writeReport: (error: unknown, source: CrashReportSource) => Promise<string | undefined> = async () => undefined,
+) {
+  const choice = Promise.withResolvers<{ response: number; checkboxChecked: boolean }>()
+  const stopped = Promise.withResolvers<undefined>()
+  const operations = {
+    messages: () => resolveDesktopLocale('en').messages,
+    show: vi.fn((_options: MessageBoxOptions) => choice.promise),
+    stop: vi.fn(() => stopped.promise),
+    exit: vi.fn(),
+    restart: vi.fn(),
+    revealReport: vi.fn(async (_path: string) => {}),
+    writeReport: vi.fn(writeReport),
+  }
+  return { operations, choice, stopped, recovery: new DesktopFatalRecovery(operations) }
+}
+
 /** The dialog opens only after the report write settles, so tests wait for the first show() call. */
 async function shown(operations: { show: ReturnType<typeof vi.fn> }): Promise<void> {
   await vi.waitFor(() => { expect(operations.show).toHaveBeenCalled() })
@@ -89,6 +106,47 @@ it('locks the first report before the dialog settles and never resets after an a
   await pending
   await recovery.report(new Error('third failure'), 'main')
   expect(operations.show).toHaveBeenCalledOnce()
+})
+
+it('omits unavailable plugin recovery and keeps the report action at its displayed index', async () => {
+  const { operations, stopped, recovery } = fixtureWithoutPluginRecovery(async () => REPORT_PATH)
+  operations.show.mockResolvedValueOnce({ response: 2, checkboxChecked: false })
+    .mockResolvedValueOnce({ response: 0, checkboxChecked: false })
+  stopped.resolve(undefined)
+  await recovery.report(new Error('fatal'), 'main')
+  expect(operations.show.mock.calls[0]![0].buttons).toEqual([
+    operations.messages().exitApplication,
+    operations.messages().restartApplication,
+    operations.messages().getDiagnosticReport,
+  ])
+  expect(operations.revealReport).toHaveBeenCalledExactlyOnceWith(REPORT_PATH)
+  expect(operations.restart).not.toHaveBeenCalled()
+  expect(operations.exit).toHaveBeenCalledOnce()
+})
+
+it('uses plugin recovery installed before the first fatal report', async () => {
+  const { operations, choice, stopped, recovery } = fixtureWithoutPluginRecovery()
+  const disablePlugins = vi.fn(async () => {})
+  recovery.setPluginRecovery(disablePlugins)
+  const pending = recovery.report(new Error('fatal'), 'main')
+  await shown(operations)
+  expect(operations.show.mock.calls[0]![0].buttons).toContain(operations.messages().disableThirdPartyPlugins)
+  choice.resolve({ response: 2, checkboxChecked: false })
+  stopped.resolve(undefined)
+  await pending
+  expect(disablePlugins).toHaveBeenCalledOnce()
+  expect(operations.restart).toHaveBeenCalledOnce()
+})
+
+it('does not change plugin recovery after fatal reporting starts', async () => {
+  const { operations, choice, stopped, recovery } = fixtureWithoutPluginRecovery()
+  const pending = recovery.report(new Error('fatal'), 'main')
+  await shown(operations)
+  expect(() => { recovery.setPluginRecovery(async () => {}) })
+    .toThrow('Cannot change plugin recovery after fatal reporting starts')
+  choice.resolve({ response: 0, checkboxChecked: false })
+  stopped.resolve(undefined)
+  await pending
 })
 
 it.each([0, 1, 2])('waits for shutdown before executing choice %s', async (response) => {

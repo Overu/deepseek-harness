@@ -3,7 +3,8 @@ import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
 import { access, readFile, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   app,
@@ -22,6 +23,11 @@ import {
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
 } from 'electron'
+import { resolveDesktopProduct } from './product.ts'
+import { prepareInsightDesktop, InsightLoginClosedError, type InsightDesktopContext } from './insight-startup.ts'
+import { closeInsightAccount } from './insight-account-exit.ts'
+import { insightNativeLocale, insightWindowTitle } from './insight-native-brand.ts'
+import { INSIGHT_DESKTOP_IPC } from '@insight-ai/desktop-integration/protocol'
 import { resolveDesktopPaths } from './paths.ts'
 import { DesktopProjectManager } from './project-manager.ts'
 import { DesktopHostFatalError, DesktopHostProcess, DesktopHostUncleanExitError } from './host-process.ts'
@@ -67,6 +73,18 @@ import { DesktopQuitConfirmation } from './quit-confirmation.ts'
 import { DesktopTray } from './tray.ts'
 import { DesktopBackgroundNotice } from './background-notice.ts'
 
+const desktopProduct = resolveDesktopProduct({ isPackaged: app.isPackaged,
+  manifest: JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')), environment: process.env })
+if (desktopProduct.kind === 'insight') {
+  app.setName(`${desktopProduct.productName}${app.isPackaged ? '' : ' Dev'}`)
+  app.setPath('userData', !app.isPackaged && process.env.DSH_DESKTOP_USER_DATA_DIR !== undefined
+    ? resolve(process.env.DSH_DESKTOP_USER_DATA_DIR)
+    : join(app.getPath('appData'), app.isPackaged ? desktopProduct.userDataName : desktopProduct.developmentUserDataName))
+}
+const insightIconPath = desktopProduct.kind !== 'insight' ? undefined : app.isPackaged
+  ? join(process.resourcesPath, desktopProduct.branding.resourceIcon)
+  : fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/app-icon.png', import.meta.url))
+
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => { await stopOperationReports() }
 let shuttingDown = false
@@ -90,7 +108,8 @@ const rendererConsole = new RendererConsoleTail()
 app.setAppLogsPath()
 
 function currentDesktopLocale(): ReturnType<typeof resolveDesktopLocale> {
-  return resolveDesktopLocale(windowsLanguage ?? app.getLocale())
+  const locale = resolveDesktopLocale(desktopProduct.kind === 'insight' ? 'zh' : windowsLanguage ?? app.getLocale())
+  return desktopProduct.kind === 'insight' ? insightNativeLocale(locale, desktopProduct.productName) : locale
 }
 /** Quit without the task confirmation; the caller has already decided the application must stop. */
 function quitWithoutConfirmation(): void {
@@ -101,11 +120,11 @@ const recovery = new DesktopFatalRecovery({
   messages: () => currentDesktopLocale().messages,
   show: options => dialog.showMessageBox(options),
   stop: () => { shuttingDown = true; return stopForRecovery() },
-  disablePlugins: async () => {
+  ...(desktopProduct.kind === 'official' ? { disablePlugins: async () => {
     const manager = new DesktopProjectManager(resolveDesktopPaths(), runtimeResources())
     const backupPath = await manager.disableAllPlugins()
     console.info('Desktop profile recovery completed:', { profilePatchBackup: backupPath ?? null, homePatch: 'unchanged' })
-  },
+  } } : {}),
   exit: () => { quitWithoutConfirmation() },
   restart: () => { app.relaunch(); quitWithoutConfirmation() },
   writeReport: (error, source) => persistCrashReport(error, source),
@@ -257,6 +276,7 @@ function platformLoginUrl(authorizeUrl: string): string {
 
 function createWindow(preload: string, show = false, primary = false): BrowserWindow {
   const window = new BrowserWindow({
+    ...(insightIconPath === undefined ? {} : { icon: insightIconPath }),
     width: 1280,
     height: 820,
     minWidth: 520,
@@ -280,6 +300,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
     } : {}),
     webPreferences: {
       preload,
+      ...(desktopProduct.kind === 'insight' && primary ? { additionalArguments: ['--insight-desktop=1'] } : {}),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -288,6 +309,14 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
       devTools: true,
     },
   })
+  if (desktopProduct.kind === 'insight' && primary) {
+    const productName = desktopProduct.productName
+    window.setTitle(productName)
+    window.on('page-title-updated', (event, title) => {
+      event.preventDefault()
+      window.setTitle(insightWindowTitle(title, productName))
+    })
+  }
   window.webContents.setWindowOpenHandler(({ url }) => {
     if (['http:', 'https:'].includes(new URL(url).protocol)) void shell.openExternal(url)
     return { action: 'deny' }
@@ -364,19 +393,21 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
   return window
 }
 
-async function main(): Promise<void> {
+async function main(insight?: InsightDesktopContext): Promise<void> {
+  if (insight !== undefined && !insight.active) throw new InsightLoginClosedError('Insight account no longer active')
   const desktopSettings = readDesktopSettings(app.getPath('userData'))
   void pruneCrashReports(app.getPath('logs'))
   const journalDirectory = process.env.DSH_DESKTOP_UPDATE_JOURNAL_DIR
   const updateJournal = journalDirectory === undefined ? undefined : new DesktopUpdateJournal(journalDirectory, app.getVersion())
   const resources = runtimeResources()
-  const paths = resolveDesktopPaths()
+  const paths = insight === undefined ? resolveDesktopPaths() : resolveDesktopPaths(insight.dshHome)
   const development = !app.isPackaged
   const primaryRuntime = development
     ? developmentPrimaryRuntime()
     : join(process.resourcesPath, 'runtime', 'primary-runtime')
   const activeProject = paths.profile
-  const manager = new DesktopProjectManager(paths, resources)
+  const manager = new DesktopProjectManager(paths, resources, insight === undefined ? [] : ['@insight-ai/desktop-integration'])
+  if (insight !== undefined) recovery.setPluginRecovery(async () => { await manager.disableAllPlugins() })
   // Dock and Finder launches inherit only launchd's environment; every Host shares one login-shell read.
   const loginShellRead = new AbortController()
   // The probe runs in its own process group, which outlives Desktop unless the read is aborted.
@@ -388,7 +419,12 @@ async function main(): Promise<void> {
     return result.environment
   })
   let hostEnvironment: NodeJS.ProcessEnv = process.env
-  const prepareHostEnvironment = async (): Promise<void> => { hostEnvironment = await loginShell }
+  const prepareHostEnvironment = async (): Promise<void> => {
+    const inherited = await loginShell
+    if (insight !== undefined && !insight.active) throw new InsightLoginClosedError('Insight account no longer active')
+    hostEnvironment = insight === undefined ? inherited : { ...inherited, DSH_HOME: insight.dshHome,
+      DSH_INSIGHT_SERVICE_ENVIRONMENT: insight.info.environment }
+  }
   let quitting = false
   let startup: Promise<void> | undefined
   let workspaceRecovery: Promise<void> | undefined
@@ -422,7 +458,7 @@ async function main(): Promise<void> {
   let updateStopFailure: DesktopHostUncleanExitError | undefined
   let updateState: DesktopUpdateState = { phase: 'idle' }
   const systemLanguages = app.getPreferredSystemLanguages()
-  let locale = windowsLanguage === undefined
+  let locale = insight !== undefined ? currentDesktopLocale() : windowsLanguage === undefined
     ? resolveDesktopStartupLocale(null, systemLanguages) : resolveDesktopLocale(windowsLanguage)
   windowsLanguage = locale.id
   let mandatoryPolicy: DesktopMandatoryUpdatePolicy | undefined
@@ -490,7 +526,7 @@ async function main(): Promise<void> {
   let previousAccountStatus: string | undefined
   const assertProductSender = (event: IpcMainInvokeEvent): BrowserWindow => {
     assertDesktopSender(event, ['app'])
-    if (mainWindow === undefined || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents
+    if (insight?.active === false || mainWindow === undefined || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents
       || event.senderFrame === null || event.senderFrame !== mainWindow.webContents.mainFrame) {
       throw new Error('dsh desktop: rejected IPC from an unowned renderer')
     }
@@ -524,7 +560,7 @@ async function main(): Promise<void> {
           segmentBytes: 256 * 1024, recordBytes: 4096, queuedBytes: 64 * 1024,
         })
         operationJournal.enqueue(JSON.stringify(record))
-      })
+      }, insight === undefined ? undefined : signal => insight.requestCredential(signal))
     return {
       start: async () => {
         const ready = await host.start()
@@ -532,6 +568,10 @@ async function main(): Promise<void> {
         hostUrl = ready.url
         if (ready.injections === undefined) throw new Error('Desktop Host did not provide boot injections')
         injections = ready.injections
+        if (insight !== undefined) {
+          if (!insight.active) throw new InsightLoginClosedError('Insight account no longer active')
+          return
+        }
         welcomeBackend = await connectDesktopWelcome(ready.url, (input, init) => net.fetch(input, init), async () => (await session.defaultSession.cookies.get({ url: ready.url })).map(cookie => `${cookie.name}=${cookie.value}`).join('; '))
         analyticsEnabled = await welcomeBackend.analyticsEnabled().catch(() => false)
         if (!reportedLaunch) { reportedLaunch = true; void track('desktop_app_launch', {}) }
@@ -850,6 +890,7 @@ async function main(): Promise<void> {
       || new URL(event.senderFrame.url).origin !== new URL(applicationUrl).origin) {
       throw new Error('desktop welcome: rejected locale request from an unowned frame')
     }
+    if (insight !== undefined) { assertProductSender(event); return { languages: ['zh-CN'], preference: 'zh-CN' } }
     if (welcomeBackend === undefined) throw new Error('desktop welcome: backend unavailable')
     return { languages: systemLanguages, preference: await welcomeBackend.readLocalePreference() }
   })
@@ -857,7 +898,7 @@ async function main(): Promise<void> {
     const window = mainWindow
     if (window === undefined || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame
       || typeof next !== 'string') return
-    const current = resolveDesktopStartupLocale(next, systemLanguages)
+    const current = insight !== undefined ? currentDesktopLocale() : resolveDesktopStartupLocale(next, systemLanguages)
     writeDesktopLocaleCache(app.getPath('userData'), current.id)
     if (current.id === locale.id) return
     locale = current
@@ -875,7 +916,7 @@ async function main(): Promise<void> {
   })
   ipcMain.handle(DESKTOP_IPC.onboardingApiKey, async (event) => {
     assertProductSender(event)
-    return (await readWelcomeState()).hasApiKey
+    return insight !== undefined || (await readWelcomeState()).hasApiKey
   })
   ipcMain.on(DESKTOP_IPC.onboardingActive, (event, active: unknown) => {
     const window = mainWindow
@@ -896,6 +937,8 @@ async function main(): Promise<void> {
   let promptOperation: Promise<void> | undefined
   let policyAuthenticationQueued = false
   const openUpdatePrompt = (manual = false): Promise<void> => {
+    if (insight !== undefined) return ordinaryMessageBox({ type: 'info', title: '检查更新',
+      message: '暂时无法检查更新', buttons: ['知道了'], cancelId: 0 }).then(() => {})
     if (authenticationOperation !== undefined) {
       policyAuth?.focus(); updateDialog.focus()
     }
@@ -1015,6 +1058,7 @@ async function main(): Promise<void> {
   }
 
   const automaticCheck = (): void => {
+    if (insight !== undefined) return
     if (!quitting) void mandatoryPolicy?.check('foreground-or-resume').catch((error: unknown) => { console.error(error) })
     if (!quitting) void updateSchedule.check().catch((error: unknown) => { console.error(error) })
   }
@@ -1025,10 +1069,10 @@ async function main(): Promise<void> {
     updates.dispose()
   })
 
-  const applicationIconPath = development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
-    : join(process.resourcesPath, 'icon.png')
+  const applicationIconPath = insightIconPath ?? (development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
+    : join(process.resourcesPath, 'icon.png'))
   app.setAboutPanelOptions({
-    applicationName: 'DeepSeek Harness',
+    applicationName: desktopProduct.kind === 'insight' ? desktopProduct.productName : 'DeepSeek Harness',
     applicationVersion: app.getVersion(),
     // The release has no separate build number; omit Electron's bundle version.
     version: '',
@@ -1084,7 +1128,10 @@ async function main(): Promise<void> {
     tray?.relabel()
   }
   refreshApplicationMenu()
-  const trayIconPath = development ? join(app.getAppPath(), 'resources', 'tray-windows.ico') : join(process.resourcesPath, 'tray.ico')
+  const trayIconPath = desktopProduct.kind === 'insight'
+    ? (app.isPackaged ? join(process.resourcesPath, desktopProduct.branding.windowsIcon)
+      : fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/icon.ico', import.meta.url)))
+    : development ? join(app.getAppPath(), 'resources', 'tray-windows.ico') : join(process.resourcesPath, 'tray.ico')
   if (process.platform === 'win32') {
     // The tray is the way back to a hidden window; without it, relaunching the application still focuses it.
     try {
@@ -1211,11 +1258,12 @@ async function main(): Promise<void> {
     })
     return window
   }
+  const accountActive = (): boolean => insight?.active !== false
   const enterWorkspace = async ({ activate = true }: { activate?: boolean } = {}): Promise<void> => {
-    if (quitting) return
+    if (quitting || !accountActive()) return
     const window = mainWindow ?? createMainWindow()
     await navigateMain(applicationUrl)
-    if (isQuitting() || recovery.active || window.isDestroyed()) return
+    if (isQuitting() || !accountActive() || recovery.active || window.isDestroyed()) return
     if (activate) window.show()
     else window.showInactive()
     enteredWorkspace = true
@@ -1296,6 +1344,12 @@ async function main(): Promise<void> {
     return openingWelcome
   }
   const openInitialWindow = async (): Promise<void> => {
+    if (insight !== undefined) {
+      if (!insight.active) return
+      await enterWorkspace()
+      if (enteredWorkspace) insight.dismissLogin()
+      return
+    }
     if (quitting || recovery.active) return
     const state = await readWelcomeState()
     if (isQuitting() || backend.state.phase !== 'ready') return
@@ -1312,7 +1366,7 @@ async function main(): Promise<void> {
     }
   }
   focusPrimaryWindow = () => {
-    if (quitting) return
+    if (quitting || !accountActive()) return
     if (isMandatory()) { mandatoryUI?.focus(); return }
     const window = welcomeWindow ?? mainWindow
     if (window === undefined || window.isDestroyed()) {
@@ -1387,13 +1441,54 @@ async function main(): Promise<void> {
     }).catch((error: unknown) => { console.error(error); if (!quitting && !shellInstallerOwnsQuit) finishQuit() })
   })
 
+  if (insight !== undefined) {
+    let leavingAccount: Promise<void> | undefined
+    let forceAccountExit = false
+    const forcedExit = Promise.withResolvers<void>()
+    const leaveAccount = (confirm: boolean): Promise<void> => {
+      if (!confirm) { forceAccountExit = true; forcedExit.resolve() }
+      leavingAccount ??= (async () => {
+        if (confirm) {
+          const approved = await Promise.race([quitConfirmation.confirm(), forcedExit.promise.then(() => true)])
+          if (!approved && !forceAccountExit) return
+        }
+        await closeInsightAccount({
+          revoke: () => {
+            insight.closeAdmission()
+            hostUrl = undefined; hostCookie = undefined; injections = []
+            if (mainWindow !== undefined && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send(INSIGHT_DESKTOP_IPC.accountChanged, null)
+              mainWindow.hide()
+            }
+          },
+          stop: [() => platformView.closeAndWait(), disposeFileDrag, () => backend.close()],
+          clearAuthentication: () => insight.clearAuthentication(),
+        })
+        app.relaunch()
+        quitWithoutConfirmation()
+      })().catch((error: unknown) => {
+        reportFatal(error, 'host')
+      }).finally(() => { leavingAccount = undefined })
+      return leavingAccount
+    }
+    const stopExpired = insight.onExpired(() => { void leaveAccount(false) })
+    ipcMain.handle(INSIGHT_DESKTOP_IPC.accountCurrent, (event) => { assertProductSender(event); return insight.summary })
+    ipcMain.handle(INSIGHT_DESKTOP_IPC.accountInfo, (event) => { assertProductSender(event); return insight.info })
+    ipcMain.handle(INSIGHT_DESKTOP_IPC.accountSignOut, async (event) => { assertProductSender(event); await leaveAccount(true) })
+    app.once('will-quit', () => {
+      stopExpired()
+      for (const channel of [INSIGHT_DESKTOP_IPC.accountCurrent, INSIGHT_DESKTOP_IPC.accountInfo, INSIGHT_DESKTOP_IPC.accountSignOut]) {
+        ipcMain.removeHandler(channel)
+      }
+    })
+  }
   mainWindow = createMainWindow()
   if (typeof manifest !== 'object' || manifest === null) throw new Error('desktop policy: invalid application manifest')
   const developmentPolicy = app.isPackaged ? undefined : process.env.DSH_DESKTOP_MANDATORY_UPDATE_CONFIG
   const policyInput: unknown = app.isPackaged
     ? ('dshMandatoryUpdatePolicy' in manifest ? manifest.dshMandatoryUpdatePolicy : undefined)
     : developmentPolicy === undefined ? undefined : JSON.parse(developmentPolicy) as unknown
-  const policyConfig = resolveDesktopPolicyConfig(policyInput, !app.isPackaged)
+  const policyConfig = insight === undefined ? resolveDesktopPolicyConfig(policyInput, !app.isPackaged) : undefined
   if (policyConfig !== undefined) {
     if (policyConfig.authentication === 'feishu-test') {
       policyAuth = new DesktopPolicyTestAuth(policyConfig.origin, policyConfig.allowedAuthOrigins, locale,
@@ -1442,7 +1537,13 @@ async function main(): Promise<void> {
 
 const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimaryWindow() })
 
-if (ownsDesktopInstance) void app.whenReady().then(main).catch(async (error: unknown) => {
+if (ownsDesktopInstance) void app.whenReady().then(async () => {
+  if (desktopProduct.kind === 'official') { await main(); return }
+  if (process.platform === 'darwin' && insightIconPath !== undefined) app.dock?.setIcon(insightIconPath)
+  const context = await prepareInsightDesktop(desktopProduct, desktopClientVersion(), (callback) => { focusPrimaryWindow = callback })
+  await main(context)
+}).catch(async (error: unknown) => {
+  if (error instanceof InsightLoginClosedError) { quitWithoutConfirmation(); return }
   const message = error instanceof Error ? error.message : String(error)
   console.error(error)
   const diagnosticFile = process.env.DSH_DESKTOP_DIAGNOSTIC_FILE

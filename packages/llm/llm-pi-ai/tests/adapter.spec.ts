@@ -15,6 +15,7 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { MAX_TIMER_DELAY_MS } from '@deepseek-ai/dsh-timeout'
 import { getBuiltinModels } from '@earendil-works/pi-ai/providers/all'
 import { DEFAULT_MAX_REQUEST_IMAGE_BYTES, resolveProfiles } from '../src/config.ts'
+import { authContextFrom, credentialStoreFrom } from '../src/auth.ts'
 import { memoryAuth } from './auth-double.ts'
 import { assemble } from './assemble.ts'
 import { anthropicTextEvents, closeMockServers, mockServer, textEvents } from './mock-server.ts'
@@ -440,9 +441,11 @@ describe('PiAiAdapter provider routing', () => {
 })
 
 describe('provider profile lifecycle', () => {
-  it('keeps adapter helpers off the package root', () => {
+  it('exposes adapter construction helpers and keeps wire converters internal', () => {
+    expect(LlmPiAi.resolveProfiles).toBe(resolveProfiles)
+    expect(LlmPiAi.authContextFrom).toBe(authContextFrom)
+    expect(LlmPiAi.credentialStoreFrom).toBe(credentialStoreFrom)
     for (const helper of [
-      'resolveProfiles',
       'toPiContext',
       'toPiReplayState',
       'toPiAssistant',

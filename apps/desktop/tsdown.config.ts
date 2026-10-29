@@ -86,6 +86,33 @@ export default defineConfig([
           },
         },
       })
+      await build({
+        configFile: false,
+        plugins: [{
+          name: 'insight-login-brand-asset',
+          async generateBundle() {
+            this.emitFile({
+              type: 'asset',
+              fileName: 'brand-mark.svg',
+              source: await readFile(new URL('../../packages/insight/desktop-integration/src/client/assets/brand-mark.svg', import.meta.url)),
+            })
+          },
+        }],
+        root: fileURLToPath(new URL('.', import.meta.url)),
+        esbuild: { jsx: 'automatic' },
+        define: { 'process.env.NODE_ENV': JSON.stringify('production') },
+        build: {
+          outDir: 'lib/insight-login',
+          emptyOutDir: true,
+          lib: {
+            entry: 'src/client/insight-login.tsx',
+            formats: ['iife'],
+            name: 'InsightLogin',
+            fileName: () => 'insight-login.js',
+            cssFileName: 'insight-login',
+          },
+        },
+      })
     },
     outDir: 'lib',
     format: ['esm'],
@@ -96,7 +123,7 @@ export default defineConfig([
     clean: false,
     deps: { neverBundle: ['electron'] },
   },
-  ...(['preload-app', 'preload-welcome', 'preload-platform-account', 'preload-mandatory', 'preload-update-dialog'] as const).map(name => ({
+  ...(['preload-app', 'preload-welcome', 'preload-insight-login', 'preload-platform-account', 'preload-mandatory', 'preload-update-dialog'] as const).map(name => ({
     // Sandboxed Electron preloads run as CommonJS even though the application package is ESM.
     entry: { [name]: `lib/types/${name}.js` },
     plugins: [packagedImportsPlugin(preloadImports)],

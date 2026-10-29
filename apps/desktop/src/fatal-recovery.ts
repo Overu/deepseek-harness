@@ -9,7 +9,7 @@ interface RecoveryOperations {
   messages(): DesktopMessages
   show(options: MessageBoxOptions): Promise<MessageBoxReturnValue>
   stop(): Promise<void>
-  disablePlugins(): Promise<void>
+  disablePlugins?: () => Promise<void>
   exit(): void
   restart(): void
   /** Reveal an existing report in the system file manager; reject if it is no longer available. */
@@ -51,12 +51,24 @@ function reportLine(messages: DesktopMessages, state: ReportState): string {
 export class DesktopFatalRecovery {
   private reported = false
   private reportState: ReportState = { kind: 'pending' }
+  private pluginRecovery: (() => Promise<void>) | undefined
 
   /** @param operations - Native presentation, report persistence, and application-owned shutdown operations. */
-  constructor(private readonly operations: RecoveryOperations) {}
+  constructor(private readonly operations: RecoveryOperations) {
+    this.pluginRecovery = operations.disablePlugins
+  }
 
   /** Whether this process requires a native recovery action before further plugin changes. */
   get active(): boolean { return this.reported }
+
+  /**
+   * Install the plugin recovery operation before the first fatal report starts.
+   * @param operation - Account-scoped operation that disables third-party plugins.
+   */
+  setPluginRecovery(operation: () => Promise<void>): void {
+    if (this.reported) throw new Error('Cannot change plugin recovery after fatal reporting starts')
+    this.pluginRecovery = operation
+  }
 
   /**
    * Show the first fatal error; later reports cannot replace it or open another dialog.
@@ -76,9 +88,9 @@ export class DesktopFatalRecovery {
     let message = messages.fatalSummary
     for (;;) {
       const addressInUse = /\blisten EADDRINUSE\b/u.test(detail)
-      const buttons = addressInUse
-        ? [messages.exitApplication, messages.restartApplication]
-        : [messages.exitApplication, messages.restartApplication, messages.disableThirdPartyPlugins]
+      const buttons = [messages.exitApplication, messages.restartApplication]
+      const pluginRecovery = addressInUse ? undefined : this.pluginRecovery
+      if (pluginRecovery !== undefined) buttons.push(messages.disableThirdPartyPlugins)
       const reportButton = this.reportState.kind === 'failed' ? undefined : buttons.length
       if (reportButton !== undefined) buttons.push(messages.getDiagnosticReport)
       const { response } = await this.operations.show({
@@ -113,7 +125,7 @@ export class DesktopFatalRecovery {
       }
       try {
         await this.operations.stop()
-        if (response === 2) await this.operations.disablePlugins()
+        if (response === 2 && pluginRecovery !== undefined) await pluginRecovery()
         this.operations.restart()
         return
       } catch (failure) {

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { installMandatoryUpdateOverlay } from '../src/preload-mandatory-overlay.ts'
 import { syncWindowsAppearance } from '../src/preload-windows.ts'
 import { DESKTOP_IPC, type DshDesktopProductApi } from '../src/ipc.ts'
+import { INSIGHT_DESKTOP_IPC, type InsightAccountApi } from '@insight-ai/desktop-integration/protocol'
 
 const electron = vi.hoisted(() => ({
   contextBridge: { exposeInMainWorld: vi.fn() },
@@ -56,6 +57,43 @@ it('limits product documents to update status and a native confirmation action',
   expect(listener).toHaveBeenCalledWith({ visible: false })
   dispose()
   expect(electron.ipcRenderer.off).toHaveBeenCalledWith(DESKTOP_IPC.updatesPresentation, handler)
+})
+
+it('exposes only safe Insight account operations to the signed-in trusted workspace', async () => {
+  vi.stubGlobal('process', { ...process, isMainFrame: true, argv: ['electron', '--insight-desktop=1'] })
+  vi.stubGlobal('location', new URL('dsh-app://app/index.html'))
+  await import('../src/preload-app.ts')
+  const api = electron.contextBridge.exposeInMainWorld.mock.calls.find(([name]) => name === 'insightAccount')?.[1] as InsightAccountApi
+  electron.ipcRenderer.invoke.mockResolvedValueOnce({ displayName: '测试账号', maskedPhone: '185****5263' })
+  await expect(api.current()).resolves.toEqual({ displayName: '测试账号', maskedPhone: '185****5263' })
+  await api.info()
+  await api.signOut()
+  expect(electron.ipcRenderer.invoke.mock.calls).toEqual([
+    [INSIGHT_DESKTOP_IPC.accountCurrent],
+    [INSIGHT_DESKTOP_IPC.accountInfo],
+    [INSIGHT_DESKTOP_IPC.accountSignOut],
+  ])
+  expect(api).not.toHaveProperty('token')
+  expect(api).not.toHaveProperty('userId')
+  const listener = vi.fn()
+  const dispose = api.subscribe(listener)
+  const receive = electron.ipcRenderer.on.mock.calls.find(([channel]) => channel === INSIGHT_DESKTOP_IPC.accountChanged)?.[1] as
+    (event: unknown, summary: unknown) => void
+  receive({}, { displayName: '测试账号', maskedPhone: '185****5263' })
+  expect(listener).toHaveBeenCalledWith({ displayName: '测试账号', maskedPhone: '185****5263' })
+  dispose()
+  expect(electron.ipcRenderer.off).toHaveBeenCalledWith(INSIGHT_DESKTOP_IPC.accountChanged, receive)
+})
+
+it.each([
+  { url: 'dsh-app://app/', mainFrame: true, argv: ['electron'] },
+  { url: 'dsh-app://app/', mainFrame: false, argv: ['electron', '--insight-desktop=1'] },
+  { url: 'dsh-app://shell/plugin-manager.html', mainFrame: true, argv: ['electron', '--insight-desktop=1'] },
+])('withholds Insight account operations outside its trusted product workspace', async ({ url, mainFrame, argv }) => {
+  vi.stubGlobal('process', { ...process, isMainFrame: mainFrame, argv })
+  vi.stubGlobal('location', new URL(url))
+  await import('../src/preload-app.ts')
+  expect(electron.contextBridge.exposeInMainWorld.mock.calls.some(([name]) => name === 'insightAccount')).toBe(false)
 })
 
 it.each(['dsh-app://shell/plugin-manager.html', 'dsh-app://other/index.html', 'https://shell/startup.html', 'http://example.com/'])('exposes only the carrier marker to %s', async (url) => {

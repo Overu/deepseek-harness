@@ -1,0 +1,7 @@
+.root { display: grid; gap: 16px; }
+.root h2 { margin: 0; font: var(--dsw-font-title, 500 20px/28px system-ui); }
+.root dl { display: grid; gap: 0; margin: 0; border-top: var(--dsw-hairline-width, 1px) solid var(--dsw-alias-border-l2); }
+.root dl > div { display: grid; grid-template-columns: minmax(96px, 0.35fr) 1fr; gap: 16px; padding: 12px 0; border-bottom: var(--dsw-hairline-width, 1px) solid var(--dsw-alias-border-l2); }
+.root dt { color: var(--dsw-alias-label-secondary); }
+.root dd { margin: 0; overflow-wrap: anywhere; }
+.root p { margin: 0; color: var(--dsw-alias-label-secondary); font: var(--dsw-font-caption, 13px/18px system-ui); }

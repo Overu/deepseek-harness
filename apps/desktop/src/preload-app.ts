@@ -2,6 +2,7 @@
 
 import type { DesktopShortcutInput, ShortcutConfigSnapshot, ShortcutSaveResult } from '@deepseek-ai/dsh-client-shortcuts/protocol'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { INSIGHT_DESKTOP_IPC, type InsightAccountApi } from '@insight-ai/desktop-integration/protocol'
 import { DESKTOP_IPC, SCHEME, type DshDesktopProductApi, type DesktopUpdatePresentation } from './ipc.ts'
 import { PLATFORM_IPC } from './platform-ipc.ts'
 import { markDocumentPlatform, syncWindowFullscreen } from './preload-platform.ts'
@@ -70,6 +71,30 @@ function createProductApi(): DshDesktopProductApi {
   }
 }
 
+/** Return whether this trusted workspace document belongs to the Insight product build. */
+function insightWorkspaceDocument(): boolean {
+  return process.argv.includes('--insight-desktop=1')
+    && process.isMainFrame
+    && location.protocol === `${SCHEME}:`
+    && location.hostname === 'app'
+}
+
+/** Expose only the signed-in account presentation and sign-out request to Insight workspace UI. */
+function createInsightAccountApi(): InsightAccountApi {
+  return {
+    current: () => ipcRenderer.invoke(INSIGHT_DESKTOP_IPC.accountCurrent),
+    subscribe: (listener) => {
+      const receive = (_event: Electron.IpcRendererEvent, summary: Awaited<ReturnType<InsightAccountApi['current']>>): void => {
+        listener(summary)
+      }
+      ipcRenderer.on(INSIGHT_DESKTOP_IPC.accountChanged, receive)
+      return () => { ipcRenderer.off(INSIGHT_DESKTOP_IPC.accountChanged, receive) }
+    },
+    signOut: () => ipcRenderer.invoke(INSIGHT_DESKTOP_IPC.accountSignOut),
+    info: () => ipcRenderer.invoke(INSIGHT_DESKTOP_IPC.accountInfo),
+  }
+}
+
 if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
   contextBridge.exposeInMainWorld('dshOnboarding', {
     hasApiKey: () => ipcRenderer.invoke(DESKTOP_IPC.onboardingApiKey) as Promise<boolean>,
@@ -108,6 +133,7 @@ if (location.protocol === `${SCHEME}:` && location.hostname === 'app') {
 markDocumentPlatform()
 syncWindowFullscreen()
 syncNativeTheme()
+if (insightWorkspaceDocument()) contextBridge.exposeInMainWorld('insightAccount', createInsightAccountApi())
 // Main-process IPC also verifies the owning window and top frame.
 contextBridge.exposeInMainWorld('dshDesktop', location.protocol === `${SCHEME}:` && location.hostname === 'app' && process.isMainFrame ? createProductApi() : { protocolVersion: 1 })
 

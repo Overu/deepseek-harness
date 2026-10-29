@@ -18,6 +18,9 @@
     },
     {
       "path": "../../packages/client/product-analytics/tsconfig.client.json"
+    },
+    {
+      "path": "../../packages/insight/desktop-integration/tsconfig.client.json"
     }
   ]
 }

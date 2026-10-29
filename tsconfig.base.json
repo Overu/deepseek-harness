@@ -28,6 +28,12 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@insight-ai/desktop-integration": ["./packages/insight/desktop-integration/src/index.ts"],
+      "@insight-ai/desktop-integration/desktop": ["./packages/insight/desktop-integration/src/desktop.ts"],
+      "@insight-ai/desktop-integration/host": ["./packages/insight/desktop-integration/src/host.ts"],
+      "@insight-ai/desktop-integration/protocol": ["./packages/insight/desktop-integration/src/protocol.ts"],
+      "@insight-ai/desktop-integration/client/login": ["./packages/insight/desktop-integration/src/client/login.ts"],
+      "@insight-ai/desktop-integration/client": ["./packages/insight/desktop-integration/src/client/index.ts"],
       "dsh-memory-evolve": ["./packages/insight/memory-evolve/src/index.ts"],
       "dsh-memory-evolve/client": ["./packages/insight/memory-evolve/src/client/index.ts"],
       "dsh-prompt-enhance": ["./packages/insight/prompt-enhance/src/index.ts"],

@@ -264,6 +264,7 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "packages/insight/desktop-integration/tsconfig.host.json" },
     { "path": "packages/insight/memory-evolve/tsconfig.host.json" },
     { "path": "packages/insight/prompt-enhance/tsconfig.host.json" },
     { "path": "packages/insight/canvas/tsconfig.host.json" },

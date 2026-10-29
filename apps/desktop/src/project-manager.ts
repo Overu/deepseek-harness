@@ -22,7 +22,13 @@ import {
 import type { DesktopPaths } from './paths.ts'
 import type { DesktopRelease } from './release.ts'
 import { readDesktopRuntime } from './runtime-tree.ts'
-import { initProfile, removeLinkProjections, sanitizeProfile } from '@deepseek-ai/dsh-app-boot'
+import {
+  initProfile,
+  readProfileManifest,
+  removeLinkProjections,
+  sanitizeProfile,
+  writeProfileBundles,
+} from '@deepseek-ai/dsh-app-boot'
 import { PROFILE_TEMPLATES, type ProfileTemplate } from '@deepseek-ai/dsh-official-bundles'
 
 const PROJECT_NAME = '@deepseek-ai/dsh-desktop-runtime'
@@ -61,10 +67,12 @@ export class DesktopProjectManager {
   /**
    * @param paths - Electron-owned package state and reserved desktop profile paths.
    * @param runtime - location of the bundled application runtime.
+   * @param extraBundles - Product-owned bundles that remain enabled in every profile state.
    */
   constructor(
     readonly paths: DesktopPaths,
     readonly runtime: { readonly dsh: string },
+    private readonly extraBundles: readonly string[] = [],
   ) {}
 
   /**
@@ -73,7 +81,9 @@ export class DesktopProjectManager {
    * @returns Backup path after the locked profile write, or undefined if the patch was absent.
    */
   async disableAllPlugins(): Promise<string | undefined> {
-    return this.withLock(() => sanitizeProfile('dsh', this.paths.profile, WEB_PROFILE.bundles))
+    return this.withLock(() => sanitizeProfile(
+      'dsh', this.paths.profile, requiredBundles(this.extraBundles),
+    ))
   }
 
   /**
@@ -84,7 +94,7 @@ export class DesktopProjectManager {
       // Validation only: an unreadable or mismatched runtime descriptor stops preparation before the Host starts.
       readDesktopRuntime(this.runtime.dsh)
       migrateProfileSettings(this.paths.profile)
-      createPluginProfile(this.paths.profile)
+      createPluginProfile(this.paths.profile, this.extraBundles)
       removeLinkProjections(this.paths.profile)
     })
   }
@@ -169,7 +179,27 @@ export function createDevelopmentProjectMetadata(projectDir: string, release: De
   writeFileSync(join(projectDir, 'pnpm-workspace.yaml'), workspaceFile(), { mode: 0o600 })
 }
 
-/** Create the first external plugin profile without running a package manager. */
-export function createPluginProfile(projectDir: string): void {
-  initProfile(projectDir, WEB_PROFILE.bundles)
+function requiredBundles(extraBundles: readonly string[]): string[] {
+  const bundles = [...WEB_PROFILE.bundles]
+  for (const bundle of extraBundles) {
+    if (!bundles.includes(bundle)) bundles.push(bundle)
+  }
+  return bundles
+}
+
+/**
+ * Create or update the external plugin profile without running a package manager.
+ * @param projectDir - External profile directory.
+ * @param extraBundles - Product-owned bundles that must remain enabled.
+ */
+export function createPluginProfile(projectDir: string, extraBundles: readonly string[] = []): void {
+  initProfile(projectDir, requiredBundles(extraBundles))
+  if (extraBundles.length === 0) return
+  const manifest = readProfileManifest('dsh', projectDir)
+  const bundles = manifest.dsh?.profile?.bundles ?? []
+  const updated = [...bundles]
+  for (const bundle of extraBundles) {
+    if (!updated.includes(bundle)) updated.push(bundle)
+  }
+  if (updated.length !== bundles.length) writeProfileBundles(projectDir, manifest, updated)
 }

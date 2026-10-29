@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parse } from 'semver'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import {
@@ -35,6 +36,29 @@ import {
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
 
+const INSIGHT_PRODUCT = 'insight'
+const INSIGHT_APP_ID = 'com.insight-aigc.desktop'
+const INSIGHT_PRODUCT_NAME = '因赛AI'
+const INSIGHT_DESKTOP_VERSION_ENV = 'INSIGHT_DESKTOP_VERSION'
+const INSIGHT_BRANDING_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/', import.meta.url))
+
+/**
+ * Resolve the build-time Insight product selection. Runtime selection accepts only a packaged manifest.
+ * @param {NodeJS.ProcessEnv} env - Packaging environment.
+ * @returns {{ productVersion: string } | undefined} Insight product release details when selected.
+ */
+function resolveInsightPackagingProduct(env) {
+  const selected = env.DSH_DESKTOP_PRODUCT?.trim()
+  if (selected === undefined || selected === '') return undefined
+  if (selected !== INSIGHT_PRODUCT) throw new Error(`desktop package: DSH_DESKTOP_PRODUCT must be ${INSIGHT_PRODUCT}`)
+  const value = env[INSIGHT_DESKTOP_VERSION_ENV]?.trim()
+  const version = value === undefined || value === '' ? null : parse(value, { loose: false })
+  if (version === null || version.build.length > 0 || version.major !== 1) {
+    throw new Error(`desktop package: ${INSIGHT_DESKTOP_VERSION_ENV} must be a 1.x semantic version without build metadata`)
+  }
+  return { productVersion: version.version }
+}
+
 /**
  * Create electron-builder configuration from one release environment.
  * @param {NodeJS.ProcessEnv} env - Packaging environment.
@@ -51,7 +75,8 @@ export function createElectronBuilderConfig(
   preparedRuntime = undefined,
   preparedRuntimeVersion = undefined,
 ) {
-  const appId = resolveDesktopAppId(env)
+  const insight = resolveInsightPackagingProduct(env)
+  const appId = insight === undefined ? resolveDesktopAppId(env) : INSIGHT_APP_ID
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -59,6 +84,9 @@ export function createElectronBuilderConfig(
     throw new Error('desktop package: DSH_DESKTOP_UNSIGNED must be 0 or 1')
   }
   const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
+  if (insight !== undefined && !unsigned) {
+    throw new Error('desktop package: Insight packaging currently supports unsigned local artifacts only')
+  }
   const skipNotarization = env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION === '1'
   if (env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION)) {
     throw new Error('desktop package: DSH_DESKTOP_MACOS_SKIP_NOTARIZATION must be 0 or 1')
@@ -96,29 +124,38 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = unsigned ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const update = unsigned || insight !== undefined ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   // electron-builder merges extraMetadata into the packaged manifest, so a build version here reaches
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
-  const productVersion = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version
+  const runtimeVersion = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version
+  const productVersion = insight?.productVersion ?? runtimeVersion
+  const productName = insight === undefined ? 'DeepSeek Harness' : INSIGHT_PRODUCT_NAME
   const buildVersion = resolveDesktopBuildVersion(env, productVersion)
   if (update?.channel === 'latest' && buildVersion.includes('-')) throw new Error('desktop package: latest requires a stable version')
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
-    protocols: [{ name: 'DeepSeek Harness', schemes: ['dsh'] }],
+    protocols: [{ name: productName, schemes: ['dsh'] }],
     extraMetadata: {
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
+      ...(insight === undefined ? {} : {
+        dshDesktopProduct: INSIGHT_PRODUCT,
+        dshDesktopProductVersion: productVersion,
+        dshDesktopRuntimeVersion: runtimeVersion,
+      }),
       ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }),
-      ...buildVersion === productVersion ? {} : { version: buildVersion },
+      // The tracked app manifest remains the DSH runtime version. Insight always writes its
+      // separately selected product version into the packaged manifest, even without a suffix.
+      ...buildVersion === runtimeVersion ? {} : { version: buildVersion },
       ...packaged === undefined ? {} : { dshBuildCommit: packaged.commit, dshBuildDirty: packaged.dirty },
     },
-    productName: 'DeepSeek Harness',
+    productName,
     // The default copyright uses author.name; this line names the product instead.
     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
-    artifactName: `deepseek-harness-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+    artifactName: `${insight === undefined ? 'deepseek-harness' : 'insight'}-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
     electronDist: buildPaths.electron,
@@ -146,6 +183,7 @@ export function createElectronBuilderConfig(
       'lib/preload-platform-account.cjs',
       'lib/preload-update-dialog.cjs',
       'lib/preload-welcome.cjs',
+      ...(insight === undefined ? [] : ['lib/preload-insight-login.cjs', 'lib/insight-login/**/*']),
       'renderer/**/*',
       'package.json',
       '!node_modules/**/*.{js,cjs,mjs,ts,cts,mts,css}.map',
@@ -158,16 +196,19 @@ export function createElectronBuilderConfig(
     extraResources: [
       { from: buildPaths.runtime, to: 'runtime' },
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
+      ...(insight === undefined ? [] : [{ from: INSIGHT_BRANDING_ROOT, to: 'branding' }]),
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],
     mac: {
-      icon: fileURLToPath(new URL('../resources/icon-macos.png', import.meta.url)),
+      icon: insight === undefined ? fileURLToPath(new URL('../resources/icon-macos.png', import.meta.url)) : join(INSIGHT_BRANDING_ROOT, 'icon.icns'),
       category: 'public.app-category.developer-tools',
       // macOS matches the application locale against this bundle, not Electron Framework resources.
       extendInfo: {
         CFBundleLocalizations: ['en', 'zh_CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'],
-        NSMicrophoneUsageDescription: 'DeepSeek Harness uses your microphone to transcribe speech into message drafts.',
+        NSMicrophoneUsageDescription: insight === undefined
+          ? 'DeepSeek Harness uses your microphone to transcribe speech into message drafts.'
+          : '因赛AI 使用您的麦克风将语音转录为消息草稿。',
       },
       // Ad-hoc signing keeps the modified Electron executable runnable without a Developer ID.
       identity: unsigned ? '-' : macOSSigning?.signingIdentity,
@@ -206,10 +247,9 @@ export function createElectronBuilderConfig(
         await writeMacOSAppUpdateConfig(resourcesDir, resolveMacOSAppUpdateFeed(context.packager.config.publish),
           context.packager.appInfo.updaterCacheDirName)
       }
-      // The bundled runtime declares whichever version prepared it: the product version for an ordinary
-      // release, and a rewritten one for installed-update qualification.
+      // The bundled runtime keeps its own DSH version even when an Insight product version wraps it.
       await verifyDesktopRuntime(buildPaths.dsh,
-        preparedRuntimeVersion ?? productVersion, { platform: resolvedPlatform, arch: resolvedArch })
+        preparedRuntimeVersion ?? runtimeVersion, { platform: resolvedPlatform, arch: resolvedArch })
       // Unsigned Windows builds skip electron-builder's afterSign hook.
       if (packagesWindows && unsigned) await verifyWindowsAsarUnpack(buildPaths.dsh, resourcesDir, windowsCode)
     },
@@ -243,7 +283,7 @@ export function createElectronBuilderConfig(
       )
     },
     win: {
-      icon: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)),
+      icon: insight === undefined ? fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)) : join(INSIGHT_BRANDING_ROOT, 'icon.ico'),
       forceCodeSigning: !unsigned,
       signtoolOptions: {
         sign: windowsSigner,

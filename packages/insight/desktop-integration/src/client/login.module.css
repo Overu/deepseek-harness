@@ -1,0 +1,69 @@
+.page {
+  --dsw-alias-label-primary: #f4f6ff;
+  --dsw-alias-brand-primary: #315dfb;
+  --dsw-alias-interactive-bg-hover: rgb(32 39 64 / 92%);
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 1fr);
+  overflow: hidden;
+  color: #f4f6ff;
+  background: radial-gradient(circle at 27% 48%, rgb(49 93 251 / 8%), transparent 32%), linear-gradient(135deg, #080b14, #0a0e1a 52%, #0d1120);
+}
+
+.dotGrid { position: absolute; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; }
+.dotGrid canvas { position: absolute; inset: 0; display: block; }
+.visual { display: flex; min-width: 0; flex-direction: column; justify-content: space-between; padding: calc(var(--dsh-frame-top-clearance, 0px) + clamp(42px, 5vw, 82px)) clamp(42px, 5vw, 82px) clamp(42px, 5vw, 82px); }
+.brand { display: flex; align-items: center; gap: 14px; width: max-content; }
+.logo { width: 48px; height: 48px; object-fit: contain; }
+.brand strong { font-size: 24px; font-weight: 500; letter-spacing: -.02em; }
+.brand h1 { margin: 0; font: 500 20px/28px system-ui; }
+.slogan { max-width: 430px; font-size: clamp(20px, 2vw, 26px); font-weight: 500; letter-spacing: .01em; line-height: 1.45; text-shadow: 0 2px 18px rgb(0 0 0 / 45%); }
+.slogan p { margin: 0; }
+.slogan p + p { margin-top: 8px; }
+.panel { display: grid; min-height: 0; place-items: center; padding: calc(var(--dsh-frame-top-clearance, 0px) + 56px) clamp(28px, 4.2vw, 70px) 48px; overflow-y: auto; background: linear-gradient(110deg, rgb(10 13 24 / 18%), rgb(15 18 31 / 78%) 34%, rgb(14 17 29 / 88%)); }
+
+.page[data-platform='darwin'] .visual { padding-top: calc(var(--dsh-frame-top-clearance, 0px) + clamp(56px, 6vw, 96px)); }
+.page[data-platform='darwin'] .panel { padding-top: calc(var(--dsh-frame-top-clearance, 0px) + 72px); }
+
+.card, .gateCard {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 20px;
+}
+
+.formHeader h1 { margin: 0; color: #f7f8ff; font: 500 clamp(30px, 2.8vw, 38px)/1.15 system-ui; letter-spacing: -.035em; }
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 2px 0 4px; border-bottom: 1px solid rgb(124 139 180 / 18%); }
+.tabs button { justify-content: center; border-radius: 0; color: #858ca2; }
+.tabs button[aria-selected='true'] { color: #f4f6ff; box-shadow: inset 0 -2px #315dfb; }
+.form { display: grid; gap: 14px; }
+.form > label { display: grid; gap: 8px; color: #e9ebf5; font: 500 14px/20px system-ui; }
+.page .textField { box-sizing: border-box; width: 100%; min-width: 0; height: 46px; padding: 0 15px; border: 1px solid rgb(124 139 180 / 24%); border-radius: 11px; background: rgb(17 21 35 / 62%); }
+.page .textField :global(input) { width: 100%; border: 0; outline: 0; background: transparent; color: #f4f6ff; caret-color: #315dfb; }
+.textField :global(input)::placeholder { color: #737a90; }
+.page .textField:focus-within { border-color: #315dfb; background: rgb(18 23 40 / 90%); box-shadow: 0 0 0 3px rgb(49 93 251 / 16%), 0 8px 28px rgb(13 35 113 / 14%); }
+.form :global(button[type='submit']) { min-height: 44px; border: 0; border-radius: 10px; background: linear-gradient(100deg, #315dfb, #2865ff); color: #fff; box-shadow: 0 10px 32px rgb(49 93 251 / 24%); }
+.form :global(button[type='submit']):disabled { opacity: .5; }
+.codeField, .captchaField { display: flex; align-items: center; gap: 8px; }
+.codeField > span, .captchaField > span { flex: 1; min-width: 0; }
+.codeField > button { min-width: 106px; height: 46px; border: 1px solid rgb(124 139 180 / 22%); border-radius: 11px; background: rgb(23 27 43 / 70%); color: #d2d6e4; }
+.captcha { width: 108px; height: 46px; padding: 0; overflow: hidden; border: 0; border-radius: var(--dsw-radius-sm, 8px); background: transparent; cursor: pointer; }
+.captcha img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.agreement { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; color: #aeb4c5; font: 13px/18px system-ui; }
+.agreement label { color: inherit; font: inherit; }
+.agreement button { height: auto; min-height: 0; padding: 0 2px; color: #8eabff; }
+.notice { min-height: 22px; margin: 0; color: #ff7b86; font: 13px/18px system-ui; }
+.migrationCopy { margin: 0; color: #c2c7d5; font: 14px/22px system-ui; }
+.gateCard { grid-column: 1 / -1; align-self: center; justify-self: center; padding: calc(var(--dsh-frame-top-clearance, 0px) + 40px) 24px 40px; }
+
+@media (max-width: 720px) {
+  .page { grid-template-columns: 1fr; overflow-y: auto; }
+  .visual { min-height: 220px; padding: calc(var(--dsh-frame-top-clearance, 0px) + 32px) 32px 32px; }
+  .panel { padding: 36px 24px 48px; }
+  .page[data-platform='darwin'] .panel { padding-top: 48px; }
+}
+
+@media (pointer: coarse) { .form input { font-size: 16px; } }

@@ -1719,6 +1719,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'insightAccount',
+    summary: 'Same-process service consumed only by trusted Host plugins.',
+    description: 'Same-process service consumed only by trusted Host plugins. It has no Remote or HTTP exposure.',
+    methods: [
+      {
+        signature: 'getAccessToken(signal?: AbortSignal): Promise<string>',
+        description: 'Request the current Main-owned access token.',
+        parameters: [{ name: 'signal', description: 'cancellation for this request only.' }],
+        returns: 'the token without persisting, logging, or exposing it through a remote service.',
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',

@@ -1,0 +1,7 @@
+/** Portable Main-process authentication and account-home operations. */
+export * from './desktop/auth-api-client.ts'
+export * from './desktop/auth-session-manager.ts'
+export * from './desktop/credential-store.ts'
+export * from './desktop/auth-environment.ts'
+export * from './desktop/account-scope.ts'
+export * from './desktop/account-home.ts'

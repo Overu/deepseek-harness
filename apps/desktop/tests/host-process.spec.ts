@@ -67,6 +67,35 @@ process.on('message', message => {
 })
 `
 
+const INSIGHT_ACCOUNT_HOST = `
+import { createServer } from 'node:http'
+const responses = []
+const id = index => 'c254ab28-97c9-4382-95e6-' + String(index).padStart(12, '0')
+const request = index => process.send({ kind: 'insight-account-request', requestId: id(index), operation: 'access-token' })
+const server = createServer((input, output) => {
+  const url = new URL(input.url, 'http://127.0.0.1')
+  if (url.pathname === '/request') {
+    const count = Number(url.searchParams.get('count') ?? '1')
+    for (let index = 0; index < count; index++) request(index)
+  } else if (url.pathname === '/duplicate') {
+    request(100)
+    request(100)
+  } else if (url.pathname === '/malformed') {
+    process.send({ kind: 'insight-account-request', requestId: id(200), operation: 'access-token', diagnostic: 'forbidden' })
+  } else if (url.pathname === '/cancel') {
+    request(300)
+    process.send({ kind: 'insight-account-cancel', requestId: id(300) })
+  }
+  output.setHeader('content-type', 'application/json')
+  output.end(JSON.stringify({ responses }))
+})
+process.on('message', message => {
+  if (message.kind === 'insight-account-response') responses.push(message)
+  if (message.type === 'shutdown') server.close(() => process.send({ type: 'shutdown-complete' }, () => process.disconnect()))
+})
+server.listen(0, '127.0.0.1', () => process.send({ type: 'ready', url: 'http://127.0.0.1:' + server.address().port + '/' }))
+`
+
 function projectWithHost(source = HTTP_HOST): string {
   const project = mkdtempSync(join(tmpdir(), 'dsh-desktop-host-test-'))
   roots.push(project)
@@ -85,12 +114,92 @@ function hostProcess(
   return host
 }
 
+function insightHostProcess(runtime: string, requestCredential?: (signal: AbortSignal) => Promise<string>): DesktopHostProcess {
+  const host = new DesktopHostProcess(process.execPath, runtime, runtime, undefined, process.env,
+    undefined, undefined, undefined, undefined, undefined, requestCredential)
+  hosts.push(host)
+  return host
+}
+
+async function insightResponses(url: string): Promise<unknown[]> {
+  const value: unknown = await (await fetch(new URL('/state', url))).json()
+  if (typeof value !== 'object' || value === null || !('responses' in value) || !Array.isArray(value.responses)) {
+    throw new Error('Insight account test fixture returned invalid state')
+  }
+  return Array.from<unknown>(value.responses)
+}
+
 afterEach(async () => {
   await Promise.all(hosts.splice(0).map(host => host.stop()))
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
 describe('desktop host process', () => {
+  it('returns the Main-owned Insight credential only to the requesting current Host child', async () => {
+    const host = insightHostProcess(projectWithHost(INSIGHT_ACCOUNT_HOST), async () => 'credential-token')
+    const { url } = await host.start()
+    await fetch(new URL('/request', url))
+    await expect.poll(() => insightResponses(url)).toEqual([{
+      kind: 'insight-account-response', requestId: 'c254ab28-97c9-4382-95e6-000000000000', result: { ok: true, accessToken: 'credential-token' },
+    }])
+  })
+
+  it('returns stable failures for unavailable and malformed Insight credential requests', async () => {
+    const host = insightHostProcess(projectWithHost(INSIGHT_ACCOUNT_HOST))
+    const { url } = await host.start()
+    await fetch(new URL('/request', url))
+    await expect.poll(() => insightResponses(url)).toEqual([{
+      kind: 'insight-account-response', requestId: 'c254ab28-97c9-4382-95e6-000000000000', result: { ok: false, reason: 'unavailable' },
+    }])
+    await fetch(new URL('/malformed', url))
+    await expect.poll(() => insightResponses(url)).toEqual([
+      { kind: 'insight-account-response', requestId: 'c254ab28-97c9-4382-95e6-000000000000', result: { ok: false, reason: 'unavailable' } },
+      { kind: 'insight-account-response', requestId: 'c254ab28-97c9-4382-95e6-000000000200', result: { ok: false, reason: 'failed' } },
+    ])
+  })
+
+  it('rejects duplicate IDs and caps in-flight Insight credential reads at the shared protocol limit', async () => {
+    const deferred = Promise.withResolvers<string>()
+    const requestCredential = vi.fn((_signal: AbortSignal) => deferred.promise)
+    const host = insightHostProcess(projectWithHost(INSIGHT_ACCOUNT_HOST), requestCredential)
+    const { url } = await host.start()
+    await fetch(new URL('/duplicate', url))
+    await expect.poll(() => insightResponses(url)).toEqual([{
+      kind: 'insight-account-response', requestId: 'c254ab28-97c9-4382-95e6-000000000100', result: { ok: false, reason: 'failed' },
+    }])
+    expect(requestCredential).toHaveBeenCalledOnce()
+    deferred.resolve('credential-token')
+    await expect.poll(() => insightResponses(url)).toHaveLength(2)
+
+    const capCredential = vi.fn((signal: AbortSignal) => new Promise<string>((_resolve, reject) => {
+      signal.addEventListener('abort', () => { reject(new Error('cancelled')) }, { once: true })
+    }))
+    await host.stop()
+    const capped = insightHostProcess(projectWithHost(INSIGHT_ACCOUNT_HOST), capCredential)
+    const cappedReady = await capped.start()
+    await fetch(new URL('/request?count=17', cappedReady.url))
+    await expect.poll(() => insightResponses(cappedReady.url)).toEqual([{
+      kind: 'insight-account-response', requestId: 'c254ab28-97c9-4382-95e6-000000000016', result: { ok: false, reason: 'unavailable' },
+    }])
+    expect(capCredential).toHaveBeenCalledTimes(16)
+  })
+
+  it('aborts an Insight credential reader on Host cancellation and shutdown', async () => {
+    const aborts: AbortSignal[] = []
+    const requestCredential = vi.fn((signal: AbortSignal) => new Promise<string>((_resolve, reject) => {
+      aborts.push(signal)
+      signal.addEventListener('abort', () => { reject(new Error('cancelled')) }, { once: true })
+    }))
+    const host = insightHostProcess(projectWithHost(INSIGHT_ACCOUNT_HOST), requestCredential)
+    const { url } = await host.start()
+    await fetch(new URL('/cancel', url))
+    await expect.poll(() => aborts[0]?.aborted).toBe(true)
+    await fetch(new URL('/request', url))
+    await expect.poll(() => aborts).toHaveLength(2)
+    await host.stop()
+    expect(aborts[1]?.aborted).toBe(true)
+  })
+
   it('retains the announced run identity when startup fails before readiness', async () => {
     const runtime = projectWithHost(`
 process.send({ type: 'starting', runId: 'c254ab28-97c9-4382-95e6-2db9c66f98c8' })
