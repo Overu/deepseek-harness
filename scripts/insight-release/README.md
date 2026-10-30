@@ -10,6 +10,7 @@ These scripts build a verifiable handoff between DSH desktop packaging, an immut
 
 - [Release flow](#release-flow)
 - [Package workflow](#package-workflow)
+- [Windows current-user qualification](#windows-current-user-qualification)
 - [Publish workflow](#publish-workflow)
 - [Signed update formats](#signed-update-formats)
 - [Trust and failure rules](#trust-and-failure-rules)
@@ -39,6 +40,15 @@ The Windows job is product-gated and intentionally omits Authenticode under the 
 A normal single-target run stops after its architecture-specific Actions artifact; only a normal all-target run can create the public Release. The finalizer first creates or reuses a draft, uploads every expected attachment, permits retry only for a matching GitHub `starter` attachment, downloads each attachment to verify its size and SHA-512, and then makes the verified draft public. The finalize job uses the isolated release runtime and does not repeat the repository-wide dependency installation.
 
 The source record does not bind GitHub's rerun-attempt counter. A legacy record may contain a positive attempt number for audit display, but readers do not use it as source authorization. If final attachment readback or the final Release update fails, rerunning the failed job can reuse the same native bytes under the same run id after the current run is completed successfully; it does not rebuild, re-sign, or re-notarize the application.
+
+-----
+
+<a id="windows-current-user-qualification"></a>
+## Windows current-user qualification
+
+The Windows job runs current-user upgrade qualification after build and collection but before artifact upload. In the same GitHub-hosted administrative job, it installs and upgrades two isolated cases: the default current-user path and an independent custom path containing spaces. It downloads the frozen signed `1.0.9` installer selected by the production trust resolver and verifies its size and SHA-512, then selects the new RC installer only through the collected build manifest. It verifies the real old raw `resources/app/package.json` payload and the new ASAR payload, registry identity, retained installation path, PE identity, installed payload version, and unchanged hashes for four synthetic files under Harness-owned directories. Cache paths are isolated and cleaned between cases but are not seeded or hash-qualified.
+
+This qualification uses the hosted administrator context without a UAC claim. It qualifies installer continuity only: application restart, update UI, a real account, and automatic old-client discovery of an rc version remain outside its result. The inner qualification has a 20-minute overall deadline inside a 25-minute workflow step. Cleanup failure or an unknown cleanup outcome fails the job before upload, so unqualified artifacts are not retained as Actions artifacts.
 
 -----
 
@@ -91,10 +101,10 @@ The workflow runs this matrix only after the original job has failed and marks t
 <a id="qualification-status"></a>
 ## Qualification status
 
-The current release-qualification baseline is HEAD `48b5a54d76a00cd05aabb579d778016abd194e03`. Focused implementation checks passed 437 tests across 25 files, an independent release-path run passed 118 tests across 15 files, and the affected coordinator suite passed 27 tests. Export JSDoc, the P5 type-aware scoped lint, the official compile aggregates, the earlier eight `build:artifacts` gates, the public stable `1.0.9` live check, and six source tests against the frozen public-update fixture also passed. These checks qualify their code paths only; P5 remains blocked at the Intel packaged-runtime smoke and does not qualify a Release or production channel.
+The local implementation upgrades `@electron/notarize` to `3.1.2` without private hooks or notary-executor changes. The latest focused run passed 24 tests across three files: 19 Windows qualification tests and five installed-dependency notarization tests covering App and DMG calls, one submission with at most four staple attempts, `Rejected`, and cleanup. The latest `build:check` passed both aggregates. These local results do not qualify CI or a Release.
 
-Run `41056104627` completed the Windows, macOS arm64, and macOS x64 native jobs, including both macOS signing and notarization chains, collectors, and Actions artifacts. Its finalizer then read GitHub attachment metadata instead of binary bytes because the requested download header was overwritten, so the run failed. The draft and all attachments remain preserved under the archived failure tag and were never public. HEAD `48b5a54…` fixes the binary readback, but the failed run cannot satisfy the completed-success source requirement and cannot be published manually.
+The Windows current-user qualifier and its review are complete locally, but no real NSIS upgrade has yet passed the workflow. Its installer-only result does not cover restart, update UI, a real account, or old-Shell automatic rc discovery. The supported old-Shell automatic path remains the stable `1.0.10` release.
 
-Run `41062174672` completed the Windows and macOS arm64 jobs. Its Intel job reached the packaged application smoke but timed out during XLSX conversion in both the original attempt and an unchanged failed-job rerun; raw preparation smoke passed before the packaged `app.asar` path failed. The Intel collector and finalizer were skipped, no public `1.0.10-rc.1` Release exists, and no OSS publish has run. The failure-only diagnostic above is non-qualifying evidence collection, not a replacement for a successful package job.
+The latest real package source is still HEAD `937a99d03929f0df0dfc90eee822d103191ac0bf` in run `41077074019`. Both Office runtime smokes passed and the DMG lane completed signing, notarization, and validation, but ZIP App stapling failed with CloudKit `NSURLErrorDomain -1005`; collection and upload were skipped. Reruns of that old source have stopped while a new commit and all-target matrix are prepared. No current CI run, public `1.0.10-rc.1` Release, or OSS publication has completed.
 
-Native checks showed the update window before login, no confirmation after four clicks, and the candidate confirmation after the fifth click within three seconds; confirmation stored schema 1 preferences with `candidateOptIn: true` and mode 600. All seven required GitHub secrets are present, including the authorized encrypted transfer of `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`, and the Windows CI artifact is no longer pending. Production-feed download and installation, Windows native install and upgrade, old-Shell stable upgrade, and the OIDC-to-STS identity remain unverified. Stable publication and every production pointer remain unchanged until P5 completes and the user separately starts publication.
+Native checks showed the update window before login, no confirmation after four clicks, and the candidate confirmation after the fifth click within three seconds; confirmation stored schema 1 preferences with `candidateOptIn: true` and mode 600. All seven required GitHub secrets are present, including the authorized encrypted transfer of `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`. Production-feed download and installation, the real Windows current-user upgrade, old-Shell stable upgrade, and the OIDC-to-STS identity remain unverified. Stable publication and every production pointer remain unchanged until P5 completes and the user separately starts publication.

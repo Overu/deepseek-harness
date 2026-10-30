@@ -10,6 +10,7 @@
 
 - [发布流程](#release-flow)
 - [打包工作流](#package-workflow)
+- [Windows 当前用户升级资格](#windows-current-user-qualification)
 - [发布工作流](#publish-workflow)
 - [已签名更新格式](#signed-update-formats)
 - [信任与失败规则](#trust-and-failure-rules)
@@ -39,6 +40,15 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 正常单目标运行只生成对应架构的 Actions artifact；只有正常全目标运行才可创建公开 Release。finalizer 先创建或复用 draft，上传全部预期附件，只允许重试同名 GitHub `starter` 附件，重新下载每个附件校验大小和 SHA-512，最后才公开已校验 draft。finalize job 使用隔离发布运行时，不重复安装全仓依赖。
 
 来源记录不绑定 GitHub 的 rerun attempt 计数。旧记录可以包含用于审计展示的正整数 attempt，但读取器不把它用于来源授权。最终附件回读或 Release 最后更新失败时，可以在当前 run 已成功完成后重跑失败 job，并在相同 run id 下复用相同 native 字节；不会重新构建、签名或公证应用。
+
+-----
+
+<a id="windows-current-user-qualification"></a>
+## Windows 当前用户升级资格
+
+Windows job 在构建和收集之后、上传 artifact 之前运行当前用户升级资格检查。它在同一个 GitHub-hosted 管理员 job 中安装并升级两个隔离用例：默认当前用户路径，以及一个包含空格的独立自定义路径。它下载由生产信任解析器选中的冻结签名 `1.0.9` 安装器并校验大小与 SHA-512，再只通过已收集 build manifest 选择新的 RC 安装器。检查覆盖真实旧 raw `resources/app/package.json` payload 与新 ASAR payload、registry 身份、安装路径保留、PE 身份、已安装 payload 版本，以及 Harness 所有目录下四个合成文件的 hash 不变。cache 路径只在用例间隔离和清理，不写入 sentinel，也不校验 hash。
+
+该资格检查使用 hosted administrator 上下文，不声称经过 UAC。它只确认安装器连续性：应用重启、更新 UI、真实账号和旧客户端自动发现 rc 版本均不属于结果。内部资格检查的整体期限为 20 分钟，所在 workflow step 为 25 分钟。cleanup 失败或 cleanup 结果未知会在上传前使 job 失败，因此不合格产物不会保留为 Actions artifact。
 
 -----
 
@@ -91,10 +101,10 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 <a id="qualification-status"></a>
 ## 验证状态
 
-当前发布资格基线是 HEAD `48b5a54d76a00cd05aabb579d778016abd194e03`。聚焦实现检查通过 25 个文件中的 437 项测试，独立发布路径检查通过 15 个文件中的 118 项测试，受影响的 coordinator suite 通过 27 项测试。导出 JSDoc、P5 type-aware scoped lint、官方全部编译聚合、较早一次 `build:artifacts` 的八项门禁、公开正式版 `1.0.9` 在线检查，以及针对冻结公开更新 fixture 的六项源码测试也已通过。这些检查只验证对应代码路径；P5 仍受 Intel packaged-runtime smoke 阻断，尚未取得 Release 或生产渠道资格。
+本地实现已把 `@electron/notarize` 升级到 `3.1.2`，没有增加私有 hook 或修改 notary executor。最新聚焦运行通过三个文件中的 24 项测试：19 项 Windows 资格测试，以及五项 installed-dependency 公证测试，后者覆盖 App 与 DMG 调用、一次提交且 staple 最多四次、`Rejected` 和 cleanup。最新 `build:check` 已通过两个聚合。这些本地结果不代表 CI 或 Release 合格。
 
-Run `41056104627` 完成 Windows、macOS arm64 和 macOS x64 三个 native job，包括两个 macOS 架构的签名公证链、collector 与 Actions artifact。finalizer 随后因请求的下载 header 被覆盖而读取 GitHub 附件 metadata 而非二进制字节，因此整个 run 失败。draft 与全部附件仍保存在已归档的失败 tag 下，从未公开。HEAD `48b5a54…` 已修复二进制回读，但失败 run 不能满足 completed-success 来源要求，也不能手工发布。
+Windows 当前用户资格检查及其复审已在本地完成，但真实 NSIS 升级尚未在 workflow 中通过。它只验证安装器，不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
 
-Run `41062174672` 完成 Windows 和 macOS arm64 job。Intel job 到达 packaged application smoke，但在原始 attempt 和保持不变的 failed-job rerun 中均于 XLSX 转换超时；raw preparation smoke 先通过，随后 packaged `app.asar` 路径失败。Intel collector 与 finalizer 均跳过，当前不存在公开 `1.0.10-rc.1` Release，也没有运行 OSS 发布。上述失败后诊断只用于收集非资格证据，不能替代成功的打包 job。
+最近的真实打包源码仍为 HEAD `937a99d03929f0df0dfc90eee822d103191ac0bf`，对应 run `41077074019`。两条 Office runtime smoke 均通过，DMG lane 完成签名、公证和验证，但 ZIP App stapling 因 CloudKit `NSURLErrorDomain -1005` 失败；collector 和上传均跳过。旧源码不再重跑，正在准备新提交与 all-target matrix。当前没有完成的 CI run、公开 `1.0.10-rc.1` Release 或 OSS 发布。
 
-原生检查确认更新窗口可在登录前显示，四击不出现确认，三秒内第五击显示内测确认；确认后写入 schema 1、`candidateOptIn: true` 且 mode 600 的 preferences。七项必需 GitHub Secret 均已存在，包括经授权密文迁移的 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`，Windows CI artifact 也不再待完成。生产 feed 下载与安装、Windows 原生安装升级、旧 Shell 正式版升级，以及 OIDC-to-STS 身份仍未验证。在 P5 完成且用户另行启动发布前，正式发布和所有生产指针保持不变。
+原生检查确认更新窗口可在登录前显示，四击不出现确认，三秒内第五击显示内测确认；确认后写入 schema 1、`candidateOptIn: true` 且 mode 600 的 preferences。七项必需 GitHub Secret 均已存在，包括经授权密文迁移的 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。生产 feed 下载与安装、真实 Windows 当前用户升级、旧 Shell 正式版升级，以及 OIDC-to-STS 身份仍未验证。在 P5 完成且用户另行启动发布前，正式发布和所有生产指针保持不变。

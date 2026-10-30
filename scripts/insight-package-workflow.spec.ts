@@ -68,3 +68,19 @@ it('runs the Intel Office diagnostic only after a failed package and before sign
     INSIGHT_OFFICE_DIAGNOSTIC_ARTIFACTS: '${{ steps.configuration.outputs.artifact_directory }}',
   })
 })
+
+it('qualifies the current-user Windows upgrade after collection and before uploading the release artifact', () => {
+  const steps = workflow.jobs.windows.steps
+  const collection = steps.findIndex(step => step.name === 'Collect verified release attachments')
+  const qualification = steps.findIndex(step => step.name === 'Qualify current-user Insight upgrade')
+  const upload = steps.findIndex(step => step.name === 'Upload internal package artifact')
+  expect(collection).toBeGreaterThan(-1)
+  expect(qualification).toBeGreaterThan(collection)
+  expect(qualification).toBeLessThan(upload)
+  expect(steps[qualification]).toMatchObject({
+    if: 'success()',
+    'timeout-minutes': 25,
+    run: 'node --import tsx scripts/insight-release/qualify-windows-upgrade.ts',
+    env: { INSIGHT_RELEASE_DIRECTORY: '${{ steps.collected.outputs.release_directory }}' },
+  })
+})

@@ -9,14 +9,17 @@
   en: a763f5d0a17aa2db
   zh: 6f78a73e9da8591b
 /insight-desktop-release-pipeline/table-of-contents:
-  en: 181739f297633ae0
-  zh: e88b80cb4af68b9c
+  en: d8d296aa7e36059e
+  zh: 735866c833ecf314
 /insight-desktop-release-pipeline/release-flow:
   en: 475f9dcf2f1a594b
   zh: 5e496a43cdff62a4
 /insight-desktop-release-pipeline/package-workflow:
-  en: 935e47f2dda57081
-  zh: 83b468b32d73f321
+  en: 35be0fbd265a95ed
+  zh: 2d7413f58eb53185
+/insight-desktop-release-pipeline/windows-current-user-qualification:
+  en: 1daa2fd45962977e
+  zh: 375fd1f8740682d7
 /insight-desktop-release-pipeline/publish-workflow:
   en: 875868742a525a16
   zh: a2fc12a441bf72bb
@@ -30,5 +33,5 @@
   en: 9a640b61e453927a
   zh: f664ed813ba99b47
 /insight-desktop-release-pipeline/qualification-status:
-  en: 434567b053f5776c
-  zh: 276808ca02d170e4
+  en: 7eb0c1fbf2166a15
+  zh: f121d59bf43cb0ce

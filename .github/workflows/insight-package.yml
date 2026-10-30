@@ -268,6 +268,12 @@ jobs:
           INSIGHT_RELEASE_TARGET: win32-x64
           INSIGHT_ARTIFACT_DIRECTORY: ${{ steps.configuration.outputs.artifact_directory }}
         run: node --import tsx scripts/insight-release/collect.ts
+      - name: Qualify current-user Insight upgrade
+        if: success()
+        timeout-minutes: 25
+        env:
+          INSIGHT_RELEASE_DIRECTORY: ${{ steps.collected.outputs.release_directory }}
+        run: node --import tsx scripts/insight-release/qualify-windows-upgrade.ts
       - name: Upload internal package artifact
         if: success()
         uses: actions/upload-artifact@v7.0.1
