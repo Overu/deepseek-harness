@@ -50,16 +50,26 @@ describe('UpdatePage', () => {
     expect(bridge.checkCandidate).not.toHaveBeenCalled()
   })
 
-  it('renders skip, installer, and ready installation without exposing an update path', async () => {
+  it('uses the Shell-style available layout without exposing an update path', async () => {
     const bridge = api({ ...idle, phase: 'available', version: '1.0.10-rc.1', track: 'candidate', canDownloadFullInstaller: true })
     const view = render(<UpdatePage api={bridge} logoUrl="brand.svg" />)
     expect(await screen.findByText('内测版本')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '跳过这个版本' }))
     fireEvent.click(screen.getByRole('button', { name: '下载完整安装包' }))
+    fireEvent.click(screen.getByRole('button', { name: '稍后提醒我' }))
     expect(bridge.skip).toHaveBeenCalledWith('1.0.10-rc.1')
     expect(bridge.fullInstaller).toHaveBeenCalledOnce()
+    expect(bridge.close).toHaveBeenCalledOnce()
     view.rerender(<UpdatePage api={api({ ...idle, phase: 'ready', version: '1.0.10', required: false })} logoUrl="brand.svg" />)
     await vi.waitFor(() => { expect(screen.getByRole('button', { name: '立即安装' })).toBeTruthy() })
+  })
+
+  it('marks processing states for the Shell-style logo acknowledgement', async () => {
+    const bridge = api({ ...idle, phase: 'checking' })
+    const view = render(<UpdatePage api={bridge} logoUrl="brand.svg" />)
+    await vi.waitFor(() => { expect(screen.getByRole('button', { name: '因赛AI 标志' }).className).toContain('logoBusy') })
+    view.rerender(<UpdatePage api={api(idle)} logoUrl="brand.svg" />)
+    await vi.waitFor(() => { expect(screen.getByRole('button', { name: '因赛AI 标志' }).className).not.toContain('logoBusy') })
   })
 
   it('releases its preload listener when unmounted', () => {

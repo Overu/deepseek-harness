@@ -38,6 +38,20 @@ export function assertMacOSRuntimeSignatureDetails(details, expected) {
   }
 }
 
+/** A completed Apple command that reported a nonzero process status. */
+class AppleCommandExitError extends Error {
+  /**
+   * @param {string} message - Preserved command failure message.
+   * @param {number | null} status - Process status reported by `spawnSync`.
+   * @param {string} diagnostic - Combined command output.
+   */
+  constructor(message, status, diagnostic) {
+    super(message)
+    this.status = status
+    this.diagnostic = diagnostic
+  }
+}
+
 /**
  * Execute one Apple release tool and return its diagnostic streams.
  * @param {string} command - Absolute executable path.
@@ -55,7 +69,7 @@ function runAppleCommand(command, args, label) {
   }
   if (result.status !== 0) {
     const diagnostic = `${result.stdout}${result.stderr}`.trim()
-    throw new Error(`desktop macOS signing: ${label} exited with ${String(result.status)}${diagnostic === '' ? '' : `: ${diagnostic}`}`)
+    throw new AppleCommandExitError(`desktop macOS signing: ${label} exited with ${String(result.status)}${diagnostic === '' ? '' : `: ${diagnostic}`}`, result.status, diagnostic)
   }
   return `${result.stdout}${result.stderr}`
 }
@@ -173,8 +187,31 @@ export function verifyMacOSNotarizedApplication(appPath, expected) {
  */
 export function verifyMacOSDiskImage(diskImagePath, expected) {
   verifyMacOSDiskImageSignature(diskImagePath, expected)
-  runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', diskImagePath], 'stapler validate')
+  verifyMacOSDiskImageStaplerTicket(diskImagePath)
   runAppleCommand('/usr/sbin/spctl', ['--assess', '--type', 'install', '--verbose=4', diskImagePath], 'spctl')
+}
+
+/**
+ * Verify a DMG ticket, retrying only Apple's known transient CloudKit interruption.
+ * @param {string} diskImagePath - Path to the packaged `.dmg` file.
+ * @returns {void}
+ */
+function verifyMacOSDiskImageStaplerTicket(diskImagePath) {
+  const delays = [2000, 5000]
+  for (let attempt = 0; attempt <= delays.length; attempt += 1) {
+    try {
+      runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', diskImagePath], 'stapler validate')
+      return
+    } catch (error) {
+      const retryableCloudKitInterruption = error instanceof AppleCommandExitError
+        && error.status === 68
+        && error.diagnostic.includes('NSURLErrorDomain')
+        && /(?:^|[^A-Za-z0-9_-])Code=-1005(?:$|[^A-Za-z0-9_-])/u.test(error.diagnostic)
+        && error.diagnostic.includes('api.apple-cloudkit.com')
+      if (!retryableCloudKitInterruption || attempt === delays.length) throw error
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, delays[attempt])
+    }
+  }
 }
 
 /**

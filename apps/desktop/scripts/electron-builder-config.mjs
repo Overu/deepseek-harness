@@ -41,6 +41,7 @@ import {
 } from './insight-packaging.mjs'
 
 const INSIGHT_BRANDING_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/', import.meta.url))
+const INSIGHT_INSTALLER_ASSETS_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/installer-assets/', import.meta.url))
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -111,6 +112,11 @@ export function createElectronBuilderConfig(
   const runtimeVersion = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version
   const productVersion = insight?.productVersion ?? runtimeVersion
   const productName = insight === undefined ? 'DeepSeek Harness' : insight.productName
+  const installerLocales = readInstallerLocales()
+  const installerStrings = insight === undefined ? installerLocales : installerLocales.map(locale => ({
+    ...locale,
+    strings: Object.fromEntries(Object.entries(locale.strings).map(([key, value]) => [key, value.replaceAll('DeepSeek Harness', productName)])),
+  }))
   const buildVersion = resolveDesktopBuildVersion(env, productVersion)
   if (update?.channel === 'latest' && buildVersion.includes('-')) throw new Error('desktop package: latest requires a stable version')
   const packaged = resolveDesktopBuildCommit(env)
@@ -144,10 +150,11 @@ export function createElectronBuilderConfig(
       if (resolvedPlatform !== 'win32') return true
       await promisify(execFile)('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
         fileURLToPath(new URL('./prepare-windows-installer.ps1', import.meta.url)),
-        '-OutputDirectory', join(buildPaths.root, 'installer-ui')], {
+        '-OutputDirectory', join(buildPaths.root, 'installer-ui'),
+        ...(insight === undefined ? [] : ['-AssetDirectory', INSIGHT_INSTALLER_ASSETS_ROOT, '-ProductName', productName])], {
         env: scrubWindowsSigningEnvironment(env), windowsHide: true,
       })
-      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(readInstallerLocales()), 'utf8')
+      await writeFile(join(buildPaths.root, 'installer-ui', 'strings.nsh'), renderInstallerStrings(installerStrings), 'utf8')
       if (windowsSigner !== undefined) {
         await windowsSigner({ path: join(buildPaths.root, 'installer-ui', 'window-frame.dll'), hash: 'sha256', isNest: false })
       }
@@ -293,7 +300,7 @@ export function createElectronBuilderConfig(
       perMachine: false,
       allowElevation: false,
       allowToChangeInstallationDirectory: false,
-      installerLanguages: readInstallerLocales().map(locale => locale.id),
+      installerLanguages: installerLocales.map(locale => locale.id),
       differentialPackage: true,
     },
     detectUpdateChannel: false,

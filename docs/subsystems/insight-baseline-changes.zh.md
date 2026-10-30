@@ -24,7 +24,9 @@
 | `apps/desktop/src/update-coordinator.ts` 及其测试 | 允许可信 Main 进程调用方在既有检查锁内配置一个自定义提供方，将可用版本绑定到提供方和精确 updater 产物，在活动检查后串行执行不同的手动来源，并且只清除匹配且尚未使用的目标 | 保持官方无参数来源行为不变；保留单一协调器、独立下载与安装授权、陈旧确认拒绝、监听器清理，以及候选在清除或下载前的所有权 |
 | `apps/desktop/src/main.ts`、`insight-updates.ts`、`insight-update-provider.ts`、`insight-update-window.ts`、`preload-insight-update.ts`、Insight 更新渲染器、`tsdown.config.ts` 及其测试 | 在登录前创建 Insight 更新拥有者，将同一个协调器交接给已认证工作区，通过 electron-updater 公开 custom-provider API 适配已验证元数据，并构建隔离更新窗口与 preload | 保持后台只检查正式版、内测检查需经过原生风险确认、渲染器输入不含 URL 和可信身份，并且不改变官方 Desktop 更新路径 |
 | `apps/desktop/scripts/{desktop-package-environment,electron-builder-config}.mjs`、`package-macos.ts`、`package-target.ts`、`insight-packaging.mjs`、其声明及测试 | 在复用 DSH macOS 签名、公证、打包校验和目标编排时，选择 Insight 应用名称、产物前缀、产品版本、固定更新资源与 generic updater 配置 | 保持产品选择显式；绝不让 Insight 包满足官方发布器完成记录或改变官方 COS 与强更输入；Windows Authenticode 豁免只作用于 Insight 产品 |
-| `apps/desktop/package.json`、`pnpm-lock.yaml` | 将 `@electron/notarize` 从 `2.5.0` 升级到 `3.1.2`，使用包含 [PR 306](https://github.com/electron/notarize/pull/306) staple 重试修复的上游维护版本。上游流程只提交一次，对同一 artifact 先执行 staple，并为所有产品最多重试三次；不增加私有 hook，也不修改 notary executor | 本地 installed-dependency 兼容测试已通过，覆盖自定义 notarytool path、单次提交、staple 最多四次、非 staple 失败行为、cleanup 与原验证顺序。保留既有签名、提交、完整 `codesign`、`stapler validate`、`spctl`、ZIP 与审计顺序；真实 CI 打包仍待验证 |
+| `apps/desktop/scripts/electron-builder-config.mjs`、`apps/desktop/scripts/prepare-windows-installer.ps1`、`apps/desktop/installer/extract-report.h` 及其测试 | 只为 Insight 包传入专用安装器资源目录，在既有 NSIS 转义前把 locale 字符串中固定的 `DeepSeek Harness` 替换为已解析产品名；PowerShell 准备脚本接受该可选目录，并把产品名注入 `Compose` 报告首行 | 官方资源、locale 字符串和解压报告标题保持 DSH 默认值；不修改 locale helper API、应用 id、GUID、per-user 安装、许可文本、解压或安装逻辑、C++ 调用方或 DSH/NSIS 执行路径 |
+| `apps/desktop/scripts/verify-macos-signature.mjs` 与 `apps/desktop/tests/macos-disk-image-signature.spec.ts` | 仅当同一个公证后 DMG 只读 `stapler validate` 失败同时包含 status 68、`NSURLErrorDomain`、精确 `Code=-1005` 和 `api.apple-cloudkit.com` 时重试；总计最多三次，间隔 2 秒和 5 秒 | 精确恢复默认作用于所有产品，但不重新签名、重新提交公证、staple、重试 App 验证或 `spctl`，不新增命令 timeout，也不放宽最终检查；耗尽后保留最后一次验证错误 |
+| `apps/desktop/package.json`、`pnpm-lock.yaml` | 将 `@electron/notarize` 从 `2.5.0` 升级到 `3.1.2`，使用包含 [PR 306](https://github.com/electron/notarize/pull/306) staple 重试修复的上游维护版本。上游流程只提交一次，对同一 artifact 先执行 staple，并为所有产品最多重试三次；不增加私有 hook，也不修改 notary executor | 持续覆盖自定义 notarytool path、单次提交、staple 最多四次、非 staple 失败行为、cleanup 与原验证顺序。保留既有签名、提交、完整 `codesign`、`stapler validate`、`spctl`、ZIP 与审计顺序；平台验证由打包工作流负责 |
 | `.github/workflows/insight-package.yml`、`.github/workflows/insight-publish.yml`、`scripts/insight-release/`、根发布工具依赖及锁文件 | 分离已签名 GitHub Release 构建与绑定来源的 OSS 发布；隔离发布器运行时依赖和私有签名材料；先发布不可变对象，再条件更新渠道指针 | 端到端绑定源码提交、仓库、工作流运行、目标、版本、摘要和签名身份；调试包不得发布，结果未知的写入必须先核对，不能覆盖重试 |
 | `packages/boot/plugin-manager/src/{index,types,tools,diagnostic,product-policy}.ts`、测试及包元数据 | 将默认空的必需 bundle 配置与可信产品策略合并，在执行端拒绝停用、移除、更新和替换，并检查安装别名与归档 | 保留执行端校验、manifest 事务恢复、有界归档解析及用户 registry；基线提供等价保护后才移除本地策略 |
 | `packages/client/ui-plugin-manager/src/client/{presentation,locales}.ts` 及组件测试 | 为产品必需组件解释已有只读状态 | 展示状态从 Host 策略派生，保留组件内部功能开关 |
@@ -48,7 +50,7 @@
 
 ## 新增集成的拥有者
 
-更新协调器扩展、Main 单 updater 适配、更新窗口编译入口和产品打包扩展是 P5 已获明确授权的四组官方 hook。`tsconfig` alias 属于编译入口。这些 hook 均无需再次取得实施授权。
+更新协调器扩展、Main 单 updater 适配、更新窗口编译入口和产品打包扩展是 P5 已获明确授权的四组官方 hook。`tsconfig` alias 属于编译入口。表中的三个 Windows 品牌文件与 DMG 验证恢复是另外四个已授权官方文件；该范围不包含 locale helper、C++ 调用方或 notary executor 改动。
 
 精确私有包清单位于 [insight-package-policy.ts](../../scripts/insight-package-policy.ts)。[Insight 产品集成](insight.zh.md) 说明运行时归属、源码快照与同步技能。[Desktop Integration 包](../../packages/insight/desktop-integration/README.zh.md) 负责认证与账号进程行为。每个固定业务包的 `upstream.json` 和 `patches/insight` 下可回放差异记录引入源码及本地适配。
 

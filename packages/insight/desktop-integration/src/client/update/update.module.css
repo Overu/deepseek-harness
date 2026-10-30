@@ -1,17 +1,55 @@
-.page { display: grid; grid-template-rows: 1fr auto; gap: 20px; min-height: 100%; padding: 28px; color: var(--dsh-color-fg, #1d2433); background: var(--dsh-color-bg, #fff); font: 14px/1.5 system-ui, sans-serif; }
-.summary { display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 18px; align-items: start; }
-.logo { display: grid; width: 60px; height: 60px; place-items: center; padding: 0; border: 0; border-radius: 14px; background: #315dfb; cursor: default; }
-.logo img { width: 40px; height: 40px; }
-.content { min-width: 0; }
-.title { display: flex; gap: 8px; align-items: center; }
-.title h1 { margin: 0; font-size: 19px; font-weight: 500; }
-.title span { padding: 2px 7px; border-radius: 99px; color: #805300; background: #fff8e8; font-size: 12px; }
-.content p { margin: 8px 0 0; color: var(--dsh-color-fg-muted, #687083); overflow-wrap: anywhere; }
-.content .error { color: #c33d4e; }
+:global(:root) {
+  color-scheme: light dark;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:global(*) { box-sizing: border-box; }
+:global(html), :global(body), :global(#root) { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+:global(body) { background: var(--update-background); }
+
+.page {
+  --update-background: #f8f8f6;
+  --update-surface: #fff;
+  --update-text: #202124;
+  --update-muted: #6f7178;
+  --update-border: rgb(32 33 36 / 14%);
+  --update-danger: #d43d51;
+  --update-candidate: #805300;
+  --update-warning-surface: #fff8e8;
+  --update-warning-border: #ead39c;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 18px;
+  width: 100%;
+  height: 100%;
+  padding: 26px 24px 22px;
+  color: var(--update-text);
+  background: var(--update-background);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.summary { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 18px; align-items: start; min-height: 0; }
+.logo { display: grid; width: 64px; height: 64px; padding: 0; place-items: center; border: 0; border-radius: 15px; background: linear-gradient(145deg, #315dfb, #6481ff); cursor: default; }
+.logo img { width: 68%; height: 68%; object-fit: contain; }
+.content { min-width: 0; min-height: 0; padding-top: 2px; overflow: auto; }
+.title { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.title h1 { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.35; }
+.title span { flex: 0 0 auto; padding: 2px 7px; border: 1px solid var(--update-warning-border); border-radius: 999px; color: var(--update-candidate); background: var(--update-warning-surface); font-size: 11px; line-height: 17px; }
+.content p { margin: 0; color: var(--update-muted); overflow-wrap: anywhere; }
+.content .error { margin-top: 6px; color: var(--update-danger); }
 .content progress { width: 100%; height: 6px; margin-top: 14px; accent-color: #315dfb; }
-.actions { display: flex; gap: 10px; align-items: center; }
-.actions span { flex: 1; }
-.actions button { min-height: 34px; padding: 0 14px; border: 1px solid var(--dsh-color-border, #d9dde5); border-radius: 8px; color: inherit; background: transparent; font: inherit; cursor: pointer; }
-.actions .primary { border-color: #315dfb; color: #fff; background: #315dfb; }
+.actions { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.actions > span { flex: 1; }
+.actions button { min-height: 34px; padding: 0 15px; border: 1px solid var(--update-border); border-radius: 8px; color: inherit; background: var(--update-surface); font: inherit; cursor: pointer; white-space: nowrap; }
+.actions .primary { min-width: 104px; border: 0; color: #fff; background: #315dfb; font-weight: 500; }
 .actions button:disabled { opacity: .55; cursor: default; }
-@media (prefers-color-scheme: dark) { .page { color: #f3f4f6; background: #22242a; } .title span { color: #ffd58a; background: rgb(255 190 72 / 12%); } }
+
+@keyframes logoAcknowledge { from { transform: scale(.96); opacity: .84; } to { transform: scale(1); opacity: 1; } }
+.logoBusy { animation: logoAcknowledge 400ms cubic-bezier(.25, 1, .5, 1) both; }
+
+@media (prefers-color-scheme: dark) {
+  .page { --update-background: #202024; --update-surface: #29292e; --update-text: #f3f4f6; --update-muted: #a5a6ad; --update-border: rgb(255 255 255 / 12%); --update-danger: #ff667b; --update-candidate: #ffd58a; --update-warning-surface: rgb(255 190 72 / 9%); --update-warning-border: rgb(255 190 72 / 28%); }
+}
+
+@media (prefers-reduced-motion: reduce) { .logoBusy { animation: none; } }

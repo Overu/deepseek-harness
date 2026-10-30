@@ -9,17 +9,14 @@
   en: a763f5d0a17aa2db
   zh: 6f78a73e9da8591b
 /insight-desktop-release-pipeline/table-of-contents:
-  en: d8d296aa7e36059e
-  zh: 735866c833ecf314
+  en: da93cb96173ecf53
+  zh: 43b27e0ed5716bca
 /insight-desktop-release-pipeline/release-flow:
   en: 475f9dcf2f1a594b
   zh: 5e496a43cdff62a4
 /insight-desktop-release-pipeline/package-workflow:
-  en: 35be0fbd265a95ed
-  zh: 2d7413f58eb53185
-/insight-desktop-release-pipeline/windows-current-user-qualification:
-  en: f15fb7d61b8f14b0
-  zh: bf80780f32e0ca6f
+  en: aa117e0ef91bd45e
+  zh: 56ad9706199243e1
 /insight-desktop-release-pipeline/publish-workflow:
   en: 875868742a525a16
   zh: a2fc12a441bf72bb
@@ -27,11 +24,8 @@
   en: 7e25dfed8d7b1c0a
   zh: e5cee829bf5c1442
 /insight-desktop-release-pipeline/trust-and-failure-rules:
-  en: 8e7086ec6d86c105
-  zh: d26f60d7befb105c
-/insight-desktop-release-pipeline/failure-diagnosis:
-  en: e6a2c3f955a53abf
-  zh: 4f5e338397de1619
-/insight-desktop-release-pipeline/qualification-status:
-  en: 4cc320aaba0533ec
-  zh: 55722bdd99413cb6
+  en: 151251c49e2a9231
+  zh: 23e118695cdce63f
+/insight-desktop-release-pipeline/build-completion:
+  en: 00e684908bc49b1d
+  zh: 652bf9c8d59166dc

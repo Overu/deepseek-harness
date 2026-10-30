@@ -74,7 +74,7 @@ export function UpdatePage({ api, logoUrl }: UpdatePageProps) {
   const availableVersion = state.version
   return <main className={css.page} aria-live="polite">
     <section className={css.summary}>
-      <button className={css.logo} type="button" onClick={checkCandidate} aria-label="因赛AI 标志">
+      <button className={busy ? `${css.logo} ${css.logoBusy}` : css.logo} type="button" onClick={checkCandidate} aria-label="因赛AI 标志">
         <img src={logoUrl} alt="" />
       </button>
       <div className={css.content}>
@@ -89,6 +89,7 @@ export function UpdatePage({ api, logoUrl }: UpdatePageProps) {
       {state.phase === 'available' && !state.required && availableVersion !== undefined && <button type="button" onClick={() =>{  execute(() => api.skip(availableVersion)) }}>跳过这个版本</button>}
       {state.canDownloadFullInstaller && <button type="button" onClick={() =>{  execute(() => api.fullInstaller()) }}>下载完整安装包</button>}
       <span />
+      {state.phase === 'available' && !state.required && <button type="button" onClick={() =>{  execute(() => api.close()) }}>稍后提醒我</button>}
       {state.phase === 'idle' || state.phase === 'error' || state.phase === 'unsupported'
         ? <button className={css.primary} type="button" onClick={() =>{  execute(() => api.checkStable()) }}>检查更新</button>
         : state.phase === 'available'

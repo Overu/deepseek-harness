@@ -82,6 +82,11 @@ describe('installer preparation preserves application dependencies', () => {
       if (platform === 'win32') {
         expect(write).toHaveBeenCalledWith(expect.stringMatching(/installer-ui[\\/]strings\.nsh$/u),
           expect.stringContaining('LangString INSTALLER_INSTALL ${LANG_JAPANESE}'), 'utf8')
+        expect(execute).toHaveBeenCalledWith('powershell.exe', expect.not.arrayContaining(['-AssetDirectory']),
+          expect.objectContaining({ windowsHide: true }))
+        expect(execute).toHaveBeenCalledWith('powershell.exe', expect.not.arrayContaining(['-ProductName']),
+          expect.objectContaining({ windowsHide: true }))
+        expect(write).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('DeepSeek Harness'), 'utf8')
       }
     } finally {
       vi.unstubAllEnvs()
@@ -100,6 +105,31 @@ describe('installer preparation preserves application dependencies', () => {
       DSH_DESKTOP_UNSIGNED: '1',
     }, 'win32', 'x64')
     expect(config.artifactName).toBe('deepseek-harness-${version}-${os}-${arch}-unsigned.${ext}')
+  })
+
+  it('uses Insight installer artwork and product copy without changing the DSH defaults', async () => {
+    execute.mockClear()
+    write.mockClear()
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const config = createElectronBuilderConfig({
+      DSH_DESKTOP_PRODUCT: 'insight',
+      DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop',
+      INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32',
+      DSH_DESKTOP_TARGET_ARCH: 'x64',
+      DSH_DESKTOP_UNSIGNED: '1',
+    }, 'win32', 'x64')
+
+    await config.beforeBuild()
+
+    expect(execute).toHaveBeenCalledWith('powershell.exe', expect.arrayContaining([
+      '-AssetDirectory', expect.stringMatching(/packages[\\/]insight[\\/]desktop-integration[\\/]resources[\\/]installer-assets[\\/]$/u),
+      '-ProductName', '因赛AI',
+    ]), expect.objectContaining({ windowsHide: true }))
+    expect(write).toHaveBeenCalledWith(expect.stringMatching(/installer-ui[\\/]strings\.nsh$/u),
+      expect.stringContaining('因赛AI'), 'utf8')
+    expect(write).not.toHaveBeenCalledWith(expect.any(String), expect.stringContaining('DeepSeek Harness'), 'utf8')
+    expect(config.nsis.installerLanguages).toEqual(readInstallerLocales().map(locale => locale.id))
   })
 
   it('packages every preload entry point the shell loads', async () => {
@@ -122,6 +152,18 @@ describe('installer preparation preserves application dependencies', () => {
       APPLE_KEYCHAIN_PROFILE: 'installer-test',
     }, 'darwin', 'arm64')
     const packaged = new Set(config.files.filter((entry): entry is string => typeof entry === 'string'))
-    for (const name of referenced) expect(packaged.has(`lib/${name}`)).toBe(true)
+    for (const name of referenced) {
+      expect(packaged.has(`lib/${name}`)).toBe(!name.startsWith('preload-insight-'))
+    }
+    const insightConfig = createElectronBuilderConfig({
+      DSH_DESKTOP_PRODUCT: 'insight',
+      DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop',
+      INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
+      DSH_DESKTOP_TARGET_PLATFORM: 'darwin',
+      DSH_DESKTOP_TARGET_ARCH: 'arm64',
+      DSH_DESKTOP_UNSIGNED: '1',
+    }, 'darwin', 'arm64')
+    const insightPackaged = new Set(insightConfig.files.filter((entry): entry is string => typeof entry === 'string'))
+    for (const name of referenced) expect(insightPackaged.has(`lib/${name}`)).toBe(true)
   })
 })

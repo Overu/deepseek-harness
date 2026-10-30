@@ -10,6 +10,10 @@
 
 namespace extract_report {
 
+#ifndef DSH_INSTALLER_PRODUCT_NAME
+#define DSH_INSTALLER_PRODUCT_NAME L"DeepSeek Harness"
+#endif
+
 constexpr size_t kOutputLimit = 16 * 1024 * 1024;
 constexpr size_t kHeadlineLimit = 160;
 constexpr size_t kExcerptLineLimit = 120;
@@ -114,7 +118,7 @@ inline std::wstring Headline(int code, const std::wstring& output, const std::ws
 
 inline std::wstring Compose(int code, const std::wstring& archive, const std::wstring& destination, const std::wstring& output,
                             const std::wstring& timestamp, const std::wstring& windowsVersion) {
-    std::wstring report = L"DeepSeek Harness installer: extraction failed\r\n";
+    std::wstring report = std::wstring(DSH_INSTALLER_PRODUCT_NAME) + L" installer: extraction failed\r\n";
     report += L"Time: " + timestamp + L"\r\n";
     report += L"Result: " + DescribeResult(code) + L"\r\n";
     report += L"Archive: " + archive + L"\r\n";
