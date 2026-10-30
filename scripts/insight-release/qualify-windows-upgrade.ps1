@@ -26,6 +26,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'qualify-windows-registry.ps1')
+. (Join-Path $PSScriptRoot 'qualify-windows-process.ps1')
 $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 $installPointerKey = "HKCU:\Software\$ProductInstallKey"
 $machineUninstallRoots = @(
@@ -60,6 +61,14 @@ function Get-RemainingWait([int]$MaximumMilliseconds) {
     $remaining = [int64]($qualificationDeadline - [DateTimeOffset]::UtcNow).TotalMilliseconds
     if ($remaining -le 0) { throw 'Insight Windows upgrade qualification exceeded its overall deadline' }
     return [int][Math]::Min($remaining, $MaximumMilliseconds)
+}
+
+function Format-QualificationError([object]$ErrorRecord) {
+    $message = $ErrorRecord.Exception.Message
+    if ($ErrorRecord.ScriptStackTrace -is [string] -and $ErrorRecord.ScriptStackTrace -ne '') {
+        return "$message; callsite: $($ErrorRecord.ScriptStackTrace -replace '\r?\n', ' <- ')"
+    }
+    return $message
 }
 
 function Test-ProductRecord([object]$Record) {
@@ -174,7 +183,7 @@ function Invoke-Installer(
         foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
     }
     $process = [Diagnostics.Process]::Start($info)
-    $expectedPath = Get-CanonicalPath $process.Path
+    $expectedPath = Get-CanonicalPath $Installer
     $expectedStartTicks = $process.StartTime.ToUniversalTime().Ticks
     try {
         if (-not $process.WaitForExit((Get-RemainingWait 300000))) {
@@ -202,7 +211,7 @@ function Invoke-OwnedExecutable([string]$Executable, [string[]]$Arguments, [stri
     $info.CreateNoWindow = $true
     foreach ($argument in $Arguments) { [void]$info.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::Start($info)
-    $expectedPath = Get-CanonicalPath $process.Path
+    $expectedPath = $canonicalExecutable
     $expectedStartTicks = $process.StartTime.ToUniversalTime().Ticks
     try {
         if (-not $process.WaitForExit((Get-RemainingWait 300000))) {
@@ -293,7 +302,7 @@ function Assert-InstalledAppVersion([object]$Record, [string]$ExpectedVersion, [
         [void]$info.ArgumentList.Add($argument)
     }
     $process = [Diagnostics.Process]::Start($info)
-    $expectedPath = Get-CanonicalPath $process.Path
+    $expectedPath = Get-CanonicalPath $NodeExecutable
     $expectedStartTicks = $process.StartTime.ToUniversalTime().Ticks
     try {
         if (-not $process.WaitForExit((Get-RemainingWait 60000))) {
@@ -307,83 +316,25 @@ function Assert-InstalledAppVersion([object]$Record, [string]$ExpectedVersion, [
     }
 }
 
-function Get-OwnedProcessIdentities([string]$InstallRoot) {
-    $rows = @(Get-CimInstance Win32_Process -ErrorAction Stop)
-    $roots = [Collections.Generic.List[object]]::new()
-    $children = @{}
-    foreach ($row in $rows) {
-        $parentKey = [string]$row.ParentProcessId
-        if (-not $children.ContainsKey($parentKey)) { $children[$parentKey] = [Collections.Generic.List[object]]::new() }
-        $children[$parentKey].Add($row)
-        if ($row.ExecutablePath -is [string] -and $row.ExecutablePath -ne '' -and (Test-PathWithin $row.ExecutablePath $InstallRoot)) {
-            $roots.Add($row)
-        }
-    }
-    $queue = [Collections.Generic.List[object]]::new()
-    foreach ($root in $roots) { $queue.Add([PSCustomObject]@{ Row = $root; Depth = 0 }) }
-    $seen = [Collections.Generic.HashSet[int]]::new()
-    $identities = [Collections.Generic.List[object]]::new()
-    for ($index = 0; $index -lt $queue.Count; $index++) {
-        $entry = $queue[$index]
-        $pidValue = [int]$entry.Row.ProcessId
-        if (-not $seen.Add($pidValue)) { continue }
-        $live = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
-        if ($null -ne $live) {
-            try {
-                if ($live.HasExited) { continue }
-                $path = Get-CanonicalPath $live.Path
-                $identities.Add([PSCustomObject]@{
-                    ProcessId = $pidValue
-                    StartTicks = $live.StartTime.ToUniversalTime().Ticks
-                    Path = $path
-                    Depth = [int]$entry.Depth
-                })
-            } catch [InvalidOperationException] {
-                if (-not $live.HasExited) { throw }
-            } finally {
-                $live.Dispose()
-            }
-        }
-        $childRows = $children[[string]$pidValue]
-        if ($null -ne $childRows) {
-            foreach ($child in $childRows) { $queue.Add([PSCustomObject]@{ Row = $child; Depth = [int]$entry.Depth + 1 }) }
-        }
-    }
-    return @($identities)
-}
-
 function Stop-OwnedProcesses([string]$InstallRoot) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
     $emptyObservations = 0
     while ($emptyObservations -lt 2) {
         [void](Get-RemainingWait 20000)
         if ($timer.Elapsed.TotalSeconds -gt 20) { throw 'Owned Insight processes did not reach quiescence' }
-        $owned = @(Get-OwnedProcessIdentities $InstallRoot)
-        if ($owned.Count -eq 0) {
-            $emptyObservations++
-            if ($emptyObservations -lt 2) { Start-Sleep -Milliseconds 100 }
-            continue
-        }
-        $emptyObservations = 0
-        foreach ($identity in @($owned | Sort-Object Depth -Descending)) {
-            $process = Get-Process -Id $identity.ProcessId -ErrorAction SilentlyContinue
-            if ($null -eq $process) { continue }
-            try {
-                if ($process.HasExited) { continue }
-                $actualPath = Get-CanonicalPath $process.Path
-                $actualStartTicks = $process.StartTime.ToUniversalTime().Ticks
-                if ($actualPath -ne $identity.Path -or $actualStartTicks -ne $identity.StartTicks) {
-                    throw 'Refused to stop a reused process id during Insight cleanup'
-                }
-                $process.Kill()
-                if (-not $process.WaitForExit((Get-RemainingWait 5000))) {
-                    throw 'Owned Insight process did not exit during cleanup'
-                }
-            } catch [InvalidOperationException] {
-                if (-not $process.HasExited) { throw }
-            } finally {
-                $process.Dispose()
+        $owned = @(Get-QualificationOwnedProcessIdentities $InstallRoot)
+        try {
+            if ($owned.Count -eq 0) {
+                $emptyObservations++
+                if ($emptyObservations -lt 2) { Start-Sleep -Milliseconds 100 }
+                continue
             }
+            $emptyObservations = 0
+            foreach ($identity in @($owned | Sort-Object Depth -Descending)) {
+                Stop-QualificationTrackedProcess $identity (Get-RemainingWait 5000)
+            }
+        } finally {
+            foreach ($identity in $owned) { $identity.Process.Dispose() }
         }
     }
 }
@@ -535,9 +486,9 @@ try {
 if ($null -ne $primaryError -and $cleanupFailures.Count -eq 0) { throw $primaryError }
 if ($null -ne $primaryError -or $cleanupFailures.Count -ne 0) {
     $facts = [Collections.Generic.List[string]]::new()
-    if ($null -ne $primaryError) { $facts.Add("qualification failed: $($primaryError.Exception.Message)") }
+    if ($null -ne $primaryError) { $facts.Add("qualification failed: $(Format-QualificationError $primaryError)") }
     foreach ($failure in $cleanupFailures) {
-        $facts.Add("cleanup failed for $($failure.Stage): $($failure.Error.Exception.Message)")
+        $facts.Add("cleanup failed for $($failure.Stage): $(Format-QualificationError $failure.Error)")
     }
     $message = $facts -join '; '
     if ($null -ne $primaryError) { throw [Exception]::new($message, $primaryError.Exception) }

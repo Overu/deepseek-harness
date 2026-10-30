@@ -89,6 +89,16 @@ describe('Insight Windows upgrade qualification inputs', () => {
     expect(result.stdout).toContain('INSIGHT_WINDOWS_REGISTRY_SMOKE records=2 optional=verified collision=verified')
   })
 
+  it.skipIf(process.platform !== 'win32')('binds real CIM creation times to held Windows process handles', async () => {
+    const script = fileURLToPath(new URL('./qualify-windows-process.smoke.ps1', import.meta.url))
+    const result = await execute('pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', script], {
+      windowsHide: true,
+      timeout: 30_000,
+    })
+
+    expect(result.stdout).toContain('INSIGHT_WINDOWS_PROCESS_SMOKE creation=verified parent-chain=verified handle=verified blank-descendant=verified aggregate=verified negatives=verified')
+  })
+
   it('resolves the frozen signed 1.0.9 Windows installer identity', async () => {
     const legacy = await resolveLegacyWindowsInstaller()
 
@@ -208,6 +218,35 @@ describe('Insight Windows upgrade qualification inputs', () => {
     expect(registry).toContain('function Assert-QualificationInstallAbsent')
     expect(smoke).toContain('Resolve-QualificationInstallState')
     expect(smoke).toContain('Assert-QualificationInstallAbsent')
+  })
+
+  it('keeps process ownership on the shared creation-bound handle implementation', async () => {
+    const [qualification, processes, smoke] = await Promise.all([
+      readFile(new URL('./qualify-windows-upgrade.ps1', import.meta.url), 'utf8'),
+      readFile(new URL('./qualify-windows-process.ps1', import.meta.url), 'utf8'),
+      readFile(new URL('./qualify-windows-process.smoke.ps1', import.meta.url), 'utf8'),
+    ])
+
+    expect(qualification).toContain(". (Join-Path $PSScriptRoot 'qualify-windows-process.ps1')")
+    expect(qualification).toContain('Get-QualificationOwnedProcessIdentities')
+    expect(qualification).not.toContain('function Get-OwnedProcessIdentities')
+    expect(processes).toContain('[void]$process.Handle')
+    expect(processes).toContain('CreationMicrosecondTicks')
+    expect(processes).toContain('return $ticks - ($ticks % 10)')
+    expect(processes).not.toContain('.Ticks / 10')
+    expect(processes).toContain('$Parent.CreationMicrosecondTicks -gt $creationMicrosecondTicks')
+    expect(processes).toContain('$Identity.Process.Kill()')
+    expect(processes).not.toContain('$Identity.Process.Kill($true)')
+    expect(qualification).toContain('$owned | Sort-Object Depth -Descending')
+    expect(smoke).toContain('Open-QualificationTrackedProcess $wrongCreation')
+    expect(smoke).toContain('Creation mismatch test terminated the child')
+    expect(smoke).toContain('Open-QualificationTrackedProcess $wrongPath')
+    expect(smoke).toContain('New-QualificationProcessSnapshot $blankChildRow')
+    expect(smoke).toContain('Stop-QualificationTrackedProcess $blankIdentity')
+    expect(smoke).toContain('Get-QualificationOwnedProcessIdentities $aggregateRoot')
+    expect(smoke).toContain('Where-Object Depth -gt 0')
+    expect(qualification).toContain('ScriptStackTrace')
+    expect(qualification).toContain('Format-QualificationError $failure.Error')
   })
 
   it('serializes the custom NSIS /D tail without quoting its path with spaces', () => {

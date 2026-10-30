@@ -153,14 +153,17 @@ it('qualifies the current-user Windows upgrade after collection and before uploa
   })
 })
 
-it('checks the real Windows registry reader before dependency installation or native packaging', () => {
+it('checks the real Windows qualification helpers before dependency installation or native packaging', () => {
   const steps = workflow.jobs.windows.steps
-  const smoke = steps.findIndex(step => step.name === 'Check Windows registry qualification')
+  const smoke = steps.findIndex(step => step.name === 'Check Windows qualification helpers')
   const setup = steps.findIndex(step => step.uses?.startsWith('pnpm/action-setup@'))
   expect(smoke).toBeGreaterThan(0)
   expect(smoke).toBeLessThan(setup)
   expect(steps[smoke]).toMatchObject({
     'timeout-minutes': 2,
-    run: 'pwsh.exe -NoProfile -NonInteractive -File scripts/insight-release/qualify-windows-registry.smoke.ps1',
+    run: [
+      'pwsh.exe -NoProfile -NonInteractive -File scripts/insight-release/qualify-windows-registry.smoke.ps1',
+      'pwsh.exe -NoProfile -NonInteractive -File scripts/insight-release/qualify-windows-process.smoke.ps1',
+    ].join('\n') + '\n',
   })
 })

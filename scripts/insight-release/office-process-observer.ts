@@ -10,6 +10,7 @@ import { performance } from 'node:perf_hooks'
 const PROCESS_TABLE_TIMEOUT_MS = 2_000
 const PROCESS_TABLE_MAX_BYTES = 1024 * 1024
 const SAMPLE_INTERVAL_MS = 1_000
+const MAX_CONSECUTIVE_SAMPLE_FAILURES = 3
 const SUSTAINED_OBSERVATION_MS = 45_000
 const MAX_OUTPUT_RECORDS = 64
 const HELPER_NAME = 'libreoffice-kit'
@@ -252,7 +253,7 @@ const PRODUCTION_DEPENDENCIES: OfficeProcessObserverDependencies = {
 }
 
 /**
- * Observe one packaging shell's helper descendants until cancellation or a process-table failure.
+ * Observe one packaging shell's helper descendants until cancellation or three consecutive failed reads.
  * @param rootPid - Packaging Bash PID.
  * @param signal - Observer-only cancellation; it never signals product processes.
  * @param dependencies - Process reader, clocks, wait and sanitized output destination.
@@ -266,11 +267,13 @@ export async function observeOfficeProcessLifetime(
   const cancelled = (): boolean => signal.aborted
   let samples = 0
   let sampleFailures = 0
+  let consecutiveSampleFailures = 0
   while (!cancelled()) {
     try {
       const rows = await dependencies.read(signal)
       if (cancelled()) break
       samples++
+      consecutiveSampleFailures = 0
       const elapsedMs = Math.max(0, Math.round(dependencies.monotonicNow() - started))
       const observedAt = new Date(dependencies.wallNow()).toISOString()
       for (const event of tracker.observe(rows, elapsedMs, observedAt)) {
@@ -279,10 +282,11 @@ export async function observeOfficeProcessLifetime(
     } catch (_error) {
       if (cancelled()) break
       sampleFailures++
+      consecutiveSampleFailures++
       output.writeEvent({ event: 'observer-failure', observedAt: new Date(dependencies.wallNow()).toISOString(),
         elapsedMs: Math.max(0, Math.round(dependencies.monotonicNow() - started)),
         kind: 'process-table-unavailable', qualification: false })
-      break
+      if (consecutiveSampleFailures >= MAX_CONSECUTIVE_SAMPLE_FAILURES) break
     }
     await dependencies.wait(SAMPLE_INTERVAL_MS, signal)
   }

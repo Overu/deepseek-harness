@@ -48,9 +48,9 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 Windows job 在构建和收集之后、上传 artifact 之前运行当前用户升级资格检查。它在同一个 GitHub-hosted 管理员 job 中安装并升级两个隔离用例：默认当前用户路径，以及一个包含空格的独立自定义路径。它下载由生产信任解析器选中的冻结签名 `1.0.9` 安装器并校验大小与 SHA-512，再只通过已收集 build manifest 选择新的 RC 安装器。检查覆盖真实旧 raw `resources/app/package.json` payload 与新 ASAR payload、registry 身份、安装路径保留、PE 身份、已安装 payload 版本，以及 Harness 所有目录下四个合成文件的 hash 不变。cache 路径只在用例间隔离和清理，不写入 sentinel，也不校验 hash。
 
-Registry 资格检查把 uninstall 记录与安装指针视为两个独立 key。它从 NSIS `Software\APP_GUID` 安装 key 读取 `InstallLocation`，同时保留对应 uninstall 记录的既有应用身份与路径检查；不再假定 uninstall key 包含安装路径。
+Registry 资格检查把 uninstall 记录与安装指针视为两个独立 key。它从 NSIS `Software\APP_GUID` 安装 key 读取 `InstallLocation`，同时保留对应 uninstall 记录的既有应用身份与路径检查；不再假定 uninstall key 包含安装路径。私有进程 helper 把每个受控根进程和后代的 CIM 创建时间与已持有进程 handle 的启动时间统一到 UTC 微秒后绑定。根进程必须具有安装根目录内的精确可执行文件路径；后代还保留完整父链和 CIM 已知的可执行文件路径，只有已绑定的后代允许空路径。清理从最深的后代开始，重新检查每个身份，依次执行 `Kill` 和 `WaitForExit`，并在 `finally` 中释放所有已持有 handle。
 
-同一 Windows job 在源码检查之后、依赖安装之前运行两分钟的真实 HKCU smoke，使用随机 registry key。该 smoke 不含 Secret，不执行 native build。它不新增 workflow、job 或 target 选择，保持原有四个 target 选项不变。
+同一 Windows job 在源码检查之后、依赖安装之前运行两分钟的 helper 检查。它先用随机 registry key 检查真实 HKCU，再用私有 `cmd` 根进程和 `ping` 后代检查真实 CIM 与进程 handle、聚合发现，以及五秒内的自然退出。该检查不含 Secret，不执行 native build。它不新增 workflow、job 或 target 选择，保持原有四个 target 选项不变。
 
 该资格检查使用 hosted administrator 上下文，不声称经过 UAC。它只确认安装器连续性：应用重启、更新 UI、真实账号和旧客户端自动发现 rc 版本均不属于结果。内部资格检查的整体期限为 20 分钟，所在 workflow step 为 25 分钟。cleanup 失败或 cleanup 结果未知会在上传前使 job 失败，因此不合格产物不会保留为 Actions artifact。
 
@@ -98,7 +98,7 @@ Registry 资格检查把 uninstall 记录与安装指针视为两个独立 key�
 
 每项观测都按 `docx`、`xlsx` 顺序使用产品 converter 限制执行相同转换：engine 转换期限为 60 秒，诊断 controller 进程预算为 150 秒。每项观测使用独立的 `HOME`、XDG、临时目录和 NARB cache 目录。日志只接受阶段、耗时、backend、失败类型、退出、signal、字节数、截断和结果白名单字段，捕获输出上限为 32 KiB，stderr 只报告字节数；不会输出环境值、参数、本地路径、URL、token 或文档内容。
 
-Insight 专用的只读 `/bin/ps` observer 在原 macOS x64 构建旁运行，每秒采样精确的 libreoffice-kit 后代。它在内部用 PID 与启动时间识别进程，但不输出 PID、路径、参数、环境、完整错误或栈采样。固定事件只包含 UTC 时间、相对时间、`seen`、`gone`、45 秒标记和 summary，最多 64 行。每次进程列表调用共享两秒、1 MiB 与强制 kill 上限；取消时等待子进程 `close`。EXIT trap 只停止 observer，保留 pnpm 原退出状态。observer 始终为 `qualification: false`，不修改 Office 60 秒期限、不重试、不放宽任何门禁，也不需要官方保留接口。它补充 preparation 失败清理 runtime 后的观测缺口；某次采样未观测到进程，不代表进程从未启动。
+Insight 专用的只读 `/bin/ps` observer 在原 macOS x64 构建旁运行，每秒采样精确的 libreoffice-kit 后代。它在内部用 PID 与启动时间识别进程，但不输出 PID、路径、参数、环境、完整错误或栈采样。固定事件只包含 UTC 时间、相对时间、`seen`、`gone`、45 秒标记和 summary，最多 64 行。每次进程列表调用共享两秒、1 MiB 与强制 kill 上限；取消时等待子进程 `close`。读取失败后仍保持正常的一秒间隔；一次成功读取会清零连续失败计数，只有连续三次失败才停止采样并输出 summary。EXIT trap 只停止 observer，保留 pnpm 原退出状态。observer 始终为 `qualification: false`，不修改 Office 60 秒期限、不重试、不放宽任何门禁，也不需要官方保留接口。它补充 preparation 失败清理 runtime 后的观测缺口；某次采样未观测到进程，不代表进程从未启动。
 
 工作流只在原始 job 已失败后运行自适应矩阵，并将步骤标记为 `continue-on-error`。最终记录始终包含 `qualification: false`：观测通过既不改变失败 job 的结果，也不使 CI 合格，任何 raw 模式都不能代替 packaged application smoke。如果受控进程组或其 stream 未能在有界终止和关闭宽限期内静止，controller 会记录 `cleanupFailed`、拒绝该项观测、停止后续矩阵并以非零状态退出。定位并解决 packaged-runtime 差异的源码问题后，可以移除这些工具。
 
@@ -107,10 +107,10 @@ Insight 专用的只读 `/bin/ps` observer 在原 macOS x64 构建旁运行，�
 <a id="qualification-status"></a>
 ## 验证状态
 
-本地 registry 修正用既有私有 typed `RegistryKey.GetValue` helper 替换动态 PowerShell `PSObject` 属性访问。经审查的 Windows 两键修正通过两个文件中的 24 项测试，在 macOS 上跳过一项真实 Windows smoke，并通过 `build:check` 两聚合；真实 Windows 资格仍待验证。observer 通过两个文件中的 14 项测试、`build:check` 两聚合、scoped lint 和独立复审，包含真实 Node 24 事件顺序检查：只能在子进程 `close` 时结算，不能在更早的 `execFile` callback 时结算。observer 提交 `22a06f3c568bb6a760f859b424b3b675c9b3107b` 的 x64-only run `41101445899` 已排队，尚无采样结果。`@electron/notarize` `3.1.2` 实现仍不含 hook，并保留既有 notary executor。这些本地结果不代表 CI 或 Release 合格。
+本地合并运行通过三个文件中的 32 项测试，并在 macOS 上跳过两项仅 Windows 用例：其中包含 25 项 Windows 与 workflow 测试和七项 observer 测试。独立 observer 复审另通过七项测试，`build:check` 两个聚合与 scoped lint 均通过。这些本地结果不代表真实 Windows CI 或 Release 合格。
 
-Windows-only run `41096365005` 已通过早期真实 HKCU smoke、native 构建和 collector，随后在旧安装完成后停止：旧 fixture 的 registry 查询在 upgrade 前被过滤为零条记录。经审查的两键修正已改为跟随独立安装指针，不放宽应用身份或路径检查，但尚未在 Windows 上运行。较早的失败不能证明生产安装器失败。资格只验证安装器，不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
+Windows-only run `41102268297` 已通过早期两键 HKCU smoke、native 与 runtime 检查、NSIS 打包和收集。完整资格检查随后因一个受控后代暴露空进程路径而失败；主路径与 cleanup 报告相同错误，没有用例完整成功。私有的创建时间、父链、handle 和 cleanup helper 已在本地处理该失败，但真实 Windows 资格仍待验证。安装器资格仍不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
 
-Run `41089684008` 已完成 macOS arm64 构建、签名、公证、收集和 artifact 上传，因此 `@electron/notarize` `3.1.2` 已在该架构通过验证。macOS x64 job 在公证开始前的 prepared DOCX smoke 中超时。Windows 构建与 collector 通过，但资格检查在 installer upgrade 前因动态 registry 属性缺陷失败。失败后 Office 诊断因 preparation 失败已删除 runtime 而只得到 unavailable，没有产生 probe 证据。Office 调查独立继续，不提高 timeout。Release 已跳过，OSS 保持不变；arm64 结果不代表 Intel 合格。
+x64-only run `41101445899` 的 Office roundtrip、prepared 和 packaged 检查均通过。进程 observer 在 13 次采样后报告 `process-table-unavailable`，没有观测到 helper；该结果不能确定旧 Office 失败的原因。ZIP 应用公证链通过，DMG 公证后的 `stapler validate` 则以 status 68 和 CloudKit `-1005` 失败；收集与上传跳过。这与 `@electron/notarize` `3.1.2` 内部 staple 重试相互独立。只重试该精确 DMG 验证失败的窄方案已经审查，等待用户授权，官方验证器尚未修改。run `41102268297` 与 `41101445899` 均整体失败，因此都没有产生合格的公开 Release，OSS 保持不变。
 
-原生检查确认更新窗口可在登录前显示，四击不出现确认，三秒内第五击显示内测确认；确认后写入 schema 1、`candidateOptIn: true` 且 mode 600 的 preferences。七项必需 GitHub Secret 均已存在，包括经授权密文迁移的 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。生产 feed 下载与安装、真实 Windows 当前用户升级、旧 Shell 正式版升级，以及 OIDC-to-STS 身份仍未验证。在 P5 完成且用户另行启动发布前，正式发布和所有生产指针保持不变。
+原生检查确认更新窗口可在登录前显示，四击不出现确认，三秒内第五击显示内测确认；确认后写入 schema 1、`candidateOptIn: true` 且 mode 600 的 preferences。七项必需 GitHub Secret 均已存在，包括经授权密文迁移的 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。用户已暂缓使用独立 macOS 用户或备用 Mac 进行原生升级实测；不构建 `1.0.9` 测试基线，也不修改当前 Mac 数据。生产 feed 下载与安装、真实 Windows 当前用户升级、旧 Shell 正式版升级，以及 OIDC-to-STS 身份仍未验证。在 P5 完成且用户另行启动发布前，正式发布和所有生产指针保持不变。

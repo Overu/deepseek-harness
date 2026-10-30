@@ -97,22 +97,54 @@ it('awaits an in-flight process read before reporting cancellation summary', asy
   expect(lines[0]).toContain('"sampleFailures":0')
 })
 
-it('contains a process-table failure without retrying or rejecting', async () => {
+it('resets consecutive read failures after a valid sample and keeps the regular interval', async () => {
   const lines: string[] = []
-  const wait = vi.fn(async () => {})
+  const controller = new AbortController()
+  const read = vi.fn<OfficeProcessObserverDependencies['read']>()
+    .mockRejectedValueOnce(new Error('private ps detail'))
+    .mockRejectedValueOnce(new Error('private ps detail'))
+    .mockResolvedValueOnce([])
+    .mockRejectedValueOnce(new Error('private ps detail'))
+    .mockRejectedValueOnce(new Error('private ps detail'))
+    .mockResolvedValueOnce([row(101, 100, '/a/libreoffice-kit')])
+  const wait = vi.fn(async (milliseconds: number) => {
+    expect(milliseconds).toBe(1_000)
+    if (read.mock.calls.length === 6) controller.abort()
+  })
   const dependencies: OfficeProcessObserverDependencies = {
-    read: vi.fn(async () => { throw new Error('private ps detail') }),
+    read,
     monotonicNow: () => 10,
     wallNow: () => Date.UTC(2026, 9, 31, 1),
     wait,
     write: (line) => { lines.push(line) },
   }
-  await observeOfficeProcessLifetime(100, new AbortController().signal, dependencies)
-  expect(dependencies.read).toHaveBeenCalledTimes(1)
-  expect(wait).not.toHaveBeenCalled()
-  expect(lines).toHaveLength(2)
+  await observeOfficeProcessLifetime(100, controller.signal, dependencies)
+  expect(read).toHaveBeenCalledTimes(6)
+  expect(wait).toHaveBeenCalledTimes(6)
+  expect(lines).toHaveLength(6)
   expect(lines[0]).toContain('"event":"observer-failure"')
   expect(lines[0]).not.toContain('private ps detail')
-  expect(lines[1]).toContain('"event":"observer-summary"')
-  expect(lines[1]).toContain('"sampleFailures":1')
+  expect(lines[4]).toContain('"event":"helper-first-observed"')
+  expect(lines[5]).toContain('"event":"observer-summary"')
+  expect(lines[5]).toContain('"sampleFailures":4')
+  expect(lines[5]).toContain('"samples":2')
+  expect(lines[5]).toContain('"helpersObserved":1')
+})
+
+it('stops after three consecutive failed reads without a busy loop', async () => {
+  const lines: string[] = []
+  const read = vi.fn<OfficeProcessObserverDependencies['read']>(async () => { throw new Error('private ps detail') })
+  const wait = vi.fn(async () => {})
+  await observeOfficeProcessLifetime(100, new AbortController().signal, {
+    read, wait,
+    monotonicNow: () => 10,
+    wallNow: () => Date.UTC(2026, 9, 31, 1),
+    write: (line) => { lines.push(line) },
+  })
+  expect(read).toHaveBeenCalledTimes(3)
+  expect(wait.mock.calls).toEqual([[1_000, expect.any(AbortSignal)], [1_000, expect.any(AbortSignal)]])
+  expect(lines).toHaveLength(4)
+  expect(lines.join('\n')).not.toContain('private ps detail')
+  expect(lines[3]).toContain('"sampleFailures":3')
+  expect(lines[3]).toContain('"event":"observer-summary"')
 })
