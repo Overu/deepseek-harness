@@ -18,8 +18,8 @@
   en: 35be0fbd265a95ed
   zh: 2d7413f58eb53185
 /insight-desktop-release-pipeline/windows-current-user-qualification:
-  en: 83d76d443915f148
-  zh: 6cda952302f47470
+  en: 7d8ac487933f902c
+  zh: b0bee4d5169d89b7
 /insight-desktop-release-pipeline/publish-workflow:
   en: 875868742a525a16
   zh: a2fc12a441bf72bb
@@ -33,5 +33,5 @@
   en: 0ce4f39c172b0d54
   zh: 8a3cce01cec974a4
 /insight-desktop-release-pipeline/qualification-status:
-  en: 75fe403581013fed
-  zh: a72aeb62cd15e6ae
+  en: f309986a1a9467a4
+  zh: 96d3b0864dffd16a

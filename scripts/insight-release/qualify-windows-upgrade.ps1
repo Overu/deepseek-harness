@@ -14,6 +14,7 @@ param(
     [Parameter(Mandatory)][string]$CustomLegacyArguments,
     [Parameter(Mandatory)][string]$NodeExecutable,
     [Parameter(Mandatory)][string]$PayloadVersionHelper,
+    [Parameter(Mandatory)][string]$ProductInstallKey,
     [Parameter(Mandatory)][string]$ProductUninstallKey,
     [Parameter(Mandatory)][string]$ProductExecutableName,
     [Parameter(Mandatory)][string]$UnversionedDisplayName,
@@ -26,10 +27,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'qualify-windows-registry.ps1')
 $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+$installPointerKey = "HKCU:\Software\$ProductInstallKey"
 $machineUninstallRoots = @(
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
     'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
 )
+$machineInstallPointerKeys = @(
+    "HKLM:\SOFTWARE\$ProductInstallKey",
+    "HKLM:\SOFTWARE\WOW6432Node\$ProductInstallKey"
+)
+$allowedDisplayNames = @($UnversionedDisplayName, $LegacyDisplayName, $ReleaseDisplayName)
 $userDataRoot = Join-Path $env:APPDATA 'insight-desktop'
 $sentinelRoot = Join-Path $userDataRoot 'insight\accounts\0123456789abcdef0123456789abcdef\harness'
 $productCacheRoots = @(
@@ -56,29 +63,36 @@ function Get-RemainingWait([int]$MaximumMilliseconds) {
 }
 
 function Test-ProductRecord([object]$Record) {
-    return $Record.Key -eq $ProductUninstallKey -or $Record.DisplayName -in @(
-        $UnversionedDisplayName,
-        $LegacyDisplayName,
-        $ReleaseDisplayName
-    )
+    return Test-QualificationProductRecord $Record $ProductUninstallKey $allowedDisplayNames
 }
 
 function Get-ProductRecords([string]$Root) {
     return @(Get-UninstallRecords $Root | Where-Object { Test-ProductRecord $_ })
 }
 
-function Assert-RegistryState([string]$ExpectedCurrentUserKey) {
+function Assert-RegistryState([string]$ExpectedCurrentUserKey, [string]$ExpectedInstallLocation = '') {
     $currentUser = @(Get-ProductRecords $uninstallRoot)
     if ($ExpectedCurrentUserKey -eq '') {
-        if ($currentUser.Count -ne 0) { throw 'Insight current-user uninstall records remained unexpectedly' }
+        Assert-QualificationInstallAbsent $uninstallRoot $installPointerKey $ProductUninstallKey $allowedDisplayNames
     } elseif ($currentUser.Count -ne 1 -or $currentUser[0].Key -ne $ExpectedCurrentUserKey) {
         throw 'Insight current-user uninstall record was not unique at the original key'
+    } else {
+        $pointer = Get-QualificationInstallPointer $installPointerKey
+        if (-not $pointer.Exists -or $pointer.InstallLocation -eq '' -or
+            (Get-QualificationCanonicalPath $pointer.InstallLocation) -ne (Get-QualificationCanonicalPath $ExpectedInstallLocation)) {
+            throw 'Insight current-user install pointer does not match the qualified installation root'
+        }
     }
     foreach ($root in $machineUninstallRoots) {
         $machine = @(Get-ProductRecords $root)
         if ($machine.Count -ne 0) { throw "Unexpected machine-wide Insight uninstall record under $root" }
         if ($ExpectedCurrentUserKey -ne '' -and (Test-Path -LiteralPath (Join-Path $root $ExpectedCurrentUserKey))) {
             throw "Unexpected machine-wide uninstall record at the current-user Insight key under $root"
+        }
+    }
+    foreach ($pointerKey in $machineInstallPointerKeys) {
+        if ((Get-QualificationInstallPointer $pointerKey).Exists) {
+            throw "Unexpected machine-wide Insight install pointer at $pointerKey"
         }
     }
 }
@@ -201,19 +215,15 @@ function Invoke-OwnedExecutable([string]$Executable, [string[]]$Arguments, [stri
     }
 }
 
-function Resolve-NewLegacyRecord([string[]]$Before) {
-    $matches = @(Get-UninstallRecords $uninstallRoot | Where-Object {
-        $_.Key -notin $Before -and (Test-ProductRecord $_) -and $_.DisplayVersion -eq $LegacyVersion -and
-        $_.InstallLocation -ne '' -and (Test-Path -LiteralPath $_.InstallLocation)
-    })
-    if ($matches.Count -ne 1) { throw "Expected one new current-user legacy uninstall record, found $($matches.Count)" }
-    return $matches[0]
-}
-
-function Get-Record([string]$Key) {
-    $matches = @(Get-UninstallRecords $uninstallRoot | Where-Object { $_.Key -eq $Key })
-    if ($matches.Count -ne 1) { throw 'Original Insight uninstall record is missing after update' }
-    return $matches[0]
+function Resolve-InstallState([string[]]$ExpectedVersions, [string]$RequiredKey = '', [string[]]$ExcludedKeys = @()) {
+    return Resolve-QualificationInstallState `
+        -UninstallRoot $uninstallRoot `
+        -InstallPointerKey $installPointerKey `
+        -ProductUninstallKey $ProductUninstallKey `
+        -AllowedDisplayNames $allowedDisplayNames `
+        -ExpectedVersions $ExpectedVersions `
+        -RequiredUninstallKey $RequiredKey `
+        -ExcludedUninstallKeys $ExcludedKeys
 }
 
 function Assert-InstallRoot([string]$InstallLocation, [string]$CustomRoot) {
@@ -378,27 +388,14 @@ function Stop-OwnedProcesses([string]$InstallRoot) {
     }
 }
 
-function Resolve-Uninstaller([object]$Record) {
-    $command = $Record.UninstallString.Trim()
-    $candidate = ''
-    if ($command -match '^"([^"]+\.exe)"(?:\s+.*)?$') { $candidate = $Matches[1] }
-    elseif ($command -match '^([^\s"]+\.exe)$') { $candidate = $Matches[1] }
-    if ($candidate -eq '' -or -not (Test-PathWithin $candidate $Record.InstallLocation)) {
-        throw 'Insight UninstallString does not safely identify an executable in InstallLocation'
-    }
-    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { throw 'Installed Insight uninstaller is missing' }
-    return Get-CanonicalPath $candidate
-}
-
 function Remove-Case([object]$Record) {
     if (-not $Record.Active) { return }
     Stop-OwnedProcesses $Record.InstallLocation
-    $current = Get-Record $Record.Key
+    $current = Resolve-InstallState @($LegacyVersion, $ReleaseVersion) $Record.Key
     if ((Get-CanonicalPath $current.InstallLocation) -ne (Get-CanonicalPath $Record.InstallLocation)) {
         throw 'Insight uninstall record changed InstallLocation before cleanup'
     }
-    $uninstaller = Resolve-Uninstaller $current
-    Invoke-OwnedExecutable $uninstaller @('/S') $Record.InstallLocation
+    Invoke-OwnedExecutable $current.Uninstaller @('/S') $Record.InstallLocation
     $timer = [Diagnostics.Stopwatch]::StartNew()
     while (Test-Path -LiteralPath $Record.InstallLocation) {
         [void](Get-RemainingWait 30000)
@@ -481,7 +478,7 @@ function Invoke-Case([string]$Case, [string]$CustomRoot) {
     } else {
         Invoke-Installer $LegacyInstaller @() $LegacyInstallerSize $LegacyInstallerSha512 $CustomLegacyArguments
     }
-    $legacyRecord = Resolve-NewLegacyRecord $before
+    $legacyRecord = Resolve-InstallState @($LegacyVersion) '' $before
     Assert-InstallRoot $legacyRecord.InstallLocation $CustomRoot
     $record = [PSCustomObject]@{
         Key = $legacyRecord.Key
@@ -489,14 +486,13 @@ function Invoke-Case([string]$Case, [string]$CustomRoot) {
         Active = $true
     }
     $records.Add($record)
-    Assert-RegistryState $legacyRecord.Key
+    Assert-RegistryState $legacyRecord.Key $record.InstallLocation
     Assert-InstalledAppVersion $legacyRecord $LegacyVersion 'raw'
     New-Sentinels
     Invoke-Installer $ReleaseInstaller @('--updated', '/S', '--force-run') $ReleaseInstallerSize $ReleaseInstallerSha512
-    $updated = Get-Record $record.Key
+    $updated = Resolve-InstallState @($ReleaseVersion) $record.Key
     if ((Get-CanonicalPath $updated.InstallLocation) -ne $record.InstallLocation) { throw 'Update changed InstallLocation' }
-    if ($updated.DisplayVersion -ne $ReleaseVersion) { throw 'Update did not record the release version' }
-    Assert-RegistryState $record.Key
+    Assert-RegistryState $record.Key $record.InstallLocation
     Assert-InstalledAppVersion $updated $ReleaseVersion 'asar'
     Assert-Sentinels
     Stop-OwnedProcesses $record.InstallLocation

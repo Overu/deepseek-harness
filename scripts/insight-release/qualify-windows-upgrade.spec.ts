@@ -184,6 +184,7 @@ describe('Insight Windows upgrade qualification inputs', () => {
       '-ReleaseInstallerSize', '43', '-ReleaseInstallerSha512', 'release-sha512',
       '-CustomInstallRoot', 'C:\\fixture custom install',
       '-CustomLegacyArguments', '/S /currentuser /D=C:\\fixture custom install',
+      '-ProductInstallKey', '3f22a924-0492-54e4-a8a2-dc8902eed971',
       '-ProductUninstallKey', '3f22a924-0492-54e4-a8a2-dc8902eed971',
       '-ProductExecutableName', '因赛AI.exe',
       '-LegacyDisplayName', '因赛AI 1.0.9',
@@ -191,6 +192,22 @@ describe('Insight Windows upgrade qualification inputs', () => {
       '-QualificationDeadlineUtc', deadline.toISOString(),
     ]))
     expect(args.at(-1)).toBe(deadline.toISOString())
+  })
+
+  it('keeps production and the Windows smoke on the shared two-key NSIS resolver', async () => {
+    const [qualification, registry, smoke] = await Promise.all([
+      readFile(new URL('./qualify-windows-upgrade.ps1', import.meta.url), 'utf8'),
+      readFile(new URL('./qualify-windows-registry.ps1', import.meta.url), 'utf8'),
+      readFile(new URL('./qualify-windows-registry.smoke.ps1', import.meta.url), 'utf8'),
+    ])
+
+    expect(qualification).toContain('Resolve-QualificationInstallState')
+    expect(qualification).toContain('$installPointerKey = "HKCU:\\Software\\$ProductInstallKey"')
+    expect(qualification).not.toContain('$_.InstallLocation -ne')
+    expect(registry).toContain('function Resolve-QualificationInstallState')
+    expect(registry).toContain('function Assert-QualificationInstallAbsent')
+    expect(smoke).toContain('Resolve-QualificationInstallState')
+    expect(smoke).toContain('Assert-QualificationInstallAbsent')
   })
 
   it('serializes the custom NSIS /D tail without quoting its path with spaces', () => {

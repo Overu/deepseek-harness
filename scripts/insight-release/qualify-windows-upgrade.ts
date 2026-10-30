@@ -19,6 +19,7 @@ const PAYLOAD_VERSION_HELPER = fileURLToPath(new URL('./inspect-windows-payload.
 const DOWNLOAD_TIMEOUT_MS = 5 * 60_000
 const QUALIFICATION_TIMEOUT_MS = 20 * 60_000
 const PRODUCT_NAME = '因赛AI'
+const PRODUCT_INSTALL_KEY = '3f22a924-0492-54e4-a8a2-dc8902eed971'
 const PRODUCT_UNINSTALL_KEY = '3f22a924-0492-54e4-a8a2-dc8902eed971'
 const PRODUCT_EXECUTABLE_NAME = '因赛AI.exe'
 
@@ -215,6 +216,7 @@ export function windowsQualificationArguments(input: {
     '-CustomLegacyArguments', serializeNsisCustomInstallArguments(input.customInstallRoot),
     '-NodeExecutable', process.execPath,
     '-PayloadVersionHelper', PAYLOAD_VERSION_HELPER,
+    '-ProductInstallKey', PRODUCT_INSTALL_KEY,
     '-ProductUninstallKey', PRODUCT_UNINSTALL_KEY,
     '-ProductExecutableName', PRODUCT_EXECUTABLE_NAME,
     '-UnversionedDisplayName', PRODUCT_NAME,

@@ -48,6 +48,8 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 Windows job 在构建和收集之后、上传 artifact 之前运行当前用户升级资格检查。它在同一个 GitHub-hosted 管理员 job 中安装并升级两个隔离用例：默认当前用户路径，以及一个包含空格的独立自定义路径。它下载由生产信任解析器选中的冻结签名 `1.0.9` 安装器并校验大小与 SHA-512，再只通过已收集 build manifest 选择新的 RC 安装器。检查覆盖真实旧 raw `resources/app/package.json` payload 与新 ASAR payload、registry 身份、安装路径保留、PE 身份、已安装 payload 版本，以及 Harness 所有目录下四个合成文件的 hash 不变。cache 路径只在用例间隔离和清理，不写入 sentinel，也不校验 hash。
 
+Registry 资格检查把 uninstall 记录与安装指针视为两个独立 key。它从 NSIS `Software\APP_GUID` 安装 key 读取 `InstallLocation`，同时保留对应 uninstall 记录的既有应用身份与路径检查；不再假定 uninstall key 包含安装路径。
+
 同一 Windows job 在源码检查之后、依赖安装之前运行两分钟的真实 HKCU smoke，使用随机 registry key。该 smoke 不含 Secret，不执行 native build。它不新增 workflow、job 或 target 选择，保持原有四个 target 选项不变。
 
 该资格检查使用 hosted administrator 上下文，不声称经过 UAC。它只确认安装器连续性：应用重启、更新 UI、真实账号和旧客户端自动发现 rc 版本均不属于结果。内部资格检查的整体期限为 20 分钟，所在 workflow step 为 25 分钟。cleanup 失败或 cleanup 结果未知会在上传前使 job 失败，因此不合格产物不会保留为 Actions artifact。
@@ -105,9 +107,9 @@ Insight 专用的只读 `/bin/ps` observer 在原 macOS x64 构建旁运行，�
 <a id="qualification-status"></a>
 ## 验证状态
 
-本地 registry 修正用既有私有 typed `RegistryKey.GetValue` helper 替换动态 PowerShell `PSObject` 属性访问。最新聚焦运行通过三个文件中的 25 项测试，并在 macOS 上跳过一项真实 Windows smoke；`build:check` 的两个聚合和 scoped lint 均通过。observer 通过两个文件中的 14 项测试、`build:check` 两聚合、scoped lint 和独立复审，包含真实 Node 24 事件顺序检查：只能在子进程 `close` 时结算，不能在更早的 `execFile` callback 时结算；尚未执行真实 x64 observer 采样。`@electron/notarize` `3.1.2` 实现仍不含 hook，并保留既有 notary executor。这些本地结果不代表 CI 或 Release 合格。
+本地 registry 修正用既有私有 typed `RegistryKey.GetValue` helper 替换动态 PowerShell `PSObject` 属性访问。经审查的 Windows 两键修正通过两个文件中的 24 项测试，在 macOS 上跳过一项真实 Windows smoke，并通过 `build:check` 两聚合；真实 Windows 资格仍待验证。observer 通过两个文件中的 14 项测试、`build:check` 两聚合、scoped lint 和独立复审，包含真实 Node 24 事件顺序检查：只能在子进程 `close` 时结算，不能在更早的 `execFile` callback 时结算。observer 提交 `22a06f3c568bb6a760f859b424b3b675c9b3107b` 的 x64-only run `41101445899` 已排队，尚无采样结果。`@electron/notarize` `3.1.2` 实现仍不含 hook，并保留既有 notary executor。这些本地结果不代表 CI 或 Release 合格。
 
-Windows-only run `41096365005` 已通过早期真实 HKCU smoke、native 构建和 collector，随后在旧安装完成后停止：fixture 的 registry 查询被过滤为零条记录，upgrade 尚未开始。NSIS 模板把 `InstallLocation` 写在独立的 `Software\APP_GUID` 安装 key 下，uninstall key 不承诺包含该值。fixture 正在修正为跟随独立指针，不放宽应用身份或路径检查。该失败不能证明生产安装器失败。资格只验证安装器，不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
+Windows-only run `41096365005` 已通过早期真实 HKCU smoke、native 构建和 collector，随后在旧安装完成后停止：旧 fixture 的 registry 查询在 upgrade 前被过滤为零条记录。经审查的两键修正已改为跟随独立安装指针，不放宽应用身份或路径检查，但尚未在 Windows 上运行。较早的失败不能证明生产安装器失败。资格只验证安装器，不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
 
 Run `41089684008` 已完成 macOS arm64 构建、签名、公证、收集和 artifact 上传，因此 `@electron/notarize` `3.1.2` 已在该架构通过验证。macOS x64 job 在公证开始前的 prepared DOCX smoke 中超时。Windows 构建与 collector 通过，但资格检查在 installer upgrade 前因动态 registry 属性缺陷失败。失败后 Office 诊断因 preparation 失败已删除 runtime 而只得到 unavailable，没有产生 probe 证据。Office 调查独立继续，不提高 timeout。Release 已跳过，OSS 保持不变；arm64 结果不代表 Intel 合格。
 
