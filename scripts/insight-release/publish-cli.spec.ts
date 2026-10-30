@@ -75,9 +75,13 @@ async function fixture() {
 const transport = {} as InsightOssTransport
 
 it('rejects forged, duplicated, or mismatched Release buildRunRecord', () => {
-  const base = { schema: 'insight-build-run/v1', repositoryId: 1_429_559_776, workflowPath: '.github/workflows/insight-package.yml',
-    workflowRunId: 1, workflowRunAttempt: 1, headSha: sourceCommit, version, qualification: 'distribution',
+  const canonical = { schema: 'insight-build-run/v1', repositoryId: 1_429_559_776, workflowPath: '.github/workflows/insight-package.yml',
+    workflowRunId: 1, headSha: sourceCommit, version, qualification: 'distribution',
     targets: [{ target, artifactName, manifestFilename, manifestSha512: hash('x') }] }
+  const base = { ...canonical, workflowRunAttempt: 1 }
+  expect(() => parseInsightBuildRunRecord(Buffer.from(JSON.stringify(canonical)), version, sourceCommit)).not.toThrow()
+  expect(() => parseInsightBuildRunRecord(Buffer.from(JSON.stringify(base)), version, sourceCommit)).not.toThrow()
+  expect(() => parseInsightBuildRunRecord(Buffer.from(JSON.stringify({ ...base, workflowRunAttempt: 0 })), version, sourceCommit)).toThrow()
   expect(() => parseInsightBuildRunRecord(Buffer.from(JSON.stringify({ ...base, forged: true })), version, sourceCommit)).toThrow()
   expect(() => parseInsightBuildRunRecord(Buffer.from(JSON.stringify(base)), '1.0.11-rc.1', sourceCommit)).toThrow('does not match')
   expect(() => parseInsightBuildRunRecord(Buffer.from(JSON.stringify({ ...base, targets: [base.targets[0], base.targets[0]] })), version, sourceCommit)).toThrow('duplicate')
@@ -142,7 +146,7 @@ it('refuses changed Release payload bytes before any OSS publication', async () 
   expect(publishCandidate).not.toHaveBeenCalled()
 })
 
-it('refuses a buildRunRecord record whose source run is not the accepted attempt', async () => {
+it('accepts legacy buildRunRecord bytes after the same source run advances to a later attempt', async () => {
   const f = await fixture()
   const originalFetch = f.fetch
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
@@ -153,8 +157,52 @@ it('refuses a buildRunRecord record whose source run is not the accepted attempt
     }
     return response
   })
-  await expect(publishVerifiedInsightRelease({ version, sourceCommit, candidateTarget: target, githubToken: 'token', privateKeyPem: 'private', publicKeyPem: 'public',
-    temporaryDirectory: f.root, transport, fetch, extractArtifact: vi.fn() })).rejects.toThrow('does not match')
+  let publications = 0
+  const publishCandidate: typeof import('./publish.ts').publishInsightCandidate = async () => {
+    publications += 1
+    return { manifestKey: 'manifest', pointerKey: 'pointer', version }
+  }
+  await publishVerifiedInsightRelease({ version, sourceCommit, candidateTarget: target, githubToken: 'token', privateKeyPem: 'private', publicKeyPem: 'public',
+    temporaryDirectory: f.root, transport, fetch,
+    extractArtifact: async (_archive, destination) => {
+      await copyFile(join(f.original, 'payload.bin'), join(destination, 'payload.bin'))
+      await copyFile(join(f.original, manifestFilename), join(destination, manifestFilename))
+    }, publishCandidate })
+  expect(publications).toBe(1)
+})
+
+it.each([
+  ['run ID', { id: 42 }],
+  ['head SHA', { head_sha: 'f'.repeat(40) }],
+  ['workflow path', { path: '.github/workflows/other.yml@refs/heads/insight' }],
+] as const)('refuses a source run with a changed %s', async (_label, override) => {
+  const f = await fixture()
+  const originalFetch = f.fetch
+  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const response = await originalFetch(input)
+    if (requestUrl(input).endsWith('/actions/runs/41')) {
+      const value = await response.json() as Record<string, unknown>
+      return Response.json({ ...value, ...override })
+    }
+    return response
+  })
+  const extractArtifact = vi.fn()
+  const publishCandidate = vi.fn()
+  await expect(publishVerifiedInsightRelease({
+    version,
+    sourceCommit,
+    candidateTarget: target,
+    githubToken: 'token',
+    privateKeyPem: 'private',
+    publicKeyPem: 'public',
+    temporaryDirectory: f.root,
+    transport,
+    fetch,
+    extractArtifact,
+    publishCandidate,
+  })).rejects.toThrow()
+  expect(extractArtifact).not.toHaveBeenCalled()
+  expect(publishCandidate).not.toHaveBeenCalled()
 })
 
 it('keeps the publishing key in the final isolated-runtime step', async () => {

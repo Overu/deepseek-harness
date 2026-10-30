@@ -28,7 +28,7 @@ const commitSchema = z.string().regex(/^[0-9a-f]{40}$/u)
 const safeNameSchema = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/u)
 const buildRunRecordSchema = z.object({
   schema: z.literal('insight-build-run/v1'), repositoryId: z.literal(REPOSITORY_ID), workflowPath: z.literal(WORKFLOW_PATH),
-  workflowRunId: z.number().int().positive(), workflowRunAttempt: z.number().int().positive(), headSha: commitSchema,
+  workflowRunId: z.number().int().positive(), workflowRunAttempt: z.number().int().positive().optional(), headSha: commitSchema,
   version: z.string(), qualification: z.literal('distribution'),
   targets: z.array(z.object({ target: targetSchema, artifactName: safeNameSchema,
     manifestFilename: z.string().regex(/^insight-build-(darwin-arm64|darwin-x64|win32-x64)\.json$/u),
@@ -139,7 +139,9 @@ export async function publishVerifiedInsightRelease(input: PublishVerifiedInsigh
     input.sourceCommit,
   )
   const run = runSchema.parse(await api.json(`/actions/runs/${String(buildRunRecord.workflowRunId)}`))
-  if (run.id !== buildRunRecord.workflowRunId || run.run_attempt !== buildRunRecord.workflowRunAttempt || run.head_sha !== input.sourceCommit || run.path.split('@', 1)[0] !== WORKFLOW_PATH) throw new Error('GitHub Actions run does not match the Release buildRunRecord.')
+  if (run.id !== buildRunRecord.workflowRunId || run.head_sha !== input.sourceCommit || run.path.split('@', 1)[0] !== WORKFLOW_PATH) {
+    throw new Error('GitHub Actions run does not match the Release buildRunRecord.')
+  }
   const listed = artifactListSchema.parse(await api.json(`/actions/runs/${String(run.id)}/artifacts?per_page=100`))
   if (listed.total_count !== listed.artifacts.length || listed.total_count > 100) throw new Error('GitHub Actions artifact listing is incomplete.')
   const runArtifacts = new Map(listed.artifacts.map(artifact => [artifact.name, artifact]))

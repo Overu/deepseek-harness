@@ -12,11 +12,11 @@
   en: 9956c11c05b281a1
   zh: d53a24573aded186
 /insight-desktop-release-pipeline/release-flow:
-  en: 2ceb2f6c51a2b179
-  zh: fbc2e8ce0b2f505d
+  en: 475f9dcf2f1a594b
+  zh: 5e496a43cdff62a4
 /insight-desktop-release-pipeline/package-workflow:
-  en: aca96fee0552eb4b
-  zh: 9149afc03f1b663c
+  en: 935e47f2dda57081
+  zh: 83b468b32d73f321
 /insight-desktop-release-pipeline/publish-workflow:
   en: 875868742a525a16
   zh: a2fc12a441bf72bb
@@ -24,8 +24,8 @@
   en: 7e25dfed8d7b1c0a
   zh: e5cee829bf5c1442
 /insight-desktop-release-pipeline/trust-and-failure-rules:
-  en: bfb9eec656221fcf
-  zh: 9d065efc052bb206
+  en: c31eac18e74aac2c
+  zh: 9f7ab16d0963ca1a
 /insight-desktop-release-pipeline/qualification-status:
   en: 6ad493db5356ca49
   zh: 69d7b4ba126c7b8e

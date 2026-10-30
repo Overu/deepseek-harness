@@ -6,7 +6,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { verifyInsightDesktopBuildManifest, type InsightDesktopBuildTarget } from './artifacts.ts'
 
-export interface InsightBuildRunRecord { schema: 'insight-build-run/v1'; repositoryId: 1429559776; workflowPath: '.github/workflows/insight-package.yml'; workflowRunId: number; workflowRunAttempt: number; headSha: string; version: string; qualification: 'distribution' | 'debug-signed'; targets: readonly { target: InsightDesktopBuildTarget; artifactName: string; manifestFilename: string; manifestSha512: string }[] }
+export interface InsightBuildRunRecord { schema: 'insight-build-run/v1'; repositoryId: 1429559776; workflowPath: '.github/workflows/insight-package.yml'; workflowRunId: number; headSha: string; version: string; qualification: 'distribution' | 'debug-signed'; targets: readonly { target: InsightDesktopBuildTarget; artifactName: string; manifestFilename: string; manifestSha512: string }[] }
 export interface FinalizeInsightGitHubReleaseInput { repository: string; token: string; tag: string; version: string; sourceCommit: string; releaseDirectories: readonly string[]; targets: readonly InsightDesktopBuildTarget[]; qualification: 'distribution' | 'debug-signed'; draft: boolean; fetch?: typeof globalThis.fetch }
 type Asset = { id: number; name: string; size: number; state: 'uploaded' | 'starter'; url: string }
 type Release = { id: number; draft: boolean; target_commitish: string; upload_url: string; assets: Asset[] }
@@ -41,7 +41,7 @@ export async function createInsightBuildRunRecord(input: Omit<InsightBuildRunRec
   const order: readonly InsightDesktopBuildTarget[] = ['darwin-arm64', 'darwin-x64', 'win32-x64']
   const selected = order.filter(target => input.directories[target] !== undefined)
   return { schema: 'insight-build-run/v1', repositoryId: 1429559776, workflowPath: '.github/workflows/insight-package.yml',
-    workflowRunId: input.workflowRunId, workflowRunAttempt: input.workflowRunAttempt, headSha: input.headSha,
+    workflowRunId: input.workflowRunId, headSha: input.headSha,
     version: input.version, qualification: input.qualification,
     targets: await Promise.all(selected.map(async (target) => {
       const directory = input.directories[target]
@@ -233,7 +233,7 @@ export async function main(environment = process.env): Promise<void> {
     }
     const firstDirectory = directories[0]
     if (firstDirectory === undefined) throw new Error('Insight Release buildRunRecord target directories are invalid')
-    const buildRunRecord = await createInsightBuildRunRecord({ workflowRunId: Number(environment.GITHUB_RUN_ID), workflowRunAttempt: Number(environment.GITHUB_RUN_ATTEMPT), headSha: environment.GITHUB_SHA ?? '', version, qualification, directories: map })
+    const buildRunRecord = await createInsightBuildRunRecord({ workflowRunId: Number(environment.GITHUB_RUN_ID), headSha: environment.GITHUB_SHA ?? '', version, qualification, directories: map })
     await writeInsightBuildRunRecord(firstDirectory, buildRunRecord)
     return
   }
