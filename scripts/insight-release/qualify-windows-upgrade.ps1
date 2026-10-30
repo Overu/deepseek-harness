@@ -24,6 +24,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'qualify-windows-registry.ps1')
 $uninstallRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 $machineUninstallRoots = @(
     'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
@@ -52,30 +53,6 @@ function Get-RemainingWait([int]$MaximumMilliseconds) {
     $remaining = [int64]($qualificationDeadline - [DateTimeOffset]::UtcNow).TotalMilliseconds
     if ($remaining -le 0) { throw 'Insight Windows upgrade qualification exceeded its overall deadline' }
     return [int][Math]::Min($remaining, $MaximumMilliseconds)
-}
-
-function Get-RegistryText([object]$Entry, [string]$Name) {
-    $property = $Entry.PSObject.Properties[$Name]
-    if ($null -eq $property -or $null -eq $property.Value) { return '' }
-    return [string]$property.Value
-}
-
-function Get-UninstallRecords([string]$Root) {
-    if (-not (Test-Path -LiteralPath $Root)) { return @() }
-    return @(
-        Get-ChildItem -LiteralPath $Root -ErrorAction Stop | ForEach-Object {
-            $entry = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction Stop
-            [PSCustomObject]@{
-                Root = $Root
-                Key = $_.PSChildName
-                InstallLocation = Get-RegistryText $entry 'InstallLocation'
-                DisplayVersion = Get-RegistryText $entry 'DisplayVersion'
-                DisplayName = Get-RegistryText $entry 'DisplayName'
-                DisplayIcon = Get-RegistryText $entry 'DisplayIcon'
-                UninstallString = Get-RegistryText $entry 'UninstallString'
-            }
-        }
-    )
 }
 
 function Test-ProductRecord([object]$Record) {

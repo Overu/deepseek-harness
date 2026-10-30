@@ -1,10 +1,13 @@
 /** Tests for immutable installer selection in the Insight Windows upgrade qualification. */
 
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createHash } from 'node:crypto'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { createInsightDesktopBuildManifest, writeInsightDesktopBuildManifest } from './artifacts.ts'
 import {
@@ -22,6 +25,7 @@ const COMMIT = '0123456789abcdef0123456789abcdef01234567'
 const desktopRequire = createRequire(new URL('../../apps/desktop/package.json', import.meta.url))
 const builderRequire = createRequire(desktopRequire.resolve('app-builder-lib/package.json'))
 const asar = builderRequire('@electron/asar') as { createPackage(source: string, destination: string): Promise<void> }
+const execute = promisify(execFile)
 
 async function fixture(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), 'insight-windows-upgrade-'))
@@ -75,6 +79,16 @@ async function installedPayloadFixture(kind: 'empty' | 'raw' | 'asar', version =
 }
 
 describe('Insight Windows upgrade qualification inputs', () => {
+  it.skipIf(process.platform !== 'win32')('reads real registry records through PowerShell without dynamic property collisions', async () => {
+    const script = fileURLToPath(new URL('./qualify-windows-registry.smoke.ps1', import.meta.url))
+    const result = await execute('pwsh.exe', ['-NoProfile', '-NonInteractive', '-File', script], {
+      windowsHide: true,
+      timeout: 30_000,
+    })
+
+    expect(result.stdout).toContain('INSIGHT_WINDOWS_REGISTRY_SMOKE records=2 optional=verified collision=verified')
+  })
+
   it('resolves the frozen signed 1.0.9 Windows installer identity', async () => {
     const legacy = await resolveLegacyWindowsInstaller()
 

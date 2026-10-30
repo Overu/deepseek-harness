@@ -225,6 +225,9 @@ jobs:
         run: |
           if ($env:GITHUB_REF -ne 'refs/heads/insight') { throw 'Insight packages must originate from refs/heads/insight' }
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'Checkout does not match the workflow commit' }
+      - name: Check Windows registry qualification
+        timeout-minutes: 2
+        run: pwsh.exe -NoProfile -NonInteractive -File scripts/insight-release/qualify-windows-registry.smoke.ps1
       - uses: pnpm/action-setup@v5.0.0
       - uses: actions/setup-node@v7.0.0
         with:

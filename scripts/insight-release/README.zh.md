@@ -48,6 +48,8 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 Windows job 在构建和收集之后、上传 artifact 之前运行当前用户升级资格检查。它在同一个 GitHub-hosted 管理员 job 中安装并升级两个隔离用例：默认当前用户路径，以及一个包含空格的独立自定义路径。它下载由生产信任解析器选中的冻结签名 `1.0.9` 安装器并校验大小与 SHA-512，再只通过已收集 build manifest 选择新的 RC 安装器。检查覆盖真实旧 raw `resources/app/package.json` payload 与新 ASAR payload、registry 身份、安装路径保留、PE 身份、已安装 payload 版本，以及 Harness 所有目录下四个合成文件的 hash 不变。cache 路径只在用例间隔离和清理，不写入 sentinel，也不校验 hash。
 
+同一 Windows job 在源码检查之后、依赖安装之前运行两分钟的真实 HKCU smoke，使用随机 registry key。该 smoke 不含 Secret，不执行 native build。它不新增 workflow、job 或 target 选择，保持原有四个 target 选项不变。
+
 该资格检查使用 hosted administrator 上下文，不声称经过 UAC。它只确认安装器连续性：应用重启、更新 UI、真实账号和旧客户端自动发现 rc 版本均不属于结果。内部资格检查的整体期限为 20 分钟，所在 workflow step 为 25 分钟。cleanup 失败或 cleanup 结果未知会在上传前使 job 失败，因此不合格产物不会保留为 Actions artifact。
 
 -----
@@ -101,10 +103,10 @@ Windows job 在构建和收集之后、上传 artifact 之前运行当前用户�
 <a id="qualification-status"></a>
 ## 验证状态
 
-本地实现已把 `@electron/notarize` 升级到 `3.1.2`，没有增加私有 hook 或修改 notary executor。最新聚焦运行通过三个文件中的 24 项测试：19 项 Windows 资格测试，以及五项 installed-dependency 公证测试，后者覆盖 App 与 DMG 调用、一次提交且 staple 最多四次、`Rejected` 和 cleanup。最新 `build:check` 已通过两个聚合。这些本地结果不代表 CI 或 Release 合格。
+本地 registry 修正用既有私有 typed `RegistryKey.GetValue` helper 替换动态 PowerShell `PSObject` 属性访问。最新聚焦运行通过三个文件中的 25 项测试，并在 macOS 上跳过一项真实 Windows smoke；`build:check` 的两个聚合和 scoped lint 均通过。`@electron/notarize` `3.1.2` 实现仍不含 hook，并保留既有 notary executor。这些本地结果不代表 CI 或 Release 合格。
 
 Windows 当前用户资格检查及其复审已在本地完成，但真实 NSIS 升级尚未在 workflow 中通过。它只验证安装器，不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
 
-最近的真实打包源码仍为 HEAD `937a99d03929f0df0dfc90eee822d103191ac0bf`，对应 run `41077074019`。两条 Office runtime smoke 均通过，DMG lane 完成签名、公证和验证，但 ZIP App stapling 因 CloudKit `NSURLErrorDomain -1005` 失败；collector 和上传均跳过。旧源码不再重跑，正在准备新提交与 all-target matrix。当前没有完成的 CI run、公开 `1.0.10-rc.1` Release 或 OSS 发布。
+Run `41089684008` 已完成 macOS arm64 构建、签名、公证、收集和 artifact 上传，因此 `@electron/notarize` `3.1.2` 已在该架构通过验证。macOS x64 job 在公证开始前的 prepared DOCX smoke 中超时。Windows 构建与 collector 通过，但资格检查在 installer upgrade 前因动态 registry 属性缺陷失败。失败后 Office 诊断因 preparation 失败已删除 runtime 而只得到 unavailable，没有产生 probe 证据。Office 调查独立继续，不提高 timeout。Release 已跳过，OSS 保持不变；arm64 结果不代表 Intel 合格。
 
 原生检查确认更新窗口可在登录前显示，四击不出现确认，三秒内第五击显示内测确认；确认后写入 schema 1、`candidateOptIn: true` 且 mode 600 的 preferences。七项必需 GitHub Secret 均已存在，包括经授权密文迁移的 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。生产 feed 下载与安装、真实 Windows 当前用户升级、旧 Shell 正式版升级，以及 OIDC-to-STS 身份仍未验证。在 P5 完成且用户另行启动发布前，正式发布和所有生产指针保持不变。

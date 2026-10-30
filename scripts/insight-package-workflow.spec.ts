@@ -84,3 +84,15 @@ it('qualifies the current-user Windows upgrade after collection and before uploa
     env: { INSIGHT_RELEASE_DIRECTORY: '${{ steps.collected.outputs.release_directory }}' },
   })
 })
+
+it('checks the real Windows registry reader before dependency installation or native packaging', () => {
+  const steps = workflow.jobs.windows.steps
+  const smoke = steps.findIndex(step => step.name === 'Check Windows registry qualification')
+  const setup = steps.findIndex(step => step.uses?.startsWith('pnpm/action-setup@'))
+  expect(smoke).toBeGreaterThan(0)
+  expect(smoke).toBeLessThan(setup)
+  expect(steps[smoke]).toMatchObject({
+    'timeout-minutes': 2,
+    run: 'pwsh.exe -NoProfile -NonInteractive -File scripts/insight-release/qualify-windows-registry.smoke.ps1',
+  })
+})
