@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write scripts/insight-release/README.md
+/insight-desktop-release-pipeline:
+  en: dcb0f21a6a94308a
+  zh: 42b5535ed82d897d
+/insight-desktop-release-pipeline/summary:
+  en: a763f5d0a17aa2db
+  zh: 6f78a73e9da8591b
+/insight-desktop-release-pipeline/table-of-contents:
+  en: 9956c11c05b281a1
+  zh: d53a24573aded186
+/insight-desktop-release-pipeline/release-flow:
+  en: 2ceb2f6c51a2b179
+  zh: fbc2e8ce0b2f505d
+/insight-desktop-release-pipeline/package-workflow:
+  en: aca96fee0552eb4b
+  zh: 9149afc03f1b663c
+/insight-desktop-release-pipeline/publish-workflow:
+  en: 875868742a525a16
+  zh: a2fc12a441bf72bb
+/insight-desktop-release-pipeline/signed-update-formats:
+  en: 7e25dfed8d7b1c0a
+  zh: e5cee829bf5c1442
+/insight-desktop-release-pipeline/trust-and-failure-rules:
+  en: bfb9eec656221fcf
+  zh: 9d065efc052bb206
+/insight-desktop-release-pipeline/qualification-status:
+  en: 6454a54fabae42d4
+  zh: 42033cc869d34bdf

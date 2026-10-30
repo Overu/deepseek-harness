@@ -9,14 +9,15 @@ kind: "package-bundle"
 
 ## 概述
 
-Insight Desktop 使用此私有 bundle 提供产品品牌、Host 启动前认证、逐账号 DSH Home、仅 Host 可用的凭据服务、托管模型网关和已登录账号设置。Insight profile 在启动和 profile 升级时加入本 bundle，并在插件恢复时保留。官方 Desktop profile 不包含本包。Insight 应用负责此私有 bundle 的版本和初始激活。
+Insight Desktop 使用此私有 bundle 提供产品品牌、Host 启动前认证、逐账号 DSH Home、仅 Host 可用的凭据服务、托管模型网关、已登录账号设置和已签名更新策略。Insight profile 在启动和 profile 升级时加入本 bundle，并在插件恢复时保留。官方 Desktop profile 不包含本包。Insight 应用负责此私有 bundle 的版本和初始激活。
 
 ## 目录
 
 - [使用本包](#use-this-package)
 - [理解实现](#understand-the-implementation)
-- [进一步探索](#further-exploration)
 - [业务服务](#business-services)
+- [桌面更新](#desktop-updates)
+- [进一步探索](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与延期工作](#known-limitations-and-deferred-work)
 - [开发备注](#dev-note)
@@ -38,6 +39,8 @@ Insight 应用在认证选出安全 Home 后，将 `@insight-ai/desktop-integrat
 
 设置统一从账号菜单进入。`settings.launcher` occupant 只把请求转发给既有设置面板，不渲染独立的侧边栏按钮。
 
+原生更新窗口支持手动检查已签名正式版，并通过既有后台计划检查正式版。在三秒内连续点击 Insight 标志五次会打开原生风险确认，批准后执行一次内测检查；后台绝不自动检查内测版。发现更新不会下载，下载也不授权安装。
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -54,6 +57,8 @@ Client 激活时先挂载本包生成的 Remote contribution，再安装产品�
 
 Host 服务校验请求与响应字段、限制并发令牌请求、应用截止时间，并在调用方取消或 IPC 通道关闭时取消待处理请求。Desktop Main 只接受当前 Host 子进程的请求，关停或替换后丢弃迟到响应。退出会撤销新的账号访问、隐藏工作区、停止账号自有资源、清除认证，并且只在关停完成后重启回登录门。
 
+更新发现先校验 Ed25519 签名的投放指针、release 或目标 manifest、updater 元数据、目标身份、版本、大小和 SHA-512，然后 Desktop 适配器才创建 electron-updater custom provider。Desktop Main 在登录与工作区启动期间始终拥有唯一 updater 实例。渲染器只接收状态和固定操作，不接收 feed URL、本地路径、签名密钥或可信产物身份。
+
 ### 源码地图
 
 | 文件 | 职责 |
@@ -63,20 +68,10 @@ Host 服务校验请求与响应字段、限制并发令牌请求、应用截止
 | [`src/protocol.ts`](src/protocol.ts) | 渲染器安全 Desktop API 与经校验的父进程/Host IPC 消息 |
 | [`src/host/`](src/host/) | 仅 Host 使用的 `ctx.insightAccount` 提供方与托管网关适配器 |
 | [`src/client/`](src/client/) | 工作区品牌、账号页脚 occupant 与分类技能选择器 |
+| [`src/desktop/update/`](src/desktop/update/) | 已签名投放校验、来源解析、持久化本地选择和产品更新策略 |
+| [`src/client/update/`](src/client/update/) | 渲染器安全的原生更新窗口呈现 |
 
 </details>
-
------
-
-<a id="further-exploration"></a>
-## 进一步探索
-
-- [Insight 子系统](../../../docs/subsystems/insight.zh.md) — 产品标识、启动顺序、账号存储、进程数据流和阶段边界。
-- [Insight 基线集成记录](../../../docs/subsystems/insight-baseline-changes.zh.md) — 私有发行版修改的官方 DSH 文件。
-- [Insight 包索引](../README.zh.md) — 相邻私有产品组件及其激活状态。
-- [Desktop 应用架构](../../../docs/architecture.zh.md) — 上游 Desktop profile、Host 与 Client 组合。
-
------
 
 <a id="business-services"></a>
 ## 业务服务
@@ -90,6 +85,31 @@ Insight 技能选择器读取三个受支持位置：内置目录、`$DSH_HOME/s
 选择器将内置技能归入“平台预置”，将账号和共享技能归入“用户自定义”。紧凑触发器打开搜索框、两个来源标签和独立滚动的列表，展示技能名称、短简介及选中标记。每个已安装技能说明旁可选的 `ui.json` 提供 `displayName` 和 `shortDescription`；展示信息缺失或不可读时回退到原生名称与描述，不改变调用名称或技能内容。
 
 技能目录 Remote 由带装饰器的 `InsightSkillInventory` 服务生成，并经由本包的 `./remote` 入口供客户端使用；不得改用手写 Typert 描述符。
+
+-----
+
+<a id="desktop-updates"></a>
+## 桌面更新
+
+Insight 使用产品版本 `1.0.9` 作为迁移基线，首个内测版本为 `1.0.10-rc.1`。产品版本与内嵌 DSH 运行时版本相互独立。正式版 V2 投放文档只接受 final 版本，并保持对已发布 Shell 读取器的兼容。内测版 V3 文档允许新客户端使用 prerelease 版本，因为已发布 Shell V2 读取器会拒绝 rc 版本。
+
+打包应用内含固定 HTTPS 分发源和 Ed25519 公钥。正式版发现会校验包含全部三个目标的一份已签名索引，内测版发现会校验一份目标专属 manifest。两条路径都会先把 updater 元数据绑定到一个 payload 文件名、字节大小和 SHA-512 摘要，原生协调器之后才能检查或下载。首次原生交付关闭差分下载，避免 blockmap 命名把已认证完整 payload 重定向到其他内容。
+
+后台只检查正式版。五连击内测操作在原生确认后记录用户 opt-in，但只执行当前一次手动检查。用户跳过的可选版本在后续后台检查中保持隐藏。强制正式版会阻止内测检查。安装复用 DSH 的任务检查、关停和重启协调，不创建第二套产品 updater。
+
+投放历史、内测 opt-in 和跳过版本选择属于安装级 Desktop 状态。它们在账号登录前即可使用，不属于账号 Home 或 Session 历史。
+
+GitHub Release 构建和 OSS 发布是相互独立的操作，详见 [Insight 发布脚本](../../../scripts/insight-release/README.zh.md)。本包不读取发布凭据、Apple 签名材料或更新签名私钥。
+
+-----
+
+<a id="further-exploration"></a>
+## 进一步探索
+
+- [Insight 子系统](../../../docs/subsystems/insight.zh.md) — 产品标识、启动顺序、账号存储、进程数据流和阶段边界。
+- [Insight 基线集成记录](../../../docs/subsystems/insight-baseline-changes.zh.md) — 私有发行版修改的官方 DSH 文件。
+- [Insight 包索引](../README.zh.md) — 相邻私有产品组件及其激活状态。
+- [Desktop 应用架构](../../../docs/architecture.zh.md) — 上游 Desktop profile、Host 与 Client 组合。
 
 -----
 
@@ -115,8 +135,8 @@ Insight 技能选择器读取三个受支持位置：内置目录、`$DSH_HOME/s
 <a id="known-limitations-and-deferred-work"></a>
 
 - **账号 Home 复用而不由选择逻辑转换**——Insight 从账号既有的 `harness` 目录启动 Host，之后正常 DSH profile、storage 和 Session 写入仍在该目录进行。仅有 `harness-native` 而没有 `harness` 时会报告 `pre-release-data`，不创建空的后备 Home，需由产品维护人员决定恢复方式。
-- **Insight 产品界面仅支持中文**——P2 不为登录、账号页脚或 Insight 原生标签增加语言选择或翻译。
-- **尚未接入 Insight 更新交付**——Insight 产品不运行官方自动更新计划，手动检查会报告暂时无法检查；OSS/CDN 交付不属于本包。
+- **Insight 产品界面仅支持中文**——登录、账号页脚、更新窗口和 Insight 原生标签不提供语言选择或翻译。
+- **在线更新交付尚未完成生产验证**——本地 macOS arm64 包已通过 Developer ID 签名、App 与 DMG 公证、staple 及独立系统评估，但它来自脏工作树而不是 CI。macOS x64、生产 feed 原生安装、旧客户端升级、三目标 CI 运行和 OSS/CDN 投放仍需执行并记录结果。Insight Windows 包按产品决定不使用 Authenticode，其更新文档与 payload 身份仍须经过 Ed25519 验签、大小和 SHA-512 校验。
 - **Host 凭据服务没有浏览器或 Remote API**——只有同进程 Host 插件可以使用它，并且它们获得结构化失败原因，而不是 Main 进程诊断信息。
 
 <a id="dev-note"></a>

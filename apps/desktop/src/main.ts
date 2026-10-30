@@ -43,6 +43,7 @@ import { desktopUpdateReadyConfirmation, formatDesktopMessage, resolveDesktopLoc
 import { claimDesktopSingleInstance } from './single-instance.ts'
 import { desktopUpdateChannel } from './update-channel.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
+import { createInsightDesktopUpdates, type InsightDesktopUpdates } from './insight-updates.ts'
 import { prepareDesktopUpdateWindow } from './update-window.ts'
 import { DesktopCommandManager } from './command-management.ts'
 import { serveWebDocument, authenticateWebHost, forwardWebRequest } from './web-document.ts'
@@ -394,7 +395,7 @@ function createWindow(preload: string, show = false, primary = false): BrowserWi
   return window
 }
 
-async function main(insight?: InsightDesktopContext): Promise<void> {
+async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDesktopUpdates): Promise<void> {
   if (insight !== undefined && !insight.active) throw new InsightLoginClosedError('Insight account no longer active')
   const desktopSettings = readDesktopSettings(app.getPath('userData'))
   void pruneCrashReports(app.getPath('logs'))
@@ -736,65 +737,67 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
 
   const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
   const updateChannel = desktopUpdateChannel(manifest)
-  const updates = new DesktopUpdateCoordinator(
+  const beforeRestart = async () => {
+    await commandManager.idle()
+    await workspaceRecovery
+    await startup?.catch(() => undefined)
+    const host = backend.host
+    if (host === undefined) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
+    const active = await host.updateTasks('inspect')
+    const parent = currentDialogWindow()
+    if (parent === undefined || !await prepareDesktopUpdateWindow(parent, locale.messages.updateFullscreenTimeout)) return false
+    const ready = desktopUpdateReadyConfirmation(locale.messages, updates.state.version ?? '', process.platform)
+    const confirmation: Electron.MessageBoxOptions = {
+      type: active ? 'warning' : 'info', title: locale.messages.updateTitle,
+      message: active ? locale.messages.updateActiveTasks : ready.message,
+      detail: active ? locale.messages.updateActiveTasksDetail : ready.detail,
+      buttons: active ? [locale.messages.updateStopTasks, locale.messages.updateLater] : [locale.messages.installAndRestart],
+      defaultId: 1, cancelId: 1,
+    }
+    if (isMandatory()) {
+      if (!await mandatoryUI?.confirm(updates.state.version ?? '', active)) return false
+    } else {
+      const result = await updateDialog.show(parent, confirmation)
+      if (result.response !== 0 || isMandatory()) return false
+    }
+    // The update lock rejects new HTTP requests, including analytics intake.
+    await track('desktop_upgrade_install_restart_click', {})
+    if (backend.host !== host) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
+    try {
+      const stillActive = await host.updateTasks('lock')
+      if (stillActive && !active) throw new DesktopUpdatePreparationError('tasks-changed', locale.messages.updateTasksChanged)
+      mandatoryUI?.preparingRestart(stillActive)
+      // The embedded Platform document holds credentials issued by the Host that is about to stop.
+      await platformView.closeAndWait()
+      await disposeFileDrag().catch((error: unknown) => { console.error(error) })
+      requireCleanStop = true
+      updateStopFailure = undefined
+      await Promise.all([backend.stop(), stopOperationReports()])
+      updateStoppedHost = true
+      // The backend's async cleanup callback can assign this after the reset above.
+      const stopFailure = updateStopFailure as DesktopHostUncleanExitError | undefined
+      if (stopFailure !== undefined) throw new DesktopUpdatePreparationError('stop-failed', locale.messages.updateStopFailed, stopFailure.message)
+      await operationJournal?.drain(500)
+      updateJournal?.action('install-confirmed')
+      shellInstallerOwnsQuit = true
+    } catch (error) {
+      operationReportsStopping = shuttingDown
+      operationReportStop = undefined
+      if (!updateStoppedHost) await host.updateTasks('unlock').catch((unlockError: unknown) => { console.error(unlockError) })
+      throw error
+    } finally {
+      requireCleanStop = false
+    }
+    return true
+  }
+  const updates = insightUpdates?.coordinator ?? new DesktopUpdateCoordinator(
     publishUpdate,
-    async () => {
-      await commandManager.idle()
-      await workspaceRecovery
-      await startup?.catch(() => undefined)
-      const host = backend.host
-      if (host === undefined) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
-      const active = await host.updateTasks('inspect')
-      const parent = currentDialogWindow()
-      if (parent === undefined || !await prepareDesktopUpdateWindow(parent, locale.messages.updateFullscreenTimeout)) return false
-      const ready = desktopUpdateReadyConfirmation(locale.messages, updates.state.version ?? '', process.platform)
-      const confirmation: Electron.MessageBoxOptions = {
-        type: active ? 'warning' : 'info', title: locale.messages.updateTitle,
-        message: active ? locale.messages.updateActiveTasks : ready.message,
-        detail: active ? locale.messages.updateActiveTasksDetail : ready.detail,
-        buttons: active ? [locale.messages.updateStopTasks, locale.messages.updateLater] : [locale.messages.installAndRestart],
-        defaultId: 1, cancelId: 1,
-      }
-      if (isMandatory()) {
-        if (!await mandatoryUI?.confirm(updates.state.version ?? '', active)) return false
-      } else {
-        const result = await updateDialog.show(parent, confirmation)
-        if (result.response !== 0 || isMandatory()) return false
-      }
-      // The update lock rejects new HTTP requests, including analytics intake.
-      await track('desktop_upgrade_install_restart_click', {})
-      if (backend.host !== host) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
-      try {
-        const stillActive = await host.updateTasks('lock')
-        if (stillActive && !active) throw new DesktopUpdatePreparationError('tasks-changed', locale.messages.updateTasksChanged)
-        mandatoryUI?.preparingRestart(stillActive)
-        // The embedded Platform document holds credentials issued by the Host that is about to stop.
-        await platformView.closeAndWait()
-        await disposeFileDrag().catch((error: unknown) => { console.error(error) })
-        requireCleanStop = true
-        updateStopFailure = undefined
-        await Promise.all([backend.stop(), stopOperationReports()])
-        updateStoppedHost = true
-        // The backend's async cleanup callback can assign this after the reset above.
-        const stopFailure = updateStopFailure as DesktopHostUncleanExitError | undefined
-        if (stopFailure !== undefined) throw new DesktopUpdatePreparationError('stop-failed', locale.messages.updateStopFailed, stopFailure.message)
-        await operationJournal?.drain(500)
-        updateJournal?.action('install-confirmed')
-        shellInstallerOwnsQuit = true
-      } catch (error) {
-        operationReportsStopping = shuttingDown
-        operationReportStop = undefined
-        if (!updateStoppedHost) await host.updateTasks('unlock').catch((unlockError: unknown) => { console.error(unlockError) })
-        throw error
-      } finally {
-        requireCleanStop = false
-      }
-      return true
-    },
+    beforeRestart,
     undefined, undefined, undefined,
     (success, reason) => { void track('desktop_upgrade_download_result', { is_success: success, ...reason === undefined ? {} : { error_reason: reason } }) },
     updateChannel,
   )
+  insightUpdates?.bindWorkspace(publishUpdate, beforeRestart)
 
   const updateSchedule = new DesktopUpdateSchedule(updates, resolveDesktopUpdateScheduleConfig(process.env))
 
@@ -958,8 +961,7 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
   let promptOperation: Promise<void> | undefined
   let policyAuthenticationQueued = false
   const openUpdatePrompt = (manual = false): Promise<void> => {
-    if (insight !== undefined) return ordinaryMessageBox({ type: 'info', title: '检查更新',
-      message: '暂时无法检查更新', buttons: ['知道了'], cancelId: 0 }).then(() => {})
+    if (insightUpdates !== undefined) return insightUpdates.open(manual)
     if (authenticationOperation !== undefined) {
       policyAuth?.focus(); updateDialog.focus()
     }
@@ -1079,7 +1081,7 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
   }
 
   const automaticCheck = (): void => {
-    if (insight !== undefined) return
+    if (insightUpdates !== undefined) { insightUpdates.automaticCheck(); return }
     if (!quitting) void mandatoryPolicy?.check('foreground-or-resume').catch((error: unknown) => { console.error(error) })
     if (!quitting) void updateSchedule.check().catch((error: unknown) => { console.error(error) })
   }
@@ -1087,7 +1089,8 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
   app.on('will-quit', () => {
     updateSchedule.dispose()
     powerMonitor.off('resume', automaticCheck)
-    updates.dispose()
+    if (insightUpdates === undefined) updates.dispose()
+    else insightUpdates.dispose()
   })
 
   const applicationIconPath = insightIconPath ?? (development ? join(app.getAppPath(), 'resources', 'icon-windows.png')
@@ -1579,8 +1582,10 @@ const ownsDesktopInstance = claimDesktopSingleInstance(app, () => { focusPrimary
 if (ownsDesktopInstance) void app.whenReady().then(async () => {
   if (desktopProduct.kind === 'official') { await main(); return }
   if (process.platform === 'darwin' && insightIconPath !== undefined) app.dock?.setIcon(insightIconPath)
+  const insightUpdates = await createInsightDesktopUpdates()
   const context = await prepareInsightDesktop(desktopProduct, desktopClientVersion(), (callback) => { focusPrimaryWindow = callback })
-  await main(context)
+  insightUpdates.beginWorkspace()
+  await main(context, insightUpdates)
 }).catch(async (error: unknown) => {
   if (error instanceof InsightLoginClosedError) { quitWithoutConfirmation(); return }
   const message = error instanceof Error ? error.message : String(error)

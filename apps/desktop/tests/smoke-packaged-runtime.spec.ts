@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolvePackagedApplicationPaths } from '../scripts/smoke-packaged-runtime.ts'
+import { resolvePackagedApplicationPaths, shouldVerifyWindowsCode } from '../scripts/smoke-packaged-runtime.ts'
 
 describe('packaged runtime smoke paths', () => {
   it.each([
@@ -15,5 +15,12 @@ describe('packaged runtime smoke paths', () => {
 
     expect(paths.executable).toBe(executable)
     expect(paths.resources).toBe(join(paths.application, target === 'win-x64' ? 'resources' : 'Resources'))
+  })
+
+  it('skips only Insight Windows distribution Authenticode verification', () => {
+    const insight = { DSH_DESKTOP_PRODUCT: 'insight', INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1' }
+    expect(shouldVerifyWindowsCode('win-x64', false, insight)).toBe(false)
+    expect(shouldVerifyWindowsCode('win-x64', true, {})).toBe(false)
+    expect(shouldVerifyWindowsCode('win-x64', false, {})).toBe(true)
   })
 })

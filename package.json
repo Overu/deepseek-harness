@@ -307,6 +307,8 @@
     "@deepseek-ai/dsh-experimental-forge": "workspace:*",
     "@deepseek-ai/dsh-experimental-forge-github": "workspace:*",
     "@deepseek-ai/dsh-experimental-forge-session": "workspace:*",
-    "@deepseek-ai/dsh-action-cards": "workspace:*"
+    "@deepseek-ai/dsh-action-cards": "workspace:*",
+    "@types/ali-oss": "6.23.4",
+    "ali-oss": "6.23.0"
   }
 }

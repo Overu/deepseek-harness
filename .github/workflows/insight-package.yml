@@ -1,0 +1,332 @@
+name: Package Insight desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Insight version to package; the first upgrade candidate is 1.0.10-rc.1
+        type: string
+        default: 1.0.10-rc.1
+        required: true
+      target:
+        description: Native target to package
+        type: choice
+        options: [all, arm64, x64, windows]
+        default: all
+        required: true
+      debug_skip_notarization:
+        description: Skip notarization only for an internal debug artifact; this workflow never publishes it
+        type: boolean
+        default: false
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: insight-package-${{ inputs.version }}-${{ inputs.target }}-${{ inputs.debug_skip_notarization }}
+  cancel-in-progress: false
+
+jobs:
+  validate-input:
+    if: github.ref == 'refs/heads/insight'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Reject unsupported debug target
+        env:
+          INSIGHT_TARGET: ${{ inputs.target }}
+          INSIGHT_DEBUG_SKIP_NOTARIZATION: ${{ inputs.debug_skip_notarization }}
+        run: |
+          if [ "$INSIGHT_DEBUG_SKIP_NOTARIZATION" = true ] && [ "$INSIGHT_TARGET" = windows ]; then
+            echo 'Windows unsigned debug artifacts are not a supported Insight release target.' >&2
+            exit 1
+          fi
+
+  arm64:
+    needs: validate-input
+    if: github.ref == 'refs/heads/insight' && (inputs.target == 'all' || inputs.target == 'arm64')
+    runs-on: macos-15
+    environment: desktop-release
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    env:
+      DSH_DESKTOP_PRODUCT: insight
+      INSIGHT_DESKTOP_VERSION: ${{ inputs.version }}
+      DSH_PACKAGING_PRESET: test
+      INSIGHT_MACOS_TARGET: mac-arm64
+      INSIGHT_SKIP_NOTARIZATION: ${{ inputs.debug_skip_notarization }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          clean: true
+      - name: Confirm the trusted Insight source
+        run: test "$GITHUB_REF" = refs/heads/insight && test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Restore Electron and Desktop runtime caches
+        uses: actions/cache@v4.2.4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/dsh-insight-package
+          key: insight-macos-arm64-${{ hashFiles('pnpm-lock.yaml', 'apps/desktop/package.json') }}
+      - name: Configure package caches
+        run: echo "DSH_DESKTOP_PACKAGE_CACHE_DIR=$HOME/.cache/dsh-insight-package" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Prepare private signing configuration
+        id: configuration
+        env:
+          INSIGHT_MACOS_CONFIGURATION_ACTION: prepare
+          DSH_DESKTOP_MACOS_SIGNING_IDENTITY: ${{ vars.DSH_DESKTOP_MACOS_SIGNING_IDENTITY }}
+          DESKTOP_CSC_LINK: ${{ secrets.DESKTOP_CSC_LINK }}
+          DESKTOP_CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_CSC_KEY_PASSWORD }}
+          DESKTOP_APPLE_TEAM_ID: ${{ secrets.DESKTOP_APPLE_TEAM_ID }}
+          DESKTOP_APPLE_API_KEY: ${{ secrets.DESKTOP_APPLE_API_KEY }}
+          DESKTOP_APPLE_API_KEY_ID: ${{ secrets.DESKTOP_APPLE_API_KEY_ID }}
+          DESKTOP_APPLE_API_ISSUER: ${{ secrets.DESKTOP_APPLE_API_ISSUER }}
+        run: node --import tsx scripts/insight-release/prepare-macos.ts
+      - name: Build signed Insight installers
+        run: |
+          if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then pnpm run package:desktop:mac:arm64 --skip-notarization; else pnpm run package:desktop:mac:arm64; fi
+      - name: Collect verified release attachments
+        if: success()
+        id: collected
+        env:
+          INSIGHT_RELEASE_TARGET: darwin-arm64
+        run: node --import tsx scripts/insight-release/collect.ts ${{ inputs.debug_skip_notarization && '--debug' || '' }}
+      - name: Upload internal package artifact
+        if: success()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: insight-package-darwin-arm64-${{ inputs.version }}
+          path: ${{ steps.collected.outputs.release_directory }}/*
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove private signing configuration
+        if: always() && steps.configuration.outcome == 'success'
+        env:
+          INSIGHT_MACOS_CONFIGURATION_ACTION: cleanup
+        run: node --import tsx scripts/insight-release/prepare-macos.ts
+
+  x64:
+    needs: validate-input
+    if: github.ref == 'refs/heads/insight' && (inputs.target == 'all' || inputs.target == 'x64')
+    runs-on: macos-15-intel
+    environment: desktop-release
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: bash
+    env:
+      DSH_DESKTOP_PRODUCT: insight
+      INSIGHT_DESKTOP_VERSION: ${{ inputs.version }}
+      DSH_PACKAGING_PRESET: test
+      INSIGHT_MACOS_TARGET: mac-x64
+      INSIGHT_SKIP_NOTARIZATION: ${{ inputs.debug_skip_notarization }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          clean: true
+      - name: Confirm the trusted Insight source
+        run: test "$GITHUB_REF" = refs/heads/insight && test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Restore Electron and Desktop runtime caches
+        uses: actions/cache@v4.2.4
+        with:
+          path: |
+            ~/.cache/electron
+            ~/.cache/dsh-insight-package
+          key: insight-macos-x64-${{ hashFiles('pnpm-lock.yaml', 'apps/desktop/package.json') }}
+      - name: Configure package caches
+        run: echo "DSH_DESKTOP_PACKAGE_CACHE_DIR=$HOME/.cache/dsh-insight-package" >> "$GITHUB_ENV"
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Prepare private signing configuration
+        id: configuration
+        env:
+          INSIGHT_MACOS_CONFIGURATION_ACTION: prepare
+          DSH_DESKTOP_MACOS_SIGNING_IDENTITY: ${{ vars.DSH_DESKTOP_MACOS_SIGNING_IDENTITY }}
+          DESKTOP_CSC_LINK: ${{ secrets.DESKTOP_CSC_LINK }}
+          DESKTOP_CSC_KEY_PASSWORD: ${{ secrets.DESKTOP_CSC_KEY_PASSWORD }}
+          DESKTOP_APPLE_TEAM_ID: ${{ secrets.DESKTOP_APPLE_TEAM_ID }}
+          DESKTOP_APPLE_API_KEY: ${{ secrets.DESKTOP_APPLE_API_KEY }}
+          DESKTOP_APPLE_API_KEY_ID: ${{ secrets.DESKTOP_APPLE_API_KEY_ID }}
+          DESKTOP_APPLE_API_ISSUER: ${{ secrets.DESKTOP_APPLE_API_ISSUER }}
+        run: node --import tsx scripts/insight-release/prepare-macos.ts
+
+      - name: Build signed Insight installers
+        run: |
+          if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then pnpm run package:desktop:mac:x64 --skip-notarization; else pnpm run package:desktop:mac:x64; fi
+      - name: Collect verified release attachments
+        if: success()
+        id: collected
+        env:
+          INSIGHT_RELEASE_TARGET: darwin-x64
+        run: node --import tsx scripts/insight-release/collect.ts ${{ inputs.debug_skip_notarization && '--debug' || '' }}
+      - name: Upload internal package artifact
+        if: success()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: insight-package-darwin-x64-${{ inputs.version }}
+          path: ${{ steps.collected.outputs.release_directory }}/*
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove private signing configuration
+        if: always() && steps.configuration.outcome == 'success'
+        env:
+          INSIGHT_MACOS_CONFIGURATION_ACTION: cleanup
+        run: node --import tsx scripts/insight-release/prepare-macos.ts
+
+  windows:
+    needs: validate-input
+    if: github.ref == 'refs/heads/insight' && !inputs.debug_skip_notarization && (inputs.target == 'all' || inputs.target == 'windows')
+    runs-on: windows-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DSH_DESKTOP_PRODUCT: insight
+      INSIGHT_DESKTOP_VERSION: ${{ inputs.version }}
+      DSH_PACKAGING_PRESET: test
+      INSIGHT_WINDOWS_TARGET: win32-x64
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          clean: true
+      - name: Confirm the trusted Insight source
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/insight') { throw 'Insight packages must originate from refs/heads/insight' }
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'Checkout does not match the workflow commit' }
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Restore Electron and Desktop runtime caches
+        uses: actions/cache@v4.2.4
+        with:
+          path: |
+            ~\AppData\Local\electron\Cache
+            ~\AppData\Local\dsh-insight-package
+          key: insight-windows-x64-${{ hashFiles('pnpm-lock.yaml', 'apps/desktop/package.json') }}
+      - name: Configure package caches
+        run: |
+          $cache = Join-Path $env:LOCALAPPDATA 'dsh-insight-package'
+          "DSH_DESKTOP_PACKAGE_CACHE_DIR=$cache" >> $env:GITHUB_ENV
+      - name: Create isolated Insight package configuration
+        id: configuration
+        run: |
+          $config = Join-Path $env:RUNNER_TEMP "insight-windows-package-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $presets = Join-Path $config 'presets'
+          New-Item -ItemType Directory -Path $presets -Force -ErrorAction Stop | Out-Null
+          @(
+            'DSH_DESKTOP_APP_ID=com.insight-aigc.desktop'
+            'DSH_DESKTOP_AUTO_UPDATE_ENV=test'
+            'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY=4'
+            'DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL=3'
+          ) | Set-Content -LiteralPath (Join-Path $presets 'test.env') -Encoding utf8NoBOM
+          "DSH_PACKAGING_CONFIG_DIR=$config" >> $env:GITHUB_ENV
+          "insight_config_directory=$config" >> $env:GITHUB_OUTPUT
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Insight installer
+        run: pnpm run package:desktop:win:x64
+      - name: Collect verified release attachments
+        if: success()
+        id: collected
+        env:
+          INSIGHT_RELEASE_TARGET: win32-x64
+        run: node --import tsx scripts/insight-release/collect.ts
+      - name: Upload internal package artifact
+        if: success()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: insight-package-win32-x64-${{ inputs.version }}
+          path: ${{ steps.collected.outputs.release_directory }}/*
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove isolated Insight package configuration
+        if: always() && steps.configuration.outcome == 'success'
+        env:
+          INSIGHT_CONFIG_DIRECTORY: ${{ steps.configuration.outputs.insight_config_directory }}
+        run: |
+          if ($env:INSIGHT_CONFIG_DIRECTORY) {
+            Remove-Item -LiteralPath $env:INSIGHT_CONFIG_DIRECTORY -Force -Recurse -ErrorAction Stop
+          }
+
+  finalize-release:
+    needs: [validate-input, arm64, x64, windows]
+    if: always() && needs.validate-input.result == 'success' && (inputs.debug_skip_notarization && (inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'skipped' || inputs.target == 'arm64' && needs.arm64.result == 'success' && needs.x64.result == 'skipped' && needs.windows.result == 'skipped' || inputs.target == 'x64' && needs.x64.result == 'success' && needs.arm64.result == 'skipped' && needs.windows.result == 'skipped') || !inputs.debug_skip_notarization && inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'success')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - run: test "$GITHUB_REF" = refs/heads/insight && test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: scripts/insight-release/runtime/package-lock.json
+      - name: Install isolated release runtime
+        run: npm ci --prefix scripts/insight-release/runtime --ignore-scripts --no-audit --no-fund
+      - name: Prepare immutable Release helper
+        id: runtime
+        run: node scripts/insight-release/runtime/prepare-github-release-runtime.mjs
+      - uses: actions/download-artifact@v8.0.1
+        if: inputs.target == 'all' || inputs.target == 'arm64'
+        with:
+          name: insight-package-darwin-arm64-${{ inputs.version }}
+          path: release/darwin-arm64
+      - uses: actions/download-artifact@v8.0.1
+        if: inputs.target == 'all' || inputs.target == 'x64'
+        with:
+          name: insight-package-darwin-x64-${{ inputs.version }}
+          path: release/darwin-x64
+      - uses: actions/download-artifact@v8.0.1
+        if: inputs.target == 'all' && !inputs.debug_skip_notarization
+        with:
+          name: insight-package-win32-x64-${{ inputs.version }}
+          path: release/win32-x64
+      - name: Write package-run buildRunRecord
+        env:
+          INSIGHT_RELEASE_MODE: record-build-run
+          INSIGHT_RELEASE_QUALIFICATION: ${{ inputs.debug_skip_notarization && 'debug-signed' || 'distribution' }}
+          INSIGHT_DESKTOP_VERSION: ${{ inputs.version }}
+          INSIGHT_RELEASE_TARGETS: ${{ !inputs.debug_skip_notarization && 'darwin-arm64,darwin-x64,win32-x64' || inputs.target == 'x64' && 'darwin-x64' || inputs.target == 'arm64' && 'darwin-arm64' || 'darwin-arm64,darwin-x64' }}
+          INSIGHT_RELEASE_DIRECTORIES: ${{ !inputs.debug_skip_notarization && 'release/darwin-arm64,release/darwin-x64,release/win32-x64' || inputs.target == 'x64' && 'release/darwin-x64' || inputs.target == 'arm64' && 'release/darwin-arm64' || 'release/darwin-arm64,release/darwin-x64' }}
+        run: node --import "${{ steps.runtime.outputs.loader }}" "${{ steps.runtime.outputs.entry }}"
+      - name: Finalize immutable GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          INSIGHT_RELEASE_MODE: finalize
+          INSIGHT_RELEASE_QUALIFICATION: ${{ inputs.debug_skip_notarization && 'debug-signed' || 'distribution' }}
+          INSIGHT_RELEASE_DRAFT: ${{ inputs.debug_skip_notarization }}
+          INSIGHT_DESKTOP_VERSION: ${{ inputs.version }}
+          INSIGHT_RELEASE_TARGETS: ${{ !inputs.debug_skip_notarization && 'darwin-arm64,darwin-x64,win32-x64' || inputs.target == 'x64' && 'darwin-x64' || inputs.target == 'arm64' && 'darwin-arm64' || 'darwin-arm64,darwin-x64' }}
+          INSIGHT_RELEASE_DIRECTORIES: ${{ !inputs.debug_skip_notarization && 'release/darwin-arm64,release/darwin-x64,release/win32-x64' || inputs.target == 'x64' && 'release/darwin-x64' || inputs.target == 'arm64' && 'release/darwin-arm64' || 'release/darwin-arm64,release/darwin-x64' }}
+          INSIGHT_RELEASE_TAG: ${{ inputs.debug_skip_notarization && format('insight-debug-v{0}-{1}', inputs.version, github.run_id) || format('insight-v{0}', inputs.version) }}
+        run: node --import "${{ steps.runtime.outputs.loader }}" "${{ steps.runtime.outputs.entry }}"

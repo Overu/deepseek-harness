@@ -32,6 +32,7 @@
       "@insight-ai/desktop-integration/desktop": ["./packages/insight/desktop-integration/src/desktop.ts"],
       "@insight-ai/desktop-integration/host": ["./packages/insight/desktop-integration/src/host.ts"],
       "@insight-ai/desktop-integration/protocol": ["./packages/insight/desktop-integration/src/protocol.ts"],
+      "@insight-ai/desktop-integration/client/update": ["./packages/insight/desktop-integration/src/client/update.ts"],
       "@insight-ai/desktop-integration/client/login": ["./packages/insight/desktop-integration/src/client/login.ts"],
       "@insight-ai/desktop-integration/client": ["./packages/insight/desktop-integration/src/client/index.ts"],
       "dsh-memory-evolve": ["./packages/insight/memory-evolve/src/index.ts"],

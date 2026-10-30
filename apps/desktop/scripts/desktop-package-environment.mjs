@@ -13,6 +13,7 @@ import { resolveMacOSPackageSettings } from './macos-package-settings.mjs'
 import { resolveWindowsSignatureCacheDirectory } from './windows-signature-cache-directory.mjs'
 import { resolveWindowsPackageSettings } from './windows-package-settings.mjs'
 import { resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
+import { resolveInsightPackaging } from './insight-packaging.mjs'
 
 const APP_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const SHARED_SETTING = /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|NPM_REGISTRY|MANDATORY_UPDATE_(?:CONFIG|(?:TEST|PROD)_ORIGIN))|DOWNLOAD_TEST_RELEASE_ID|DOWNLOAD_PROD_EO_ZONE_ID|DOWNLOAD_(?:TEST|PROD)_(?:ORIGIN|COS_BUCKET|COS_SECRET_ID|COS_SECRET_KEY))$/u
@@ -154,21 +155,25 @@ function requireReadableFile(environment, name) {
  */
 export function validateDesktopPackageEnvironment(environment, target, options = {}) {
   resolveDesktopTargetBuildPaths(environment, target.platform, target.arch)
-  resolveDesktopAppId(environment)
+  const insight = resolveInsightPackaging(environment, target.platform, target.arch, {
+    requireAppId: environment.DSH_DESKTOP_PRODUCT?.trim() === 'insight',
+    requireNativeTarget: !options.unsigned,
+  })
+  if (insight === undefined) resolveDesktopAppId(environment)
   resolveNpmRegistry(environment)
-  if (target.platform !== 'darwin' || !options.unsigned) resolveDesktopPolicyEnvironment(environment)
+  if (insight === undefined && (target.platform !== 'darwin' || !options.unsigned)) resolveDesktopPolicyEnvironment(environment)
   if (target.platform === 'darwin') resolveMacOSPackageSettings(environment)
   else resolveWindowsPackageSettings(environment)
   if (options.unsigned) return
-  if (!options.prepareOnly) resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
+  if (!options.prepareOnly && insight === undefined) resolveDesktopAutoUpdateConfig(environment, target.platform, target.arch)
   if (target.platform === 'win32') {
-    if (!options.prepareOnly) createWindowsTokenSigner({
+    if (insight === undefined && !options.prepareOnly) createWindowsTokenSigner({
       certificateFile: environment.DSH_DESKTOP_WINDOWS_CER_FILE,
       signTool: environment.DSH_DESKTOP_WINDOWS_SIGNTOOL,
       tokenPin: environment.DSH_DESKTOP_WINDOWS_TOKEN_PIN,
       keyContainer: environment.DSH_DESKTOP_WINDOWS_KEY_CONTAINER,
     })
-    if (!options.prepareOnly) resolveWindowsSignatureCacheDirectory(environment)
+    if (insight === undefined && !options.prepareOnly) resolveWindowsSignatureCacheDirectory(environment)
   } else {
     if (environment.DSH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR !== undefined) validateMacOSSignatureCacheDirectory(environment.DSH_DESKTOP_MACOS_SIGNATURE_CACHE_DIR)
     resolveMacOSSigningEnvironment(environment)

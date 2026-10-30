@@ -32,6 +32,12 @@ export interface MacOSArtifactRequest {
   readonly version: string
   readonly artifactsRoot: string
   readonly environment: NodeJS.ProcessEnv
+  /** Product-facing application bundle filename without its `.app` suffix. */
+  readonly productName?: string
+  /** Artifact stem that keeps independent product feeds disjoint. */
+  readonly artifactPrefix?: string
+  /** Generic electron-updater feed already selected by the owning product. */
+  readonly update?: { readonly channel: 'nightly' | 'latest'; readonly publicUrl: string }
 }
 
 /** Apple-tool operations replaced by deterministic fixtures in orchestration tests. */
@@ -77,8 +83,10 @@ export async function packageMacOSArtifacts(
   const secrets = Object.entries(environment).filter(([name]) => /KEY|SECRET|TOKEN|PASSWORD|APPLE_ID/iu.test(name)).map(([, value]) => value ?? '')
   const expected = resolveMacOSSigningEnvironment(environment)
   const credentials = resolveMacOSNotarizationEnvironment(environment)
-  const update = resolveDesktopAutoUpdateConfig(environment, 'darwin', arch)
-  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+  const update = request.update ?? resolveDesktopAutoUpdateConfig(environment, 'darwin', arch)
+  const productName = request.productName ?? 'DeepSeek Harness'
+  const artifactPrefix = request.artifactPrefix ?? 'deepseek-harness'
+  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', `${productName}.app`)
   const root = await mkdtemp(join(dirname(artifactsRoot), 'notarization-'))
   const zipApp = join(root, 'zip', basename(appPath))
   const dmgApp = join(root, 'dmg', basename(appPath))
@@ -110,7 +118,7 @@ export async function packageMacOSArtifacts(
     await verifyMacOSAppUpdateConfig(dmgApp, update)
     apple.verifySignature(zipApp, expected)
     apple.verifySignature(dmgApp, expected)
-    const base = `deepseek-harness-${version}-mac-${arch}`
+    const base = `${artifactPrefix}-${version}-mac-${arch}`
     const artifacts = [
       [dmgOutput, `${base}.dmg`],
       [zipOutput, `${base}.zip`],

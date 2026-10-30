@@ -39,6 +39,17 @@ vi.mock('../src/insight-startup.ts', () => ({
   InsightLoginClosedError: class InsightLoginClosedError extends Error {},
 }))
 vi.mock('../src/insight-account-exit.ts', () => ({ closeInsightAccount: insightStartup.close }))
+const insightUpdates = vi.hoisted(() => {
+  const coordinator = {
+    state: { phase: 'idle' as const }, check: vi.fn(async () => ({ phase: 'idle' as const })),
+    download: vi.fn(async () => ({ phase: 'idle' as const })), install: vi.fn(async () => ({ phase: 'idle' as const })), dispose: vi.fn(),
+  }
+  const service = {
+    coordinator, open: vi.fn(async () => {}), automaticCheck: vi.fn(), beginWorkspace: vi.fn(), bindWorkspace: vi.fn(), dispose: vi.fn(),
+  }
+  return { create: vi.fn(), service }
+})
+vi.mock('../src/insight-updates.ts', () => ({ createInsightDesktopUpdates: insightUpdates.create }))
 const welcomeBackend = vi.hoisted(() => ({ connect: vi.fn() }))
 
 vi.mock('../src/web-document.ts', () => ({ authenticateWebHost: async () => 'test-cookie', serveWebDocument: vi.fn(), forwardWebRequest: vi.fn() }))
@@ -483,6 +494,12 @@ beforeEach(() => {
   testAuth.login.mockReset()
   testAuth.login.mockResolvedValue('cancelled')
   insightStartup.prepare.mockReset()
+  insightUpdates.create.mockReset()
+  insightUpdates.create.mockResolvedValue(insightUpdates.service)
+  insightUpdates.service.open.mockReset(); insightUpdates.service.automaticCheck.mockReset()
+  insightUpdates.service.beginWorkspace.mockReset(); insightUpdates.service.bindWorkspace.mockReset()
+  insightUpdates.service.dispose.mockReset()
+  insightUpdates.service.coordinator.dispose.mockReset()
   insightStartup.close.mockReset()
   insightStartup.close.mockImplementation(async (operations: {
     revoke(): void
@@ -1362,6 +1379,26 @@ describe('desktop main startup', () => {
     harness.prepared.resolve()
     await harness.hostStarted.promise
     expect(harness.hosts[0]!.environment).toMatchObject({ DSH_HOME: 'insight-account-home', DSH_INSIGHT_SERVICE_ENVIRONMENT: 'test' })
+  })
+
+  it('creates one Insight update service before login, then begins and binds it before Host startup', async () => {
+    selectInsightProduct()
+    const context = insightContext()
+    const gate = Promise.withResolvers<InsightDesktopContext>()
+    insightStartup.prepare.mockReturnValueOnce(gate.promise)
+
+    await import('../src/main.ts')
+    await vi.waitFor(() => { expect(insightUpdates.create).toHaveBeenCalledOnce() })
+    expect(insightUpdates.service.beginWorkspace).not.toHaveBeenCalled()
+    expect(insightUpdates.service.bindWorkspace).not.toHaveBeenCalled()
+
+    gate.resolve(context)
+    await harness.preparing.promise
+    expect(insightUpdates.service.beginWorkspace).toHaveBeenCalledOnce()
+    expect(insightUpdates.service.bindWorkspace).toHaveBeenCalledOnce()
+    expect(harness.hosts).toHaveLength(0)
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
   })
 
   it('sets Insight required bundles after removing inherited case variants', async () => {

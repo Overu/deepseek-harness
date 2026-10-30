@@ -75,6 +75,9 @@
     },
     {
       "path": "../../shell/shell-env"
+    },
+    {
+      "path": "../../util/atomic-write"
     }
   ]
 }

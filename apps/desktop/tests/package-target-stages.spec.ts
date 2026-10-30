@@ -207,6 +207,21 @@ it.each(['--unsigned', '--prepare-only'])('keeps %s hardware-free and creates no
   expect(stages.includes('exec tsx scripts/smoke-packaged-runtime.ts --unsigned')).toBe(mode === '--unsigned')
 })
 
+it('builds Insight Windows distribution without the unsigned debug suffix or Windows signing stages', async () => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64'), {
+    ...environment,
+    DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop', INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
+  }, run)
+  expect(stages).toContain('run build:official')
+  expect(stages).toContain('exec tsx scripts/smoke-packaged-runtime.ts')
+  expect(stages).not.toContain('preflight:windows-signing')
+  expect(stages.some(stage => stage.startsWith('run sign:primary-runtime'))).toBe(false)
+  expect(withWindowsSigningStage).not.toHaveBeenCalled()
+  for (const call of run.run.mock.calls) expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
+  expect(writeFileSync).not.toHaveBeenCalled()
+})
+
 it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the signing mode for %s', async (target) => {
   const modes = [[], ['--unsigned'], ['--dir'], ['--unsigned', '--dir'], ['--prepare-only'],
     ...(target === 'win-x64' ? [] : [['--skip-notarization'], ['--skip-notarization', '--dir']])]
@@ -260,6 +275,24 @@ it('checks the assembled macOS runtime before notarizing and recording the relea
   await packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), environment, run)
   expect(packageMacOSArtifacts).toHaveBeenCalledOnce()
   expect(writeFileSync).toHaveBeenCalledOnce()
+})
+
+it('keeps signed Insight macOS artifacts out of the official completion record and uses its product names', async () => {
+  const { run } = supervisor()
+  const insight = {
+    ...environment,
+    DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop', INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
+  }
+  await packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), insight, run)
+  expect(packageMacOSArtifacts).toHaveBeenCalledWith(expect.objectContaining({
+    productName: '因赛AI', artifactPrefix: 'insight',
+    version: '1.0.10-rc.1',
+    update: {
+      channel: 'nightly',
+      publicUrl: 'https://updates.insight-aigc.com/desktop/native/releases/v1.0.10-rc.1/targets/darwin-arm64/',
+    },
+  }), expect.any(Function))
+  expect(writeFileSync).not.toHaveBeenCalled()
 })
 
 it.each([

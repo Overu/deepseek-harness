@@ -1,0 +1,65 @@
+name: Publish Insight update
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing Insight GitHub Release version
+        required: true
+        type: string
+      source_commit:
+        description: Exact commit recorded by the package workflow
+        required: true
+        type: string
+      target:
+        description: Candidate target, or stable for an all-target final release
+        required: true
+        type: choice
+        options: [darwin-arm64, darwin-x64, win32-x64, stable]
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: insight-oss-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/insight'
+    runs-on: ubuntu-latest
+    environment: desktop-release
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          clean: true
+      - name: Confirm the trusted publisher source
+        run: |
+          test "$GITHUB_REPOSITORY" = Overu/deepseek-harness
+          test "$GITHUB_REPOSITORY_ID" = 1429559776
+          test "$GITHUB_REF" = refs/heads/insight
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: scripts/insight-release/runtime/package-lock.json
+      - name: Install the isolated publisher runtime
+        run: npm ci --prefix scripts/insight-release/runtime --ignore-scripts --no-audit --no-fund
+      - name: Prepare trusted publisher sources
+        id: runtime
+        run: node scripts/insight-release/runtime/prepare-runtime.mjs
+      - name: Publish verified GitHub Release bytes to OSS
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          INSIGHT_RELEASE_VERSION: ${{ inputs.version }}
+          INSIGHT_SOURCE_COMMIT: ${{ inputs.source_commit }}
+          INSIGHT_RELEASE_TARGET: ${{ inputs.target }}
+          INSIGHT_UPDATE_PUBLIC_KEY_FILE: ${{ steps.runtime.outputs.public_key }}
+          DESKTOP_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.DESKTOP_UPDATE_SIGNING_PRIVATE_KEY }}
+        run: node --import "${{ steps.runtime.outputs.loader }}" "${{ steps.runtime.outputs.entry }}"

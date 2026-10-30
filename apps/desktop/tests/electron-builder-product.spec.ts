@@ -96,9 +96,43 @@ describe('Insight electron-builder product', () => {
       .toThrow(/INSIGHT_DESKTOP_VERSION/u)
   })
 
-  it('rejects a signed Insight package until its own update release flow exists', async () => {
+  it('uses the immutable Insight RC feed for a signed macOS package', async () => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
-    expect(() => createElectronBuilderConfig({ ...insightEnvironment, DSH_DESKTOP_UNSIGNED: '0' }, 'darwin', 'arm64'))
-      .toThrow(/unsigned local artifacts/u)
+    const config = createElectronBuilderConfig({ ...insightEnvironment,
+      DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop',
+      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Insight (8P39WV82RX)', DSH_DESKTOP_MACOS_TEAM_ID: '8P39WV82RX',
+      APPLE_API_KEY: 'notarization.p8', APPLE_API_KEY_ID: 'fixturekey', APPLE_API_ISSUER: 'fixture-issuer',
+      CSC_LINK: 'signing.p12', CSC_KEY_PASSWORD: 'fixture-password',
+    }, 'darwin', 'arm64')
+
+    expect(config.publish).toEqual([{
+      provider: 'generic', channel: 'nightly',
+      url: 'https://updates.insight-aigc.com/desktop/native/releases/v1.3.0-beta.2/targets/darwin-arm64/',
+    }])
+    expect(config.extraResources).toContainEqual(expect.objectContaining({ to: 'insight-update' }))
+  })
+
+  it('uses latest metadata for stable Insight releases and emits unsigned Windows distribution metadata without Authenticode', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const signed = { ...insightEnvironment, DSH_DESKTOP_UNSIGNED: '0', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop',
+      DSH_DESKTOP_MACOS_SIGNING_IDENTITY: 'Insight (8P39WV82RX)', DSH_DESKTOP_MACOS_TEAM_ID: '8P39WV82RX',
+      APPLE_API_KEY: 'notarization.p8', APPLE_API_KEY_ID: 'fixturekey', APPLE_API_ISSUER: 'fixture-issuer',
+      CSC_LINK: 'signing.p12', CSC_KEY_PASSWORD: 'fixture-password' }
+    expect(createElectronBuilderConfig({ ...signed, INSIGHT_DESKTOP_VERSION: '1.3.0' }, 'darwin', 'arm64').publish)
+      .toEqual([expect.objectContaining({ channel: 'latest' })])
+    const windows = createElectronBuilderConfig({ ...signed,
+      DSH_DESKTOP_TARGET_PLATFORM: 'win32', DSH_DESKTOP_TARGET_ARCH: 'x64',
+    }, 'win32', 'x64')
+    expect(windows.publish).toEqual([expect.objectContaining({
+      channel: 'nightly', url: 'https://updates.insight-aigc.com/desktop/native/releases/v1.3.0-beta.2/targets/win32-x64/',
+    })])
+    expect(windows.win).toMatchObject({ forceCodeSigning: false, verifyUpdateCodeSignature: false })
+    expect(windows.win.signtoolOptions.sign).toBeUndefined()
+  })
+
+  it('rejects an Insight dotenv application identifier that would split runtime and signing identity', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    expect(() => createElectronBuilderConfig({ ...insightEnvironment, DSH_DESKTOP_APP_ID: 'com.example.other' }, 'darwin', 'arm64'))
+      .toThrow(/DSH_DESKTOP_APP_ID/u)
   })
 })

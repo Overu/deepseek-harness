@@ -7,11 +7,11 @@ export default clientBundle(import.meta.dirname, ['lib/types/index.js', 'lib/typ
   lib: {
     hooks: {
       'build:done': async () => {
-        await build({
+        for (const entry of ['login', 'update']) await build({
           configFile: false, root: import.meta.dirname,
           build: {
             outDir: 'lib', emptyOutDir: false,
-            lib: { entry: 'src/client/login.ts', formats: ['es'], fileName: () => 'login.js', cssFileName: 'login' },
+            lib: { entry: `src/client/${entry}.ts`, formats: ['es'], fileName: () => `${entry}.js`, cssFileName: entry },
             rollupOptions: { external: [/^react(?:-dom)?(?:\/|$)/, /^@deepseek-ai\//] },
           },
           esbuild: { jsx: 'automatic' },

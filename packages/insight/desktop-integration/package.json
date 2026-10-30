@@ -46,6 +46,10 @@
     "./types": {
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
+    },
+    "./client/update": {
+      "types": "./lib/types/client/update.d.ts",
+      "default": "./lib/update.js"
     }
   },
   "dsh": {
@@ -84,7 +88,10 @@
   "dependencies": {
     "@deepseek-ai/dsh-brand": "workspace:*",
     "@deepseek-ai/schemastery": "workspace:~",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "@deepseek-ai/dsh-atomic-write": "workspace:*",
+    "js-yaml": "4.3.2",
+    "semver": "7.8.5"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -142,6 +149,7 @@
     "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
     "lib/typert.remote-client.d.ts",
-    "lib/types/types.js"
+    "lib/types/types.js",
+    "lib/update.css"
   ]
 }

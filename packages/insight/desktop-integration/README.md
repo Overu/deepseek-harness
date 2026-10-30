@@ -9,14 +9,15 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Insight Desktop uses this private bundle for product branding, authentication before Host startup, one account-scoped DSH Home, a Host-only credential service, a managed model gateway, and signed-in account settings. The Insight profile adds it during startup and profile upgrade, and restores it during plugin recovery. The official Desktop profile does not include it. The Insight application owns this private bundle's version and initial activation.
+Insight Desktop uses this private bundle for product branding, authentication before Host startup, one account-scoped DSH Home, a Host-only credential service, a managed model gateway, signed-in account settings, and signed update policy. The Insight profile adds it during startup and profile upgrade, and restores it during plugin recovery. The official Desktop profile does not include it. The Insight application owns this private bundle's version and initial activation.
 
 ## Table of Contents
 
 - [Use this package](#use-this-package)
 - [Understand the implementation](#understand-the-implementation)
-- [Further Exploration](#further-exploration)
 - [Business services](#business-services)
+- [Desktop updates](#desktop-updates)
+- [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
 - [Dev Note](#dev-note)
@@ -38,6 +39,8 @@ After the workspace opens, the bundle fills the sidebar and conversation hero br
 
 Settings opens only from the account menu. The `settings.launcher` occupant forwards requests to the existing settings shell without rendering a separate sidebar button.
 
+The native update window checks signed stable releases on request and through the existing background schedule. Clicking its Insight mark five times within three seconds opens a native risk confirmation and, after approval, performs one candidate check; candidate releases are never checked automatically. Discovery does not download, and download does not authorize installation.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -54,6 +57,8 @@ Client activation mounts this package's generated Remote contribution before ins
 
 The Host service validates request and response fields, limits concurrent token requests, applies a deadline, and cancels pending requests when the caller aborts or the IPC channel closes. Desktop Main accepts requests only from the current Host child and discards late responses after shutdown or replacement. Sign-out revokes new account access, hides the workspace, stops account-owned resources, clears authentication, and relaunches into the login gate only after shutdown completes.
 
+Update discovery verifies an Ed25519-signed rollout, release or target manifest, updater metadata, target identity, version, size, and SHA-512 before the Desktop adapter creates an electron-updater custom provider. Desktop Main owns the only updater instance across login and workspace startup. The renderer receives status and fixed actions, but no feed URL, local path, signing key, or trusted artifact identity.
+
 ### Source map
 
 | File | Role |
@@ -63,6 +68,8 @@ The Host service validates request and response fields, limits concurrent token 
 | [`src/protocol.ts`](src/protocol.ts) | Renderer-safe Desktop APIs and validated parent/Host IPC messages |
 | [`src/host/`](src/host/) | Host-only `ctx.insightAccount` provider and managed Gateway adapter |
 | [`src/client/`](src/client/) | Workspace brand, account-footer occupants, and categorized skill picker |
+| [`src/desktop/update/`](src/desktop/update/) | Signed rollout verification, source resolution, durable local choices, and product update policy |
+| [`src/client/update/`](src/client/update/) | Renderer-safe native update-window presentation |
 
 </details>
 
@@ -80,6 +87,21 @@ The Insight skill picker reads the three supported skill locations: the bundled 
 The picker groups bundled skills under Platform presets and account/shared skills under User custom skills. Its compact trigger opens a search field, two source tabs, and a separately scrolling list with skill titles, short descriptions, and selection marks. Optional `ui.json` beside each installed instruction supplies `displayName` and `shortDescription`; missing or unreadable presentation falls back to the native name and description without changing invocation identity or instruction content.
 
 The inventory Remote is generated from the decorated `InsightSkillInventory` service and is consumed through the package's `./remote` entry. Do not replace it with a hand-maintained Typert descriptor.
+
+-----
+
+<a id="desktop-updates"></a>
+## Desktop updates
+
+Insight uses product version `1.0.9` as its migration baseline; the first candidate version is `1.0.10-rc.1`. Product versions remain independent from the embedded DSH runtime version. Stable V2 rollout documents accept final versions and retain compatibility with the released Shell reader. Candidate V3 documents accept prerelease versions for new clients because the released Shell V2 reader rejects rc versions.
+
+The packaged application contains a fixed HTTPS distribution origin and an Ed25519 public key. Stable discovery verifies one signed index containing all three targets. Candidate discovery verifies one target-specific manifest. Both paths bind updater metadata to one payload filename, byte size, and SHA-512 digest before the native coordinator checks or downloads it. The first native delivery disables differential download so blockmap naming cannot redirect the authenticated full payload.
+
+Automatic checks use only the stable track. The five-click candidate action stores the user's opt-in after native confirmation but performs only that one manual check. A skipped optional version is suppressed during later automatic checks. A required stable release prevents candidate checks. Installation reuses DSH task inspection, shutdown, and restart coordination rather than a second product updater.
+
+Rollout history, candidate opt-in, and skipped-version choices are installation-level Desktop state. They are available before account login and do not belong to an account Home or Session history.
+
+Release construction and OSS publication are separate operations documented by the [Insight release scripts](../../../scripts/insight-release/README.md). The package does not read publishing credentials, Apple signing material, or the update signing private key.
 
 -----
 
@@ -115,8 +137,8 @@ No direct effect. Account presentation and authentication state stay outside mod
 <a id="known-limitations-and-deferred-work"></a>
 
 - **Account Homes are reused, not transformed by selection** — Insight starts the Host from the account's existing `harness` directory, where normal DSH profile, storage, and Session writes continue. A `harness-native` directory without `harness` reports `pre-release-data`, does not create an empty fallback Home, and requires product maintenance to decide recovery.
-- **Insight product UI is Chinese-only** — P2 does not add locale selection or translations for the login, account footer, or Insight native labels.
-- **Insight update delivery is not connected** — the Insight product does not run the official automatic update schedule, and manual update checks report that checking is unavailable; OSS/CDN delivery remains outside this package.
+- **Insight product UI is Chinese-only** — the login, account footer, update window, and Insight native labels do not provide locale selection or translations.
+- **Online update delivery is not yet qualified for production** — a local macOS arm64 package passed Developer ID signing, App and DMG notarization, staple, and independent system assessment, but it came from a dirty worktree rather than CI. macOS x64, native production-feed installation, old-client upgrade, the three-target CI run, and OSS/CDN publication still require recorded execution. Insight Windows packages intentionally omit Authenticode under the product decision; their update documents and payload identity still require Ed25519 verification, size, and SHA-512 checks.
 - **The Host credential service has no browser or Remote API** — only same-process Host plugins can consume it, and they receive structured failure reasons rather than Main-process diagnostics.
 
 <a id="dev-note"></a>

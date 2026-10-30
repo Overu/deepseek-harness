@@ -1,9 +1,10 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AppUpdater } from 'electron-updater'
+import type { AppUpdater, UpdateInfo } from 'electron-updater'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { parseDesktopRelease } from '../src/release.ts'
 import type { DesktopUpdateState } from '../src/ipc.ts'
+import type { DesktopUpdateFeed } from '../src/update-coordinator.ts'
 import { DesktopUpdatePreparationError } from '../src/update-error.ts'
 import { zh } from '../src/locale.ts'
 
@@ -49,6 +50,7 @@ afterEach(() => { for (const item of coordinators.splice(0)) item.dispose() })
 
 function fixture(channel: 'nightly' | 'latest' = 'nightly', version = '1.1.0-alpha.1') {
   const events = new EventEmitter()
+  const setFeedURL = vi.fn()
   const checkForUpdates = vi.fn(async () => ({
     isUpdateAvailable: true,
     updateInfo: { version: '1.1.0-rc.2' },
@@ -64,12 +66,27 @@ function fixture(channel: 'nightly' | 'latest' = 'nightly', version = '1.1.0-alp
   const downloadResult = vi.fn()
   const states: DesktopUpdateState[] = []
   const updater = Object.assign(events, { checkForUpdates, downloadUpdate, quitAndInstall }) as unknown as AppUpdater
+  updater.setFeedURL = setFeedURL
   const coordinator = new DesktopUpdateCoordinator(
     (state) => { states.push(state); return state },
     beforeRestart, updater, () => true, () => version, downloadResult, channel,
   )
   coordinators.push(coordinator)
-  return { coordinator, updater, events, states, checkForUpdates, downloadUpdate, quitAndInstall, beforeRestart, downloadResult }
+  return { coordinator, updater, events, states, setFeedURL, checkForUpdates, downloadUpdate, quitAndInstall,
+    beforeRestart, downloadResult }
+}
+
+class TestUpdateProvider {
+  readonly options: object
+  constructor(options: object) { this.options = options }
+}
+
+function feed(id: string, allowPrerelease: boolean): DesktopUpdateFeed {
+  return { id, allowPrerelease, options: { provider: 'custom', updateProvider: TestUpdateProvider } }
+}
+
+function updateInfo(version: string, name = 'insight.zip', sha512 = 'signed-sha512', size = 42): UpdateInfo {
+  return { version, files: [{ url: name, sha512, size }], path: name, sha512, releaseDate: '2026-10-30T00:00:00.000Z' }
 }
 
 describe('desktop update coordinator', () => {
@@ -167,6 +184,145 @@ describe('desktop update coordinator', () => {
     await expect(f.coordinator.install('1.2.0')).rejects.toThrow(/not ready/u)
   })
 
+  it('serializes a manual check for a different custom feed after the active check', async () => {
+    const f = fixture('latest', '1.0.9')
+    const stable = feed('insight-stable', false)
+    const candidate = feed('insight-candidate', true)
+    const stableResult = Promise.withResolvers<{ isUpdateAvailable: boolean; updateInfo: UpdateInfo }>()
+    f.checkForUpdates
+      .mockImplementationOnce(() => stableResult.promise)
+      .mockResolvedValueOnce({ isUpdateAvailable: true, updateInfo: updateInfo('1.0.10-rc.1') })
+
+    const automatic = f.coordinator.check(false, stable)
+    await Promise.resolve()
+    const manual = f.coordinator.check(true, candidate)
+    expect(f.setFeedURL).toHaveBeenCalledTimes(1)
+    stableResult.resolve({ isUpdateAvailable: true, updateInfo: updateInfo('1.0.10') })
+
+    await expect(automatic).resolves.toEqual({ phase: 'available', version: '1.0.10' })
+    await expect(manual).resolves.toEqual({ phase: 'available', version: '1.0.10-rc.1' })
+    expect(f.setFeedURL.mock.calls.map(([options]) => options)).toEqual([stable.options, candidate.options])
+    expect(f.updater).toMatchObject({ allowPrerelease: true, allowDowngrade: false })
+  })
+
+  it('does not let an automatic stable check replace an in-flight or selected candidate feed', async () => {
+    const f = fixture('latest', '1.0.9')
+    const stable = feed('insight-stable', false)
+    const candidate = feed('insight-candidate', true)
+    const candidateResult = Promise.withResolvers<{ isUpdateAvailable: boolean; updateInfo: UpdateInfo }>()
+    f.checkForUpdates.mockImplementationOnce(() => candidateResult.promise)
+
+    const manual = f.coordinator.check(true, candidate)
+    await Promise.resolve()
+    const automatic = f.coordinator.check(false, stable)
+    candidateResult.resolve({ isUpdateAvailable: true, updateInfo: updateInfo('1.0.10-rc.1') })
+
+    await expect(Promise.all([manual, automatic])).resolves.toEqual([
+      { phase: 'available', version: '1.0.10-rc.1' },
+      { phase: 'available', version: '1.0.10-rc.1' },
+    ])
+    await expect(f.coordinator.check(false, stable)).resolves.toEqual({ phase: 'available', version: '1.0.10-rc.1' })
+    expect(f.setFeedURL).toHaveBeenCalledExactlyOnceWith(candidate.options)
+    expect(f.checkForUpdates).toHaveBeenCalledOnce()
+  })
+
+  it('does not authorize a same-version asset from a queued replacement feed', async () => {
+    const f = fixture('latest', '1.0.9')
+    const first = feed('insight-first', true)
+    const replacement = feed('insight-replacement', true)
+    const firstResult = Promise.withResolvers<{ isUpdateAvailable: boolean; updateInfo: UpdateInfo }>()
+    const replacementResult = Promise.withResolvers<{ isUpdateAvailable: boolean; updateInfo: UpdateInfo }>()
+    f.checkForUpdates
+      .mockImplementationOnce(() => firstResult.promise)
+      .mockImplementationOnce(() => replacementResult.promise)
+
+    const automatic = f.coordinator.check(false, first)
+    await Promise.resolve()
+    const manual = f.coordinator.check(true, replacement)
+    firstResult.resolve({ isUpdateAvailable: true, updateInfo: updateInfo('1.0.10-rc.1', 'first.zip', 'first-sha512') })
+    await automatic
+    const staleDownload = f.coordinator.download('1.0.10-rc.1')
+    replacementResult.resolve({
+      isUpdateAvailable: true,
+      updateInfo: updateInfo('1.0.10-rc.1', 'replacement.zip', 'replacement-sha512'),
+    })
+    await manual
+
+    await expect(staleDownload).rejects.toThrow(/stale/u)
+    expect(f.downloadUpdate).not.toHaveBeenCalled()
+  })
+
+  it('binds custom-feed download readiness to the checked asset identity', async () => {
+    const f = fixture('latest', '1.0.9')
+    const candidate = feed('insight-candidate', true)
+    const checked = updateInfo('1.0.10-rc.1')
+    f.checkForUpdates.mockResolvedValueOnce({ isUpdateAvailable: true, updateInfo: checked })
+    f.downloadUpdate.mockImplementationOnce(async () => {
+      f.events.emit('update-downloaded', updateInfo('1.0.10-rc.1', 'insight.zip', 'replaced-sha512'))
+      return ['replaced-package']
+    })
+    await f.coordinator.check(true, candidate)
+
+    await expect(f.coordinator.download('1.0.10-rc.1')).resolves.toMatchObject({ phase: 'error', failedOperation: 'download' })
+    f.downloadUpdate.mockImplementationOnce(async () => {
+      f.events.emit('update-downloaded', checked)
+      return ['verified-package']
+    })
+    await expect(f.coordinator.download('1.0.10-rc.1')).resolves.toEqual({ phase: 'ready', version: '1.0.10-rc.1' })
+  })
+
+  it('dismisses only the matching idle available target and permits a later feed', async () => {
+    const f = fixture('latest', '1.0.9')
+    const candidate = feed('insight-candidate', true)
+    const stable = feed('insight-stable', false)
+    const pending = Promise.withResolvers<{ isUpdateAvailable: boolean; updateInfo: UpdateInfo }>()
+    f.checkForUpdates.mockImplementationOnce(() => pending.promise)
+    const checking = f.coordinator.check(true, candidate)
+    await Promise.resolve()
+    expect(() => f.coordinator.dismissAvailable('1.0.10-rc.1')).toThrow(/while checking/u)
+    pending.resolve({ isUpdateAvailable: true, updateInfo: updateInfo('1.0.10-rc.1') })
+    await checking
+
+    expect(() => f.coordinator.dismissAvailable('1.0.10-rc.2')).toThrow(/does not match/u)
+    expect(f.coordinator.dismissAvailable('1.0.10-rc.1')).toEqual({ phase: 'idle' })
+    f.checkForUpdates.mockResolvedValueOnce({ isUpdateAvailable: false, updateInfo: updateInfo('1.0.9') })
+    await expect(f.coordinator.check(false, stable)).resolves.toEqual({ phase: 'idle' })
+    expect(f.setFeedURL.mock.calls.map(([options]) => options)).toEqual([candidate.options, stable.options])
+  })
+
+  it('refuses dismissal while downloading, ready, or installing', async () => {
+    const f = fixture()
+    await f.coordinator.check()
+    const downloaded = Promise.withResolvers<undefined>()
+    f.downloadUpdate.mockImplementationOnce(async () => {
+      await downloaded.promise
+      f.events.emit('update-downloaded', { version: '1.1.0-rc.2' })
+      return ['verified-package']
+    })
+    const downloading = f.coordinator.download('1.1.0-rc.2')
+    await Promise.resolve()
+    expect(() => f.coordinator.dismissAvailable('1.1.0-rc.2')).toThrow(/download or prepared/u)
+    downloaded.resolve(undefined)
+    await downloading
+    expect(() => f.coordinator.dismissAvailable('1.1.0-rc.2')).toThrow(/download or prepared/u)
+
+    const restart = Promise.withResolvers<boolean>()
+    f.beforeRestart.mockImplementationOnce(() => restart.promise)
+    const installing = f.coordinator.install('1.1.0-rc.2')
+    await Promise.resolve()
+    expect(() => f.coordinator.dismissAvailable('1.1.0-rc.2')).toThrow(/download or prepared/u)
+    restart.resolve(false)
+    await installing
+  })
+
+  it('retains the official feed behavior when no custom feed is supplied', async () => {
+    const f = fixture()
+    await f.coordinator.check()
+    await f.coordinator.check()
+    expect(f.setFeedURL).not.toHaveBeenCalled()
+    expect(f.checkForUpdates).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps automatic failures silent and exposes a manual caller joining the same check', async () => {
     const f = fixture()
     f.checkForUpdates.mockRejectedValue(new Error('offline'))
@@ -212,14 +368,17 @@ describe('desktop update coordinator', () => {
   })
 
   it('does not publish late check completion after disposal', async () => {
-    const f = fixture()
-    const checked = Promise.withResolvers<{ isUpdateAvailable: boolean; updateInfo: { version: string } }>()
+    const f = fixture('latest', '1.0.9')
+    const candidate = feed('insight-candidate', true)
+    const checked = Promise.withResolvers<{ isUpdateAvailable: boolean; updateInfo: UpdateInfo }>()
     f.checkForUpdates.mockImplementation(() => checked.promise)
-    const pending = f.coordinator.check()
+    const pending = f.coordinator.check(false, candidate)
+    await Promise.resolve()
     f.coordinator.dispose()
-    checked.resolve({ isUpdateAvailable: true, updateInfo: { version: '1.1.0-rc.2' } })
+    checked.resolve({ isUpdateAvailable: true, updateInfo: updateInfo('1.0.10-rc.1') })
     await pending
     expect(f.states).toEqual([])
+    expect(f.setFeedURL).toHaveBeenCalledExactlyOnceWith(candidate.options)
     expect(f.events.listenerCount('download-progress')).toBe(0)
   })
 })

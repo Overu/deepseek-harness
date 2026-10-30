@@ -26,18 +26,22 @@ function barrier() {
   return { promise, release }
 }
 
-async function fixture(arch: 'arm64' | 'x64' = 'arm64') {
+async function fixture(arch: 'arm64' | 'x64' = 'arm64', product = {
+  name: 'DeepSeek Harness', prefix: 'deepseek-harness',
+  update: { channel: 'nightly' as const, publicUrl: `https://desktop-updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/mac-${arch}/` },
+}) {
   const root = await mkdtemp(join(tmpdir(), 'desktop-parallel-notarization-'))
   const artifactsRoot = join(root, 'artifacts')
-  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+  const appPath = join(artifactsRoot, arch === 'arm64' ? 'mac-arm64' : 'mac', `${product.name}.app`)
   await mkdir(join(appPath, 'Contents', 'Resources'), { recursive: true })
   await writeFile(join(appPath, 'payload'), 'signed content')
   await writeMacOSAppUpdateConfig(join(appPath, 'Contents', 'Resources'), {
-    publicUrl: `https://desktop-updates.example.com/dsh-desk/0123456789abcdef0123456789abcdef/feeds/mac-${arch}/`,
+    publicUrl: product.update.publicUrl,
   }, 'deepseek-harness-updater')
   const version = '1.2.3-alpha.1'
-  const base = `deepseek-harness-${version}-mac-${arch}`
-  const request = { arch, artifactsRoot, version, environment }
+  const base = `${product.prefix}-${version}-mac-${arch}`
+  const request = { arch, artifactsRoot, version, environment,
+    productName: product.name, artifactPrefix: product.prefix, update: product.update }
   const apple: MacOSArtifactOperations = {
     copyApp: async (source, destination) => {
       await cp(source, destination, { recursive: true, verbatimSymlinks: true })
@@ -205,5 +209,18 @@ describe('parallel macOS artifacts', () => {
         '--prepackaged', appPath, '--config.directories.output', output,
       ])
     }
+  })
+
+  it('uses Insight bundle and artifact names while retaining the shared notarization lanes', async () => {
+    const f = await fixture('arm64', {
+      name: '因赛AI', prefix: 'insight',
+      update: { channel: 'nightly', publicUrl: 'https://updates.insight-aigc.com/desktop/native/releases/v1.0.10-rc.1/targets/darwin-arm64/' },
+    })
+    try {
+      await packageMacOSArtifacts(f.request, f.build, f.apple)
+      expect(await readFile(join(f.request.artifactsRoot, 'insight-1.2.3-alpha.1-mac-arm64.dmg'), 'utf8')).toContain('signed content')
+      expect(await readFile(join(f.request.artifactsRoot, 'insight-1.2.3-alpha.1-mac-arm64.zip'), 'utf8')).toContain('signed content')
+      expect(f.appPath).toMatch(/因赛AI\.app$/u)
+    } finally { await rm(f.root, { recursive: true, force: true }) }
   })
 })

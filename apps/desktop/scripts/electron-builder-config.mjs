@@ -5,7 +5,6 @@ import { readFileSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parse } from 'semver'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import {
@@ -35,29 +34,13 @@ import {
   verifyMacOSAppUpdateConfig,
   writeMacOSAppUpdateConfig,
 } from './macos-app-update-config.mjs'
+import {
+  INSIGHT_PACKAGING_PRODUCT,
+  INSIGHT_UPDATE_RESOURCE_ROOT,
+  resolveInsightPackaging,
+} from './insight-packaging.mjs'
 
-const INSIGHT_PRODUCT = 'insight'
-const INSIGHT_APP_ID = 'com.insight-aigc.desktop'
-const INSIGHT_PRODUCT_NAME = '因赛AI'
-const INSIGHT_DESKTOP_VERSION_ENV = 'INSIGHT_DESKTOP_VERSION'
 const INSIGHT_BRANDING_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/', import.meta.url))
-
-/**
- * Resolve the build-time Insight product selection. Runtime selection accepts only a packaged manifest.
- * @param {NodeJS.ProcessEnv} env - Packaging environment.
- * @returns {{ productVersion: string } | undefined} Insight product release details when selected.
- */
-function resolveInsightPackagingProduct(env) {
-  const selected = env.DSH_DESKTOP_PRODUCT?.trim()
-  if (selected === undefined || selected === '') return undefined
-  if (selected !== INSIGHT_PRODUCT) throw new Error(`desktop package: DSH_DESKTOP_PRODUCT must be ${INSIGHT_PRODUCT}`)
-  const value = env[INSIGHT_DESKTOP_VERSION_ENV]?.trim()
-  const version = value === undefined || value === '' ? null : parse(value, { loose: false })
-  if (version === null || version.build.length > 0 || version.major !== 1) {
-    throw new Error(`desktop package: ${INSIGHT_DESKTOP_VERSION_ENV} must be a 1.x semantic version without build metadata`)
-  }
-  return { productVersion: version.version }
-}
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -75,8 +58,6 @@ export function createElectronBuilderConfig(
   preparedRuntime = undefined,
   preparedRuntimeVersion = undefined,
 ) {
-  const insight = resolveInsightPackagingProduct(env)
-  const appId = insight === undefined ? resolveDesktopAppId(env) : INSIGHT_APP_ID
   const targetPlatform = env.DSH_DESKTOP_TARGET_PLATFORM
   const resolvedPlatform = targetPlatform ?? hostPlatform
   const resolvedArch = env.DSH_DESKTOP_TARGET_ARCH ?? hostArch
@@ -84,9 +65,8 @@ export function createElectronBuilderConfig(
     throw new Error('desktop package: DSH_DESKTOP_UNSIGNED must be 0 or 1')
   }
   const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
-  if (insight !== undefined && !unsigned) {
-    throw new Error('desktop package: Insight packaging currently supports unsigned local artifacts only')
-  }
+  const insight = resolveInsightPackaging(env, resolvedPlatform, resolvedArch, { requireNativeTarget: !unsigned })
+  const appId = insight === undefined ? resolveDesktopAppId(env) : insight.appId
   const skipNotarization = env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION === '1'
   if (env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION)) {
     throw new Error('desktop package: DSH_DESKTOP_MACOS_SKIP_NOTARIZATION must be 0 or 1')
@@ -94,7 +74,7 @@ export function createElectronBuilderConfig(
   if (skipNotarization && (unsigned || resolvedPlatform !== 'darwin')) throw new Error('Skipping notarization requires a signed macOS build')
   const packagesMacOS = targetPlatform === 'darwin' || (targetPlatform === undefined && hostPlatform === 'darwin')
   const packagesWindows = resolvedPlatform === 'win32'
-  const policy = packagesMacOS && unsigned ? undefined : resolveDesktopPolicyEnvironment(env)
+  const policy = insight === undefined && !(packagesMacOS && unsigned) ? resolveDesktopPolicyEnvironment(env) : undefined
   if (resolvedPlatform === 'win32') installWindowsDirectoryInstaller()
   const macOSSigning = packagesMacOS && !unsigned ? resolveMacOSSigningEnvironment(env) : undefined
   if (packagesMacOS && !unsigned && !skipNotarization) resolveMacOSNotarizationEnvironment(env)
@@ -105,7 +85,7 @@ export function createElectronBuilderConfig(
   let windowsCode = []
   const unpack = ['**/*.{node,dylib,dll,so,exe}', '**/*.so.*', '**/spawn-helper', '**/@vscode/ripgrep-*/bin/rg',
     `**/node_modules/@deepseek-ai/libreoffice-kit-${resolvedPlatform}-${resolvedArch}/**/*`]
-  const windowsSigner = packagesWindows && !unsigned
+  const windowsSigner = packagesWindows && !unsigned && insight === undefined
     ? createWindowsTokenSigner({
         certificateFile: env.DSH_DESKTOP_WINDOWS_CER_FILE,
         signTool: env.DSH_DESKTOP_WINDOWS_SIGNTOOL,
@@ -124,13 +104,13 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = unsigned || insight !== undefined ? undefined : resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const update = unsigned ? undefined : insight?.update ?? resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   // electron-builder merges extraMetadata into the packaged manifest, so a build version here reaches
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
   const runtimeVersion = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8')).version
   const productVersion = insight?.productVersion ?? runtimeVersion
-  const productName = insight === undefined ? 'DeepSeek Harness' : INSIGHT_PRODUCT_NAME
+  const productName = insight === undefined ? 'DeepSeek Harness' : insight.productName
   const buildVersion = resolveDesktopBuildVersion(env, productVersion)
   if (update?.channel === 'latest' && buildVersion.includes('-')) throw new Error('desktop package: latest requires a stable version')
   const packaged = resolveDesktopBuildCommit(env)
@@ -141,7 +121,7 @@ export function createElectronBuilderConfig(
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
       ...(insight === undefined ? {} : {
-        dshDesktopProduct: INSIGHT_PRODUCT,
+        dshDesktopProduct: INSIGHT_PACKAGING_PRODUCT,
         dshDesktopProductVersion: productVersion,
         dshDesktopRuntimeVersion: runtimeVersion,
       }),
@@ -183,7 +163,10 @@ export function createElectronBuilderConfig(
       'lib/preload-platform-account.cjs',
       'lib/preload-update-dialog.cjs',
       'lib/preload-welcome.cjs',
-      ...(insight === undefined ? [] : ['lib/preload-insight-login.cjs', 'lib/insight-login/**/*']),
+      ...(insight === undefined ? [] : [
+        'lib/preload-insight-login.cjs', 'lib/insight-login/**/*',
+        'lib/preload-insight-update.cjs', 'lib/insight-update/**/*',
+      ]),
       'renderer/**/*',
       'package.json',
       '!node_modules/**/*.{js,cjs,mjs,ts,cts,mts,css}.map',
@@ -197,6 +180,7 @@ export function createElectronBuilderConfig(
       { from: buildPaths.runtime, to: 'runtime' },
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       ...(insight === undefined ? [] : [{ from: INSIGHT_BRANDING_ROOT, to: 'branding' }]),
+      ...(insight === undefined ? [] : [{ from: INSIGHT_UPDATE_RESOURCE_ROOT, to: 'insight-update' }]),
       ...(insight === undefined ? [] : [{
         from: fileURLToPath(new URL('../../../bundled-skills/', import.meta.url)), to: 'bundled-skills',
       }]),
@@ -287,7 +271,8 @@ export function createElectronBuilderConfig(
     },
     win: {
       icon: insight === undefined ? fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)) : join(INSIGHT_BRANDING_ROOT, 'icon.ico'),
-      forceCodeSigning: !unsigned,
+      forceCodeSigning: !unsigned && insight === undefined,
+      ...(insight === undefined ? {} : { verifyUpdateCodeSignature: false }),
       signtoolOptions: {
         sign: windowsSigner,
         publisherName: windowsSigner === undefined ? undefined : resolveWindowsUpdatePublisher(env.DSH_DESKTOP_WINDOWS_CER_FILE),

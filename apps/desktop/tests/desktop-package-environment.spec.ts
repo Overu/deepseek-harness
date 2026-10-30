@@ -264,6 +264,13 @@ describe('Desktop local packaging configuration', () => {
     expect(() => { validateDesktopPackageEnvironment(RELEASE, MACOS) }).toThrow('DSH_DESKTOP_MACOS_SIGNING_IDENTITY')
   })
 
+  it('accepts Insight Windows distribution without official update policy or Windows signing credentials', () => {
+    const insight = {
+      DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop', INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
+    }
+    expect(() => { validateDesktopPackageEnvironment(insight, WINDOWS) }).not.toThrow()
+  })
+
   it('accepts one local npm registry mirror and rejects other registry forms', () => {
     const release = { ...POLICY, DSH_DESKTOP_APP_ID: RELEASE.DSH_DESKTOP_APP_ID }
     expect(() => {
@@ -349,6 +356,22 @@ it('skips Apple credentials but still requires signing credentials for unnotariz
     expect(() => {
       validateDesktopPackageEnvironment({ ...environment, CSC_KEY_PASSWORD: undefined }, MACOS, { skipNotarization: true })
     }).toThrow(/CSC_KEY_PASSWORD/u)
+  })
+})
+
+it('requires notarization for signed Insight packages while bypassing the official policy and update configuration', async () => {
+  await withDirectory(async (directory) => {
+    const certificate = join(directory, 'insight-signing.p12')
+    await writeFile(certificate, 'fixture')
+    const insight = {
+      DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop', INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
+      ...MAC_IDENTITY, CSC_LINK: certificate, CSC_KEY_PASSWORD: '',
+    }
+    expect(() => { validateDesktopPackageEnvironment(insight, MACOS) }).toThrow()
+    expect(() => { validateDesktopPackageEnvironment(insight, MACOS, { skipNotarization: true }) }).not.toThrow()
+    expect(() => {
+      validateDesktopPackageEnvironment({ ...insight, DSH_DESKTOP_APP_ID: 'com.example.other' }, MACOS, { skipNotarization: true })
+    }).toThrow(/DSH_DESKTOP_APP_ID/u)
   })
 })
 

@@ -9,11 +9,11 @@
   en: 3dcfb9f9a44397ed
   zh: 3bc5c6fe03b978e2
 /insight-ai-desktop-integration/summary:
-  en: 0d8ed6a7ce16cb5a
-  zh: 94c8282dc64a6116
+  en: 6c86958caad61220
+  zh: e7a06124d0e26021
 /insight-ai-desktop-integration/table-of-contents:
-  en: 033cb0a443028648
-  zh: 17ef4a081e9b33fb
+  en: 8d1af09ff4706cbe
+  zh: 3b0fe0959dc20cd1
 /insight-ai-desktop-integration/use-this-package:
   en: bbff250eba0f1b89
   zh: 0a618f05cc88ee2b
@@ -21,20 +21,23 @@
   en: f864a60c29aa1043
   zh: 3c986dc024814ce8
 /insight-ai-desktop-integration/use-this-package/what-you-get:
-  en: 92fb3683342c8da1
-  zh: 525aac8e105a524c
+  en: cc52500f1f75c0a9
+  zh: a2c80dc731dc38b0
 /insight-ai-desktop-integration/understand-the-implementation:
-  en: 5cd7dd3beda59834
-  zh: 4e8836863f4dd0b8
+  en: 2920d1a410b0599f
+  zh: 6c0e397f1c179407
 /insight-ai-desktop-integration/understand-the-implementation/source-map:
-  en: 51bbeac4d4a36d56
-  zh: b4d4402974f55929
+  en: 6bf545ffe834cec4
+  zh: 1d13ce00baf8b1e4
 /insight-ai-desktop-integration/business-services:
-  en: 27af3e5f68ac2cda
-  zh: 329d2cc857353fcb
+  en: 9e5986736e75183f
+  zh: e2e296d277e432f6
+/insight-ai-desktop-integration/desktop-updates:
+  en: 3b5e0155c3d3a2b5
+  zh: 80a142737be27928
 /insight-ai-desktop-integration/further-exploration:
   en: fc1bc2f6eab4a2ad
-  zh: e08388a3fa94df8f
+  zh: 2bfe7093a3a21946
 /insight-ai-desktop-integration/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -51,8 +54,8 @@
   en: cd327d2f5da4c276
   zh: 42bc182aa24b232c
 /insight-ai-desktop-integration/known-limitations-and-deferred-work:
-  en: 053a19d8b7b58477
-  zh: 292f7c7a67390bfc
+  en: 86f6ae691cb47e45
+  zh: 4ec1d040472eb933
 /insight-ai-desktop-integration/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

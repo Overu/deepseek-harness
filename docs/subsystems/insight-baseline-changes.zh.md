@@ -18,15 +18,19 @@
 | `apps/desktop/src/project-manager.ts`、`fatal-recovery.ts` 及其测试 | 在 profile 创建、已有 profile 准备和插件恢复时保留产品必需的四个 bundle；只在登录后安装账号范围恢复 | 绝不让认证前恢复打开官方 Home 或其他账号 Home |
 | `apps/desktop/scripts/dev.ts`、`development-app.ts`、`electron-builder-config.mjs`、其声明及测试 | 应用 Insight 应用 id、名称、图标、与 Shell 兼容的开发 userData、包元数据和产品/运行时版本拆分；将根内置技能目录复制为 Insight 专属资源 | 保持构建标识和资源复制为条件行为，让官方制品和签名输入不变 |
 | `apps/desktop/scripts/package-target.ts` 及其测试 | 在桌面闭包选择前打入精确私有组件，并把 Insight 产品版本与 DSH 运行时版本分别记录 | 保持私有桌面打包和发布标识与公开发布成员独立 |
-| `apps/desktop/electron-builder.config.d.mts`、`apps/desktop/scripts/smoke-packaged-runtime.ts`、其测试与 `scripts/run-gates.ts` | 校验产品专属打包元数据，并在 built-smoke 清单中运行 Integration 真实 Loader 测试 | 保持打包检查与 Insight 产品制品及私有 bundle 运行时入口一致 |
+| `apps/desktop/electron-builder.config.d.mts`、`apps/desktop/scripts/smoke-packaged-runtime.ts`、其测试与 `scripts/run-gates.ts` | 校验产品专属打包元数据，在 built-smoke 清单中运行 Integration 真实 Loader 测试，并按产品决定对受门控的 Insight Windows 包跳过官方 Authenticode 检查 | 保持打包检查与 Insight 产品制品及私有 bundle 运行时入口一致；产品豁免仅适用于 Authenticode，仍须保留 Ed25519 更新文档验签以及 payload 大小和 SHA-512 绑定 |
 | `apps/desktop/tsconfig.host.json`、`tsconfig.client.json` | 从 Desktop 构建引用可移植 Integration Host 与 Client 编译面 | 保持 Electron 导入属于 Desktop 适配层，并显式区分可移植包编译面 |
 | `apps/desktop/src/insight-permissions.ts`、`main.ts`、`product.ts` 及其测试 | 执行已批准的 Insight 专属剪贴板、全屏及主 frame 音频权限矩阵；接入原生重启、日志、缩放和全屏菜单；在登录 shell 解析后传入固定必需 bundle 策略、随包 Node 路径及存在的内置技能目录 | 保留官方产品路径；每次同步基线复核两类权限回调、原生 frame 所有权、OS 音频授权、primary-runtime 布局和产品资源路径 |
+| `apps/desktop/src/update-coordinator.ts` 及其测试 | 允许可信 Main 进程调用方在既有检查锁内配置一个自定义提供方，将可用版本绑定到提供方和精确 updater 产物，在活动检查后串行执行不同的手动来源，并且只清除匹配且尚未使用的目标 | 保持官方无参数来源行为不变；保留单一协调器、独立下载与安装授权、陈旧确认拒绝、监听器清理，以及候选在清除或下载前的所有权 |
+| `apps/desktop/src/main.ts`、`insight-updates.ts`、`insight-update-provider.ts`、`insight-update-window.ts`、`preload-insight-update.ts`、Insight 更新渲染器、`tsdown.config.ts` 及其测试 | 在登录前创建 Insight 更新拥有者，将同一个协调器交接给已认证工作区，通过 electron-updater 公开 custom-provider API 适配已验证元数据，并构建隔离更新窗口与 preload | 保持后台只检查正式版、内测检查需经过原生风险确认、渲染器输入不含 URL 和可信身份，并且不改变官方 Desktop 更新路径 |
+| `apps/desktop/scripts/{desktop-package-environment,electron-builder-config}.mjs`、`package-macos.ts`、`package-target.ts`、`insight-packaging.mjs`、其声明及测试 | 在复用 DSH macOS 签名、公证、打包校验和目标编排时，选择 Insight 应用名称、产物前缀、产品版本、固定更新资源与 generic updater 配置 | 保持产品选择显式；绝不让 Insight 包满足官方发布器完成记录或改变官方 COS 与强更输入；Windows Authenticode 豁免只作用于 Insight 产品 |
+| `.github/workflows/insight-package.yml`、`.github/workflows/insight-publish.yml`、`scripts/insight-release/`、根发布工具依赖及锁文件 | 分离已签名 GitHub Release 构建与绑定来源的 OSS 发布；隔离发布器运行时依赖和私有签名材料；先发布不可变对象，再条件更新渠道指针 | 端到端绑定源码提交、仓库、工作流运行、目标、版本、摘要和签名身份；调试包不得发布，结果未知的写入必须先核对，不能覆盖重试 |
 | `packages/boot/plugin-manager/src/{index,types,tools,diagnostic,product-policy}.ts`、测试及包元数据 | 将默认空的必需 bundle 配置与可信产品策略合并，在执行端拒绝停用、移除、更新和替换，并检查安装别名与归档 | 保留执行端校验、manifest 事务恢复、有界归档解析及用户 registry；基线提供等价保护后才移除本地策略 |
 | `packages/client/ui-plugin-manager/src/client/{presentation,locales}.ts` 及组件测试 | 为产品必需组件解释已有只读状态 | 展示状态从 Host 策略派生，保留组件内部功能开关 |
 | `packages/client/ui-conversation/src/client/contract/input.ts`、`input/facade.ts`、`input/selected-skills.ts`、README 及强类型 Client 测试消费者 | 在实时编辑器文本上恢复已批准的 `toggleSkill`，派生 `selectedSkills`，不扫描引用、Quote 或命令内容 | 保留可见草稿语义、Session 所有权、忙碌/释放保护与局部编辑回归；同步基线后复核编辑器投影与动作签名 |
 | `packages/llm/llm-pi-ai/src/index.ts` 与 `tests/adapter.spec.ts` | 公开托管网关构建所需的既有 `resolveProfiles`、`credentialStoreFrom` 与 `authContextFrom` helper | 用户明确授权的增量导出；保留上游实现，基线提供这些导出后移除本地差异 |
 | `pnpm-workspace.yaml`、`pnpm-lock.yaml` | 在根依赖锁和构建策略下解析 iframe 及其保留的 Motion 依赖边 | iframe 有其他明确受支持的构建拥有者后再调整 |
-| `tsconfig.base.json`、`tsconfig.host.json`、`tsconfig.client.json` | 将保留的外部插件名（包括 Integration 入口）解析到源码，并显式编译各面 | 这些标识仍不属于生成的 DSH alias 时保留 |
+| `tsconfig.base.json`、`tsconfig.host.json`、`tsconfig.client.json` | 将保留的外部插件名（包括 Integration 登录与更新 Client 入口）解析到源码，并显式编译各面 | 这些标识仍不属于生成的 DSH alias 时保留 |
 | `scripts/check-workspace-constraints.ts` 及测试 | 强制精确私有标识、根版本、发布元数据和唯一拥有者 | 仅在上游提供同等严格产品输入规则后替换 |
 | `scripts/package-dependency-policy.ts` 及其测试 | 精确分类 Host 值导出、保留工具共享 peer，并拒绝未审查的导出 | 保留共享服务 peer，不扩大为整包安全声明 |
 | `scripts/npm-baseline-packages.ts` 及测试 | 从公开 npm 基线精确排除私有输入 | 发现方式变化时仍需保留发布拒绝 |
@@ -43,7 +47,11 @@
 
 ## 新增集成的拥有者
 
+更新协调器扩展、Main 单 updater 适配、更新窗口编译入口和产品打包扩展是 P5 已获明确授权的四组官方 hook。`tsconfig` alias 属于编译入口。这些 hook 均无需再次取得实施授权。
+
 精确私有包清单位于 [insight-package-policy.ts](../../scripts/insight-package-policy.ts)。[Insight 产品集成](insight.zh.md) 说明运行时归属、源码快照与同步技能。[Desktop Integration 包](../../packages/insight/desktop-integration/README.zh.md) 负责认证与账号进程行为。每个固定业务包的 `upstream.json` 和 `patches/insight` 下可回放差异记录引入源码及本地适配。
+
+Desktop Integration 包也负责已签名更新发现、本地投放状态、内测确认和渲染器安全更新操作。Desktop Main 拥有唯一的 electron-updater 实例和原生窗口适配器。[Insight 发布脚本](../../scripts/insight-release/README.zh.md)负责产物 manifest、GitHub 来源验证、签名、OSS 条件写入以及相互独立的正式版和内测版发布格式。
 
 `bundled-skills` 保持来源仓库的内部结构。引入的标签生成器保留原有目录到客户端元数据流程；测试使用合成文件，不评价内置技能内容或业务结果。
 
@@ -52,6 +60,8 @@
 ## 基线同步
 
 逐项对照引入的基线，只有替代实现保留表中的产品选择、登录顺序、账号隔离、凭据限制、发布标识与发布保证后才删除本地改动。既有官方文件变化时更新本记录，私有包内部改动由包文档、来源记录和 Git 历史追踪。
+
+更新工作不改变 P4 的账号 Home 决定或四个必需组件。Insight 仍打开账号既有的 `harness` 目录，Integration、Canvas、Memory 和 Prompt 仍是随客户端更新的受保护产品组件。
 
 ## Host 值依赖分类
 

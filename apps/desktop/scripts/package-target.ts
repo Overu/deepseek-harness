@@ -27,6 +27,7 @@ import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 import { INSIGHT_PRODUCT_PACKAGES } from '../../../scripts/insight-package-policy.ts'
 import { resolveDesktopProduct } from '../src/product.ts'
+import { resolveInsightPackaging } from './insight-packaging.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -152,6 +153,9 @@ function writeReleaseRecord(
   environment: NodeJS.ProcessEnv,
   artifactsRoot: string,
 ): void {
+  // Insight uses a separate immutable OSS collector. Its successful package must never satisfy
+  // the official publisher's completion-record precondition.
+  if (environment.DSH_DESKTOP_PRODUCT?.trim() === 'insight') return
   const runtimeVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   const dshVersion = packageVersion(join(REPOSITORY_ROOT, 'package.json'), 'dsh package')
   if (runtimeVersion !== dshVersion) {
@@ -418,7 +422,12 @@ async function main(): Promise<void> {
   if (success && target.platform === 'darwin' && !invocation.directory && !invocation.prepareOnly) {
     const paths = desktopTargetBuildPaths(target.name, environment)
     const output = desktopArtifactOutput(paths, invocation)
-    const filename = `deepseek-harness-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
+    const insight = resolveInsightPackaging(environment, target.platform, target.arch, {
+      requireAppId: true,
+      requireNativeTarget: !invocation.unsigned,
+    })
+    const prefix = insight?.artifactPrefix ?? 'deepseek-harness'
+    const filename = `${prefix}-${buildVersion}-mac-${target.arch}${output.suffix}.dmg`
     console.log(`DMG: ${join(output.directory, filename)}`)
   }
 }
@@ -443,8 +452,14 @@ export async function packageTarget(
   const packConcurrency = mac?.packConcurrency ?? resolveWindowsPackageSettings(environment).packConcurrency
   const packArguments = ['--concurrency', String(packConcurrency)]
   const buildPaths = desktopTargetBuildPaths(target.name, environment)
+  const insight = resolveInsightPackaging(environment, target.platform, target.arch, {
+    requireAppId: environment.DSH_DESKTOP_PRODUCT?.trim() === 'insight',
+    requireNativeTarget: !invocation.unsigned,
+  })
+  const productName = insight?.productName ?? 'DeepSeek Harness'
+  const productVersion = resolveDesktopPackagingProductVersion(environment, packageVersion(join(APP_ROOT, 'package.json'), 'desktop package'))
   const releaseRecordPath = join(buildPaths.artifacts, desktopBuildRecordFilename(target.name))
-  if (!invocation.prepareOnly && !invocation.unsigned && !invocation.skipNotarization) {
+  if (insight === undefined && !invocation.prepareOnly && !invocation.unsigned && !invocation.skipNotarization) {
     rmSync(releaseRecordPath, { force: true })
     rmSync(`${releaseRecordPath}.tmp`, { force: true })
   }
@@ -463,9 +478,9 @@ export async function packageTarget(
     electronBuilderEnv.ELECTRON_BUILDER_COMPRESSION_LEVEL = String(resolveWindowsPackageSettings(environment).compressionLevel)
   }
   for (const name of WINDOWS_SIGNING_ENV_NAMES) {
-    if (!invocation.unsigned && environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
+    if (insight === undefined && !invocation.unsigned && environment[name] !== undefined) electronBuilderEnv[name] = environment[name]
   }
-  const signPrimaryRuntime = target.platform === 'win32' && !invocation.unsigned && !invocation.prepareOnly
+  const signPrimaryRuntime = target.platform === 'win32' && insight === undefined && !invocation.unsigned && !invocation.prepareOnly
   const signedStage = async (stage: string, operation: () => Promise<void>): Promise<void> => {
     if (!signPrimaryRuntime) return operation()
     if (run === undefined) throw new Error('desktop package: signed Windows packaging requires a supervised run')
@@ -559,20 +574,23 @@ export async function packageTarget(
     await withMacOSNotarizationProxy(mac?.notarizationProxy, () => packageMacOSArtifacts({
       arch: target.arch,
       // electron-builder named these artifacts after the published version, so locating them uses the same identifier.
-      version: resolveDesktopBuildVersion(environment, packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')),
+      version: resolveDesktopBuildVersion(environment, productVersion),
       artifactsRoot: buildPaths.artifacts,
       environment: electronBuilderEnv,
+      productName,
+      ...(insight?.artifactPrefix === undefined ? {} : { artifactPrefix: insight.artifactPrefix }),
+      ...(insight?.update === undefined ? {} : { update: insight.update }),
     }, buildMacArtifact), undefined, undefined, proxyEvent)
   } else if (target.platform === 'darwin' && !invocation.unsigned && !invocation.skipNotarization) {
     await execute([...desktopElectronBuilderArguments(target, true), '--config.mac.notarize=false'], electronBuilderEnv)
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts'], targetEnv)
-    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+    const appPath = join(buildPaths.artifacts, target.arch === 'arm64' ? 'mac-arm64' : 'mac', `${productName}.app`)
     await withMacOSNotarizationProxy(mac?.notarizationProxy,
       () => notarizeMacOS({ appPath, ...resolveMacOSNotarizationEnvironment(environment) }), undefined, undefined, proxyEvent)
   } else {
     if (target.platform === 'darwin' && invocation.skipNotarization && !invocation.directory) {
       await execute(desktopElectronBuilderArguments(target, true), electronBuilderEnv)
-      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', 'DeepSeek Harness.app')
+      const appPath = join(artifactsRoot, target.arch === 'arm64' ? 'mac-arm64' : 'mac', `${productName}.app`)
       for (const format of ['dmg', 'zip'] as const) {
         await buildMacArtifact({ format, appPath, output: artifactsRoot })
       }

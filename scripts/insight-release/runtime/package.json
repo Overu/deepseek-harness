@@ -1,0 +1,12 @@
+{
+  "name": "insight-release-runtime",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ali-oss": "6.23.0",
+    "js-yaml": "4.3.2",
+    "semver": "7.8.5",
+    "tsx": "4.23.13",
+    "zod": "4.4.3"
+  }
+}
