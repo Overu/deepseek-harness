@@ -44,7 +44,7 @@ export function localMacOSPackageEnvironment(environment = process.env) {
  * @param {'win32' | 'darwin'} platform Target platform.
  * @param {NodeJS.ProcessEnv} environment Parent environment, retained only for unrelated build tools.
  * @param {string} appRoot Desktop application directory; relative credential paths resolve here.
- * @param {{ unsigned?: boolean, prepareOnly?: boolean }} options Unsigned presets and Windows preparation-only presets never read signing credentials.
+ * @param {{ unsigned?: boolean, prepareOnly?: boolean }} options Unsigned presets, Windows preparation-only presets, and validated Insight Windows product builds never read signing credentials.
  * @returns {NodeJS.ProcessEnv} Isolated environment with file-owned release settings.
  */
 export function loadDesktopPackageEnvironment(platform, environment = process.env, appRoot = APP_ROOT, options = {}) {
@@ -76,7 +76,9 @@ export function loadDesktopPackageEnvironment(platform, environment = process.en
     : /^(?:DSH_DESKTOP_(?:APP_ID|AUTO_UPDATE_ENV|NPM_REGISTRY|MANDATORY_UPDATE_(?:CONFIG|(?:TEST|PROD)_ORIGIN))|DOWNLOAD_TEST_(?:ORIGIN|RELEASE_ID))$/u.test(name) || publicPlatformSetting.test(name))
   if (preset !== undefined) {
     if (settings.DSH_DESKTOP_AUTO_UPDATE_ENV !== preset) throw new Error('desktop package: preset deployment must match its name')
-    if (!options.unsigned && (platform === 'darwin' || !options.prepareOnly)) {
+    const insightWindowsProduct = platform === 'win32' && environment.DSH_DESKTOP_PRODUCT?.trim() === 'insight'
+    if (insightWindowsProduct) resolveInsightPackaging({ ...environment, ...settings }, 'win32', 'x64', { requireAppId: true, requireNativeTarget: true })
+    if (!options.unsigned && !insightWindowsProduct && (platform === 'darwin' || !options.prepareOnly)) {
       const filename = platform === 'win32' ? 'windows-signing.env' : 'macos-signing.env'
       Object.assign(settings, readSettings(join(dirname(dirname(path)), 'secrets', filename),
         name => platform === 'win32'

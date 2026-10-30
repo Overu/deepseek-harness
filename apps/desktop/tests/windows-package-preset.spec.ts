@@ -35,6 +35,29 @@ it('loads unsigned public settings without requiring the signing secret file or 
   })
 })
 
+it('loads a validated Insight Windows product preset without an official signing secret file', async () => {
+  await withPreset(async (root) => {
+    await writeFile(join(root, 'presets/test.env'), 'DSH_DESKTOP_AUTO_UPDATE_ENV=test\nDSH_DESKTOP_APP_ID=com.insight-aigc.desktop\n')
+    const environment = loadDesktopPackageEnvironment('win32', {
+      DSH_PACKAGING_CONFIG_DIR: root,
+      DSH_PACKAGING_PRESET: 'test',
+      DSH_DESKTOP_PRODUCT: 'insight',
+      INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
+    }, root)
+    expect(environment.DSH_DESKTOP_APP_ID).toBe('com.insight-aigc.desktop')
+    expect(environment.DSH_DESKTOP_WINDOWS_TOKEN_PIN).toBeUndefined()
+  })
+})
+
+it('does not skip Windows signing configuration for an invalid Insight product', async () => {
+  await withPreset(async (root) => {
+    const environment = { DSH_PACKAGING_CONFIG_DIR: root, DSH_PACKAGING_PRESET: 'test', DSH_DESKTOP_PRODUCT: 'insight', INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1' }
+    expect(() => loadDesktopPackageEnvironment('win32', environment, root)).toThrow(/DSH_DESKTOP_APP_ID/u)
+    await writeFile(join(root, 'presets/test.env'), 'DSH_DESKTOP_AUTO_UPDATE_ENV=test\nDSH_DESKTOP_APP_ID=com.insight-aigc.desktop\n')
+    expect(() => loadDesktopPackageEnvironment('win32', { ...environment, INSIGHT_DESKTOP_VERSION: '2.0.0' }, root)).toThrow(/INSIGHT_DESKTOP_VERSION/u)
+  })
+})
+
 it('loads pack concurrency from the public preset and rejects an invalid worker count', async () => {
   await withPreset(async (root) => {
     const env = { DSH_PACKAGING_CONFIG_DIR: root, DSH_PACKAGING_PRESET: 'test', DSH_DESKTOP_WINDOWS_PACK_CONCURRENCY: '8' }

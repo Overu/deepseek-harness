@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { repositoryClientBuildEnvironment, resolveClientBuildEnvironment } from '../../scripts/client-build-environment.ts'
 import { packagedImportsPlugin } from './scripts/desktop-bundle-imports.mjs'
+import { desktopRendererSourcePaths } from './scripts/desktop-renderer-source-paths.mjs'
 
 // This config runs after the workspace tsdown pass, not inside it: the main bundle inlines
 // workspace devDependencies from their lib/ output, which the concurrent workspace pass does
@@ -88,7 +89,7 @@ export default defineConfig([
       })
       await build({
         configFile: false,
-        plugins: [{
+        plugins: [desktopRendererSourcePaths(), {
           name: 'insight-login-brand-asset',
           async generateBundle() {
             this.emitFile({
@@ -115,7 +116,7 @@ export default defineConfig([
       })
       await build({
         configFile: false,
-        plugins: [{
+        plugins: [desktopRendererSourcePaths(), {
           name: 'insight-update-brand-asset',
           async generateBundle() {
             this.emitFile({
