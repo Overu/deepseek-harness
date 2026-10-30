@@ -11,24 +11,36 @@ if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT -or $PSVersionTa
 }
 
 $name = [Guid]::NewGuid().ToString('N')
-$root = "HKCU:\Software\DeepSeekHarnessQualificationSmoke\$name"
+$relativeRoot = "Software\DeepSeekHarnessQualificationSmoke\$name"
+$root = "HKCU:\$relativeRoot"
 $created = $false
+$fixtureKey = $null
 try {
-    New-Item -Path (Join-Path $root 'legacy') -Force -ErrorAction Stop | Out-Null
+    $fixtureKey = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($relativeRoot)
+    if ($null -eq $fixtureKey) { throw 'Could not create the private registry smoke key' }
     $created = $true
-    New-ItemProperty -LiteralPath (Join-Path $root 'legacy') -Name 'PSObject' -Value 'provider-member-collision' -PropertyType String | Out-Null
-    New-ItemProperty -LiteralPath (Join-Path $root 'legacy') -Name 'DisplayName' -Value '因赛AI 1.0.9' -PropertyType String | Out-Null
+    $legacyKey = $fixtureKey.CreateSubKey('legacy')
+    try {
+        # The registry permits this name; the PowerShell provider reserves it as an object member.
+        $legacyKey.SetValue('PSObject', 'provider-member-collision', [Microsoft.Win32.RegistryValueKind]::String)
+        $legacyKey.SetValue('DisplayName', '因赛AI 1.0.9', [Microsoft.Win32.RegistryValueKind]::String)
+    } finally {
+        $legacyKey.Dispose()
+    }
 
-    New-Item -Path (Join-Path $root 'complete') -Force -ErrorAction Stop | Out-Null
-    $complete = Join-Path $root 'complete'
-    foreach ($field in @{
-        InstallLocation = 'C:\fixture root\因赛AI'
-        DisplayVersion = '1.0.10-rc.1'
-        DisplayName = '因赛AI'
-        DisplayIcon = 'C:\fixture root\因赛AI\uninstallerIcon.ico'
-        UninstallString = '"C:\fixture root\因赛AI\Uninstall 因赛AI.exe"'
-    }.GetEnumerator()) {
-        New-ItemProperty -LiteralPath $complete -Name $field.Key -Value $field.Value -PropertyType String | Out-Null
+    $completeKey = $fixtureKey.CreateSubKey('complete')
+    try {
+        foreach ($field in @{
+            InstallLocation = 'C:\fixture root\因赛AI'
+            DisplayVersion = '1.0.10-rc.1'
+            DisplayName = '因赛AI'
+            UninstallString = '"C:\fixture root\因赛AI\Uninstall 因赛AI.exe"'
+        }.GetEnumerator()) {
+            $completeKey.SetValue($field.Key, $field.Value, [Microsoft.Win32.RegistryValueKind]::String)
+        }
+        $completeKey.SetValue('DisplayIcon', '%USERPROFILE%\因赛AI\uninstallerIcon.ico', [Microsoft.Win32.RegistryValueKind]::ExpandString)
+    } finally {
+        $completeKey.Dispose()
     }
 
     $records = @(Get-UninstallRecords $root)
@@ -40,13 +52,12 @@ try {
     }
     $actual = $records | Where-Object Key -eq 'complete'
     if ($actual.InstallLocation -ne 'C:\fixture root\因赛AI' -or $actual.DisplayVersion -ne '1.0.10-rc.1' -or
-        $actual.DisplayName -ne '因赛AI' -or $actual.DisplayIcon -ne 'C:\fixture root\因赛AI\uninstallerIcon.ico' -or
+        $actual.DisplayName -ne '因赛AI' -or $actual.DisplayIcon -ne '%USERPROFILE%\因赛AI\uninstallerIcon.ico' -or
         $actual.UninstallString -ne '"C:\fixture root\因赛AI\Uninstall 因赛AI.exe"') {
         throw 'Registry reader did not preserve the complete record'
     }
     Write-Output 'INSIGHT_WINDOWS_REGISTRY_SMOKE records=2 optional=verified collision=verified'
 } finally {
-    if ($created -and (Test-Path -LiteralPath $root)) {
-        Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
-    }
+    if ($null -ne $fixtureKey) { $fixtureKey.Dispose() }
+    if ($created) { [Microsoft.Win32.Registry]::CurrentUser.DeleteSubKeyTree($relativeRoot, $false) }
 }
