@@ -101,6 +101,7 @@ jobs:
         id: collected
         env:
           INSIGHT_RELEASE_TARGET: darwin-arm64
+          INSIGHT_ARTIFACT_DIRECTORY: ${{ steps.configuration.outputs.artifact_directory }}
         run: node --import tsx scripts/insight-release/collect.ts ${{ inputs.debug_skip_notarization && '--debug' || '' }}
       - name: Upload internal package artifact
         if: success()
@@ -177,6 +178,7 @@ jobs:
         id: collected
         env:
           INSIGHT_RELEASE_TARGET: darwin-x64
+          INSIGHT_ARTIFACT_DIRECTORY: ${{ steps.configuration.outputs.artifact_directory }}
         run: node --import tsx scripts/insight-release/collect.ts ${{ inputs.debug_skip_notarization && '--debug' || '' }}
       - name: Upload internal package artifact
         if: success()
@@ -244,8 +246,10 @@ jobs:
             'DSH_DESKTOP_WINDOWS_SIGNATURE_CACHE_CONCURRENCY=4'
             'DSH_DESKTOP_WINDOWS_COMPRESSION_LEVEL=3'
           ) | Set-Content -LiteralPath (Join-Path $presets 'test.env') -Encoding utf8NoBOM
+          $artifacts = Join-Path $env:GITHUB_WORKSPACE 'apps\desktop\.desktop-build\targets\win-x64\artifacts'
           "DSH_PACKAGING_CONFIG_DIR=$config" >> $env:GITHUB_ENV
           "insight_config_directory=$config" >> $env:GITHUB_OUTPUT
+          "artifact_directory=$artifacts" >> $env:GITHUB_OUTPUT
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
       - name: Build Insight installer
@@ -255,6 +259,7 @@ jobs:
         id: collected
         env:
           INSIGHT_RELEASE_TARGET: win32-x64
+          INSIGHT_ARTIFACT_DIRECTORY: ${{ steps.configuration.outputs.artifact_directory }}
         run: node --import tsx scripts/insight-release/collect.ts
       - name: Upload internal package artifact
         if: success()

@@ -7,7 +7,16 @@ const root = resolve(import.meta.dirname, '..')
 const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insight-package.yml'), 'utf8')) as {
   name: string
   on: { workflow_dispatch: { inputs: { target: { options: string[] } } } }
-  jobs: { 'finalize-release': { steps: Array<{ name?: string; uses?: string; run?: string; env?: Record<string, string>; with?: Record<string, string> }> } }
+  jobs: Record<'arm64' | 'x64' | 'windows' | 'finalize-release', {
+    steps: Array<{
+      id?: string
+      name?: string
+      uses?: string
+      run?: string
+      env?: Record<string, string>
+      with?: Record<string, string>
+    }>
+  }>
 }
 
 it('uses the isolated runtime when creating an Insight GitHub Release', () => {
@@ -28,4 +37,17 @@ it('uses the isolated runtime when creating an Insight GitHub Release', () => {
     expect(steps.find(step => step.name === name)?.run)
       .toBe('node --import "${{ steps.runtime.outputs.loader }}" "${{ steps.runtime.outputs.entry }}"')
   }
+})
+
+it('passes every configured platform artifact directory to the collector', () => {
+  for (const [jobName, target] of [['arm64', 'darwin-arm64'], ['x64', 'darwin-x64'], ['windows', 'win32-x64']] as const) {
+    const steps = workflow.jobs[jobName].steps
+    expect(steps.find(step => step.id === 'configuration')).toBeDefined()
+    expect(steps.find(step => step.id === 'collected')?.env).toMatchObject({
+      INSIGHT_RELEASE_TARGET: target,
+      INSIGHT_ARTIFACT_DIRECTORY: '${{ steps.configuration.outputs.artifact_directory }}',
+    })
+  }
+  expect(workflow.jobs.windows.steps.find(step => step.id === 'configuration')?.run)
+    .toContain('artifact_directory=$artifacts')
 })
