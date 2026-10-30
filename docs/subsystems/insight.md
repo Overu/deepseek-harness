@@ -18,9 +18,9 @@ Insight product UI is Chinese-only. Product selection forces the existing native
 
 Insight opens an isolated native login window before it creates the account profile or starts a Host. The Main process validates login input, uses a dedicated Electron session partition for account requests, and stores packaged credentials under `<userData>/insight/auth/<environment>.json` through `safeStorage`. Development does not persist credentials. Closing the login window before admission exits without starting a Host.
 
-One Desktop process owns one immutable authenticated account. The account scope is the first 32 hexadecimal characters of SHA-256 over the service environment and stable user id. The new DSH Home is `<userData>/insight/accounts/<scope>/harness-native`; a marker binds that directory to its scope, environment, and marker version.
+One Desktop process owns one immutable authenticated account. The account scope is the first 32 hexadecimal characters of SHA-256 over the service environment and stable user id. Its DSH Home is `<userData>/insight/accounts/<scope>/harness`, the account directory used by Insight Shell.
 
-Home preparation fails closed. A legacy `<scope>/harness` path, a checked Insight account path that is a symbolic link, a non-empty native Home without the expected marker, or a mismatched marker prevents Host startup and reports `migration-required`. The current startup path never reads or rewrites legacy Home contents. Historical conversations, workspaces, plugins, and configuration therefore remain untouched until the separate P4 migration path handles them.
+Home preparation creates `harness` only for a new account and otherwise selects it without converting its contents; normal DSH profile, storage, and Session writes then use that Home. A `harness-native` directory with no historical `harness` prevents Host startup and reports `pre-release-data`; it creates no empty fallback and requires product maintenance to decide recovery. When both directories exist, `harness` is authoritative and `harness-native` remains untouched.
 
 ## Process data flow
 
@@ -80,7 +80,7 @@ On macOS, with Node 24.9 or newer and the repository-pinned pnpm available, run 
 DSH_DESKTOP_PRODUCT=insight INSIGHT_DESKTOP_VERSION=1.0.9-dev.0 pnpm run dev:desktop
 ```
 
-The launcher builds the current artifacts and then starts Insight with isolated development data. It does not watch source changes automatically. After rebuilding changed source, use Reload Page or Restart App and Host as appropriate; `pnpm run start:desktop` launches existing artifacts without rebuilding. Keep the Insight product and version variables on both commands.
+The launcher builds the current artifacts and then starts Insight with the Shell-compatible development `userData` location. It does not watch source changes automatically. After rebuilding changed source, use Reload Page or Restart App and Host as appropriate; `pnpm run start:desktop` launches existing artifacts without rebuilding. Keep the Insight product and version variables on both commands.
 
 ## Dev Note
 

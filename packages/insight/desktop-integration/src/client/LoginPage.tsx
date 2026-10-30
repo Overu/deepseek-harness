@@ -26,7 +26,7 @@ function initialState(): InsightLoginState {
 }
 
 function sessionMessage(state: InsightLoginState): string | undefined {
-  if (state.workspace.kind === 'migration-required') return '检测到历史工作区，数据已安全保留。完成迁移后才能进入工作区'
+  if (state.workspace.kind === 'pre-release-data') return '检测到此前开发版本的数据，请联系维护人员处理'
   if (state.workspace.kind === 'failed') return state.workspace.message
   if (state.session.kind === 'offline') return '暂时无法连接登录服务，请检查网络后重试'
   if (state.session.kind === 'expired') return '登录已失效，请重新登录'
@@ -142,10 +142,10 @@ export function LoginPage({ api, logoUrl, legalDocuments }: LoginPageProps) {
     }
   }
 
-  if (state.workspace.kind === 'migration-required') {
-    return <AccountHomeGate api={api} logoUrl={logoUrl} title="历史工作区等待迁移"
-      message="已保留你的历史对话、工作区、插件和配置。迁移尚未完成，因此不会创建空工作区或覆盖已有数据。"
-      detail="请完成迁移后再进入工作区。你可以退出后使用其他账号重新登录。" />
+  if (state.workspace.kind === 'pre-release-data') {
+    return <AccountHomeGate api={api} logoUrl={logoUrl} title="预发布数据需要处理"
+      message="检测到此前开发版本的数据，原文件已保留。本版使用 Shell 原账号目录，不会另建空工作区或自动合并旧测试数据。"
+      detail="请联系维护人员确认需要保留的测试数据及导入位置，再重新登录；也可以退出后使用其他账号。" />
   }
 
   if (state.workspace.kind === 'failed') {

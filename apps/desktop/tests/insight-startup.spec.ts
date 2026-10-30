@@ -102,7 +102,7 @@ async function begin() {
   return { pending }
 }
 
-async function authenticate(home: { kind: 'ready'; dshHome: string } | { kind: 'migration-required' }) {
+async function authenticate(home: { kind: 'ready'; dshHome: string } | { kind: 'pre-release-data' }) {
   fixture.manager.current.mockReturnValue({ kind: 'authenticated', account: fixture.account.summary })
   fixture.manager.getAccount.mockReturnValue(fixture.account)
   fixture.prepareHome.mockResolvedValue(home)
@@ -147,16 +147,16 @@ describe('Insight desktop login startup', () => {
     await expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)
   })
 
-  it('reports legacy Home migration without resolving a bypass context', async () => {
+  it('reports pre-release-only data without resolving an empty fallback context', async () => {
     const { pending } = await begin()
-    await authenticate({ kind: 'migration-required' })
+    await authenticate({ kind: 'pre-release-data' })
     let settled = false
     void pending.finally(() => { settled = true }).catch(() => undefined)
     await Promise.resolve()
     expect(settled).toBe(false)
     expect(fixture.window.webContents.send).toHaveBeenLastCalledWith(
       INSIGHT_DESKTOP_IPC.loginChanged,
-      expect.objectContaining({ workspace: { kind: 'migration-required' } }),
+      expect.objectContaining({ workspace: { kind: 'pre-release-data' } }),
     )
     fixture.callbacks.get('closed')!()
     await expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)

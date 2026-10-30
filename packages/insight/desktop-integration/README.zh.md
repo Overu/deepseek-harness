@@ -114,7 +114,7 @@ Insight 技能选择器读取三个受支持位置：内置目录、`$DSH_HOME/s
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **此处不迁移旧账号数据**——已有 `harness` Home、非空且无标记的 `harness-native` Home 或不匹配的标记会返回 `migration-required`；本包不读取或改写这些数据。
+- **账号 Home 复用而不由选择逻辑转换**——Insight 从账号既有的 `harness` 目录启动 Host，之后正常 DSH profile、storage 和 Session 写入仍在该目录进行。仅有 `harness-native` 而没有 `harness` 时会报告 `pre-release-data`，不创建空的后备 Home，需由产品维护人员决定恢复方式。
 - **Insight 产品界面仅支持中文**——P2 不为登录、账号页脚或 Insight 原生标签增加语言选择或翻译。
 - **尚未接入 Insight 更新交付**——Insight 产品不运行官方自动更新计划，手动检查会报告暂时无法检查；OSS/CDN 交付不属于本包。
 - **Host 凭据服务没有浏览器或 Remote API**——只有同进程 Host 插件可以使用它，并且它们获得结构化失败原因，而不是 Main 进程诊断信息。

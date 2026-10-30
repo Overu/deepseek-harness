@@ -29,7 +29,7 @@ export const INSIGHT_DESKTOP_IPC = {
 export type InsightWorkspaceState =
   | { kind: 'idle' }
   | { kind: 'preparing' }
-  | { kind: 'migration-required' }
+  | { kind: 'pre-release-data' }
   | { kind: 'failed'; message: string }
 
 /** Complete renderer-safe state for the standalone Insight login window. */

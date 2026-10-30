@@ -55,7 +55,7 @@ export function insightLoginInput(value: unknown, agreed: unknown, method: 'sms'
 const invalidInput: AuthCommandResult = { ok: false, reason: 'invalid-input', message: '请检查登录信息并同意协议' }
 
 /**
- * Authenticate before creating a profile or business Host. Historical homes stop at the migration notice.
+ * Authenticate before creating a profile or business Host in the historical account Home.
  * @param product - Validated Insight product identity.
  * @param runtimeVersion - Bundled DSH version, independent of the Insight product version.
  * @param focus - Install the login-window focus callback while startup owns that window.
@@ -143,7 +143,7 @@ export async function prepareInsightDesktop(
     workspace = { kind: 'preparing' }; publish()
     void prepareInsightAccountHome({ insightRoot, environment: environment.name, userId: account.userId }).then((home) => {
       if (closed || attempt !== revision || manager.current().kind !== 'authenticated') return
-      if (home.kind === 'migration-required') { workspace = { kind: 'migration-required' }; publish(); return }
+      if (home.kind === 'pre-release-data') { workspace = { kind: 'pre-release-data' }; publish(); return }
       let admissionClosed = false
       const isActive = (): boolean => !admissionClosed
       const expired = new Set<() => void>()

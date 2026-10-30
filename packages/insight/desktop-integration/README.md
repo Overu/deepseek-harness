@@ -114,7 +114,7 @@ No direct effect. Account presentation and authentication state stay outside mod
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- **Legacy account data is not migrated here** — an existing `harness` Home, a non-empty unmarked `harness-native` Home, or a mismatched marker returns `migration-required`; this package does not read or rewrite that data.
+- **Account Homes are reused, not transformed by selection** — Insight starts the Host from the account's existing `harness` directory, where normal DSH profile, storage, and Session writes continue. A `harness-native` directory without `harness` reports `pre-release-data`, does not create an empty fallback Home, and requires product maintenance to decide recovery.
 - **Insight product UI is Chinese-only** — P2 does not add locale selection or translations for the login, account footer, or Insight native labels.
 - **Insight update delivery is not connected** — the Insight product does not run the official automatic update schedule, and manual update checks report that checking is unavailable; OSS/CDN delivery remains outside this package.
 - **The Host credential service has no browser or Remote API** — only same-process Host plugins can consume it, and they receive structured failure reasons rather than Main-process diagnostics.

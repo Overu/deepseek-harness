@@ -72,11 +72,12 @@ describe('LoginPage', () => {
     expect(bridge.loginSms).not.toHaveBeenCalled()
   })
 
-  it('blocks workspace entry while a preserved historical workspace needs migration', async () => {
-    const bridge = api({ session: { kind: 'authenticated', account: { displayName: '测试账号', maskedPhone: '188****0000' } }, workspace: { kind: 'migration-required' } })
+  it('preserves pre-release-only data and provides a maintenance recovery instruction', async () => {
+    const bridge = api({ session: { kind: 'authenticated', account: { displayName: '测试账号', maskedPhone: '188****0000' } }, workspace: { kind: 'pre-release-data' } })
     render(<LoginPage api={bridge} logoUrl="logo.svg" legalDocuments={legalDocuments} />)
-    expect(await screen.findByRole('heading', { name: '历史工作区等待迁移' })).toBeTruthy()
-    expect(screen.getByText('已保留你的历史对话、工作区、插件和配置。迁移尚未完成，因此不会创建空工作区或覆盖已有数据。')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: '预发布数据需要处理' })).toBeTruthy()
+    expect(screen.getByText('检测到此前开发版本的数据，原文件已保留。本版使用 Shell 原账号目录，不会另建空工作区或自动合并旧测试数据。')).toBeTruthy()
+    expect(screen.getByText(/请联系维护人员确认需要保留的测试数据/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /空工作区|忽略/i })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '退出并重新登录' }))
     await vi.waitFor(() => { expect(bridge.signOut).toHaveBeenCalledOnce() })

@@ -4,6 +4,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
+import { homedir } from 'node:os'
 import { parseArgs } from 'node:util'
 import { DESKTOP_HOST_PROTOCOL_VERSION } from '../src/host-protocol.ts'
 import { resolveDesktopProduct } from '../src/product.ts'
@@ -12,6 +13,7 @@ import { developmentRuntimeDirectory, resolveDesktopBuildTarget } from './deskto
 import { prepareDevelopmentProject } from './development-project.ts'
 import { prepareDevelopmentApp } from './development-app.ts'
 import { preparePrimaryRuntime } from './prepare-primary-runtime.ts'
+import { insightDevelopmentUserData } from './insight-development-data.ts'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -66,8 +68,10 @@ async function launchElectron(): Promise<void> {
   const hostPort = debugPort('DSH_DESKTOP_HOST_INSPECT_PORT', 9230)
   const product = resolveDesktopProduct({ isPackaged: false, environment: process.env })
   const home = resolve(process.env.DSH_HOME ?? join(DEVELOPMENT_ROOT, 'home'))
-  const userData = resolve(process.env.DSH_DESKTOP_USER_DATA_DIR ?? join(DEVELOPMENT_ROOT,
-    product.kind === 'insight' ? product.developmentUserDataName : 'electron-user-data'))
+  const userData = resolve(process.env.DSH_DESKTOP_USER_DATA_DIR ?? (product.kind === 'insight'
+    ? insightDevelopmentUserData({ platform: process.platform, environment: process.env, home: homedir(),
+      directoryName: product.developmentUserDataName })
+    : join(DEVELOPMENT_ROOT, 'electron-user-data')))
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     DSH_HOME: home,

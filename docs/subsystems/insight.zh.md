@@ -18,9 +18,9 @@ Insight 产品界面仅支持中文。产品选择会强制既有原生 Desktop 
 
 Insight 在创建账号 profile 或启动 Host 前打开隔离的原生登录窗口。Main 进程校验登录输入，使用专用 Electron session partition 发起账号请求，并通过 `safeStorage` 将已打包凭据存储在 `<userData>/insight/auth/<environment>.json`。开发环境不持久化凭据。在准入前关闭登录窗口会直接退出，不启动 Host。
 
-一个 Desktop 进程只归属一个不可变的已认证账号。账号 scope 是对服务环境和稳定用户 id 计算 SHA-256 后取得的前 32 个十六进制字符。新的 DSH Home 为 `<userData>/insight/accounts/<scope>/harness-native`；其中的标记把该目录与 scope、环境和标记版本绑定。
+一个 Desktop 进程只归属一个不可变的已认证账号。账号 scope 是对服务环境和稳定用户 id 计算 SHA-256 后取得的前 32 个十六进制字符。其 DSH Home 为 `<userData>/insight/accounts/<scope>/harness`，即 Insight Shell 使用的账号目录。
 
-Home 准备采用故障关闭。旧 `<scope>/harness` 路径、被检查且属于符号链接的 Insight 账号路径、没有预期标记的非空 native Home 或不匹配的标记都会阻止 Host 启动并报告 `migration-required`。当前启动路径不读取或改写旧 Home 内容。因此历史对话、工作区、插件和配置保持不动，直到独立的 P4 迁移路径处理这些数据。
+Home 准备只会为新账号创建 `harness`，否则只选择其中内容而不转换；之后正常 DSH profile、storage 和 Session 写入都使用该 Home。仅有 `harness-native` 而没有历史 `harness` 时会阻止 Host 启动并报告 `pre-release-data`，不创建空后备 Home，需由产品维护人员决定恢复方式。两个目录同时存在时，以 `harness` 为准，`harness-native` 保持不动。
 
 ## 进程数据流
 
@@ -80,7 +80,7 @@ Insight 构建目前排除 DSH 自动更新与强制更新流程。手动更新�
 DSH_DESKTOP_PRODUCT=insight INSIGHT_DESKTOP_VERSION=1.0.9-dev.0 pnpm run dev:desktop
 ```
 
-启动器先构建当前产物，再用隔离开发数据启动 Insight，不会自动监听源码变化。重新构建修改的源码后，按需刷新页面或重启应用与 Host；`pnpm run start:desktop` 使用已有产物启动，不重新构建。两条命令均需保留 Insight 产品与版本变量。
+启动器先构建当前产物，再用与 Shell 兼容的开发 `userData` 位置启动 Insight，不会自动监听源码变化。重新构建修改的源码后，按需刷新页面或重启应用与 Host；`pnpm run start:desktop` 使用已有产物启动，不重新构建。两条命令均需保留 Insight 产品与版本变量。
 
 ## 开发备注
 

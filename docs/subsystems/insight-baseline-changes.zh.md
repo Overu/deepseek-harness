@@ -16,7 +16,7 @@
 | `apps/desktop/src/host-process.ts` 及其测试 | 只在当前 Host 子进程与 Desktop Main 之间承载有界、经校验且可取消的账号令牌请求 | 为每个 Host 消费方保留令牌隔离、当前子进程校验与拆除取消 |
 | `apps/desktop/src/preload-app.ts`、`preload-insight-login.ts`、`client/insight-login.tsx`、其测试与 `tsdown.config.ts` | 构建登录渲染器桥接，并且只向已认证顶层 Insight 工作区暴露账号摘要与退出 | 让两个渲染器上下文都无法获得令牌或不受限 Main IPC |
 | `apps/desktop/src/project-manager.ts`、`fatal-recovery.ts` 及其测试 | 在 profile 创建、已有 profile 准备和插件恢复时保留产品必需的四个 bundle；只在登录后安装账号范围恢复 | 绝不让认证前恢复打开官方 Home 或其他账号 Home |
-| `apps/desktop/scripts/dev.ts`、`development-app.ts`、`electron-builder-config.mjs`、其声明及测试 | 应用 Insight 应用 id、名称、图标、隔离开发数据、包元数据和产品/运行时版本拆分；将根内置技能目录复制为 Insight 专属资源 | 保持构建标识和资源复制为条件行为，让官方制品和签名输入不变 |
+| `apps/desktop/scripts/dev.ts`、`development-app.ts`、`electron-builder-config.mjs`、其声明及测试 | 应用 Insight 应用 id、名称、图标、与 Shell 兼容的开发 userData、包元数据和产品/运行时版本拆分；将根内置技能目录复制为 Insight 专属资源 | 保持构建标识和资源复制为条件行为，让官方制品和签名输入不变 |
 | `apps/desktop/scripts/package-target.ts` 及其测试 | 在桌面闭包选择前打入精确私有组件，并把 Insight 产品版本与 DSH 运行时版本分别记录 | 保持私有桌面打包和发布标识与公开发布成员独立 |
 | `apps/desktop/electron-builder.config.d.mts`、`apps/desktop/scripts/smoke-packaged-runtime.ts`、其测试与 `scripts/run-gates.ts` | 校验产品专属打包元数据，并在 built-smoke 清单中运行 Integration 真实 Loader 测试 | 保持打包检查与 Insight 产品制品及私有 bundle 运行时入口一致 |
 | `apps/desktop/tsconfig.host.json`、`tsconfig.client.json` | 从 Desktop 构建引用可移植 Integration Host 与 Client 编译面 | 保持 Electron 导入属于 Desktop 适配层，并显式区分可移植包编译面 |

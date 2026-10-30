@@ -22,26 +22,18 @@ function paths(insightRoot: string, environment: 'test' | 'production', userId: 
 }
 
 describe('Insight account Home preparation', () => {
-  it('creates and reuses the same marked native Home for a new account', async () => {
+  it('creates and reuses the historical harness directory for a new account', async () => {
     const { insightRoot } = await fixture()
     const expected = paths(insightRoot, 'test', 'user-a')
-
-    await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'user-a' }))
-      .resolves.toEqual({ kind: 'ready', dshHome: expected.harnessNative })
-    const markerPath = join(expected.harnessNative, '.insight-native-home.json')
-    const marker = await readFile(markerPath, 'utf8')
-
-    await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'user-a' }))
-      .resolves.toEqual({ kind: 'ready', dshHome: expected.harnessNative })
-    expect(await readFile(markerPath, 'utf8')).toBe(marker)
-    expect(JSON.parse(marker)).toEqual({
-      version: 1,
-      scope: accountScopeKey('test', 'user-a'),
-      environment: 'test',
-    })
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'user-a' }))
+        .resolves.toEqual({ kind: 'ready', dshHome: expected.harness })
+    }
+    expect(await readdir(expected.harness)).toEqual([])
+    await expect(lstat(expected.harnessNative)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('keeps account and service environments in separate native Homes', async () => {
+  it('keeps account and service environments in separate historical Homes', async () => {
     const { insightRoot } = await fixture()
     const inputs = [
       { environment: 'test' as const, userId: 'user-a' },
@@ -55,7 +47,7 @@ describe('Insight account Home preparation', () => {
     expect(new Set(homes).size).toBe(inputs.length)
   })
 
-  it('does not inspect or modify a legacy Home', async () => {
+  it('reuses an existing Home without reading or changing its data', async () => {
     const { insightRoot } = await fixture()
     const account = paths(insightRoot, 'test', 'legacy-user')
     const session = join(account.harness, 'sessions', 'legacy.jsonl')
@@ -64,28 +56,31 @@ describe('Insight account Home preparation', () => {
     await writeFile(session, bytes)
 
     await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'legacy-user' }))
-      .resolves.toEqual({ kind: 'migration-required' })
+      .resolves.toEqual({ kind: 'ready', dshHome: account.harness })
     expect(await readFile(session)).toEqual(bytes)
     await expect(lstat(account.harnessNative)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
-  it('initializes an empty native Home but preserves unknown native data', async () => {
+  it('preserves pre-release data rather than creating an empty historical default', async () => {
     const { insightRoot } = await fixture()
-    const empty = paths(insightRoot, 'test', 'empty-user')
-    await mkdir(empty.harnessNative, { recursive: true })
-    await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'empty-user' }))
-      .resolves.toEqual({ kind: 'ready', dshHome: empty.harnessNative })
+    const account = paths(insightRoot, 'test', 'pre-release')
+    await mkdir(account.harnessNative, { recursive: true })
+    await writeFile(join(account.harnessNative, 'session.jsonl'), 'pre-release history')
+    await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'pre-release' }))
+      .resolves.toEqual({ kind: 'pre-release-data' })
+    expect(await readFile(join(account.harnessNative, 'session.jsonl'), 'utf8')).toBe('pre-release history')
+    await expect(lstat(account.harness)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
 
-    const unknown = paths(insightRoot, 'test', 'unknown-user')
-    const payload = Buffer.from('unknown-native-data\0', 'utf8')
-    await mkdir(unknown.harnessNative, { recursive: true })
-    await writeFile(join(unknown.harnessNative, 'unknown.bin'), payload)
-    const before = await readdir(unknown.harnessNative)
-
-    await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'unknown-user' }))
-      .resolves.toEqual({ kind: 'migration-required' })
-    expect(await readFile(join(unknown.harnessNative, 'unknown.bin'))).toEqual(payload)
-    expect(await readdir(unknown.harnessNative)).toEqual(before)
+  it('prefers the historical Home and leaves a separate pre-release Home unchanged', async () => {
+    const { insightRoot } = await fixture()
+    const account = paths(insightRoot, 'test', 'both-homes')
+    await mkdir(account.harness, { recursive: true })
+    await mkdir(account.harnessNative)
+    await writeFile(join(account.harnessNative, 'retained'), 'unchanged')
+    await expect(prepareInsightAccountHome({ insightRoot, environment: 'test', userId: 'both-homes' }))
+      .resolves.toEqual({ kind: 'ready', dshHome: account.harness })
+    expect(await readFile(join(account.harnessNative, 'retained'), 'utf8')).toBe('unchanged')
   })
 
   it('does not replace a mismatched native Home marker', async () => {
@@ -97,7 +92,7 @@ describe('Insight account Home preparation', () => {
     await writeFile(markerPath, marker)
 
     await expect(prepareInsightAccountHome({ insightRoot, environment: 'production', userId: 'marked-user' }))
-      .resolves.toEqual({ kind: 'migration-required' })
+      .resolves.toEqual({ kind: 'pre-release-data' })
     expect(await readFile(markerPath, 'utf8')).toBe(marker)
   })
 
