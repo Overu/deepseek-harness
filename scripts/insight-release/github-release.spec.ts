@@ -180,10 +180,24 @@ it('follows one trusted binary redirect without forwarding the GitHub token', as
   await finalizeInsightGitHubRelease({ repository, token: 'secret', tag: 'insight-v1.0.10-rc.1', version: '1.0.10-rc.1', sourceCommit, releaseDirectories: [data.directory], targets: ['darwin-arm64'], qualification: 'distribution', draft: false,
     fetch: async (url, init) => {
       const value = requestUrl(url)
-      if (value.includes('/tags/')) return Response.json(release(assets))
+      if (value.includes('/tags/')) {
+        const headers = new Headers(init?.headers)
+        expect(headers.get('accept')).toBe('application/vnd.github+json')
+        expect(headers.get('authorization')).toBe('Bearer secret')
+        expect(headers.get('x-github-api-version')).toBe('2022-11-28')
+        return Response.json(release(assets))
+      }
       if (value.endsWith('/releases/1')) return Response.json(release(assets, sourceCommit, init?.method === 'PATCH' ? false : true))
-      if (value === assetUrl(1)) return new Response('', { status: 302, headers: { location: 'https://release-assets.githubusercontent.com/a' } })
-      if (value === assetUrl(2)) return new Response('', { status: 302, headers: { location: 'https://objects.githubusercontent.com/m' } })
+      if (value === assetUrl(1) || value === assetUrl(2)) {
+        const headers = new Headers(init?.headers)
+        if (headers.get('accept') !== 'application/octet-stream') return Response.json({ id: 1, name: 'metadata' })
+        expect(headers.get('authorization')).toBe('Bearer secret')
+        expect(headers.get('x-github-api-version')).toBe('2022-11-28')
+        const location = value === assetUrl(1)
+          ? 'https://release-assets.githubusercontent.com/a'
+          : 'https://objects.githubusercontent.com/m'
+        return new Response('', { status: 302, headers: { location } })
+      }
       if (value === 'https://release-assets.githubusercontent.com/a') { forwardedHeaders.push(init?.headers ?? {}); return new Response(data.asset) }
       if (value === 'https://objects.githubusercontent.com/m') { forwardedHeaders.push(init?.headers ?? {}); return new Response(data.manifest) }
       throw new Error(`Unexpected request: ${value}`)

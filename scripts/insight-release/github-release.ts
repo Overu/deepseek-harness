@@ -17,7 +17,7 @@ const hash = (bytes: Uint8Array) => createHash('sha512').update(bytes).digest('b
 function header(token: string, extra: HeadersInit = {}): Headers {
   const result = new Headers(extra)
   result.set('Authorization', `Bearer ${token}`)
-  result.set('Accept', 'application/vnd.github+json')
+  if (!result.has('Accept')) result.set('Accept', 'application/vnd.github+json')
   result.set('X-GitHub-Api-Version', '2022-11-28')
   return result
 }
