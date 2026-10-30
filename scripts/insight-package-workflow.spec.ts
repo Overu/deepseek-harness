@@ -1,7 +1,9 @@
-import { readFile } from 'node:fs/promises'
-import { resolve } from 'node:path'
+import { execFile } from 'node:child_process'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
 import yaml from 'js-yaml'
-import { expect, it } from 'vitest'
+import { expect, it, type TestContext } from 'vitest'
 
 const root = resolve(import.meta.dirname, '..')
 const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insight-package.yml'), 'utf8')) as {
@@ -67,6 +69,72 @@ it('runs the Intel Office diagnostic only after a failed package and before sign
   expect(steps[diagnostic]?.env).toMatchObject({
     INSIGHT_OFFICE_DIAGNOSTIC_ARTIFACTS: '${{ steps.configuration.outputs.artifact_directory }}',
   })
+})
+
+it('observes Intel Office helpers without replacing the package command', () => {
+  const build = workflow.jobs.x64.steps.find(step => step.name === 'Build signed Insight installers')?.run
+  expect(build).toContain('node --import tsx scripts/insight-release/office-process-observer.ts "$$" &')
+  expect(build).toContain('trap stop_office_observer EXIT')
+  expect(build).toContain('local package_status=$?')
+  expect(build).toContain('kill -TERM "$observer_pid"')
+  expect(build).toContain('wait "$observer_pid"')
+  expect(build).toContain('exit "$package_status"')
+  expect(build).toContain('if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then pnpm run package:desktop:mac:x64 --skip-notarization; else pnpm run package:desktop:mac:x64; fi')
+  expect(workflow.jobs.arm64.steps.find(step => step.name === 'Build signed Insight installers')?.run)
+    .not.toContain('office-process-observer')
+})
+
+async function expectObserverTrapExit(packageStatus: number, context: TestContext): Promise<void> {
+  const build = workflow.jobs.x64.steps.find(step => step.name === 'Build signed Insight installers')?.run
+  expect(build).toBeDefined()
+  const directory = await mkdtemp(join(tmpdir(), 'insight-office-observer-shell-'))
+  const fixture = join(directory, 'observer.mjs')
+  const ready = join(directory, 'ready')
+  const stopped = join(directory, 'stopped')
+  const pidFile = join(directory, 'pid')
+  await writeFile(fixture, `
+import { writeFileSync } from 'node:fs'
+const [ready, stopped, pidFile] = process.argv.slice(2)
+writeFileSync(pidFile, String(process.pid))
+process.once('SIGTERM', () => { writeFileSync(stopped, 'stopped'); process.exit(0) })
+writeFileSync(ready, 'ready')
+setInterval(() => {}, 1000)
+`)
+  const shell = build!
+    .replace('node --import tsx scripts/insight-release/office-process-observer.ts "$$" &',
+      `"${process.execPath}" "${fixture}" "${ready}" "${stopped}" "${pidFile}" &`)
+    .replace('if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then pnpm run package:desktop:mac:x64 --skip-notarization; else pnpm run package:desktop:mac:x64; fi',
+      'until [[ -f "$OBSERVER_READY" ]]; do sleep 0.01; done\nexit "$PACKAGE_STATUS"')
+  let closed = false
+  const completion = Promise.withResolvers<number>()
+  const child = execFile('/bin/bash', ['-euo', 'pipefail', '-c', shell], {
+    env: { OBSERVER_READY: ready, PACKAGE_STATUS: String(packageStatus), PATH: process.env.PATH ?? '' },
+    timeout: context.task.timeout, killSignal: 'SIGTERM', maxBuffer: 1024 * 1024,
+  }, (error) => {
+    if (error === null) completion.resolve(0)
+    else if (typeof error.code === 'number') completion.resolve(error.code)
+    else completion.reject(error)
+  })
+  const abort = (): void => { child.kill('SIGTERM') }
+  context.signal.addEventListener('abort', abort, { once: true })
+  child.once('close', () => { closed = true; context.signal.removeEventListener('abort', abort) })
+  context.onTestFinished(async () => {
+    if (!closed) child.kill('SIGTERM')
+    await completion.promise.catch(() => {})
+    await rm(directory, { recursive: true, force: true })
+  })
+  expect(await completion.promise).toBe(packageStatus)
+  expect(await readFile(stopped, 'utf8')).toBe('stopped')
+  const observerPid = Number(await readFile(pidFile, 'utf8'))
+  expect(() => { process.kill(observerPid, 0) }).toThrow(expect.objectContaining({ code: 'ESRCH' }))
+}
+
+it.skipIf(process.platform === 'win32')('the Intel observer trap preserves package success after observer cleanup', async (context) => {
+  await expectObserverTrapExit(0, context)
+})
+
+it.skipIf(process.platform === 'win32')('the Intel observer trap preserves package failure after observer cleanup', async (context) => {
+  await expectObserverTrapExit(37, context)
 })
 
 it('qualifies the current-user Windows upgrade after collection and before uploading the release artifact', () => {

@@ -94,18 +94,20 @@ Windows job 在构建和收集之后、上传 artifact 之前运行当前用户�
 
 原始 macOS x64 打包 job 失败后，非门禁 Office 诊断通过所选 macOS 目标和绝对制品目录调用 `node --import tsx scripts/insight-release/office-diagnostics.ts`。它依赖 `build:official` 已生成的 JavaScript Office resolver，不复制产品 resolver，也不提供应用 fallback。有已签名应用时，自适应矩阵依次观测已签名 ASAR 路径、已签名应用与经过字节校验的 raw runtime、打包 Resources Node 与该 raw runtime，并在首个观测通过后停止。没有已签名应用时，prepared-runtime 观测只能辅助诊断，不能代替应用资格。
 
-每项观测都按 `docx`、`xlsx` 顺序使用产品 converter 限制执行相同转换：engine 转换期限为 60 秒，诊断 controller 进程预算为 150 秒。每项观测使用独立的 `HOME`、XDG、临时目录和 NARB cache 目录。日志只接受阶段、耗时、backend、失败类型、退出、signal、字节数、截断和结果白名单字段，捕获输出上限为 32 KiB，stderr 只报告字节数；不会输出环境值、参数、本地路径、URL、token 或文档内容。当前实现记录 timing 差分，不包含 process sample。
+每项观测都按 `docx`、`xlsx` 顺序使用产品 converter 限制执行相同转换：engine 转换期限为 60 秒，诊断 controller 进程预算为 150 秒。每项观测使用独立的 `HOME`、XDG、临时目录和 NARB cache 目录。日志只接受阶段、耗时、backend、失败类型、退出、signal、字节数、截断和结果白名单字段，捕获输出上限为 32 KiB，stderr 只报告字节数；不会输出环境值、参数、本地路径、URL、token 或文档内容。
 
-工作流只在原始 job 已失败后运行该矩阵，并将步骤标记为 `continue-on-error`。最终记录始终包含 `qualification: false`：观测通过既不改变失败 job 的结果，也不使 CI 合格，任何 raw 模式都不能代替 packaged application smoke。如果受控进程组或其 stream 未能在有界终止和关闭宽限期内静止，controller 会记录 `cleanupFailed`、拒绝该项观测、停止后续矩阵并以非零状态退出。定位并解决 packaged-runtime 差异的源码问题后，可以移除该工具。
+Insight 专用的只读 `/bin/ps` observer 在原 macOS x64 构建旁运行，每秒采样精确的 libreoffice-kit 后代。它在内部用 PID 与启动时间识别进程，但不输出 PID、路径、参数、环境、完整错误或栈采样。固定事件只包含 UTC 时间、相对时间、`seen`、`gone`、45 秒标记和 summary，最多 64 行。每次进程列表调用共享两秒、1 MiB 与强制 kill 上限；取消时等待子进程 `close`。EXIT trap 只停止 observer，保留 pnpm 原退出状态。observer 始终为 `qualification: false`，不修改 Office 60 秒期限、不重试、不放宽任何门禁，也不需要官方保留接口。它补充 preparation 失败清理 runtime 后的观测缺口；某次采样未观测到进程，不代表进程从未启动。
+
+工作流只在原始 job 已失败后运行自适应矩阵，并将步骤标记为 `continue-on-error`。最终记录始终包含 `qualification: false`：观测通过既不改变失败 job 的结果，也不使 CI 合格，任何 raw 模式都不能代替 packaged application smoke。如果受控进程组或其 stream 未能在有界终止和关闭宽限期内静止，controller 会记录 `cleanupFailed`、拒绝该项观测、停止后续矩阵并以非零状态退出。定位并解决 packaged-runtime 差异的源码问题后，可以移除这些工具。
 
 -----
 
 <a id="qualification-status"></a>
 ## 验证状态
 
-本地 registry 修正用既有私有 typed `RegistryKey.GetValue` helper 替换动态 PowerShell `PSObject` 属性访问。最新聚焦运行通过三个文件中的 25 项测试，并在 macOS 上跳过一项真实 Windows smoke；`build:check` 的两个聚合和 scoped lint 均通过。`@electron/notarize` `3.1.2` 实现仍不含 hook，并保留既有 notary executor。这些本地结果不代表 CI 或 Release 合格。
+本地 registry 修正用既有私有 typed `RegistryKey.GetValue` helper 替换动态 PowerShell `PSObject` 属性访问。最新聚焦运行通过三个文件中的 25 项测试，并在 macOS 上跳过一项真实 Windows smoke；`build:check` 的两个聚合和 scoped lint 均通过。observer 通过两个文件中的 14 项测试、`build:check` 两聚合、scoped lint 和独立复审，包含真实 Node 24 事件顺序检查：只能在子进程 `close` 时结算，不能在更早的 `execFile` callback 时结算；尚未执行真实 x64 observer 采样。`@electron/notarize` `3.1.2` 实现仍不含 hook，并保留既有 notary executor。这些本地结果不代表 CI 或 Release 合格。
 
-Windows 当前用户资格检查及其复审已在本地完成，但真实 NSIS 升级尚未在 workflow 中通过。它只验证安装器，不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
+Windows-only run `41096365005` 已通过早期真实 HKCU smoke、native 构建和 collector，随后在旧安装完成后停止：fixture 的 registry 查询被过滤为零条记录，upgrade 尚未开始。NSIS 模板把 `InstallLocation` 写在独立的 `Software\APP_GUID` 安装 key 下，uninstall key 不承诺包含该值。fixture 正在修正为跟随独立指针，不放宽应用身份或路径检查。该失败不能证明生产安装器失败。资格只验证安装器，不覆盖重启、更新 UI、真实账号或旧 Shell 自动发现 rc。旧 Shell 自动更新仍使用 stable `1.0.10` 路径。
 
 Run `41089684008` 已完成 macOS arm64 构建、签名、公证、收集和 artifact 上传，因此 `@electron/notarize` `3.1.2` 已在该架构通过验证。macOS x64 job 在公证开始前的 prepared DOCX smoke 中超时。Windows 构建与 collector 通过，但资格检查在 installer upgrade 前因动态 registry 属性缺陷失败。失败后 Office 诊断因 preparation 失败已删除 runtime 而只得到 unavailable，没有产生 probe 证据。Office 调查独立继续，不提高 timeout。Release 已跳过，OSS 保持不变；arm64 结果不代表 Intel 合格。
 

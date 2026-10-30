@@ -172,6 +172,21 @@ jobs:
 
       - name: Build signed Insight installers
         run: |
+          observer_pid=
+          stop_office_observer() {
+            local package_status=$?
+            local active_jobs
+            trap - EXIT INT TERM
+            active_jobs="$(jobs -pr)"
+            if [[ " ${active_jobs//$'\n'/ } " == *" $observer_pid "* ]]; then kill -TERM "$observer_pid" 2>/dev/null || true; fi
+            wait "$observer_pid" 2>/dev/null || true
+            exit "$package_status"
+          }
+          trap stop_office_observer EXIT
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          node --import tsx scripts/insight-release/office-process-observer.ts "$$" &
+          observer_pid=$!
           if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then pnpm run package:desktop:mac:x64 --skip-notarization; else pnpm run package:desktop:mac:x64; fi
       - name: Collect verified release attachments
         if: success()
