@@ -13,6 +13,9 @@ const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insig
       name?: string
       uses?: string
       run?: string
+      if?: string
+      'continue-on-error'?: boolean
+      'timeout-minutes'?: number
       env?: Record<string, string>
       with?: Record<string, string>
     }>
@@ -50,4 +53,18 @@ it('passes every configured platform artifact directory to the collector', () =>
   }
   expect(workflow.jobs.windows.steps.find(step => step.id === 'configuration')?.run)
     .toContain('artifact_directory=$artifacts')
+})
+
+it('runs the Intel Office diagnostic only after a failed package and before signing cleanup', () => {
+  const steps = workflow.jobs.x64.steps
+  const diagnostic = steps.findIndex(step => step.name === 'Diagnose failed Insight Office conversion')
+  const cleanup = steps.findIndex(step => step.name === 'Remove private signing configuration')
+  expect(diagnostic).toBeGreaterThan(-1)
+  expect(diagnostic).toBeLessThan(cleanup)
+  expect(steps[diagnostic]?.if).toBe("failure() && steps.configuration.outcome == 'success'")
+  expect(steps[diagnostic]?.['continue-on-error']).toBe(true)
+  expect(steps[diagnostic]?.['timeout-minutes']).toBe(15)
+  expect(steps[diagnostic]?.env).toMatchObject({
+    INSIGHT_OFFICE_DIAGNOSTIC_ARTIFACTS: '${{ steps.configuration.outputs.artifact_directory }}',
+  })
 })

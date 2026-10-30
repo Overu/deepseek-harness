@@ -9,8 +9,8 @@
   en: a763f5d0a17aa2db
   zh: 6f78a73e9da8591b
 /insight-desktop-release-pipeline/table-of-contents:
-  en: 9956c11c05b281a1
-  zh: d53a24573aded186
+  en: 181739f297633ae0
+  zh: e88b80cb4af68b9c
 /insight-desktop-release-pipeline/release-flow:
   en: 475f9dcf2f1a594b
   zh: 5e496a43cdff62a4
@@ -24,8 +24,11 @@
   en: 7e25dfed8d7b1c0a
   zh: e5cee829bf5c1442
 /insight-desktop-release-pipeline/trust-and-failure-rules:
-  en: c31eac18e74aac2c
-  zh: 9f7ab16d0963ca1a
+  en: 8e7086ec6d86c105
+  zh: d26f60d7befb105c
+/insight-desktop-release-pipeline/failure-diagnosis:
+  en: 9a640b61e453927a
+  zh: f664ed813ba99b47
 /insight-desktop-release-pipeline/qualification-status:
-  en: 6ad493db5356ca49
-  zh: 69d7b4ba126c7b8e
+  en: 434567b053f5776c
+  zh: 276808ca02d170e4

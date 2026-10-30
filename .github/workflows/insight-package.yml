@@ -189,6 +189,13 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 14
+      - name: Diagnose failed Insight Office conversion
+        if: failure() && steps.configuration.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          INSIGHT_OFFICE_DIAGNOSTIC_ARTIFACTS: ${{ steps.configuration.outputs.artifact_directory }}
+        run: node --import tsx scripts/insight-release/office-diagnostics.ts
       - name: Remove private signing configuration
         if: always() && steps.configuration.outcome == 'success'
         env:

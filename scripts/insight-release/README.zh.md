@@ -13,6 +13,7 @@
 - [发布工作流](#publish-workflow)
 - [已签名更新格式](#signed-update-formats)
 - [信任与失败规则](#trust-and-failure-rules)
+- [失败诊断](#failure-diagnosis)
 - [验证状态](#qualification-status)
 
 -----
@@ -76,13 +77,24 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 -----
 
+<a id="failure-diagnosis"></a>
+## 失败诊断
+
+原始 macOS x64 打包 job 失败后，非门禁 Office 诊断通过所选 macOS 目标和绝对制品目录调用 `node --import tsx scripts/insight-release/office-diagnostics.ts`。它依赖 `build:official` 已生成的 JavaScript Office resolver，不复制产品 resolver，也不提供应用 fallback。有已签名应用时，自适应矩阵依次观测已签名 ASAR 路径、已签名应用与经过字节校验的 raw runtime、打包 Resources Node 与该 raw runtime，并在首个观测通过后停止。没有已签名应用时，prepared-runtime 观测只能辅助诊断，不能代替应用资格。
+
+每项观测都按 `docx`、`xlsx` 顺序使用产品 converter 限制执行相同转换：engine 转换期限为 60 秒，诊断 controller 进程预算为 150 秒。每项观测使用独立的 `HOME`、XDG、临时目录和 NARB cache 目录。日志只接受阶段、耗时、backend、失败类型、退出、signal、字节数、截断和结果白名单字段，捕获输出上限为 32 KiB，stderr 只报告字节数；不会输出环境值、参数、本地路径、URL、token 或文档内容。当前实现记录 timing 差分，不包含 process sample。
+
+工作流只在原始 job 已失败后运行该矩阵，并将步骤标记为 `continue-on-error`。最终记录始终包含 `qualification: false`：观测通过既不改变失败 job 的结果，也不使 CI 合格，任何 raw 模式都不能代替 packaged application smoke。如果受控进程组或其 stream 未能在有界终止和关闭宽限期内静止，controller 会记录 `cleanupFailed`、拒绝该项观测、停止后续矩阵并以非零状态退出。定位并解决 packaged-runtime 差异的源码问题后，可以移除该工具。
+
+-----
+
 <a id="qualification-status"></a>
 ## 验证状态
 
-聚焦实现检查通过 25 个文件中的 437 项测试，独立发布路径检查通过 15 个文件中的 118 项测试。完成一个小型 Node stream 类型 fixture 修复后，受影响的 coordinator suite 通过 27 项测试；修复后的完整 437 项日志尚未归档。导出 JSDoc 与最终 P5 type-aware scoped lint 通过，lint 为零项。最新官方构建已通过全部编译聚合，较早一次 `build:artifacts` 也通过全部八项门禁。公开正式版 `1.0.9` 在线检查通过；另有六项源码测试通过包含十份公开更新文档的冻结离线 fixture。这些结果表示当前没有已知 P5 代码阻塞，但不代表生产渠道已经合格。
+当前发布资格基线是 HEAD `48b5a54d76a00cd05aabb579d778016abd194e03`。聚焦实现检查通过 25 个文件中的 437 项测试，独立发布路径检查通过 15 个文件中的 118 项测试，受影响的 coordinator suite 通过 27 项测试。导出 JSDoc、P5 type-aware scoped lint、官方全部编译聚合、较早一次 `build:artifacts` 的八项门禁、公开正式版 `1.0.9` 在线检查，以及针对冻结公开更新 fixture 的六项源码测试也已通过。这些检查只验证对应代码路径；P5 仍受 Intel packaged-runtime smoke 阻断，尚未取得 Release 或生产渠道资格。
 
-本地 macOS arm64 完整打包命令成功退出。Developer ID 签名、App 与 DMG 公证和 staple 已通过，并行两条公证 lane 分别耗时 299.83 秒与 303.94 秒。独立检查确认解压应用和 DMG 均为系统接受的 Notarized Developer ID 内容。产物包含 276 MiB DMG、383 MiB ZIP、407 KiB blockmap 和 369 B nightly metadata；collector 校验了四个附件及精确 metadata 绑定。`ProductInfo.plist` 记录 `com.insight-aigc.desktop` 和 `1.0.10rc1`。新仓 `DESKTOP_CSC_LINK` 现为经过验证、使用相同叶子证书和私钥并补齐公开 Apple G2 链的副本；用户原始文件未修改。
+Run `41056104627` 完成 Windows、macOS arm64 和 macOS x64 三个 native job，包括两个 macOS 架构的签名公证链、collector 与 Actions artifact。finalizer 随后因请求的下载 header 被覆盖而读取 GitHub 附件 metadata 而非二进制字节，因此整个 run 失败。draft 与全部附件仍保存在已归档的失败 tag 下，从未公开。HEAD `48b5a54…` 已修复二进制回读，但失败 run 不能满足 completed-success 来源要求，也不能手工发布。
 
-该包来自本地脏工作树 HEAD `675192ea4b`，不是 CI。P5 提交 `44e877f7b5fa6a2ef98d13ffc0e91b99f132884f` 已在远端，`insight` 已成为默认分支，两个 workflow 均已激活。首次全目标打包在创建 Release 前失败；对应冷环境修正已通过本地聚焦检查，替代 run 尚待执行。OSS 发布尚未运行。原生检查确认更新窗口可在登录前显示，四击不出现确认，三秒内第五击显示原生内测确认；确认后写入 schema 1、`candidateOptIn: true` 且 mode 600 的 preferences。没有可下载 feed 的开发构建按预期无法安装。原生自动检查不轮询 candidate 目前只有单元测试覆盖，生产 feed 下载和安装路径仍待验证。
+Run `41062174672` 完成 Windows 和 macOS arm64 job。Intel job 到达 packaged application smoke，但在原始 attempt 和保持不变的 failed-job rerun 中均于 XLSX 转换超时；raw preparation smoke 先通过，随后 packaged `app.asar` 路径失败。Intel collector 与 finalizer 均跳过，当前不存在公开 `1.0.10-rc.1` Release，也没有运行 OSS 发布。上述失败后诊断只用于收集非资格证据，不能替代成功的打包 job。
 
-经用户明确授权，既有 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY` 已作为 GitHub 密文一次性迁移到新 `Overu/deepseek-harness` 的 `desktop-release` Environment。七项必需 Secret 均已存在；临时迁移分支与 artifact 已删除，旧 Secret 和旧仓 `main` 保持不变，Secret 值没有暴露。OIDC-to-STS 后端是否接受新仓库数字 id、`insight` ref、`insight-publish.yml` 和 Environment，仍需真实发布请求验证。产品不要求 Windows Authenticode，但真实 `win32-x64` CI 制品和原生安装/升级结果仍待完成。在所需执行通过且用户另行启动发布前，正式发布和所有生产指针保持不变。
+原生检查确认更新窗口可在登录前显示，四击不出现确认，三秒内第五击显示内测确认；确认后写入 schema 1、`candidateOptIn: true` 且 mode 600 的 preferences。七项必需 GitHub Secret 均已存在，包括经授权密文迁移的 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`，Windows CI artifact 也不再待完成。生产 feed 下载与安装、Windows 原生安装升级、旧 Shell 正式版升级，以及 OIDC-to-STS 身份仍未验证。在 P5 完成且用户另行启动发布前，正式发布和所有生产指针保持不变。
