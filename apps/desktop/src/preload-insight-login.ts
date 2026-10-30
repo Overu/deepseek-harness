@@ -16,7 +16,6 @@ const api: InsightLoginApi = {
   loginPassword: (input, agreed) => ipcRenderer.invoke(INSIGHT_DESKTOP_IPC.loginPassword, input, agreed),
   resetLocal: () => ipcRenderer.invoke(INSIGHT_DESKTOP_IPC.loginResetLocal),
   signOut: () => ipcRenderer.invoke(INSIGHT_DESKTOP_IPC.loginSignOut),
-  openAgreement: kind => ipcRenderer.invoke(INSIGHT_DESKTOP_IPC.loginOpenAgreement, kind),
 }
 markDocumentPlatform()
 contextBridge.exposeInMainWorld('insightLogin', api)

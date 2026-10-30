@@ -1,21 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, HelpCircle } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { getMembershipFaqList, type MembershipFaqItem } from '@/api/membership';
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ChevronDown, HelpCircle } from 'lucide-react'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
+import { getMembershipFaqList, type MembershipFaqItem } from '@/api/membership'
 
 interface FrequentlyAskedQuestionsProps {
-  className?: string;
+  className?: string
   /**
    * 是否支持多项同时展开（默认 true，兼容截图中「展开一个其他仍保持关闭状态」的效果）
    */
-  allowMultiple?: boolean;
+  allowMultiple?: boolean
   /**
    * 标题区文案（默认「常见问题」+ 副标题）
    */
-  title?: string;
-  subtitle?: string;
+  title?: string
+  subtitle?: string
 }
 
 /**
@@ -26,25 +26,25 @@ interface FrequentlyAskedQuestionsProps {
  * - React Hooks 规则：所有 hooks（useState/useEffect/useCallback/useMemo）必须在组件顶层且任何 early return 之前调用，避免 hooks 顺序改变导致整个弹窗白屏
  */
 export default function FrequentlyAskedQuestions({ className, allowMultiple = true, title = '常见问题', subtitle = '答疑解惑，护航创作灵感迸发' }: FrequentlyAskedQuestionsProps) {
-  const [list, setList] = useState<MembershipFaqItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [expandedIds, setExpandedIds] = useState<Set<string | number>>(new Set());
+  const [list, setList] = useState<MembershipFaqItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [expandedIds, setExpandedIds] = useState<Set<string | number>>(new Set())
 
   /* ------------- 拉取 FAQ 数据（接口返回 MembershipFaqItem[]，数组；并发拉详情会在 Network 里看到 N 条 /banner/:id 请求） ------------- */
   useEffect(() => {
-    let ignore = false;
-    setLoading(true);
-    setError('');
+    let ignore = false
+    setLoading(true)
+    setError('')
 
     getMembershipFaqList()
-      .then(data => {
-        if (ignore) return;
+      .then((data) => {
+        if (ignore) return
         if (Array.isArray(data)) {
-          setList(data);
+          setList(data)
         } else if (data && typeof data === 'object') {
           // 防御：接口层异常返回单条对象时，做归一化处理，避免 list 非数组扩散到 [...list] 报错
-          const obj = data as unknown as MembershipFaqItem;
+          const obj = data as MembershipFaqItem
           setList([
             {
               faq_id: obj.faq_id ?? 'fallback',
@@ -52,73 +52,73 @@ export default function FrequentlyAskedQuestions({ className, allowMultiple = tr
               answer: obj.answer ?? '',
               sort_order: obj.sort_order ?? 0,
             },
-          ]);
+          ])
         } else {
-          setList([]);
+          setList([])
         }
       })
-      .catch(err => {
-        console.error('[FrequentlyAskedQuestions] fetch failed:', err);
-        if (!ignore) setError('常见问题加载失败');
+      .catch((err) => {
+        console.error('[FrequentlyAskedQuestions] fetch failed:', err)
+        if (!ignore) setError('常见问题加载失败')
       })
       .finally(() => {
-        if (!ignore) setLoading(false);
-      });
+        if (!ignore) setLoading(false)
+      })
 
     return () => {
-      ignore = true;
-    };
-  }, []);
+      ignore = true
+    }
+  }, [])
 
   /* ------------- 展开/切换（hooks 必须在 early return 之前） ------------- */
   const toggle = useCallback(
     (id: string | number) => {
-      setExpandedIds(prev => {
-        const next = new Set(prev);
+      setExpandedIds((prev) => {
+        const next = new Set(prev)
         if (next.has(id)) {
-          next.delete(id);
-          return next;
+          next.delete(id)
+          return next
         }
         // 单选模式：先清空其他
         if (!allowMultiple) {
-          next.clear();
+          next.clear()
         }
-        next.add(id);
-        return next;
-      });
+        next.add(id)
+        return next
+      })
     },
-    [allowMultiple]
-  );
+    [allowMultiple],
+  )
 
   /* ---------- 预处理：sortedList + 每条 answer 的 HTML/纯文本判别 ----------
    * 【hooks 规则】useMemo 必须在任何 early return 之前调用；否则上次渲染 early return 少调一个 hooks，这次又调用一次 → React 抛 hooks 顺序错误 → 整个弹窗白屏
    */
   const sortedList = useMemo(() => {
-    const safeList = Array.isArray(list) ? list : [];
-    return [...safeList].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (b.faq_id ?? 0) - (a.faq_id ?? 0));
-  }, [list]);
+    const safeList = Array.isArray(list) ? list : []
+    return [...safeList].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (b.faq_id ?? 0) - (a.faq_id ?? 0))
+  }, [list])
 
   const htmlAnswerFlags = useMemo(() => {
-    const flags = new Map<string | number, boolean>();
+    const flags = new Map<string | number, boolean>()
     for (const item of sortedList) {
-      const answer = String(item.answer || '');
-      flags.set(item.faq_id, /<[a-zA-Z!][^>]*>/.test(answer));
+      const answer = String(item.answer || '')
+      flags.set(item.faq_id, /<[a-zA-Z!][^>]*>/.test(answer))
     }
-    return flags;
-  }, [sortedList]);
+    return flags
+  }, [sortedList])
 
   const paragraphMap = useMemo(() => {
-    const map = new Map<string | number, string[]>();
+    const map = new Map<string | number, string[]>()
     for (const item of sortedList) {
-      if (htmlAnswerFlags.get(item.faq_id)) continue;
+      if (htmlAnswerFlags.get(item.faq_id)) continue
       const lines = String(item.answer || '')
         .split(/\r?\n/)
         .map(s => s.trim())
-        .filter(Boolean);
-      map.set(item.faq_id, lines);
+        .filter(Boolean)
+      map.set(item.faq_id, lines)
     }
-    return map;
-  }, [sortedList, htmlAnswerFlags]);
+    return map
+  }, [sortedList, htmlAnswerFlags])
 
   /* ------------- 加载态骨架 ------------- */
   if (loading) {
@@ -141,16 +141,16 @@ export default function FrequentlyAskedQuestions({ className, allowMultiple = tr
           ))}
         </div>
       </section>
-    );
+    )
   }
 
   if (error) {
     // 静默失败，不影响主体：直接返回空区
-    return null;
+    return null
   }
 
   if (sortedList.length === 0) {
-    return null;
+    return null
   }
 
   return (
@@ -166,18 +166,18 @@ export default function FrequentlyAskedQuestions({ className, allowMultiple = tr
 
       {/* FAQ 列表（每条 banner = 一条问题；答案 content 通过 getHomeBannerDetail 获取） */}
       <ul className='mx-auto flex w-[min(960px,100%)] flex-col gap-3 mobile:gap-2.5'>
-        {sortedList.map(item => {
-          const expanded = expandedIds.has(item.faq_id);
-          const rawAnswer = String(item.answer || '');
-          const isHtmlAnswer = htmlAnswerFlags.get(item.faq_id) ?? false;
-          const answerParagraphs = paragraphMap.get(item.faq_id) ?? [];
+        {sortedList.map((item) => {
+          const expanded = expandedIds.has(item.faq_id)
+          const rawAnswer = String(item.answer || '')
+          const isHtmlAnswer = htmlAnswerFlags.get(item.faq_id) ?? false
+          const answerParagraphs = paragraphMap.get(item.faq_id) ?? []
 
           return (
             <li
               key={item.faq_id}
               className={cn(
                 'group rounded-xl border border-white/10 bg-white/[0.05] px-5 mobile:px-4 overflow-hidden transition-[border-color,box-shadow] duration-200 ease-out',
-                expanded && 'border-white/20 bg-white/[0.07] shadow-[0_6px_22px_rgba(0,0,0,0.25)]'
+                expanded && 'border-white/20 bg-white/[0.07] shadow-[0_6px_22px_rgba(0,0,0,0.25)]',
               )}
             >
               {/* 触发条：问题标题 = banner.mainTitle（不再用 content 当标题） */}
@@ -191,7 +191,7 @@ export default function FrequentlyAskedQuestions({ className, allowMultiple = tr
                 <span
                   className={cn(
                     'shrink-0 rounded-full p-1 text-white/60 transition-transform duration-200 ease-out group-hover:text-white/85',
-                    expanded && 'rotate-180 text-white/90'
+                    expanded && 'rotate-180 text-white/90',
                   )}
                   aria-hidden='true'
                 >
@@ -230,9 +230,9 @@ export default function FrequentlyAskedQuestions({ className, allowMultiple = tr
                 )}
               </AnimatePresence>
             </li>
-          );
+          )
         })}
       </ul>
     </section>
-  );
+  )
 }

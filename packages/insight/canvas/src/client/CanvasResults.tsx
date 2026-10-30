@@ -49,7 +49,8 @@ export interface CanvasResultsInjected {
 function ResultThumbnail({ product, t }: { product: CanvasResultProduct } & ResultsLocale) {
   const [failed, setFailed] = useState(false)
   const audio = product.kind === 'audio'
-  const mediaStyle = { position: 'absolute' as const, inset: 0, display: 'block', width: '100%', height: '100%', objectFit: 'contain' as const }
+  const mediaStyle = { position: 'absolute' as const, inset: 0, display: 'block', width: '100%', height: '100%',
+    objectFit: 'contain' as const }
   return <div data-canvas-result-thumbnail style={{ position: 'relative', aspectRatio: audio ? undefined : '1',
     gridColumn: audio ? '1 / -1' : undefined, width: '100%', maxWidth: audio ? CANVAS_RESULT_AUDIO_WIDTH : CANVAS_RESULT_TILE_SIZE,
     minHeight: audio ? 54 : undefined, justifySelf: 'start', minWidth: 0, overflow: 'hidden', borderRadius: 6,
@@ -58,33 +59,35 @@ function ResultThumbnail({ product, t }: { product: CanvasResultProduct } & Resu
       ? <span style={{ fontSize: 12, opacity: 0.65, padding: 8 }}>{t('previewUnavailable')}</span>
       : product.kind === 'image'
         ? <img src={product.url} alt={t('pictureAlt')} loading="lazy" decoding="async" referrerPolicy="no-referrer"
-          style={mediaStyle} onError={() => setFailed(true)} />
+          style={mediaStyle} onError={() =>{  setFailed(true) }} />
         : product.kind === 'audio'
-          ? <audio src={product.url} aria-label={t('audioAlt')} preload="metadata" controls style={{ width: '100%', minWidth: 0 }} onError={() => setFailed(true)} />
+          ? <audio src={product.url} aria-label={t('audioAlt')} preload="metadata" controls style={{ width: '100%',
+            minWidth: 0 }} onError={() =>{  setFailed(true) }} />
           : <video src={product.url} aria-label={t('videoAlt')} preload="metadata" muted playsInline
-            style={mediaStyle} onError={() => setFailed(true)} />}
+            style={mediaStyle} onError={() =>{  setFailed(true) }} />}
   </div>
 }
 
 /** Measure the available conversation space, while the bordered card itself wraps its contents. */
 function CanvasResultCard({ canvasId, sources, results, openCanvasResult, t }:
-  { canvasId: string; sources: readonly CanvasResultSource[] } & Pick<CanvasResultsInjected, 'results' | 'openCanvasResult'> & ResultsLocale) {
+  { canvasId: string
+    sources: readonly CanvasResultSource[] } & Pick<CanvasResultsInjected, 'results' | 'openCanvasResult'> & ResultsLocale) {
   const container = useRef<HTMLDivElement>(null)
   const [availableWidth, setAvailableWidth] = useState(CANVAS_RESULT_CARD_INSET + CANVAS_RESULT_TILE_SIZE)
   const [title, setTitle] = useState<string>()
   useEffect(() => {
     let active = true
-    void results.getCanvasTitle(canvasId).then(value => { if (active) setTitle(value) })
+    void results.getCanvasTitle(canvasId).then((value) => { if (active) setTitle(value) })
     return () => { active = false }
   }, [results, canvasId])
   useEffect(() => {
     const element = container.current
     if (!element) return
-    const update = () => setAvailableWidth(element.getBoundingClientRect().width)
+    const update = () =>{  setAvailableWidth(element.getBoundingClientRect().width) }
     update()
     const observer = new ResizeObserver(update)
     observer.observe(element)
-    return () => observer.disconnect()
+    return () =>{  observer.disconnect() }
   }, [])
   const products = canvasResultProducts(sources)
   const groups = canvasResultGroups(products)
@@ -96,10 +99,10 @@ function CanvasResultCard({ canvasId, sources, results, openCanvasResult, t }:
         <strong title={name} style={{ fontSize: 14, fontWeight: 600, flex: '1 1 auto', minWidth: 0, maxWidth: 240,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</strong>
         <Button size="sm" variant="outline" style={{ flexShrink: 0 }}
-          onClick={() => openCanvasResult(canvasId)}>{t('openCanvas')}</Button>
+          onClick={() =>{  openCanvasResult(canvasId) }}>{t('openCanvas')}</Button>
       </div>
       <div style={{ display: 'grid', gap: 16, marginTop: 12 }}>
-        {groups.map(group => {
+        {groups.map((group) => {
           const { columns, width } = canvasResultLayout(group.products, availableWidth)
           return <section key={group.kind} data-canvas-result-group={group.kind} aria-label={t(group.kind)} style={{ minWidth: 0 }}>
             {groups.length > 1 && <h3 style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 500, opacity: 0.65 }}>{t(group.kind)}</h3>}

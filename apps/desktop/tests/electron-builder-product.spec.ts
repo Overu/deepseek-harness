@@ -1,4 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, onTestFinished } from 'vitest'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+import { getFileMatchers, type FileMatcher } from 'app-builder-lib/out/fileMatcher.js'
+
+// The installed builder exports this internal operation without a TypeScript declaration.
+const builderFiles = createRequire(import.meta.url)('app-builder-lib/out/fileMatcher.js') as {
+  copyFiles(matchers: FileMatcher[] | null): Promise<void>
+}
 
 const insightEnvironment = {
   DSH_DESKTOP_PRODUCT: 'insight',
@@ -27,6 +38,9 @@ describe('Insight electron-builder product', () => {
     })
     expect(config.extraMetadata.dshDesktopRuntimeVersion).toMatch(/^0\.2\./u)
     expect(config.extraResources).toContainEqual(expect.objectContaining({ to: 'branding' }))
+    expect(config.extraResources).toContainEqual({
+      from: fileURLToPath(new URL('../../../bundled-skills/', import.meta.url)), to: 'bundled-skills',
+    })
     expect(config.files).toEqual(expect.arrayContaining(['lib/preload-insight-login.cjs', 'lib/insight-login/**/*', 'renderer/**/*']))
     expect(config.mac.icon).toMatch(/packages[\\/]insight[\\/]desktop-integration[\\/]resources[\\/]branding[\\/]icon\.icns$/u)
     expect(config.win.icon).toMatch(/packages[\\/]insight[\\/]desktop-integration[\\/]resources[\\/]branding[\\/]icon\.ico$/u)
@@ -41,6 +55,39 @@ describe('Insight electron-builder product', () => {
     expect(config.protocols).toEqual([{ name: 'DeepSeek Harness', schemes: ['dsh'] }])
     expect(config.mac.extendInfo.NSMicrophoneUsageDescription)
       .toBe('DeepSeek Harness uses your microphone to transcribe speech into message drafts.')
+    expect(config.extraResources.some(resource => resource.to === 'bundled-skills')).toBe(false)
+  })
+
+  it.each(['darwin', 'win32'] as const)('copies the synchronized directory structure through builder extraResources on %s', async (platform) => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const arch = platform === 'win32' ? 'x64' : 'arm64'
+    const config = createElectronBuilderConfig({ ...insightEnvironment,
+      DSH_DESKTOP_TARGET_PLATFORM: platform, DSH_DESKTOP_TARGET_ARCH: arch,
+      DSH_DESKTOP_AUTO_UPDATE_ENV: 'production', DSH_DESKTOP_MANDATORY_UPDATE_PROD_ORIGIN: 'https://policy.fixture.invalid',
+    }, platform, arch)
+    const rule = config.extraResources.find(resource => resource.to === 'bundled-skills')
+    if (rule === undefined) throw new Error('Insight bundled resource declaration missing')
+    const root = await mkdtemp(join(tmpdir(), 'insight-bundled-resources-'))
+    onTestFinished(async () => { await rm(root, { recursive: true, force: true }) })
+    const source = join(root, 'source'), destination = join(root, 'resources')
+    const fixtures = {
+      'example/SKILL.md': 'Synthetic resource bytes; not an instruction validation fixture.',
+      'example/ui.json': '{"displayName":"Fixture"}',
+      'example/scripts/nested/helper.mjs': 'export const fixture = true\n',
+      'example/.fixture': 'hidden resource bytes',
+    }
+    for (const [name, bytes] of Object.entries(fixtures)) {
+      const target = join(source, ...name.split('/'))
+      await mkdir(dirname(target), { recursive: true })
+      await writeFile(target, bytes)
+    }
+    const matchers = getFileMatchers({ extraResources: [{ ...rule, from: source }] }, 'extraResources', destination, {
+      macroExpander: value => value, customBuildOptions: {}, globalOutDir: join(root, 'out'), defaultSrc: root,
+    })
+    await builderFiles.copyFiles(matchers)
+    for (const [name, bytes] of Object.entries(fixtures)) {
+      expect(await readFile(join(destination, 'bundled-skills', ...name.split('/')), 'utf8')).toBe(bytes)
+    }
   })
 
   it.each(['', '0.2.2', '2.0.0', '1.3.0+local'])('requires an explicit 1.x product version: %j', async (version) => {

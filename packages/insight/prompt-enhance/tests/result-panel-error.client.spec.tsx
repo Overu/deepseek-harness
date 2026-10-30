@@ -109,9 +109,9 @@ describe('ResultPanel upstream error copy', () => {
 
 describe('locale parity for the upstream keys', () => {
   it('has the same upstream key set in both dictionaries', () => {
-    const upstream = Object.keys(zh).filter((key) => key.startsWith('error.upstream.')) as PromptEnhanceKey[]
+    const upstream = Object.keys(zh).filter(key => key.startsWith('error.upstream.')) as PromptEnhanceKey[]
     // Eight reasons, each with dedicated copy — the count the panel table expects.
-    expect(upstream.sort()).toEqual(Object.keys(en).filter((key) => key.startsWith('error.upstream.')).sort())
+    expect(upstream.sort()).toEqual(Object.keys(en).filter(key => key.startsWith('error.upstream.')).sort())
     expect(upstream.length).toBe(REASON_EXPECTATIONS.length)
   })
 })

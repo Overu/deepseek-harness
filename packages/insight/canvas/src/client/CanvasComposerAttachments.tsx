@@ -13,7 +13,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * Replacements receive the reference controller and node-opening action.
      * Absence hides the dock without changing native uploads.
      */
-    'desktop-canvas.composer.references': { kind: 'single'; scope: 'session' }
+    'desktop-canvas.composer.references': { kind: 'single'
+      scope: 'session' }
   }
 }
 
@@ -23,7 +24,7 @@ type AttachmentsProps = ComposerAttachmentsProps & PropsRenderSlots<'desktop-can
 
 export function registerCanvasComposerAttachments(ctx: Context, references: CanvasNodeReferences): void {
   ctx.effect(() => ctx.slots.inject('conversation.input.attachments', function* () {
-    const native = ctx.slots.entriesOfSlot('conversation.input.attachments')[0]
+    const native = ctx.slots.entriesOfSlot('conversation.input.attachments').at(0)
     if (!native) throw new Error('Canvas references require the registered attachment renderer')
     const NativeAttachments = native.component as ComponentType<ComposerAttachmentsProps>
     function CanvasComposerAttachments({ canvasSessionId, ...props }: AttachmentsProps) {

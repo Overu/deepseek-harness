@@ -2,7 +2,7 @@ import type { ProductEventMap, ProductEvent } from '@deepseek-ai/dsh-client-prod
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
-import { access, readFile, writeFile } from 'node:fs/promises'
+import { access, opendir, readFile, writeFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -23,7 +23,7 @@ import {
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
 } from 'electron'
-import { resolveDesktopProduct } from './product.ts'
+import { INSIGHT_REQUIRED_BUNDLES, resolveDesktopProduct } from './product.ts'
 import { prepareInsightDesktop, InsightLoginClosedError, type InsightDesktopContext } from './insight-startup.ts'
 import { closeInsightAccount } from './insight-account-exit.ts'
 import { insightNativeLocale, insightWindowTitle } from './insight-native-brand.ts'
@@ -35,6 +35,7 @@ import { DesktopPlatformView, PLATFORM_IPC, platformBounds } from './platform-vi
 import { installDesktopFileDrag } from './file-drag.ts'
 import { installDesktopDirectoryPicker } from './directory-picker.ts'
 import { installMicrophonePermissions } from './microphone-permissions.ts'
+import { installInsightPermissions } from './insight-permissions.ts'
 import { DesktopBackendController } from './backend-controller.ts'
 import { DESKTOP_IPC, SCHEME, assertDesktopSender, type DesktopUpdateState } from './ipc.ts'
 import { readDeviceInfo } from './device-info.ts'
@@ -406,7 +407,7 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
     ? developmentPrimaryRuntime()
     : join(process.resourcesPath, 'runtime', 'primary-runtime')
   const activeProject = paths.profile
-  const manager = new DesktopProjectManager(paths, resources, insight === undefined ? [] : ['@insight-ai/desktop-integration'])
+  const manager = new DesktopProjectManager(paths, resources, insight === undefined ? [] : INSIGHT_REQUIRED_BUNDLES)
   if (insight !== undefined) recovery.setPluginRecovery(async () => { await manager.disableAllPlugins() })
   // Dock and Finder launches inherit only launchd's environment; every Host shares one login-shell read.
   const loginShellRead = new AbortController()
@@ -422,8 +423,27 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
   const prepareHostEnvironment = async (): Promise<void> => {
     const inherited = await loginShell
     if (insight !== undefined && !insight.active) throw new InsightLoginClosedError('Insight account no longer active')
-    hostEnvironment = insight === undefined ? inherited : { ...inherited, DSH_HOME: insight.dshHome,
-      DSH_INSIGHT_SERVICE_ENVIRONMENT: insight.info.environment }
+    const productEnvironment = Object.fromEntries(Object.entries(inherited)
+      .filter(([key]) => {
+        const normalized = key.toUpperCase()
+        return normalized !== 'DSH_PRODUCT_REQUIRED_BUNDLES' && normalized !== 'DSH_INSIGHT_SKILL_PROXY_NODE'
+          && !(insight !== undefined && normalized === 'DSH_BUNDLED_SKILL_DIR')
+      }))
+    const skillProxyNode = join(primaryRuntime, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
+    const bundledSkillDir = development ? fileURLToPath(new URL('../../../bundled-skills', import.meta.url))
+      : join(process.resourcesPath, 'bundled-skills')
+    if (insight !== undefined) {
+      try {
+        const directory = await opendir(bundledSkillDir)
+        try { await directory.read() } finally { await directory.close() }
+      } catch (error) {
+        throw new Error(`Insight bundled skills directory is unavailable: ${bundledSkillDir}`, { cause: error })
+      }
+    }
+    hostEnvironment = insight === undefined ? productEnvironment : { ...productEnvironment,
+      DSH_HOME: insight.dshHome, DSH_INSIGHT_SERVICE_ENVIRONMENT: insight.info.environment,
+      DSH_PRODUCT_REQUIRED_BUNDLES: JSON.stringify(INSIGHT_REQUIRED_BUNDLES), DSH_INSIGHT_SKILL_PROXY_NODE: skillProxyNode,
+      DSH_BUNDLED_SKILL_DIR: bundledSkillDir }
   }
   let quitting = false
   let startup: Promise<void> | undefined
@@ -817,7 +837,8 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
   })
 
   installDesktopDirectoryPicker(() => mainWindow)
-  installMicrophonePermissions(session.defaultSession, () => mainWindow?.webContents)
+  if (desktopProduct.kind === 'insight') installInsightPermissions(session.defaultSession, () => mainWindow?.webContents)
+  else installMicrophonePermissions(session.defaultSession, () => mainWindow?.webContents)
   const shortcuts = installDesktopShortcuts(() => mainWindow, app.getPath('userData'),
     process.platform === 'darwin' ? 'macos' : process.platform === 'win32' ? 'windows' : 'linux', () => { refreshApplicationMenu() }, window => updateOverlays.input(window))
   app.on('will-quit', () => { shortcuts.dispose() })
@@ -1110,6 +1131,24 @@ async function main(insight?: InsightDesktopContext): Promise<void> {
         app.relaunch()
         quitWithoutConfirmation()
       } },
+    ] : [],
+    ...desktopProduct.kind === 'insight' ? [
+      { type: 'separator' as const },
+      { label: currentDesktopLocale().messages.restartAppHostMenu, click: () => {
+        if (quitting) return
+        app.relaunch()
+        quitWithoutConfirmation()
+      } },
+      { label: '查看日志', click: () => {
+        void shell.openPath(app.getPath('logs')).then((error) => {
+          if (error !== '') console.error('desktop logs: unable to open directory', error)
+        }).catch((error: unknown) => { console.error('desktop logs: unable to open directory', error) })
+      } },
+      { type: 'separator' as const },
+      { label: '放大', role: 'zoomIn' as const },
+      { label: '缩小', role: 'zoomOut' as const },
+      { label: '实际大小', role: 'resetZoom' as const },
+      { label: '切换全屏', role: 'togglefullscreen' as const },
     ] : [],
     { type: 'separator' },
     ...hideCommands,

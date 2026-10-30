@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This package provides Canvas tools, conversation references, result cards, and an embedded Canvas page. It preserves the existing package identity and keeps the page's private browser dependencies separate from DSH's shared Client modules. The official Desktop profile does not activate this private component. Cloud actions require an Insight desktop account channel.
+This package provides Canvas tools, conversation references, result cards, and an embedded Canvas page. It preserves the existing package identity and keeps the page's private browser dependencies separate from DSH's shared Client modules. The official Desktop profile does not activate this private component. Cloud actions use the signed-in Insight desktop account.
 
 ## Table of Contents
 
@@ -34,7 +34,9 @@ The iframe builds from `canvas-app`; guidance remains package-owned rather than 
 <details>
 <summary>Implementation internals</summary>
 
-The Host owns tools, local routes, bridge ownership, and result persistence. The Client owns Canvas navigation, references, and the resident page service. The existing page shares its Canvas context with the visible iframe. Both plugin halves use the official workspace compiler and Client bundler; the iframe retains its own Vite build under the root dependency lock. Shared upload names use DSH’s UUID helper, which remains available on plain-HTTP browser pages.
+The Host owns tools, local routes, bridge ownership, and result persistence. The Client owns Canvas navigation, references, and the resident page service. The existing page shares its Canvas context with the visible iframe. Both plugin halves use the official workspace compiler and Client bundler; the iframe retains its own Vite build under the root dependency lock. Shared upload names use DSH’s UUID helper, which remains available on plain-HTTP browser pages. The Host obtains credentials from `ctx.insightAccount`; it does not own another Desktop token IPC client. Main selects the matching service environment.
+
+Authenticated bridge requests admit the exact `dsh-app://app` origin alongside existing Web origins. Connection authentication and Canvas ownership checks still apply. Shutdown stops admission, cancels consumers, waits for dispatch and result writes, then drains OSS uploads before closing bridge and storage resources. Stopping local tracking does not promise cancellation of an accepted cloud operation.
 
 </details>
 
@@ -59,7 +61,7 @@ An unchanged tool set and guidance preserve a stable request prefix. Changed sch
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- The native DSH carrier does not yet supply the Insight account channel or adapt the Canvas bridge to its custom page origin. A successful source build does not validate cloud generation or native iframe integration.
+- Cloud generation, media processing, clipboard, and fullscreen need native desktop verification against their configured services; isolated tests do not establish backend or platform acceptance.
 
 <a id="dev-note"></a>
 ### Dev Note

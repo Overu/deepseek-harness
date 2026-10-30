@@ -37,8 +37,8 @@ describe('locale dictionaries', () => {
 
   it('has non-empty copy for every key in both dictionaries', () => {
     for (const key of Object.keys(zh) as PromptEnhanceKey[]) {
-      expect(String(zh[key]).trim(), `zh['${key}']`).not.toBe('')
-      expect(String(en[key]).trim(), `en['${key}']`).not.toBe('')
+      expect(zh[key].trim(), `zh['${key}']`).not.toBe('')
+      expect(en[key].trim(), `en['${key}']`).not.toBe('')
     }
   })
 })

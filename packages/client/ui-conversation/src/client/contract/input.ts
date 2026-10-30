@@ -258,6 +258,8 @@ export type DraftInitializationResult = 'applied' | 'preserved' | 'blocked'
 export interface InputActions {
   /** Insert one nonblank transcript quote. @param text - selected text. @returns whether editing accepted it. */
   insertQuote(text: string): boolean
+  /** Toggle one visible explicit `/name` skill token without rewriting structured editor nodes. @param name - explicit skill name. */
+  toggleSkill(name: string): void
   /** @returns a revision-guarded copy of the current editor selection. */
   captureInsertion(): TokenSpan
   /**
@@ -310,6 +312,8 @@ export interface InputState {
   readonly claim?: { readonly name: string; readonly token: string; readonly hint?: string; readonly attachments?: boolean }
   /** Reference occurrence view of the editor's chips, sorted by offset. */
   readonly occurrences: readonly Occurrence[]
+  /** Visible explicit skill names derived from the editor detect projection. */
+  readonly selectedSkills: readonly string[]
   /** Messages still waiting for their own turn. */
   readonly queue: InboxState['next-turn']
 }

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Add an Enhance action to the DSH composer to rewrite a draft through the configured model, review the result, apply it, or undo it. Insight integration profiles can apply this bundle explicitly; it does not modify a shipped profile. The action uses the active session route unless the plugin configuration supplies a provider and model pair. The original draft remains available until the user applies the result.
+Add an Enhance action to the DSH composer to rewrite a draft through the Insight session route, review the result, apply it, or undo it. Insight integration profiles can apply this bundle explicitly; it does not modify a shipped profile. The original draft remains available until the user applies the result.
 
 ## Table of Contents
 
@@ -39,7 +39,7 @@ The Host registers the enhancement request route and command, while the Web Clie
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-[cordis.patch.yml](cordis.patch.yml) inserts one row named `prompt-enhance`. The Host validates configuration, resolves the route, and streams the model result. The Client owns draft interaction and does not alter the submitted conversation until the user selects Apply.
+[cordis.patch.yml](cordis.patch.yml) inserts one row named `prompt-enhance`. The Host validates configuration and serves authenticated routes through DSH Connection, including the Electron client origin. The Client owns draft interaction and does not alter the submitted conversation until the user selects Apply.
 
 </details>
 
@@ -74,7 +74,7 @@ The separate enhancement request does not reuse the active conversation request 
 <a id="known-limitations-and-deferred-work"></a>
 
 - The bundle requires an Insight-owned profile patch; no shipped DSH profile mounts it by default.
-- The Host route needs a resolved model route before it can enhance a draft.
+- The Host route needs an active session route or the Insight default route before it can enhance a draft.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -31,21 +31,12 @@ export class EnhanceFailure extends Error {
 }
 
 /**
- * Resolve the call route by precedence: the explicit settings pair, then the
- * session's logged request route, then the harness default-model selection.
- * @param explicit - the plugin settings provider/model pair (both or neither).
+ * Resolve the call route from the current session, then the harness default-model selection.
  * @param session - the session's current request-header route, when known.
  * @param fallback - the `agent-default-model` selection, when registered.
  * @returns the route, or undefined when no source names one.
  */
-export function resolveRoute(explicit: Partial<RoutePair> | undefined, session: RoutePair | undefined, fallback: RoutePair | undefined): RoutePair | undefined {
-  // Defensive trim: the explicit pair may come from a hand-edited settings
-  // document, and `readConfig` normalization is best-effort defense in depth.
-  const provider = typeof explicit?.provider === 'string' ? explicit.provider.trim() : ''
-  const model = typeof explicit?.model === 'string' ? explicit.model.trim() : ''
-  if (provider !== '' && model !== '') {
-    return { provider, model }
-  }
+export function resolveRoute(session: RoutePair | undefined, fallback: RoutePair | undefined): RoutePair | undefined {
   return session ?? fallback
 }
 
@@ -87,14 +78,14 @@ export interface EnhanceCallOptions {
 export async function enhanceText(llm: LlmStreamFace, options: EnhanceCallOptions): Promise<EnhanceResult> {
   const started = Date.now()
   const controller = new AbortController()
-  let timedOut = false
+  const outcome = { timedOut: false }
   let callerAborted = false
   const timer = setTimeout(() => {
-    timedOut = true
+    outcome.timedOut = true
     controller.abort()
   }, options.timeoutMs)
   const onCallerAbort = (): void => {
-    if (!timedOut) callerAborted = true
+    if (!outcome.timedOut) callerAborted = true
     controller.abort()
   }
   options.signal?.addEventListener('abort', onCallerAbort, { once: true })
@@ -180,10 +171,10 @@ export async function enhanceText(llm: LlmStreamFace, options: EnhanceCallOption
     const finishError = finishToDetail(assembler.finish)
     if (finishError !== undefined) fail(finishError)
     const blocks = assembler.blocks()
-    if (blocks.some((block) => block.type === 'tool-call')) {
+    if (blocks.some(block => block.type === 'tool-call')) {
       fail({ code: 'upstream', params: { reason: 'tool-call' } })
     }
-    const joined = blocks.filter((block) => block.type === 'text').map((block) => block.text).join('\n')
+    const joined = blocks.filter(block => block.type === 'text').map(block => block.text).join('\n')
     const text = normalizeOutput(joined)
     if (text === '') {
       fail({ code: 'upstream', params: { reason: 'empty' } })
@@ -191,7 +182,7 @@ export async function enhanceText(llm: LlmStreamFace, options: EnhanceCallOption
     return { text, provider: options.route.provider, model: options.route.model, elapsedMs: Date.now() - started }
   } catch (error) {
     if (error instanceof EnhanceFailure) throw error
-    if (timedOut) {
+    if (outcome.timedOut) {
       throw new EnhanceFailure({ code: 'timeout', params: { seconds: Math.ceil(options.timeoutMs / 1000) } })
     }
     if (callerAborted || (error instanceof Error && error.name === 'AbortError')) {
@@ -286,8 +277,8 @@ export function formatEnhanceError(error: EnhanceError): string {
     case 'rate-limit': text = `请求过于频繁：每分钟最多 ${params.limit ?? '?'} 次增强，请 ${params.retryAfterSeconds ?? '稍候'} 秒后再试。`; break
     case 'concurrency-limit': text = `已有 ${params.max ?? '?'} 个增强在进行中，请等待其中一个完成后再试。`; break
     case 'timeout': text = `增强超时（${params.seconds ?? '?'} 秒），可重试；原输入未改动。`; break
-    case 'unconfigured': text = '尚未确定增强用的模型：请在插件设置中成对填写 provider/model，或先在当前会话发送一条消息（将跟随会话模型）。'; break
-    case 'upstream': text = typeof params.reason === 'string' ? (REASON_HINTS[params.reason as UpstreamReason] ?? '模型服务返回错误，请重试；原输入未改动。') : '模型服务返回错误，请重试；原输入未改动。'; break
+    case 'unconfigured': text = '暂时无法确定增强服务，请重新登录后再试。'; break
+    case 'upstream': text = typeof params.reason === 'string' ? REASON_HINTS[params.reason as UpstreamReason] : '模型服务返回错误，请重试；原输入未改动。'; break
     default: text = '增强失败，请重试；原输入未改动。'
   }
   const detail = error.message

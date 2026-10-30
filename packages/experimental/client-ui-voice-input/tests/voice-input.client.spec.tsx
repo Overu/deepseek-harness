@@ -21,7 +21,7 @@ const transcript: Transcript = { text: '检查 TypeScript 类型', audioSeconds:
 function fixture(recording?: Recording, navigable = true) {
   const capture = Object.assign(new Recording(() => {}), { start: vi.fn<Recording['start']>(async () => {}), stop: vi.fn(async () => new Uint8Array(48)),
     amplitude: () => 0, dispose: vi.fn(async () => {}) })
-  const inputActions = { notify: vi.fn(), insertQuote: () => false,
+  const inputActions = { notify: vi.fn(), insertQuote: () => false, toggleSkill: () => {},
     captureInsertion: vi.fn(() => ({ start: 3, end: 3, draftRev: 1 })), insertText: vi.fn(() => true),
     setDraft: vi.fn(), persistDraft: vi.fn(), addAttachments: vi.fn(() => true), removeAttachment: vi.fn(),
     pruneAttachments: vi.fn(), submit: vi.fn() }

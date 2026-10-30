@@ -166,7 +166,7 @@ describe('enhanceText', () => {
     await started
     controller.abort()
     await expect(result).rejects.toMatchObject({ detail: { code: 'internal' } })
-    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
     expect(finalized).toBe(true)
     releaseSink()
   })
@@ -176,18 +176,13 @@ describe('resolveRoute', () => {
   const session: RoutePair = { provider: 'session-p', model: 'session-m' }
   const fallback: RoutePair = { provider: 'default-p', model: 'default-m' }
 
-  it('prefers the explicit settings pair', () => {
-    expect(resolveRoute({ provider: 'zhipu', model: 'glm-5.3' }, session, fallback)).toEqual({ provider: 'zhipu', model: 'glm-5.3' })
-  })
-
   it('falls back to the session route, then the harness default', () => {
-    expect(resolveRoute(undefined, session, fallback)).toBe(session)
-    expect(resolveRoute(undefined, undefined, fallback)).toBe(fallback)
-    expect(resolveRoute({ provider: 'zhipu' }, session, fallback)).toBe(session)
+    expect(resolveRoute(session, fallback)).toBe(session)
+    expect(resolveRoute(undefined, fallback)).toBe(fallback)
   })
 
   it('yields undefined when nothing names a route', () => {
-    expect(resolveRoute(undefined, undefined, undefined)).toBeUndefined()
+    expect(resolveRoute(undefined, undefined)).toBeUndefined()
   })
 })
 
@@ -214,7 +209,7 @@ describe('formatEnhanceError', () => {
     expect(formatEnhanceError({ code: 'rate-limit', params: { limit: 10, retryAfterSeconds: 7 } })).toContain('7 秒')
     expect(formatEnhanceError({ code: 'concurrency-limit', params: { max: 2 } })).toContain('2')
     expect(formatEnhanceError({ code: 'timeout', params: { seconds: 60 } })).toContain('60 秒')
-    expect(formatEnhanceError({ code: 'unconfigured' })).toContain('provider/model')
+    expect(formatEnhanceError({ code: 'unconfigured' })).toContain('重新登录')
   })
 
   it('picks a specific hint for known upstream reasons and appends the raw detail', () => {

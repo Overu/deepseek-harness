@@ -1,6 +1,5 @@
 import type { CanvasId } from '../shared/protocol.ts'
 import { requestCanvasJson } from './canvas-api.ts'
-import { desktopToken } from './desktop-token.ts'
 export { CanvasHttpError } from './canvas-api.ts'
 
 export interface CanvasNodeSummary {
@@ -45,7 +44,7 @@ export function parseCanvasGet(canvasId: CanvasId, body: unknown): CanvasSnapsho
       id: node.id,
       title: bounded(record(node.data)?.title ?? node.title, '未命名节点', 100),
       type: bounded(node.type, 'unknown', 40),
-      value: bounded(record(node.data)?.value ?? node.value, '', 1000)
+      value: bounded(record(node.data)?.value ?? node.value, '', 1000),
     }
   })
   return { canvasId, name: bounded(data.name, '未命名画布', 100), nodeCount: nodes.length, nodes: preview }
@@ -54,9 +53,9 @@ export function parseCanvasGet(canvasId: CanvasId, body: unknown): CanvasSnapsho
 /** Call only the configured canvas Gateway with the current desktop identity. */
 export async function fetchCanvas(
   id: CanvasId,
-  tokenProvider: (signal?: AbortSignal) => Promise<string> = desktopToken,
+  tokenProvider: (signal?: AbortSignal) => Promise<string>,
   transport: typeof fetch = fetch,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<CanvasSnapshot> {
   return parseCanvasGet(id, await requestCanvasJson('get', { id }, signal, { tokenProvider, transport }))
 }

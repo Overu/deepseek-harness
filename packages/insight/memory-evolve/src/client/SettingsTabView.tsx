@@ -14,6 +14,7 @@
  * 配置，专心做记忆文件浏览与待确认记忆建议。
  */
 import { useEffect, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { MemoryQueueView } from './MemoryQueueView.tsx'
@@ -47,7 +48,7 @@ export function SettingsTabView(props: ConvViewProps & SettingsTabViewProps): JS
           role="tab"
           aria-selected={feature === 'guide'}
           className={feature === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('guide')}
+          onClick={() =>{  setFeature('guide') }}
         >
           {t('settingsTab.feature.guide')}
         </button>
@@ -56,7 +57,7 @@ export function SettingsTabView(props: ConvViewProps & SettingsTabViewProps): JS
           role="tab"
           aria-selected={feature === 'config'}
           className={feature === 'config' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('config')}
+          onClick={() =>{  setFeature('config') }}
         >
           {t('settingsTab.feature.config')}
         </button>

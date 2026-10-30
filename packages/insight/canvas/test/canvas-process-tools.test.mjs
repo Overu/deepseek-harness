@@ -1,3 +1,4 @@
+import { createCanvasIntentBudget } from '../src/host/canvas-intent-budget.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { registerCanvasProcessTools } from '../src/host/canvas-process-tools.ts'
@@ -17,7 +18,7 @@ function fixture(t,{decline=false,fast=false}={}){
     if(op.action==='process.preflight')return{status:'process_ready',canvasId:'2873',version:'2',planId:'plan',nodeId:'processor',outputNodeIds:['output'],generation:{images:1,videos:0},quote:{points:1,originalPoints:null}}
     assert.equal(op.action,'process.run');if(fast)listeners.get(request)?.(state(request));return{status:'process_submitted',canvasId:'2873',version:'3',nodeId:'processor',outputNodeIds:['output'],operationId:request,generation:{images:1,videos:0}}
   }}
-  registerCanvasRunTools(ctx,bridge);registerCanvasProcessTools(ctx,bridge,{record:async(binding,state)=>recorded.push({binding,state})})
+  const budget=createCanvasIntentBudget();registerCanvasRunTools(ctx,bridge,{budget});registerCanvasProcessTools(ctx,bridge,{record:async(binding,state)=>recorded.push({binding,state})},undefined,budget)
   t.after(()=>effects.reverse().forEach(fn=>fn?.()))
   const event=value=>handlers.forEach(handler=>handler(session,value));event({type:'user/message',seq:1,data:{source:{kind:'user'}}})
   return{tools,calls,recorded,jobs,async invoke(name,input,id=name){event({type:'tool/call',seq:2,data:{callId:id,turn:1}});return JSON.parse(await tools.get(name).execute(input,{agent,callId:id,rootCallId:id,signal:new AbortController().signal}))}}

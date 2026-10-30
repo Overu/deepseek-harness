@@ -12,10 +12,10 @@ function fixture(response = () => envelope({ id: '103136', versionNumber: 0 })) 
   return { calls, dependencies }
 }
 test('create uses the existing empty canvas payload, fixed environment and current desktop identity', async () => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   try {
     for (const [environment, domain] of [['test', '-test'], ['production', '']]) {
-      process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = environment
+      process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
       const f = fixture()
       assert.deepEqual(await createEmptyCanvas('  产品项目  ', controller().signal, f.dependencies), { canvasId: '103136', name: '产品项目', version: '0' })
       assert.equal(f.calls.length, 1)
@@ -26,8 +26,8 @@ test('create uses the existing empty canvas payload, fixed environment and curre
       assert.deepEqual(JSON.parse(init.body), { name: '产品项目', temp: false, canvasType: 0, version: 'comfyui', data: '{"nodes":[],"edges":[]}' })
     }
   } finally {
-    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-    else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous
+    if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
   }
 })
 test('create preserves exact Long strings, scalar IDs and optional versions', async () => {

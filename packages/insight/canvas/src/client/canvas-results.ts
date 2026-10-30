@@ -5,8 +5,10 @@ import { consumeSse } from './sse.ts'
 import { parseCanvasId } from '../shared/protocol.ts'
 import { MAX_TITLE_LENGTH } from '../shared/canvas-agent-protocol.ts'
 
-interface CanvasResultCall { readonly callId: string; readonly seq: number }
-export interface CanvasResultTurnData { readonly turn: number; readonly calls: readonly CanvasResultCall[] }
+interface CanvasResultCall { readonly callId: string
+  readonly seq: number }
+export interface CanvasResultTurnData { readonly turn: number
+  readonly calls: readonly CanvasResultCall[] }
 
 declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
   interface ConversationTurnDataMap { 'desktop-canvas-results': CanvasResultTurnData }
@@ -79,7 +81,9 @@ export class CanvasResultsStore {
   private disposed = false
   private titleController = new AbortController()
   private readonly titleRequests = new Map<string, Promise<string | undefined>>()
-  constructor(private readonly options: { origin: string; transport?: typeof fetch; reconnectMs?: number }) {}
+  constructor(private readonly options: { origin: string
+    transport?: typeof fetch
+    reconnectMs?: number }) {}
 
   /** Reuse the existing authenticated, read-only snapshot; no runtime/model initialization. */
   getCanvasTitle(canvasId: string): Promise<string | undefined> {
@@ -151,7 +155,8 @@ export class CanvasResultsStore {
     return session
   }
   private publish(session: SessionResults): void { for (const listener of session.listeners) listener() }
-  private merge(sessionId: string, session: SessionResults, sources: readonly CanvasResultSource[], live: Set<string>, upsert = false): void {
+  private merge(sessionId: string, session: SessionResults, sources: readonly CanvasResultSource[], live: Set<string>,
+    upsert = false): void {
     let changed = false
     for (const source of sources) {
       if (source.sessionId !== sessionId) throw new Error('canvas result belongs to another Session')
@@ -162,7 +167,8 @@ export class CanvasResultsStore {
       session.sources.set(source.requestId, source); changed = true
     }
     if (!changed) return
-    session.snapshot = [...session.sources.values()].sort((left, right) => left.rootCallSeq - right.rootCallSeq || left.createdAt - right.createdAt)
+    session.snapshot = [...session.sources.values()].sort((left, right) => left.rootCallSeq - right.rootCallSeq ||
+ left.createdAt - right.createdAt)
     this.publish(session)
   }
   private async loop(sessionId: string, session: SessionResults): Promise<void> {
@@ -180,8 +186,10 @@ export class CanvasResultsStore {
       const signal = AbortSignal.any([controller.signal, attempt.signal])
       try {
         const response = await request(undefined, true, signal)
-        if ([401, 403, 404].includes(response.status)) { session.sources.clear(); session.snapshot = EMPTY; this.publish(session); return }
-        if (!response.ok || !response.body || !response.headers.get('content-type')?.startsWith('text/event-stream')) throw new Error('canvas result stream unavailable')
+        if ([401, 403, 404].includes(response.status)) { session.sources.clear(); session.snapshot = EMPTY
+          this.publish(session); return }
+        if (!response.ok || !response.body ||
+ !response.headers.get('content-type')?.startsWith('text/event-stream')) throw new Error('canvas result stream unavailable')
         const live = new Set<string>(), seen = new Set<string>(), cursors = new Set<string>()
         let snapshotStarted = false
         const finishSnapshot = () => {
@@ -190,7 +198,8 @@ export class CanvasResultsStore {
             if (!seen.has(key) && !live.has(key)) { session.sources.delete(key); removed = true }
           }
           if (removed) {
-            session.snapshot = [...session.sources.values()].sort((left, right) => left.rootCallSeq - right.rootCallSeq || left.createdAt - right.createdAt)
+            session.snapshot = [...session.sources.values()].sort((left,
+              right) => left.rootCallSeq - right.rootCallSeq || left.createdAt - right.createdAt)
             this.publish(session)
           }
         }
@@ -204,6 +213,7 @@ export class CanvasResultsStore {
             if (!page.ok) throw new Error('canvas result history unavailable')
             const event = parseCanvasResultEvent(await page.json())
             if (event.type !== 'snapshot') throw new Error('canvas result page must be a snapshot')
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Cancellation may run during the awaited read.
             if (signal.aborted) return
             event.sources.forEach(source => seen.add(source.requestId))
             this.merge(sessionId, session, event.sources, live)
@@ -211,7 +221,7 @@ export class CanvasResultsStore {
           }
           if (!signal.aborted) finishSnapshot()
         }
-        await consumeSse(response.body, input => {
+        await consumeSse(response.body, (input) => {
           if (signal.aborted) return
           const event = parseCanvasResultEvent(input)
           if (event.type === 'upsert') this.merge(sessionId, session, [event.source], live, true)
@@ -221,8 +231,9 @@ export class CanvasResultsStore {
             event.sources.forEach(source => seen.add(source.requestId))
             this.merge(sessionId, session, event.sources, live)
             failures = 0
-            if (event.nextCursor) {
-              hydration = hydration.then(() => loadPages(event.nextCursor!))
+            const nextCursor = event.nextCursor
+            if (nextCursor) {
+              hydration = hydration.then(() => loadPages(nextCursor))
               // A page failure ends this observation stream; reconnect obtains a new snapshot.
               void hydration.catch(() => { attempt.abort() })
             } else finishSnapshot()
@@ -231,7 +242,8 @@ export class CanvasResultsStore {
         await hydration
       } catch { failures++ /* Reconnect reads receipts; it never submits native generation or saves. */ }
       finally { attempt.abort() }
-      if (!controller.signal.aborted) await new Promise<void>(resolve => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Cancellation may run during the awaited read.
+      if (!controller.signal.aborted) await new Promise<void>((resolve) => {
         const finish = () => { clearTimeout(timer); controller.signal.removeEventListener('abort', finish); resolve() }
         const timer = setTimeout(finish, Math.min(5000, (this.options.reconnectMs ?? 500) * 2 ** Math.min(failures, 4)))
         controller.signal.addEventListener('abort', finish, { once: true })

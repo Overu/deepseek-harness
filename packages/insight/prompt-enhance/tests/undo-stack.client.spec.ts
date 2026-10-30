@@ -73,6 +73,6 @@ describe('createUndoStack', () => {
     expect(stack.peek('missing')).toBeUndefined()
     expect(stack.pop('missing')).toBeUndefined()
     expect(stack.depth('missing')).toBe(0)
-    expect(() => stack.clear('missing')).not.toThrow()
+    expect(() =>{  stack.clear('missing') }).not.toThrow()
   })
 })

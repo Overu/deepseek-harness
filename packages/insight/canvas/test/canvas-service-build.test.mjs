@@ -58,7 +58,7 @@ test('real Client apply owns the service effect independently of tabs/input slot
   const host = { location: { origin: 'http://127.0.0.1:3000' } }
   let opened = 0
   const effects = new Map()
-  const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, module: { exports: {} }, exports: {}, require: () => ({}) }
+  const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, module: { exports: {} }, exports: {}, require: name => name === '@deepseek-ai/dsh-util-crypto' ? { randomUUID: () => crypto.randomUUID() } : ({}) }
   sandbox.exports = sandbox.module.exports
   vm.runInNewContext(result.outputFiles[0].text, sandbox)
   sandbox.module.exports.apply({
@@ -104,7 +104,7 @@ test('real Client binds the on-screen session without input or canvas mounts, an
     if (input.endsWith('/client-event')) posts.push(JSON.parse(init.body))
     return Response.json({})
   }
-  const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, setTimeout, TextEncoder, TextDecoder, module: { exports: {} }, exports: {}, fetch: transport, require: () => ({}) }
+  const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, setTimeout, TextEncoder, TextDecoder, module: { exports: {} }, exports: {}, fetch: transport, require: name => name === '@deepseek-ai/dsh-util-crypto' ? { randomUUID: () => crypto.randomUUID() } : ({}) }
   const context = vm.createContext(sandbox)
   sandbox.structuredClone = value => vm.runInContext('JSON.parse(' + JSON.stringify(JSON.stringify(value)) + ')', context)
   sandbox.exports = sandbox.module.exports; vm.runInContext(result.outputFiles[0].text, context)
@@ -136,7 +136,7 @@ test('real Client registers a scoped results footer and canvas navigation only o
   const result = await build({ entryPoints: [new URL('../src/client/index.ts', import.meta.url).pathname], bundle: true, write: false, format: 'cjs', platform: 'browser', jsx: 'automatic', external: ['react', 'react/*', '@deepseek-ai/*'] })
   const effects = new Map(), entries = [], navigations = [], definitions = []
   const host = { location: { origin: 'http://127.0.0.1:3000' } }
-  const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, module: { exports: {} }, exports: {}, require: () => ({}) }
+  const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, module: { exports: {} }, exports: {}, require: name => name === '@deepseek-ai/dsh-util-crypto' ? { randomUUID: () => crypto.randomUUID() } : ({}) }
   sandbox.exports = sandbox.module.exports
   vm.runInNewContext(result.outputFiles[0].text, sandbox)
   sandbox.module.exports.apply({

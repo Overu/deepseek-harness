@@ -4,6 +4,7 @@
  * 注入 sessionId；t 由插件闭包传入。
  */
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import type { JSX } from 'react'
 import { CopySessionIdButton } from './CopySessionIdButton.tsx'
 import { AliasButton } from './AliasButton.tsx'
 

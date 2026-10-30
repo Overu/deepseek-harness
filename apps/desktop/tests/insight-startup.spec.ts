@@ -57,7 +57,6 @@ vi.mock('@insight-ai/desktop-integration/desktop', () => ({
   resolveAuthEnvironment: () => ({ name: 'test', partition: 'persist:insight-test', baseUrl: 'https://example.test' }),
 }))
 
-vi.mock('node:fs/promises', () => ({ readFile: vi.fn(async () => '<html></html>') }))
 
 const { InsightLoginClosedError, insightLoginInput, prepareInsightDesktop } = await import('../src/insight-startup.ts')
 

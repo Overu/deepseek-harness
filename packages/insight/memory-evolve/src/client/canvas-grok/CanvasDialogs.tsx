@@ -6,10 +6,15 @@
  * 走文件代理，否则占位色块。
  */
 import { useCallback, useRef, useState } from 'react'
+import type { JSX } from 'react'
 import { TYPE_GLYPH, TYPE_LABEL } from './constants.ts'
 import { inferTypeFromPath, placeholderHue } from './helpers.ts'
 import { fileProxyUrl, searchFilesBackend } from './api-client.ts'
 import type { CanvasDialogKind, CanvasNode, CanvasNodeType } from './types.ts'
+
+function isCanvasNodeType(type: string): type is CanvasNodeType {
+  return Object.hasOwn(TYPE_GLYPH, type)
+}
 
 export interface PathSubmit {
   path: string
@@ -57,7 +62,7 @@ function PathDialog(props: { onClose: () => void; onPath: (p: PathSubmit) => voi
           autoFocus
           value={path}
           placeholder="/Users/me/Documents/合同.pdf"
-          onChange={(e) => setPath(e.target.value)}
+          onChange={(e) =>{  setPath(e.target.value) }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && path.trim()) props.onPath({ path })
             if (e.key === 'Escape') props.onClose()
@@ -73,7 +78,7 @@ function PathDialog(props: { onClose: () => void; onPath: (p: PathSubmit) => voi
           type="button"
           className="cg-btn cg-primary"
           disabled={!path.trim()}
-          onClick={() => props.onPath({ path })}
+          onClick={() =>{  props.onPath({ path }) }}
         >
           上板
         </button>
@@ -92,14 +97,14 @@ function NoteDialog(props: { onClose: () => void; onNote: (p: NoteSubmit) => voi
       <p>内容存在画板里，不指向任何文件。</p>
       <div className="cg-field">
         <label htmlFor="cg-note-title">标题</label>
-        <input id="cg-note-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} />
+        <input id="cg-note-title" autoFocus value={title} onChange={(e) =>{  setTitle(e.target.value) }} />
       </div>
       <div className="cg-field">
         <label htmlFor="cg-note-type">类型</label>
         <select
           id="cg-note-type"
           value={type}
-          onChange={(e) => setType(e.target.value === 'plainText' ? 'plainText' : 'markdown')}
+          onChange={(e) =>{  setType(e.target.value === 'plainText' ? 'plainText' : 'markdown') }}
         >
           <option value="markdown">Markdown</option>
           <option value="plainText">纯文本</option>
@@ -107,14 +112,14 @@ function NoteDialog(props: { onClose: () => void; onNote: (p: NoteSubmit) => voi
       </div>
       <div className="cg-field">
         <label htmlFor="cg-note-body">内容</label>
-        <textarea id="cg-note-body" value={content} onChange={(e) => setContent(e.target.value)} />
+        <textarea id="cg-note-body" value={content} onChange={(e) =>{  setContent(e.target.value) }} />
       </div>
       <div className="cg-dialog-actions">
         <button type="button" className="cg-btn cg-ghost" onClick={props.onClose}>取消</button>
         <button
           type="button"
           className="cg-btn cg-primary"
-          onClick={() => props.onNote({ title: title.trim() || '未命名便签', type, content })}
+          onClick={() =>{  props.onNote({ title: title.trim() || '未命名便签', type, content }) }}
         >
           上板
         </button>
@@ -173,7 +178,9 @@ function CatalogDialog(props: {
     setSearching(false)
   }, [scope])
 
-  const rows = props.backendReady && remoteRows !== null ? remoteRows : []
+  const rows = props.backendReady && remoteRows !== null
+    ? remoteRows.filter((item): item is typeof item & { type: CanvasNodeType } => isCanvasNodeType(item.type))
+    : []
   return (
     <div className="cg-dialog" role="dialog" aria-label="搜索上板">
       <h3>搜索上板</h3>
@@ -186,7 +193,7 @@ function CatalogDialog(props: {
             autoFocus
             value={q}
             placeholder="合同 / 设计稿 / 录音…"
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) =>{  setQ(e.target.value) }}
             onKeyDown={(e) => { if (e.key === 'Enter') runSearch() }}
           />
           <button type="button" className="cg-btn cg-primary" onClick={runSearch} disabled={!q.trim()}>
@@ -195,10 +202,10 @@ function CatalogDialog(props: {
         </div>
       </div>
       <div className="cg-seg cg-scope" role="group" aria-label="搜索范围">
-        <button type="button" className={scope === 'local' ? 'cg-on' : ''} onClick={() => changeScope('local')}>
+        <button type="button" className={scope === 'local' ? 'cg-on' : ''} onClick={() =>{  changeScope('local') }}>
           本机全部
         </button>
-        <button type="button" className={scope === 'project' ? 'cg-on' : ''} onClick={() => changeScope('project')}>
+        <button type="button" className={scope === 'project' ? 'cg-on' : ''} onClick={() =>{  changeScope('project') }}>
           当前项目
         </button>
       </div>
@@ -210,17 +217,17 @@ function CatalogDialog(props: {
             {q.trim() ? '没有匹配的文件' : '输入关键字搜索本机文件'}
           </div>
         ) : null}
-        {rows.map((item) => (
+        {rows.map(item => (
           <button
             key={item.path}
             type="button"
             className="cg-catalog-row"
-            onClick={() => props.onCatalog(item.title, item.path, item.type as CanvasNodeType, item.size)}
+            onClick={() =>{  props.onCatalog(item.title, item.path, item.type, item.size) }}
           >
-            <span aria-hidden>{TYPE_GLYPH[item.type as CanvasNodeType] ?? '▤'}</span>
+            <span aria-hidden>{TYPE_GLYPH[item.type]}</span>
             <span>
               <strong>{item.title}</strong>
-              <small>{item.path} · {item.size ?? ''}</small>
+              <small>{item.path} · {item.size}</small>
             </span>
           </button>
         ))}
@@ -298,7 +305,7 @@ function PreviewDialog(props: {
             <button
               type="button"
               className="cg-btn cg-ghost"
-              onClick={() => props.onOpen(node.id)}
+              onClick={() =>{  props.onOpen(node.id) }}
             >
               用默认应用打开
             </button>
@@ -350,22 +357,22 @@ function MigrateDialog(props: {
       <h3>迁移归属</h3>
       <p>「{props.node.title}」将移动到：</p>
       <div className="cg-migrate-opts">
-        <button type="button" className={`cg-migrate-opt${scope === 'session' ? ' cg-on' : ''}`} onClick={() => setScope('session')}>
+        <button type="button" className={`cg-migrate-opt${scope === 'session' ? ' cg-on' : ''}`} onClick={() =>{  setScope('session') }}>
           <strong>💬 本会话</strong>
           <small>归当前会话（在别的会话打开画板看不到它，除非切「所有项目」）</small>
         </button>
-        <button type="button" className={`cg-migrate-opt${scope === 'project' ? ' cg-on' : ''}`} onClick={() => setScope('project')}>
+        <button type="button" className={`cg-migrate-opt${scope === 'project' ? ' cg-on' : ''}`} onClick={() =>{  setScope('project') }}>
           <strong>📁 本项目</strong>
           <small>项目级：当前项目内所有会话都能看到</small>
         </button>
-        <button type="button" className={`cg-migrate-opt${scope === 'global' ? ' cg-on' : ''}`} onClick={() => setScope('global')}>
+        <button type="button" className={`cg-migrate-opt${scope === 'global' ? ' cg-on' : ''}`} onClick={() =>{  setScope('global') }}>
           <strong>🌐 所有项目可见</strong>
           <small>全局：任何会话、任何视角都能看到</small>
         </button>
       </div>
       <div className="cg-dialog-actions">
         <button type="button" className="cg-btn cg-ghost" onClick={props.onClose}>取消</button>
-        <button type="button" className="cg-btn cg-primary" onClick={() => props.onMigrate(props.node.id, scope)}>迁移</button>
+        <button type="button" className="cg-btn cg-primary" onClick={() =>{  props.onMigrate(props.node.id, scope) }}>迁移</button>
       </div>
     </div>
   )
@@ -386,7 +393,13 @@ export function CanvasDialogs(props: CanvasDialogsProps): JSX.Element | null {
         <CatalogDialog onClose={props.onClose} onCatalog={props.onCatalog} backendReady={props.backendReady} sessionId={props.sessionId} />
       ) : null}
       {props.kind === 'preview' && props.previewNode ? (
-        <PreviewDialog node={props.previewNode} onClose={props.onClose} onToast={props.onToast} backendReady={props.backendReady} onOpen={props.onOpen} />
+        <PreviewDialog
+          node={props.previewNode}
+          onClose={props.onClose}
+          onToast={props.onToast}
+          backendReady={props.backendReady}
+          onOpen={props.onOpen}
+        />
       ) : null}
       {props.kind === 'remove' && props.removeNode ? (
         <RemoveDialog node={props.removeNode} onClose={props.onClose} onConfirm={props.onConfirmRemove} />

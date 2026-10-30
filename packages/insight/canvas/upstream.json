@@ -789,7 +789,7 @@
     "dist",
     "repository-only release tooling and historical documentation"
   ],
-  "purpose": "P1 source and build intake; desktop account and origin adaptation follow in later stages",
+  "purpose": "Pinned source intake and account-scoped DSH Desktop adaptation; local changes replay from the parent patch",
   "archiveSha256": "8fe960069479cc5486e1450d97556e0202274f4e50e5c0e201a7148c2b21995e",
   "patch": "../../../patches/insight/canvas.patch",
   "archiveInput": "git archive --format=tar.gz --prefix=desktop-canvas-plugin/ <commit> -- <importedPaths>"

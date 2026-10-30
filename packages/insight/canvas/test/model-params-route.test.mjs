@@ -29,7 +29,7 @@ test('model params route requires the browser session before contacting the CDN'
 })
 
 test('model params route reads only the fixed CDN for the selected environment', async () => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   const calls = []
   const config = JSON.stringify({ imageLayoutTool: { models: {
     'gpt-image-layered': { model_name: 'GPT Image Layered', parameters: {
@@ -48,7 +48,7 @@ test('model params route reads only the fixed CDN for the selected environment',
       ['test', 'game-ai-admin-test-cdn.idealead.com'],
       ['production', 'game-ai-admin-prod-cdn.idealead.com']
     ]) {
-      process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = environment
+      process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
       const res = response()
       await handler({ method: 'GET', url: path }, res)
       assert.equal(res.status, 200)
@@ -60,8 +60,8 @@ test('model params route reads only the fixed CDN for the selected environment',
       assert.equal(calls.at(-1).options.redirect, 'error')
     }
   } finally {
-    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-    else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous
+    if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
   }
 })
 

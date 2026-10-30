@@ -97,9 +97,21 @@ async function fetchRunning(): Promise<RunningSnapshot> {
   try {
     const res = await fetch('/memory-evolve/api/ui-settings/running', { cache: 'no-store' })
     if (!res.ok) return { total: 0, groups: [] }
-    const data = await res.json() as RunningSnapshot
-    if (!Array.isArray(data.groups)) return { total: data.total ?? 0, groups: [] }
-    return { total: data.total ?? 0, groups: data.groups }
+    const data: unknown = await res.json()
+    if (typeof data !== 'object' || data === null) return { total: 0, groups: [] }
+    const total = 'total' in data && typeof data.total === 'number' ? data.total : 0
+    if (!('groups' in data) || !Array.isArray(data.groups)) return { total, groups: [] }
+    const groups = data.groups.filter((group: unknown): group is RunningSnapshot['groups'][number] => (
+      typeof group === 'object'
+      && group !== null
+      && 'title' in group
+      && (typeof group.title === 'string' || group.title === null)
+      && 'workspaceId' in group
+      && (typeof group.workspaceId === 'string' || group.workspaceId === null)
+      && 'running' in group
+      && typeof group.running === 'number'
+    ))
+    return { total, groups }
   } catch {
     return { total: 0, groups: [] }
   }
@@ -160,20 +172,19 @@ export function createSessionFilter(texts: SessionFilterTexts): {
     for (const row of rows) {
       const collapsed = row.getAttribute('aria-expanded') === 'false'
       // 行文本匹配组（最长 title 命中，防 "a" 误配 "ab" 行）。
-      const text = row.textContent ?? ''
+      const text = row.textContent
       let matched: RunningSnapshot['groups'][number] | null = null
       let bestLen = -1
       for (const group of snapshot.groups) {
-        const prefix = group.title ?? texts.ungroupedLabel
+        const prefix = group.title === null ? texts.ungroupedLabel : group.title
         if (prefix !== '' && text.startsWith(prefix) && prefix.length > bestLen) {
           matched = group
           bestLen = prefix.length
         }
       }
-      const need = collapsed && matched !== null && matched.running > 0
       const badge = row.querySelector<HTMLElement>('.dsh-ui-ws-run-badge')
-      if (need) {
-        const label = texts.runningLabel.replace('{count}', String(matched!.running))
+      if (collapsed && matched !== null && matched.running > 0) {
+        const label = texts.runningLabel.replace('{count}', String(matched.running))
         if (badge !== null) {
           if (badge.textContent !== label) badge.textContent = label
         } else {
@@ -299,7 +310,7 @@ export function createSessionFilter(texts: SessionFilterTexts): {
         observer?.disconnect()
         observer = null
         document.getElementById(FILTER_BAR_ID)?.remove()
-        document.querySelectorAll('.dsh-ui-ws-run-badge').forEach((el) => el.remove())
+        document.querySelectorAll('.dsh-ui-ws-run-badge').forEach((el) =>{  el.remove() })
         delete document.documentElement.dataset.dshUiFilter
       }
     },
@@ -316,7 +327,7 @@ export function createSessionFilter(texts: SessionFilterTexts): {
       observer?.disconnect()
       observer = null
       document.getElementById(FILTER_BAR_ID)?.remove()
-      document.querySelectorAll('.dsh-ui-ws-run-badge').forEach((el) => el.remove())
+      document.querySelectorAll('.dsh-ui-ws-run-badge').forEach((el) =>{  el.remove() })
       delete document.documentElement.dataset.dshUiFilter
     },
   }

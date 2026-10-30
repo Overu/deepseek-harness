@@ -110,7 +110,7 @@ export async function saveCanvasToBackend(
   sessionId: string,
 ): Promise<BackendSaveResult> {
   try {
-    const res = await fetch(`${API_BASE}`, {
+    const res = await fetch(API_BASE, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({

@@ -30,13 +30,13 @@ export function apply(ctx: Context): void {
   registerCanvasMessageLinks(ctx)
   registerCanvasReferenceMessageViews(ctx)
   const references = new CanvasNodeReferences()
-  ctx.effect(() => () => references.reset(), 'desktop-canvas: reference drafts')
-  ctx.on('connection/reset', () => references.reset())
+  ctx.effect(() => () =>{  references.reset() }, 'desktop-canvas: reference drafts')
+  ctx.on('connection/reset', () =>{  references.reset() })
   ctx.effect(() => ctx.locale.register(CANVAS_REFERENCES_NS, { zh: referencesZh, en: referencesEn }), 'desktop-canvas: reference copy')
   registerCanvasComposerAttachments(ctx, references)
   const results = new CanvasResultsStore({ origin: window.location.origin })
-  ctx.effect(() => () => results.dispose(), 'desktop-canvas: result sources')
-  ctx.on('connection/reset', () => results.reset())
+  ctx.effect(() => () =>{  results.dispose() }, 'desktop-canvas: result sources')
+  ctx.on('connection/reset', () =>{  results.reset() })
   ctx.uiConversation.events.register(canvasResultsDefinition)
   ctx.effect(() => ctx.locale.register(CANVAS_RESULTS_NS, { zh: resultsZh, en: resultsEn }), 'desktop-canvas: result copy')
   ctx.effect(() => ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({
@@ -49,22 +49,29 @@ export function apply(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.chat.turnTail', () => ctx.slots.register({
     name: 'conversation.chat.turnTail', id: PACKAGE_ID + '-created', locale: CANVAS_RESULTS_NS,
     inject: sessionId => ({
-      getCanvasChat: () => ctx.uiConversation.binding(sessionId as SessionId).target('chat'),
-      openCreatedCanvas: (id: string) => { const canvasId = parseCanvasId(id); if (canvasId) ctx.sidebarRight.openResource(canvasAddress(canvasId)) },
+      getCanvasChat: () => ctx.uiConversation.binding(sessionId).target('chat'),
+      openCreatedCanvas: (id: string) => { const canvasId = parseCanvasId(id)
+        if (canvasId) ctx.sidebarRight.openResource(canvasAddress(canvasId)) },
     }),
   }, CanvasCreatedLinks)), 'desktop-canvas: created canvas entry')
   ctx.effect(() => installCanvasRuntime(), 'desktop-canvas: service runtime')
-  const opener = createCanvasOpener({ currentSession: () => { const id = ctx.sidebarRight.mounted.getSnapshot(); return id === undefined ? undefined : String(id) },
-    open: (id, nodeId, navigationId) => ctx.sidebarRight.openResource(canvasAddress(parseCanvasId(id)!), { params: { nodeId, selectNode: false, navigationId } }) })
-  ctx.effect(() => () => opener.dispose(), 'desktop-canvas: opener')
-  const bridge = createCanvasClientBridge({ openCanvas: (session, canvas, node) => opener.open(session, canvas, node), origin: window.location.origin, getRuntime: async () => {
-    const handle = window.__INSIGHT_CANVAS_RUNTIME_V1__
-    if (!handle) throw new CanvasAgentError('CLIENT_UNAVAILABLE', '画布服务尚未安装')
-    return handle.ready
-  } })
-  ctx.effect(() => () => bridge.dispose(), 'desktop-canvas: client bridge')
+  const opener = createCanvasOpener({ currentSession: () => { const id = ctx.sidebarRight.mounted.getSnapshot()
+    return id === undefined ? undefined : String(id) },
+  open: (id, nodeId, navigationId) => {
+    const canvasId = parseCanvasId(id)
+    if (!canvasId) throw new CanvasAgentError('INVALID_ARGUMENT', '画布地址无效')
+    ctx.sidebarRight.openResource(canvasAddress(canvasId), { params: {
+      nodeId, selectNode: false, navigationId } }) } })
+  ctx.effect(() => () =>{  opener.dispose() }, 'desktop-canvas: opener')
+  const bridge = createCanvasClientBridge({ openCanvas: (session, canvas, node) => opener.open(session, canvas, node),
+    origin: window.location.origin, getRuntime: async () => {
+      const handle = window.__INSIGHT_CANVAS_RUNTIME_V1__
+      if (!handle) throw new CanvasAgentError('CLIENT_UNAVAILABLE', '画布服务尚未安装')
+      return handle.ready
+    } })
+  ctx.effect(() => () =>{  bridge.dispose() }, 'desktop-canvas: client bridge')
   const syncedSessions = new Set<string>()
-  ctx.effect(() => bridge.onReferencesConsumed(sessionId => {
+  ctx.effect(() => bridge.onReferencesConsumed((sessionId) => {
     references.clear(sessionId)
   }), 'desktop-canvas: references consumption')
   ctx.effect(() => references.subscribe(() => {
@@ -100,10 +107,11 @@ export function apply(ctx: Context): void {
     kind: 'desktop-canvas',
     patterns: ['dsh-resource://canvas/*'],
     canOpen: address => canvasIdFromAddress(address) !== undefined,
-    title: address => `画布 ${canvasIdFromAddress(address) ?? ''}`
+    title: address => `画布 ${canvasIdFromAddress(address) ?? ''}`,
   }), 'desktop-canvas: tab type')
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
     name: 'sidebar.right.pane.tab', key: PACKAGE_ID,
-    inject: sessionId => ({ references, referenceSessionId: String(sessionId), onCanvasNavigation: opener.settled }),
+    inject: sessionId => ({ references, referenceSessionId: String(sessionId), onCanvasNavigation: (id: string,
+      status) => { opener.settled(id, status) } }),
   }, CanvasTab)), 'desktop-canvas: tab body')
 }

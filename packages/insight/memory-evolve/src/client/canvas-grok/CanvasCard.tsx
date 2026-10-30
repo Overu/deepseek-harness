@@ -6,6 +6,7 @@
  * 位置用 left/top 写世界坐标，由外层世界层做 transform，卡片本身不跟视口重排。
  */
 import { memo, useCallback, type PointerEvent as ReactPointerEvent } from 'react'
+import type { JSX } from 'react'
 import { TYPE_GLYPH, TYPE_LABEL } from './constants.ts'
 import { placeholderHue, scopeBadgeText } from './helpers.ts'
 import type { CanvasNode } from './types.ts'
@@ -65,9 +66,9 @@ function CardBody(props: { node: CanvasNode; backendReady: boolean; onChangeCont
           className="cg-editor"
           value={node.content ?? ''}
           placeholder={node.type === 'markdown' ? '写一段 Markdown…' : '写一段纯文本…'}
-          onPointerDown={(e) => e.stopPropagation()}
-          onWheel={(e) => e.stopPropagation()}
-          onChange={(e) => onChangeContent(node.id, e.target.value)}
+          onPointerDown={(e) =>{  e.stopPropagation() }}
+          onWheel={(e) =>{  e.stopPropagation() }}
+          onChange={(e) =>{  onChangeContent(node.id, e.target.value) }}
         />
       </>
     )
@@ -226,29 +227,34 @@ function CanvasCardInner(props: CanvasCardProps): JSX.Element {
             <CardBody node={node} backendReady={props.backendReady} onChangeContent={props.onChangeContent} />
           </div>
           <footer className="cg-card-foot">
-            <button type="button" onClick={() => props.onPreview(node.id)}>预览</button>
+            <button type="button" onClick={() =>{  props.onPreview(node.id) }}>预览</button>
             {(node.type === 'markdown' || node.type === 'plainText') && node.content
               ? (
-                <button type="button" className="cg-open" onClick={() => props.onSave(node.id)} title="保存内容到本机文件">保存</button>
+                <button type="button" className="cg-open" onClick={() =>{  props.onSave(node.id) }} title="保存内容到本机文件">保存</button>
               ) : null}
             {node.path ? (
-              <button type="button" className="cg-open" onClick={() => props.onOpen(node.id)} title="用系统默认应用打开">打开</button>
+              <button type="button" className="cg-open" onClick={() =>{  props.onOpen(node.id) }} title="用系统默认应用打开">打开</button>
             ) : null}
             {node.path ? (
-              <button type="button" className="cg-open" onClick={() => props.onOpenFolder(node.id)} title="在系统文件管理器中打开该文件所在的文件夹（Finder / 资源管理器）">所在文件夹</button>
+              <button type="button" className="cg-open" onClick={() =>{  props.onOpenFolder(node.id) }} title="在系统文件管理器中打开该文件所在的文件夹（Finder / 资源管理器）">所在文件夹</button>
             ) : null}
-            <button type="button" onClick={() => props.onMigrate(node.id)} title="迁移节点归属（本会话/本项目/所有项目可见）">归属</button>
+            <button type="button" onClick={() =>{  props.onMigrate(node.id) }} title="迁移节点归属（本会话/本项目/所有项目可见）">归属</button>
             {props.openSession && node.scope === 'session' && node.sessionId && node.sessionId !== props.currentSessionId
               ? (
-                <button type="button" className="cg-open" onClick={() => props.openSession?.(node.sessionId!)} title="跳转到该节点所属会话">
+                <button
+                  type="button"
+                  className="cg-open"
+                  onClick={() => { if (node.sessionId) props.openSession?.(node.sessionId) }}
+                  title="跳转到该节点所属会话"
+                >
                   跳转
                 </button>
               ) : null}
-            <button type="button" onClick={() => props.onCopy(node.id, 'id')}>复制 ID</button>
-            <button type="button" onClick={() => props.onCopy(node.id, 'title')}>复制标题</button>
-            <button type="button" onClick={() => props.onCopy(node.id, 'path')} disabled={!node.path}>复制路径</button>
-            <button type="button" onClick={() => props.onCopy(node.id, 'ref')}>引用</button>
-            <button type="button" className="cg-danger" onClick={() => props.onAskRemove(node.id)}>移除</button>
+            <button type="button" onClick={() =>{  props.onCopy(node.id, 'id') }}>复制 ID</button>
+            <button type="button" onClick={() =>{  props.onCopy(node.id, 'title') }}>复制标题</button>
+            <button type="button" onClick={() =>{  props.onCopy(node.id, 'path') }} disabled={!node.path}>复制路径</button>
+            <button type="button" onClick={() =>{  props.onCopy(node.id, 'ref') }}>引用</button>
+            <button type="button" className="cg-danger" onClick={() =>{  props.onAskRemove(node.id) }}>移除</button>
           </footer>
         </>
       )}

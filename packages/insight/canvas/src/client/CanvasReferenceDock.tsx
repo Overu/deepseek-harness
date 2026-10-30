@@ -22,7 +22,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 export interface CanvasReferencesInjected {
   references: CanvasNodeReferences
   referenceSessionId: string
-  openReference(reference: CanvasNodeReference): void
+  openReference: (reference: CanvasNodeReference) => void
 }
 
 function TypeIcon({ type }: { type?: string }) {
@@ -33,17 +33,24 @@ function TypeIcon({ type }: { type?: string }) {
         : <><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="9" cy="9" r="2" /><path d="m3 18 5-5 4 4 4-6 5 7" /></>}
   </svg>
 }
-export function ReferenceProductPreview({ product, preview = false }: { product: ReferenceProduct; preview?: boolean }) {
+export function ReferenceProductPreview({ product, preview = false }: { product: ReferenceProduct
+  preview?: boolean }) {
   const [failed, setFailed] = useState(false)
   const style = preview ? undefined : { display: 'block', width: '100%', height: '100%', objectFit: 'contain' as const }
   if (failed) return <TypeIcon type={product.kind} />
-  if (product.kind === 'text') return preview ? <pre style={{ margin: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{product.value}</pre> : <TypeIcon type="text" />
-  if (product.kind === 'audio') return preview ? <audio controls preload="none" src={product.value} onError={() => setFailed(true)} style={{ maxWidth: '100%' }} /> : <TypeIcon type="audio" />
-  if (product.kind === 'video') return <video src={product.value} preload="metadata" controls={preview} muted={!preview} playsInline style={style} onError={() => setFailed(true)} />
-  return <img src={product.value} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" style={style} onError={() => setFailed(true)} />
+  if (product.kind === 'text') return preview ? <pre style={{ margin: 0, whiteSpace: 'pre-wrap',
+    overflowWrap: 'anywhere' }}>{product.value}</pre> : <TypeIcon type="text" />
+  if (product.kind === 'audio') return preview ? <audio controls preload="none" src={product.value} onError={() =>{
+    setFailed(true) }} style={{ maxWidth: '100%' }} /> : <TypeIcon type="audio" />
+  if (product.kind === 'video') return <video src={product.value} preload="metadata" controls={preview} muted={
+    !preview} playsInline style={style} onError={() =>{  setFailed(true) }} />
+  return <img src={product.value} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" style={
+    style} onError={() =>{  setFailed(true) }} />
 }
 
-export function ReferencePreview({ title, products, label }: { title: string; products: readonly ReferenceProduct[]; label?: string }) {
+export function ReferencePreview({ title, products, label }: { title: string
+  products: readonly ReferenceProduct[]
+  label?: string }) {
   return <div data-canvas-reference-preview aria-label={label}>
     <style>{`
       /* HoverCard portals this content and derives its width from the whole reference row. */
@@ -65,18 +72,24 @@ export function ReferencePreview({ title, products, label }: { title: string; pr
 }
 
 export function ReferenceThumbnail({ title, label = title, type, product, onClick }: {
-  title: string; label?: string; type?: string; product?: ReferenceProduct; onClick(): void
+  title: string
+  label?: string
+  type?: string
+  product?: ReferenceProduct
+  onClick: () => void
 }) {
   return <button type="button" title={title} aria-label={label} onClick={onClick}
     style={{ display: 'grid', placeItems: 'center', boxSizing: 'border-box', width: 40, height: 40, flexShrink: 0,
       padding: 5, overflow: 'hidden', borderRadius: 8, color: 'inherit', cursor: 'pointer',
-      border: '1px solid color-mix(in srgb, currentColor 20%, transparent)', background: 'color-mix(in srgb, currentColor 5%, transparent)' }}>
+      border: '1px solid color-mix(in srgb, currentColor 20%, transparent)',
+      background: 'color-mix(in srgb, currentColor 5%, transparent)' }}>
     {product ? <ReferenceProductPreview key={product.value} product={product} /> : <TypeIcon type={type} />}
   </button>
 }
 
-export function CanvasReferenceDock({ references, referenceSessionId, openReference, t }: CanvasReferencesInjected & PropsLocale<typeof CANVAS_REFERENCES_NS>) {
-  const state = useSyncExternalStore(references.subscribe, () => references.getSnapshot(referenceSessionId))
+export function CanvasReferenceDock({ references, referenceSessionId, openReference,
+  t }: CanvasReferencesInjected & PropsLocale<typeof CANVAS_REFERENCES_NS>) {
+  const state = useSyncExternalStore(listener => references.subscribe(listener), () => references.getSnapshot(referenceSessionId))
   const anchor = useRef<HTMLDivElement>(null)
   if (!state.references.length && !state.error) return null
   return <section aria-label={t('title')} data-canvas-references
@@ -93,14 +106,14 @@ export function CanvasReferenceDock({ references, referenceSessionId, openRefere
     `}</style>
     <div ref={anchor} style={{ display: 'flex', gap: 8, alignItems: 'center', width: '100%' }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', minWidth: 0 }}>
-        {state.references.map(reference => {
+        {state.references.map((reference) => {
           const name = referenceNodeTitle(reference.node)
           const products = referenceProducts(reference.node)
           const tile = <div className="canvas-ref-item" style={{ position: 'relative' }}>
             <ReferenceThumbnail title={name} label={t('focus', { name })} type={reference.node.type}
-              product={products[0]} onClick={() => openReference(reference)} />
+              product={products[0]} onClick={() =>{  openReference(reference) }} />
             <button className="canvas-ref-remove" type="button" aria-label={t('remove', { name })}
-              onClick={event => { event.stopPropagation(); references.remove(referenceSessionId, reference) }}
+              onClick={(event) => { event.stopPropagation(); references.remove(referenceSessionId, reference) }}
               style={{ position: 'absolute', top: -5, right: -5, width: 18, height: 18, padding: 0, borderRadius: '50%',
                 border: '1px solid currentColor', background: 'var(--dsw-alias-button-tool-bar-fill, Canvas)', fontSize: 12 }}>×</button>
           </div>
@@ -110,7 +123,8 @@ export function CanvasReferenceDock({ references, referenceSessionId, openRefere
         })}
       </div>
       {!!state.references.length && <button className="canvas-ref-clear" type="button" aria-label={t('clear')}
-        onClick={() => references.clear(referenceSessionId)} style={{ flexShrink: 0, border: 0, background: 'transparent', fontSize: 20 }}>×</button>}
+        onClick={() =>{  references.clear(referenceSessionId) }} style={{ flexShrink: 0, border: 0,
+          background: 'transparent', fontSize: 20 }}>×</button>}
     </div>
     {state.error && <div role="status">{t(state.error)}</div>}
   </section>

@@ -37,7 +37,6 @@ import { installSession } from './session-orch.js'
 import { AliasStore } from './aliases.js'
 import { installSessionSearch } from './search/index.js'
 import { installPrompts, sanitizeSnapshotBody } from './prompts.js'
-import { installModels, buildModelsSnapshotAsync } from './models.js'
 import { installUiSettings } from './ui-settings.js'
 import { installMermaid } from './mermaid.js'
 import { installBookmarks } from './bookmarks.js'
@@ -66,10 +65,7 @@ export const name = 'dsh-memory-evolve'
 // sessionPersistence 于 2026-08-11 加入——de_session wake 恢复离线会话时
 // 需读该会话 log 里自己最后使用的模型（request/header），否则恢复的
 // agent.options 为空、{{model}} 变量无值导致被唤醒会话回合失败。
-// settings / llm 于 2026-08-11 加入——模型配置模块（de_models 工具 +
-// 「模型设置」Tab）需要读取模型目录（settings.get）与供应商/思考等级
-// 元数据（llm.listConfigurableProviders / resolveModelInfo）。
-export const inject = ['tools', 'systemPrompt', 'agents', 'sessionTitle', 'sessionPersistence', 'settings', 'llm']
+export const inject = ['tools', 'systemPrompt', 'agents', 'sessionTitle', 'sessionPersistence', 'llm']
 
 /** Plugin config defaults (conservative: review off, memory on). */
 export const DEFAULTS = {
@@ -184,13 +180,6 @@ export const DEFAULTS = {
   sessionDataDir: null,       // null → <memoryDir>/session-orch
   promptsEnabled: false,      // 提示词管理器总开关（默认禁用，与本地搜索/COI 一致；开启后「提示词」Tab、注入轨与 de_prompts 工具生效）
   promptToolName: 'de_prompts', // 提示词库工具名（AI 查询/注入提示词；随 promptsEnabled 开关注册/注销）
-  // 模型配置（de_models + 「模型设置」Tab）：**独立子模块**（与其他模块
-  // 同款独立开关）。表格展示 DSH 供应商/模型 + 每模型启用/备注/思考等级
-  // 配置；de_models 工具给 AI 查询可用模型清单。**默认关闭**（与其他
-  // 独立模块一致：注册即占模型工具列表，需要时再开；且本模块的配置
-  // 只对插件自身有用——不修改也不影响 DSH 的模型设置，DSH 侧仍以官方
-  // 「设置 → 模型」为准）。
-  modelsEnabled: false,
   // DSH UI 设置（dsh-ui-settings）：**独立子模块**（与广播/COI 同一纪律——
   // 独立领域不挂别的模块下）。对 DSH web 界面做样式级小功能（第一版：左侧
   // 会话列表「仅显示进行中」筛选，默认只显示进行中的会话、可一键切回全部；
@@ -242,8 +231,6 @@ export const DEFAULTS = {
   // 模型（agent.options），只配其中一个=门禁禁用（config-incomplete）。
   advisorEnabled: false,
   advisorDataDir: null,           // null → <memoryDir>/advisor
-  advisorProvider: null,          // 评审供应商路由（双空=继承会话模型）
-  advisorModel: null,             // 评审模型 id（双空=继承会话模型）
   advisorSystemPrompt: '',        // 覆盖内置评审提示词（≤8KB；空=内置默认）
   advisorPanelEnabled: true,      // 悬浮面板显示开关（与评审运行解耦）
   advisorImmuneTurns: 0,          // 冷却回合数（0=不限制，用户拍板；fence 路径保留）
@@ -270,12 +257,12 @@ export const RUNTIME_KEYS = [
   'perTurnWriteGuard', 'writeGuardThreshold',
   'keyProgressiveDisclosure', 'keyFullInjectThreshold', 'keyFullInjectCharLimit',
   'searchDocsEnabled', 'coiEnabled', 'broadcastEnabled', 'promptsEnabled',
-  'sessionSearchEnabled', 'sessionEnabled', 'modelsEnabled', 'uiSettingsEnabled',
+  'sessionSearchEnabled', 'sessionEnabled', 'uiSettingsEnabled',
   'bookmarkEnabled', 'searchDocsMode', 'todoEnabled',
   'wsCoordEnabled', 'wsCoordEnforceWrite', 'wsCoordSnapshot',
   'notifyEnabled', 'channelSendEnabled', 'broadcastImageEnabled',
   'sessionImageQueryEnabled', 'syncEnabled',
-  'advisorEnabled', 'advisorProvider', 'advisorModel', 'advisorSystemPrompt',
+  'advisorEnabled', 'advisorSystemPrompt',
   'advisorPanelEnabled', 'advisorImmuneTurns', 'advisorSteerSeverities',
   'advisorInfoInject',
   'advisorMaxMessages', 'advisorMaxQueued', 'advisorCallTimeoutMs',
@@ -309,7 +296,6 @@ export function validateRuntimePatch(key, value) {
     case 'promptsEnabled':
     case 'sessionSearchEnabled':
     case 'sessionEnabled':
-    case 'modelsEnabled':
     case 'uiSettingsEnabled':
     case 'bookmarkEnabled':
     case 'todoEnabled':
@@ -341,12 +327,6 @@ export function validateRuntimePatch(key, value) {
     case 'advisorPanelEnabled':
     case 'advisorInfoInject':
       if (typeof value !== 'boolean') throw new Error(`dsh-memory-evolve: ${key} 必须是布尔值`)
-      return
-    case 'advisorProvider':
-    case 'advisorModel':
-      if (value !== null && (typeof value !== 'string' || value.trim() === '')) {
-        throw new Error(`dsh-memory-evolve: ${key} 必须是 null（继承会话模型）或非空字符串`)
-      }
       return
     case 'advisorSystemPrompt':
       if (typeof value !== 'string') throw new Error('dsh-memory-evolve: advisorSystemPrompt 必须是字符串')
@@ -492,11 +472,6 @@ export function resolveConfig(raw) {
   if (!Array.isArray(config.advisorSteerSeverities) || config.advisorSteerSeverities.length === 0
     || !config.advisorSteerSeverities.every((s) => s === 'nit' || s === 'concern' || s === 'blocker')) {
     throw new Error('dsh-memory-evolve: advisorSteerSeverities 必须是非空数组且元素为 nit/concern/blocker')
-  }
-  for (const key of ['advisorProvider', 'advisorModel']) {
-    if (config[key] !== null && (typeof config[key] !== 'string' || config[key].trim() === '')) {
-      throw new Error(`dsh-memory-evolve: ${key} 必须是 null 或非空字符串`)
-    }
   }
   if (config.reviewInterval < 1) {
     throw new Error('dsh-memory-evolve: reviewInterval 必须 >= 1')
@@ -1666,7 +1641,6 @@ export function apply(ctx, rawConfig = {}) {
     sessionSearchCtrl.sync() // 会话搜索随 sessionSearchEnabled 即时安装/卸载
     sessionCtrl.sync() // 会话编排随 sessionEnabled 即时安装/卸载（曾漏掉导致开关打开工具不注册）
     promptsCtrl.sync() // 提示词模块随 promptsEnabled 即时安装/卸载
-    modelsCtrl.sync() // 模型配置随 modelsEnabled 即时安装/卸载
     uiSettingsCtrl.sync() // DSH UI 设置随 uiSettingsEnabled 即时安装/卸载
     bookmarkCtrl.sync() // 会话书签随 bookmarkEnabled 即时安装/卸载
     syncCtrl.sync() // 记忆同步随 syncEnabled 即时安装/卸载（含 store.entryIdMode 动态切换）
@@ -1722,29 +1696,6 @@ export function apply(ctx, rawConfig = {}) {
   // for both the snapshot instructions and the paired tool surface.
   reviewCtrl.sync()
 
-  // 3b. 模型配置模块（de_models 工具 + 「模型设置」Tab 数据面）：**独立
-  //     子模块**，与其他模块同款独立开关 modelsEnabled（默认关）。开启时
-  //     注册 de_models 工具 + 提供 /api/models 数据；关闭时工具注销、
-  //     API 返回"未启用"（配置数据 models.json 保留）。开关在「设置」Tab
-  //     的「配置」里切换（applyRuntimePatch sync 链即时生效）。
-  let modelsDispose = null
-  let modelsStore = null
-  const modelsCtrl = {
-    sync() {
-      const enabled = runtime.modelsEnabled === true
-      if (enabled && modelsDispose === null) {
-        const installed = installModels(ctx, config)
-        modelsDispose = installed.dispose
-        modelsStore = installed.store
-      } else if (!enabled && modelsDispose !== null) {
-        modelsDispose()
-        modelsDispose = null
-        modelsStore = null
-      }
-    },
-  }
-  modelsCtrl.sync()
-
   // 4. Web API: the settings panel's data surface (web-only service; the
   //    plugin still loads on surfaces without httpServer).
   ctx.inject(['webServer'], (webCtx) => {
@@ -1792,11 +1743,6 @@ export function apply(ctx, rawConfig = {}) {
         conflicts: () => [],
         migrate: () => null,
       },
-      // 模型配置模块：store（models.json 读写）+ 快照聚合（供应商/模型/
-      // 思考等级/备注/enabled 一站式返回给「模型设置」Tab 与外部查询）；
-      // 模块未启用（modelsEnabled=false）时 store 为 null，API 拒绝访问。
-      modelsStore,
-      buildModelsSnapshot: () => buildModelsSnapshotAsync(ctx, modelsStore),
     }), 'dsh-memory-evolve: web api')
   })
 

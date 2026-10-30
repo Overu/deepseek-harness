@@ -51,7 +51,7 @@ function FeatureSwitchRow({ label, hint, checked, onChange }: {
         type="checkbox"
         className="me-switch"
         checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
+        onChange={(event) =>{  onChange(event.target.checked) }}
       />
     </label>
   )
@@ -89,31 +89,31 @@ export function UiSettingsTabView(props: ConvViewProps & UiSettingsTabViewProps)
             label={t('uiSettings.feature.sessionFilter')}
             hint={t('uiSettings.feature.sessionFilter.hint')}
             checked={features.sessionFilter}
-            onChange={(checked) => toggleFeature('sessionFilter', checked)}
+            onChange={(checked) =>{  toggleFeature('sessionFilter', checked) }}
           />
           <FeatureSwitchRow
             label={t('uiSettings.feature.wideChat')}
             hint={t('uiSettings.feature.wideChat.hint')}
             checked={features.wideChat}
-            onChange={(checked) => toggleFeature('wideChat', checked)}
+            onChange={(checked) =>{  toggleFeature('wideChat', checked) }}
           />
           <FeatureSwitchRow
             label={t('uiSettings.feature.wideBubble')}
             hint={t('uiSettings.feature.wideBubble.hint')}
             checked={features.wideBubble}
-            onChange={(checked) => toggleFeature('wideBubble', checked)}
+            onChange={(checked) =>{  toggleFeature('wideBubble', checked) }}
           />
           <FeatureSwitchRow
             label={t('uiSettings.feature.contextWarn')}
             hint={t('uiSettings.feature.contextWarn.hint')}
             checked={features.contextWarn}
-            onChange={(checked) => toggleFeature('contextWarn', checked)}
+            onChange={(checked) =>{  toggleFeature('contextWarn', checked) }}
           />
           <FeatureSwitchRow
             label={t('uiSettings.feature.mermaidRender')}
             hint={t('uiSettings.feature.mermaidRender.hint')}
             checked={features.mermaidRender}
-            onChange={(checked) => toggleFeature('mermaidRender', checked)}
+            onChange={(checked) =>{  toggleFeature('mermaidRender', checked) }}
           />
         </div>
       </div>
@@ -138,7 +138,7 @@ export function UiSettingsTabView(props: ConvViewProps & UiSettingsTabViewProps)
           role="tab"
           aria-selected={feature === 'mixed'}
           className={feature === 'mixed' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('mixed')}
+          onClick={() =>{  setFeature('mixed') }}
         >
           {t('uiSettingsTab.feature.mixed')}
         </button>
@@ -147,7 +147,7 @@ export function UiSettingsTabView(props: ConvViewProps & UiSettingsTabViewProps)
           role="tab"
           aria-selected={feature === 'guide'}
           className={feature === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('guide')}
+          onClick={() =>{  setFeature('guide') }}
         >
           {t('uiSettingsTab.feature.guide')}
         </button>

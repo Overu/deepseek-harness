@@ -16,6 +16,7 @@
  * 数据源：/memory-evolve/api/broadcast/*（host 超管 API）+ /api/aliases。
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { TabGuideView } from './TabGuideView.tsx'
@@ -69,7 +70,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 function errText(err: unknown): string {
   const text = err instanceof Error ? err.message : String(err)
-  return text !== undefined && text.trim() !== '' ? text : (isEn() ? 'Operation failed (no error detail)' : '操作失败（无错误详情）')
+  return text.trim() !== '' ? text : (isEn() ? 'Operation failed (no error detail)' : '操作失败（无错误详情）')
 }
 
 function fmtTime(ts: number): string {
@@ -99,7 +100,7 @@ function shortId(id: string, n = 14): string {
 /** 会话显示名：别名优先（别名（短ID）），无别名=短 ID；完整 ID 供 title 悬停。 */
 function displayName(sid: string, aliases: Record<string, string>): string {
   const short = shortId(sid, 14)
-  if (aliases[sid] !== undefined) return `${aliases[sid]}（${short}）`
+  if (Object.hasOwn(aliases, sid)) return `${aliases[sid]}（${short}）`
   return short
 }
 
@@ -119,7 +120,7 @@ function WsCoordSettings({ t }: { t: Translate }): JSX.Element {
   useEffect(() => {
     let cancelled = false
     fetch('/memory-evolve/api/config')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((body: { config?: Record<string, unknown> }) => {
         if (!cancelled && body.config) setConfig(body.config)
       })
@@ -136,12 +137,12 @@ function WsCoordSettings({ t }: { t: Translate }): JSX.Element {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ patch: { [key]: value } }),
     })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((body: { config?: Record<string, unknown> }) => {
         if (body.config) setConfig(body.config)
       })
-      .catch((err: unknown) => setError(errText(err)))
-      .finally(() => setBusy(false))
+      .catch((err: unknown) =>{  setError(errText(err)) })
+      .finally(() =>{  setBusy(false) })
   }
 
   if (config === null) return <div className="bb-empty">{t('broadcast.loading')}</div>
@@ -160,7 +161,7 @@ function WsCoordSettings({ t }: { t: Translate }): JSX.Element {
           className="me-switch"
           checked={on('wsCoordEnabled')}
           disabled={busy}
-          onChange={(event) => patch('wsCoordEnabled', event.target.checked)}
+          onChange={(event) =>{  patch('wsCoordEnabled', event.target.checked) }}
         />
       </label>
       {on('wsCoordEnabled') && (
@@ -175,7 +176,7 @@ function WsCoordSettings({ t }: { t: Translate }): JSX.Element {
               className="me-switch"
               checked={on('wsCoordSnapshot')}
               disabled={busy}
-              onChange={(event) => patch('wsCoordSnapshot', event.target.checked)}
+              onChange={(event) =>{  patch('wsCoordSnapshot', event.target.checked) }}
             />
           </label>
           <label className="me-field me-field-sub">
@@ -188,7 +189,7 @@ function WsCoordSettings({ t }: { t: Translate }): JSX.Element {
               className="me-switch"
               checked={on('wsCoordEnforceWrite')}
               disabled={busy}
-              onChange={(event) => patch('wsCoordEnforceWrite', event.target.checked)}
+              onChange={(event) =>{  patch('wsCoordEnforceWrite', event.target.checked) }}
             />
           </label>
         </>
@@ -199,7 +200,7 @@ function WsCoordSettings({ t }: { t: Translate }): JSX.Element {
 }
 
 /** English browser → English inline text. */
-const isEn = (): boolean => typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en')
+const isEn = (): boolean => typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en')
 
 export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Element {
   const { t, sessionId } = props
@@ -238,11 +239,11 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
       const [m, r, a] = await Promise.all([
         fetchJson<{ messages: Msg[] }>('/messages'),
         fetchJson<{ rooms: Room[] }>('/rooms'),
-        fetch('/memory-evolve/api/aliases').then((res) => (res.ok ? res.json() : { aliases: {} })) as Promise<{ aliases?: Record<string, string> }>,
+        fetch('/memory-evolve/api/aliases').then(res => (res.ok ? res.json() : { aliases: {} })) as Promise<{ aliases?: Record<string, string> }>,
       ])
       setMessages(m.messages)
       setRooms(r.rooms)
-      setRoomMap(new Map(r.rooms.map((room) => [room.id, room])))
+      setRoomMap(new Map(r.rooms.map(room => [room.id, room])))
       setAliases(a.aliases ?? {})
       setError(null)
     } catch (err) {
@@ -253,22 +254,22 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
   useEffect(() => {
     void load()
     const timer = setInterval(() => void load(), 30_000)
-    return () => clearInterval(timer)
+    return () =>{  clearInterval(timer) }
   }, [load])
 
   // 消息列表（默认不含房间消息——房间消息进对应房间查看，层次清晰）
   const directMessages = useMemo(() => {
     const items = messages ?? []
-    return items.filter((m) => !m.recipients.some((r) => isRoomRef(r)))
+    return items.filter(m => !m.recipients.some(r => isRoomRef(r)))
   }, [messages])
 
   const filteredMessages = useMemo(() => {
     let items = directMessages
-    if (filter === 'unread') items = items.filter((m) => m.readBy.length === 0)
-    if (filter === 'read') items = items.filter((m) => m.readBy.length > 0)
+    if (filter === 'unread') items = items.filter(m => m.readBy.length === 0)
+    if (filter === 'read') items = items.filter(m => m.readBy.length > 0)
     if (query.trim() !== '') {
       const q = query.trim().toLowerCase()
-      items = items.filter((m) =>
+      items = items.filter(m =>
         m.subject.toLowerCase().includes(q)
         || m.sender.toLowerCase().includes(q)
         || m.content.toLowerCase().includes(q))
@@ -282,17 +283,17 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
   // 房间消息（展开房间时显示）
   const roomMessages = useMemo(() => {
     if (openRoom === null || messages === null) return []
-    return messages.filter((m) => m.recipients.includes(`room:${openRoom}`) || m.recipients.includes(openRoom))
+    return messages.filter(m => m.recipients.includes(`room:${openRoom}`) || m.recipients.includes(openRoom))
   }, [openRoom, messages])
 
   // 房间消息筛选/搜索/分页（纯前端，基于 roomMessages 派生）
   const filteredRoomMessages = useMemo(() => {
     let items = roomMessages
-    if (roomMsgFilter === 'unread') items = items.filter((m) => m.readBy.length === 0)
-    if (roomMsgFilter === 'read') items = items.filter((m) => m.readBy.length > 0)
+    if (roomMsgFilter === 'unread') items = items.filter(m => m.readBy.length === 0)
+    if (roomMsgFilter === 'read') items = items.filter(m => m.readBy.length > 0)
     if (roomMsgQuery.trim() !== '') {
       const q = roomMsgQuery.trim().toLowerCase()
-      items = items.filter((m) =>
+      items = items.filter(m =>
         m.subject.toLowerCase().includes(q)
         || m.sender.toLowerCase().includes(q)
         || m.content.toLowerCase().includes(q))
@@ -309,9 +310,9 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
     const q = roomQuery.trim().toLowerCase()
     const since = roomDays > 0 ? Date.now() - roomDays * 86400000 : 0
     return items
-      .filter((r) => roomStatus === 'all' || r.status === roomStatus)
-      .filter((r) => q === '' || r.name.toLowerCase().includes(q))
-      .filter((r) => since === 0 || r.createdAt >= since)
+      .filter(r => roomStatus === 'all' || r.status === roomStatus)
+      .filter(r => q === '' || r.name.toLowerCase().includes(q))
+      .filter(r => since === 0 || r.createdAt >= since)
   }, [rooms, roomQuery, roomStatus, roomDays])
 
   const roomListTotalPages = Math.max(1, Math.ceil(filteredRooms.length / PAGE_SIZE))
@@ -335,10 +336,10 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
       return
     }
     setExpandId(msg.id)
-    if (fullText[msg.id] === undefined) {
+    if (!Object.hasOwn(fullText, msg.id)) {
       try {
         const res = await fetchJson<{ content: string }>(`/messages/${encodeURIComponent(msg.id)}/content`)
-        setFullText((prev) => ({ ...prev, [msg.id]: res.content }))
+        setFullText(prev => ({ ...prev, [msg.id]: res.content }))
       } catch (err) {
         setNotice({ kind: 'error', text: errText(err) })
       }
@@ -362,7 +363,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
     setRoomMsgPage(1)
     try {
       const res = await fetchJson<{ presence: Presence[] }>(`/rooms/${encodeURIComponent(room.id)}/presence`)
-      setPresence((prev) => ({ ...prev, [room.id]: res.presence }))
+      setPresence(prev => ({ ...prev, [room.id]: res.presence }))
     } catch (err) {
       setNotice({ kind: 'error', text: errText(err) })
     }
@@ -387,7 +388,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
     if (!window.confirm(t('broadcast.room.dissolveConfirm', { name: room.name }))) return
     try {
       const res = await fetchJson<{ ok: boolean; message?: string }>(`/rooms/${encodeURIComponent(room.id)}/dissolve`, { method: 'POST' })
-      if (res.ok !== true) {
+      if (!res.ok) {
         setNotice({ kind: 'error', text: res.message ?? (isEn() ? 'Operation failed' : '操作失败') })
         return
       }
@@ -401,14 +402,14 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
   const copyText = (text: string, key: string): void => {
     void navigator.clipboard.writeText(text).then(() => {
       setCopied(key)
-      window.setTimeout(() => setCopied(''), 1500)
+      window.setTimeout(() =>{  setCopied('') }, 1500)
     }).catch(() => { /* 剪贴板被拒：静默 */ })
   }
 
   /** 消息卡片（消息列表与房间消息共用）。 */
   const renderMsgCard = (m: Msg, expandId: string | null, setExpandId: (id: string | null) => void): JSX.Element => {
     const from = m.sender === 'system' ? (isEn() ? 'System' : '系统') : displayName(m.sender, aliases)
-    const to = m.recipients.map((r) => recipientLabel(r, roomMap, aliases)).join(', ')
+    const to = m.recipients.map(r => recipientLabel(r, roomMap, aliases)).join(', ')
     const unread = m.readBy.length === 0 // 超管视角：无人读过 = 未读
     const isOpen = expandId === m.id
     return (
@@ -449,12 +450,12 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
                     type="button"
                     className="bb-att-thumb"
                     title={`${a.name}（${(a.size / 1024).toFixed(0)} KB）`}
-                    onClick={() => setOpenImage(open ? null : key)}
+                    onClick={() =>{  setOpenImage(open ? null : key) }}
                   >
                     <img src={src} alt={a.name} loading="lazy" className="bb-att-thumb-img" />
                   </button>
                   {open && (
-                    <div className="bb-att-preview" onClick={() => setOpenImage(null)}>
+                    <div className="bb-att-preview" onClick={() =>{  setOpenImage(null) }}>
                       <img src={src} alt={a.name} className="bb-att-preview-img" />
                       <span className="bb-att-preview-name">{a.name}</span>
                     </div>
@@ -476,12 +477,12 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
     onQuery: (q: string) => void,
   ): JSX.Element => (
     <div className="bb-toolbar">
-      {(['unread', 'all', 'read'] as const).map((f) => (
+      {(['unread', 'all', 'read'] as const).map(f => (
         <button
           key={f}
           type="button"
           className={`bb-chip${currentFilter === f ? ' bb-chip-active' : ''}`}
-          onClick={() => onFilter(f)}
+          onClick={() =>{  onFilter(f) }}
         >
           {t(`broadcast.filter.${f}`)}
         </button>
@@ -490,7 +491,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
         className="bb-search"
         placeholder={t('broadcast.searchPh')}
         value={currentQuery}
-        onChange={(e) => onQuery(e.target.value)}
+        onChange={(e) =>{  onQuery(e.target.value) }}
       />
     </div>
   )
@@ -504,18 +505,18 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
     if (total <= 1) return null
     return (
       <div className="bb-pager">
-        <button type="button" className="bb-btn bb-btn-mini" disabled={currentPage <= 1} onClick={() => onPage(currentPage - 1)}>
+        <button type="button" className="bb-btn bb-btn-mini" disabled={currentPage <= 1} onClick={() =>{  onPage(currentPage - 1) }}>
           {t('broadcast.pagePrev')}
         </button>
         <span className="bb-muted bb-small">{t('broadcast.pageInfo', { page: currentPage, total })}</span>
-        <button type="button" className="bb-btn bb-btn-mini" disabled={currentPage >= total} onClick={() => onPage(currentPage + 1)}>
+        <button type="button" className="bb-btn bb-btn-mini" disabled={currentPage >= total} onClick={() =>{  onPage(currentPage + 1) }}>
           {t('broadcast.pageNext')}
         </button>
       </div>
     )
   }
 
-  const myAlias = aliases[sessionId]
+  const myAlias = Object.hasOwn(aliases, sessionId) ? aliases[sessionId] : undefined
 
   /** 本 Tab 指南（对齐其他 Tab：TabGuideView 结构化介绍，文案走全局 locale）。 */
   const renderGuide = (): JSX.Element => (
@@ -541,7 +542,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
           role="tab"
           aria-selected={view === 'guide'}
           className={view === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setView('guide')}
+          onClick={() =>{  setView('guide') }}
         >
           {t('broadcast.tab.guide')}
         </button>
@@ -550,7 +551,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
           role="tab"
           aria-selected={view === 'messages'}
           className={view === 'messages' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setView('messages')}
+          onClick={() =>{  setView('messages') }}
         >
           {t('broadcast.tab.messages')}
         </button>
@@ -559,7 +560,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
           role="tab"
           aria-selected={view === 'rooms'}
           className={view === 'rooms' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setView('rooms')}
+          onClick={() =>{  setView('rooms') }}
         >
           {t('broadcast.tab.rooms')}
         </button>
@@ -568,7 +569,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
           role="tab"
           aria-selected={view === 'settings'}
           className={view === 'settings' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setView('settings')}
+          onClick={() =>{  setView('settings') }}
         >
           {t('broadcast.tab.settings')}
         </button>
@@ -580,11 +581,11 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
         <code className="bb-mono">
           {myAlias !== undefined ? `${myAlias}（${shortId(sessionId)}）` : shortId(sessionId)}
         </code>
-        <button type="button" className="bb-btn bb-btn-mini" onClick={() => copyText(sessionId, 'id')}>
+        <button type="button" className="bb-btn bb-btn-mini" onClick={() =>{  copyText(sessionId, 'id') }}>
           {copied === 'id' ? t('broadcast.copied') : t('broadcast.copyId')}
         </button>
         {myAlias !== undefined && (
-          <button type="button" className="bb-btn bb-btn-mini" onClick={() => copyText(myAlias, 'alias')}>
+          <button type="button" className="bb-btn bb-btn-mini" onClick={() =>{  copyText(myAlias, 'alias') }}>
             {copied === 'alias' ? t('broadcast.copied') : t('broadcast.copyAlias')}
           </button>
         )}
@@ -614,7 +615,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
               {directMessages.length === 0 && (
                 <div className="bb-empty">
                   {t('broadcast.messages.empty')}
-                  {messages.some((m) => m.recipients.some((r) => isRoomRef(r))) && (
+                  {messages.some(m => m.recipients.some(r => isRoomRef(r))) && (
                     <div className="bb-hint">{t('broadcast.messages.roomInRooms')}</div>
                   )}
                 </div>
@@ -622,7 +623,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
               {directMessages.length > 0 && filteredMessages.length === 0 && (
                 <div className="bb-empty">{t('broadcast.messages.empty')}</div>
               )}
-              {pageItems.map((m) => renderMsgCard(m, expanded, setExpanded))}
+              {pageItems.map(m => renderMsgCard(m, expanded, setExpanded))}
               {renderPager(page, totalPages, setPage)}
             </>
           )}
@@ -636,7 +637,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
             <>
               {/* 房间列表工具栏：名字搜索 + 状态筛选（全部/活跃/已解散）+ 时间筛选 + 分页 */}
               <div className="bb-toolbar">
-                {(['all', 'active', 'dissolved'] as const).map((s) => (
+                {(['all', 'active', 'dissolved'] as const).map(s => (
                   <button
                     key={s}
                     type="button"
@@ -646,7 +647,7 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
                     {t(`broadcast.roomStatus.${s}`)}
                   </button>
                 ))}
-                {([0, 7, 30] as const).map((d) => (
+                {([0, 7, 30] as const).map(d => (
                   <button
                     key={d}
                     type="button"
@@ -667,92 +668,92 @@ export function BroadcastView(props: ConvViewProps & { t: Translate }): JSX.Elem
                 <div className="bb-empty">{t('broadcast.rooms.empty')}</div>
               )}
               {roomListPageItems.map((room) => {
-            const dissolved = room.status === 'dissolved'
-            const online = room.onlineCount > 0 && !dissolved
-            const statusLabel = dissolved
-              ? t('broadcast.room.status.dissolved')
-              : online ? t('broadcast.room.status.active') : t('broadcast.room.status.idle')
-            const members = presence[room.id] ?? room.members.map((sid) => ({ sessionId: sid, status: 'unknown', online: false, lastActiveAt: null }))
-            const isOpen = openRoom === room.id
-            return (
-              <div key={room.id} className={`bb-card${isOpen ? ' bb-card-open' : ''}${dissolved ? ' bb-card-dissolved' : ''}`}>
-                <div className="bb-row">
-                  <span className={`bb-dot${online ? ' bb-dot-on' : dissolved ? ' bb-dot-off' : ' bb-dot-idle'}`} />
-                  <span className="bb-strong">{room.name}</span>
-                  <span className={`bb-badge${dissolved ? ' bb-badge-dissolved' : online ? ' bb-badge-online' : ''}`}>
-                    {statusLabel}
-                  </span>
-                  <span className="bb-badge">
-                    {t('broadcast.room.online', { online: room.onlineCount, total: room.members.length })}
-                  </span>
-                  <span className="bb-grow" />
-                  <span className="bb-muted bb-small">{t('broadcast.room.lastActive')}：{fmtTime(room.lastActiveAt)}</span>
-                  {/* 进入房间详情：正常按钮尺寸，不再套 bb-btn-mini */}
-                  <button type="button" className="bb-btn bb-btn-detail" onClick={() => void toggleRoom(room)}>
-                    {isOpen ? t('broadcast.message.collapse') : t('broadcast.room.detail')}
-                  </button>
-                  {!dissolved && (
-                    <button type="button" className="bb-btn bb-btn-mini bb-btn-danger" onClick={() => void dissolveRoom(room)}>
-                      {t('broadcast.room.dissolve')}
-                    </button>
-                  )}
-                </div>
-                <div className="bb-meta">
-                  <code className="bb-mono bb-small">{room.id}</code>
-                  <span className="bb-muted bb-small">
-                    · {t('broadcast.room.created')} {fmtTime(room.createdAt)} · {room.members.length} {t('broadcast.room.members')}
-                  </span>
-                  <button type="button" className="bb-btn bb-btn-mini" onClick={() => copyText(room.id, `room-${room.id}`)}>
-                    {t('broadcast.room.copyId')}
-                  </button>
-                </div>
-                {isOpen && (
-                  <>
-                    <div className="bb-members">
-                      <div className="bb-section-title">{t('broadcast.room.members')}</div>
-                      {members.map((p) => (
-                        <div key={p.sessionId} className="bb-row bb-member" title={p.sessionId}>
-                          <span className={`bb-dot${p.online ? ' bb-dot-on' : ' bb-dot-idle'}`} />
-                          <code className="bb-mono">{displayName(p.sessionId, aliases)}</code>
-                          <span className="bb-muted bb-small">
-                            {p.online ? 'running' : p.status === 'idle' ? 'idle' : t('broadcast.room.presence.unknown')}
-                            {p.lastActiveAt !== null ? ` · ${fmtTime(p.lastActiveAt)}` : ''}
-                          </span>
-                          <span className="bb-grow" />
-                          {!dissolved && (
-                            <button type="button" className="bb-btn bb-btn-mini bb-btn-danger" onClick={() => void kickMember(room, p.sessionId)}>
-                              {t('broadcast.room.kick')}
-                            </button>
-                          )}
+                const dissolved = room.status === 'dissolved'
+                const online = room.onlineCount > 0 && !dissolved
+                const statusLabel = dissolved
+                  ? t('broadcast.room.status.dissolved')
+                  : online ? t('broadcast.room.status.active') : t('broadcast.room.status.idle')
+                const members = presence[room.id] ?? room.members.map(sid => ({ sessionId: sid, status: 'unknown', online: false, lastActiveAt: null }))
+                const isOpen = openRoom === room.id
+                return (
+                  <div key={room.id} className={`bb-card${isOpen ? ' bb-card-open' : ''}${dissolved ? ' bb-card-dissolved' : ''}`}>
+                    <div className="bb-row">
+                      <span className={`bb-dot${online ? ' bb-dot-on' : dissolved ? ' bb-dot-off' : ' bb-dot-idle'}`} />
+                      <span className="bb-strong">{room.name}</span>
+                      <span className={`bb-badge${dissolved ? ' bb-badge-dissolved' : online ? ' bb-badge-online' : ''}`}>
+                        {statusLabel}
+                      </span>
+                      <span className="bb-badge">
+                        {t('broadcast.room.online', { online: room.onlineCount, total: room.members.length })}
+                      </span>
+                      <span className="bb-grow" />
+                      <span className="bb-muted bb-small">{t('broadcast.room.lastActive')}：{fmtTime(room.lastActiveAt)}</span>
+                      {/* 进入房间详情：正常按钮尺寸，不再套 bb-btn-mini */}
+                      <button type="button" className="bb-btn bb-btn-detail" onClick={() => void toggleRoom(room)}>
+                        {isOpen ? t('broadcast.message.collapse') : t('broadcast.room.detail')}
+                      </button>
+                      {!dissolved && (
+                        <button type="button" className="bb-btn bb-btn-mini bb-btn-danger" onClick={() => void dissolveRoom(room)}>
+                          {t('broadcast.room.dissolve')}
+                        </button>
+                      )}
+                    </div>
+                    <div className="bb-meta">
+                      <code className="bb-mono bb-small">{room.id}</code>
+                      <span className="bb-muted bb-small">
+                        · {t('broadcast.room.created')} {fmtTime(room.createdAt)} · {room.members.length} {t('broadcast.room.members')}
+                      </span>
+                      <button type="button" className="bb-btn bb-btn-mini" onClick={() =>{  copyText(room.id, `room-${room.id}`) }}>
+                        {t('broadcast.room.copyId')}
+                      </button>
+                    </div>
+                    {isOpen && (
+                      <>
+                        <div className="bb-members">
+                          <div className="bb-section-title">{t('broadcast.room.members')}</div>
+                          {members.map(p => (
+                            <div key={p.sessionId} className="bb-row bb-member" title={p.sessionId}>
+                              <span className={`bb-dot${p.online ? ' bb-dot-on' : ' bb-dot-idle'}`} />
+                              <code className="bb-mono">{displayName(p.sessionId, aliases)}</code>
+                              <span className="bb-muted bb-small">
+                                {p.online ? 'running' : p.status === 'idle' ? 'idle' : t('broadcast.room.presence.unknown')}
+                                {p.lastActiveAt !== null ? ` · ${fmtTime(p.lastActiveAt)}` : ''}
+                              </span>
+                              <span className="bb-grow" />
+                              {!dissolved && (
+                                <button type="button" className="bb-btn bb-btn-mini bb-btn-danger" onClick={() => void kickMember(room, p.sessionId)}>
+                                  {t('broadcast.room.kick')}
+                                </button>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                    {/* 房间消息：同款筛选/搜索/分页 */}
-                    <div className="bb-room-msgs">
-                      <div className="bb-section-title">
-                        {t('broadcast.room.messages')}
-                        <span className="bb-count">{roomMessages.length}</span>
-                      </div>
-                      {renderToolbar(
-                        roomMsgFilter,
-                        (f) => { setRoomMsgFilter(f); setRoomMsgPage(1) },
-                        roomMsgQuery,
-                        (q) => { setRoomMsgQuery(q); setRoomMsgPage(1) },
-                      )}
-                      {roomMessages.length === 0 && (
-                        <div className="bb-empty bb-empty-sm">{t('broadcast.room.messages.empty')}</div>
-                      )}
-                      {roomMessages.length > 0 && filteredRoomMessages.length === 0 && (
-                        <div className="bb-empty bb-empty-sm">{t('broadcast.room.messages.empty')}</div>
-                      )}
-                      {roomPageItems.map((m) => renderMsgCard(m, roomMsgExpanded, setRoomMsgExpanded))}
-                      {renderPager(roomMsgPage, roomTotalPages, setRoomMsgPage)}
-                    </div>
-                  </>
-                )}
-              </div>
-            )
-          })}
+                        {/* 房间消息：同款筛选/搜索/分页 */}
+                        <div className="bb-room-msgs">
+                          <div className="bb-section-title">
+                            {t('broadcast.room.messages')}
+                            <span className="bb-count">{roomMessages.length}</span>
+                          </div>
+                          {renderToolbar(
+                            roomMsgFilter,
+                            (f) => { setRoomMsgFilter(f); setRoomMsgPage(1) },
+                            roomMsgQuery,
+                            (q) => { setRoomMsgQuery(q); setRoomMsgPage(1) },
+                          )}
+                          {roomMessages.length === 0 && (
+                            <div className="bb-empty bb-empty-sm">{t('broadcast.room.messages.empty')}</div>
+                          )}
+                          {roomMessages.length > 0 && filteredRoomMessages.length === 0 && (
+                            <div className="bb-empty bb-empty-sm">{t('broadcast.room.messages.empty')}</div>
+                          )}
+                          {roomPageItems.map(m => renderMsgCard(m, roomMsgExpanded, setRoomMsgExpanded))}
+                          {renderPager(roomMsgPage, roomTotalPages, setRoomMsgPage)}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
               {renderPager(roomPage, roomListTotalPages, setRoomPage)}
             </>
           )}

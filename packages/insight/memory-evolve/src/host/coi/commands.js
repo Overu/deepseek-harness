@@ -91,7 +91,6 @@ async function handle(svc, sub, rest, invocation) {
         cwd: opts.cwd,
         branch: opts.branch,
         sessionId: opts.session,
-        model: opts.model,
         refTaskId: opts.ref,
         templateId: opts.template,
         continueLast: opts.continue,

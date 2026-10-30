@@ -41,7 +41,6 @@ import { AliasStore } from './aliases.js'
 import { authorizeMemoryRequest } from './insight-auth.js'
 import { buildMemoryFiles } from './memory-tab.js'
 import { approvePendingSkill, listPendingSkills, rejectPendingSkill } from './skills.js'
-import { normalizeModelsPatch } from './models.js'
 
 /** The pending-skill queue directory (under the memory dir). */
 function pendingSkillDir(deps) {
@@ -722,37 +721,6 @@ export function installApi(ctx, deps) {
         const outcome = rejectPendingSkill(pendingSkillDir(deps), name)
         if (!outcome.ok) throw new Error(outcome.message)
         sendJson(res, 200, outcome)
-        return
-      }
-      // ---- 模型设置模块（lib/models.js）：表格数据 + 配置更新 ----
-      // GET /api/models：聚合快照（供应商 + 模型 + 思考等级 + enabled/备注），
-      // 供「模型设置」Tab 渲染；enabledOnly=1 只返回启用的模型（外部查询用）。
-      // 模块未启用（modelsEnabled=false）时拒绝访问（store 为 null）。
-      if (req.method === 'GET' && path === '/memory-evolve/api/models') {
-        if (deps.modelsStore === null) throw new Error('模型设置模块未启用（请在「设置」Tab 的「配置」里打开「模型设置」开关）')
-        const snapshot = await deps.buildModelsSnapshot()
-        if (url.searchParams.get('enabledOnly') === '1') {
-          for (const p of snapshot.providers) {
-            p.models = p.models.filter((m) => m.enabled)
-          }
-        }
-        sendJson(res, 200, snapshot)
-        return
-      }
-      // POST /api/models/update { provider, model, patch }：更新一个模型的
-      // 插件配置（enabled / thinking / note / reasoning.enabled 白名单 /
-      // reasoning.recommended / reasoning.custom）。返回规范化后的 entry
-      // （全空配置被删除时 entry 为 null）。
-      if (req.method === 'POST' && path === '/memory-evolve/api/models/update') {
-        if (deps.modelsStore === null) throw new Error('模型设置模块未启用（请在「设置」Tab 的「配置」里打开「模型设置」开关）')
-        const body = await readBody(req)
-        const provider = String(body?.provider ?? '').trim()
-        const model = String(body?.model ?? '').trim()
-        if (provider === '') throw new Error('provider 不能为空')
-        if (model === '') throw new Error('model 不能为空')
-        const patch = normalizeModelsPatch(body?.patch)
-        const entry = deps.modelsStore.update(provider, model, patch)
-        sendJson(res, 200, { ok: true, entry: entry ?? null })
         return
       }
       sendJson(res, 404, { error: 'not found' })

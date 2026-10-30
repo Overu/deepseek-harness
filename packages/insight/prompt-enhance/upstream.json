@@ -4,5 +4,6 @@
   "archiveSha256": "fbd57a58c98354227712d77eb92f07182628c1e5acc9b1b664855453662b7c83",
   "upstreamVersion": "0.2.7",
   "importedAt": "2026-10-28",
-  "patch": "../../../patches/insight/prompt-enhance.patch"
+  "patch": "../../../patches/insight/prompt-enhance.patch",
+  "purpose": "Pinned source intake and account-scoped DSH Desktop adaptation; local changes replay from the parent patch"
 }

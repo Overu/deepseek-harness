@@ -12,7 +12,7 @@ The Insight application uses the display name `因赛AI`, application id `com.in
 
 The Insight product version and DSH runtime version are independent. Packaging requires an explicit Insight `1.x` semantic version, leaves workspace package versions at the DSH runtime version, and records the runtime in `dshDesktopRuntimeVersion`. Main reports both values in safe product metadata so support can distinguish product rollout from baseline runtime changes.
 
-Insight product UI is Chinese-only in P2. Product selection forces the existing native Desktop message roles to Chinese and supplies Chinese login and account copy; it does not add a locale selector or Insight translation dictionaries. The official product keeps its existing locale behavior.
+Insight product UI is Chinese-only. Product selection forces the existing native Desktop message roles to Chinese and supplies Chinese login and account copy; it does not add a locale selector or Insight translation dictionaries. The official product keeps its existing locale behavior.
 
 ## Startup and account ownership
 
@@ -20,11 +20,11 @@ Insight opens an isolated native login window before it creates the account prof
 
 One Desktop process owns one immutable authenticated account. The account scope is the first 32 hexadecimal characters of SHA-256 over the service environment and stable user id. The new DSH Home is `<userData>/insight/accounts/<scope>/harness-native`; a marker binds that directory to its scope, environment, and marker version.
 
-Home preparation fails closed. A legacy `<scope>/harness` path, a checked Insight account path that is a symbolic link, a non-empty native Home without the expected marker, or a mismatched marker prevents Host startup and reports `migration-required`. P2 never reads or rewrites legacy Home contents. Historical conversations, workspaces, plugins, and configuration therefore remain untouched until the separate P4 migration path handles them.
+Home preparation fails closed. A legacy `<scope>/harness` path, a checked Insight account path that is a symbolic link, a non-empty native Home without the expected marker, or a mismatched marker prevents Host startup and reports `migration-required`. The current startup path never reads or rewrites legacy Home contents. Historical conversations, workspaces, plugins, and configuration therefore remain untouched until the separate P4 migration path handles them.
 
 ## Process data flow
 
-The login renderer receives a narrow preload API for session state, SMS/password commands, agreement windows, and local sign-out. After admission, Desktop Main starts the Host with the fixed account Home in `DSH_HOME`, keeps the access token in Main-owned authentication state, and activates `@insight-ai/desktop-integration` as the product-required profile bundle.
+The login renderer receives a narrow preload API for session state, SMS/password commands, agreement windows, and local sign-out. After admission, Desktop Main starts the Host with the fixed account Home in `DSH_HOME`, keeps the access token in Main-owned authentication state, and activates the four product-required bundles: Integration, Canvas, Memory, and Prompt.
 
 The Host bundle mounts `ctx.insightAccount`. A trusted Host consumer requests an access token over the private child-process channel with a branded request id. Both peers validate exact message fields, bound concurrent requests, support cancellation and deadlines, and ignore duplicate or late responses. Desktop Main answers only the current live Host child; tokens are not logged, retained in Host diagnostics, exposed through Remote, or sent to a renderer.
 
@@ -62,15 +62,15 @@ Source: [`packages/insight/desktop-integration/src/host/account-service.ts`](../
 
 ## Source and release ownership
 
-[packages/insight](../../packages/insight/README.md) owns the private Desktop integration and the three fixed business-source packages. Canvas, Memory, and Prompt retain their source identities and enter the desktop dependency closure, but P2 does not add them to the Insight profile. Their business activation belongs to P3.
+[packages/insight](../../packages/insight/README.md) owns the private Desktop integration and the three fixed business-source packages. Canvas, Memory, and Prompt retain their source identities and activate in the Insight profile. Desktop Main supplies the fixed required-bundle policy after login-shell environment resolution; Plugin Manager merges it with ordinary profile configuration without replacing the user registry. Component disable, removal, update, and replacement operations enforce this policy; internal feature switches remain package-owned.
 
 The [Integration bundle README](../../packages/insight/desktop-integration/README.md) owns the bundle-local Host entry and runtime package-resolution maintenance rule.
 
 Each fixed business package records its upstream repository, commit, and version in `upstream.json`; its workspace version follows the DSH root version. Source changes are committed to the parent repository, and `patches/insight` records replayable differences against the fixed input. Normal builds do not patch installed files. The exact identities in [the product roster](../../scripts/insight-package-policy.ts) remain private and outside the public npm baseline.
 
-`bundled-skills` remains an externally synchronized root directory with its original internal structure. The client label generator reads its existing names and `ui.json` files; desktop packaging keeps the directory separate from plugin packages. Skill content, scripts, and business correctness belong to the source repository, not this migration.
+`bundled-skills` remains an externally synchronized root directory with its original internal structure. The runtime discovers skills from this directory and reads optional `ui.json` presentation beside each installed instruction. Insight Desktop supplies `DSH_BUNDLED_SKILL_DIR`, and its packaging copies the directory as an independent resource; the [Desktop Host environment](../../apps/desktop/README.md#insight-bundled-skills) owns the development and installed paths. Skill content, scripts, and business correctness belong to the source repository, not this migration.
 
-The Insight build currently excludes DSH automatic and mandatory update flows. Manual update checks report that checking is unavailable. P2 does not connect the existing OSS/CDN release channel, test-channel discovery, signing, or installed-update qualification; those release mechanics remain P5 work rather than a capability of the authentication package.
+The Insight build currently excludes DSH automatic and mandatory update flows. Manual update checks report that checking is unavailable. The current integration does not connect the existing OSS/CDN release channel, test-channel discovery, signing, or installed-update qualification; those release mechanics remain P5 work rather than a capability of the authentication package.
 
 ## Source development
 

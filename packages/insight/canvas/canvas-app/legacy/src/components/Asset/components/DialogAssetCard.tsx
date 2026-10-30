@@ -1,25 +1,25 @@
-import React, { useState } from 'react';
-import { Eye, Star, Download, Loader2, LogIn } from 'lucide-react';
-import { ASSET_TYPE_CODE, type AssetItem } from '../types';
-import { formatCreateTime } from '../util';
-import DefaultImage from '@/assets/images/default_flow.png';
-import AudioImage from '@/assets/images/audio.png';
-import { compressImage } from '@/utils';
-import { AssetVideoPreview } from './AssetVideoPreview';
-import { AssetCardTags } from './AssetCardTags';
+import React, { useState } from 'react'
+import { Eye, Star, Download, Loader2, LogIn } from 'lucide-react'
+import { ASSET_TYPE_CODE, type AssetItem } from '../types'
+import { formatCreateTime } from '../util'
+import DefaultImage from '@/assets/images/default_flow.png'
+import AudioImage from '@/assets/images/audio.png'
+import { compressImage } from '@/utils'
+import { AssetVideoPreview } from './AssetVideoPreview'
+import { AssetCardTags } from './AssetCardTags'
 
 interface DialogAssetCardProps {
-  asset: AssetItem;
-  isPublic: boolean;
-  isBatchMode: boolean;
-  isSelected: boolean;
-  onToggleSelect: () => void;
-  onPreview: () => void;
-  onAdd: () => void;
-  onEnter?: () => void;
-  onFavorite: () => void;
-  onDownload?: () => void;
-  isAdding?: boolean;
+  asset: AssetItem
+  isPublic: boolean
+  isBatchMode: boolean
+  isSelected: boolean
+  onToggleSelect: () => void
+  onPreview: () => void
+  onAdd: () => void
+  onEnter?: () => void
+  onFavorite: () => void
+  onDownload?: () => void
+  isAdding?: boolean
 }
 
 export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
@@ -35,29 +35,30 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
   onDownload,
   isAdding,
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const handleClick = (e: React.MouseEvent) => {
+  const [isHovered, setIsHovered] = useState(false)
+  const handleClick = (e: React.SyntheticEvent<HTMLDivElement>) => {
     if (isBatchMode) {
-      onToggleSelect();
-      (e.currentTarget as HTMLElement).blur();
+      onToggleSelect()
+      e.currentTarget.blur()
     }
-  };
+  }
 
   const renderContent = () => {
-    const commonClasses = 'w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110';
+    const commonClasses = 'w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110'
 
     switch (asset.type) {
       case ASSET_TYPE_CODE.IMAGE:
       case ASSET_TYPE_CODE.COLLECTION:
-        return <img src={compressImage(asset.coverUrl) || DefaultImage} className={commonClasses} alt={asset.name} />;
+        return <img src={compressImage(asset.coverUrl) || DefaultImage} className={commonClasses} alt={asset.name} />
       case ASSET_TYPE_CODE.VIDEO:
-        return <AssetVideoPreview fileUrl={asset.fileUrl} coverUrl={asset.coverUrl} className={commonClasses} alt={asset.name} hovered={isHovered} />;
+        return <AssetVideoPreview fileUrl={asset.fileUrl}
+          coverUrl={asset.coverUrl} className={commonClasses} alt={asset.name} hovered={isHovered} />
       case ASSET_TYPE_CODE.AUDIO:
-        return <img src={AudioImage} className={commonClasses} alt={asset.name} />;
+        return <img src={AudioImage} className={commonClasses} alt={asset.name} />
       default:
-        return <div className='w-full h-full bg-[#1A1A1A]' />;
+        return <div className='w-full h-full bg-[#1A1A1A]' />
     }
-  };
+  }
 
   return (
     <div className='relative flex flex-col gap-2'>
@@ -68,10 +69,10 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
         onMouseLeave={() => setIsHovered(false)}
         role='button'
         tabIndex={0}
-        onKeyDown={e => {
+        onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleClick(e as unknown as React.MouseEvent<HTMLDivElement>);
+            e.preventDefault()
+            handleClick(e)
           }
         }}
       >
@@ -86,15 +87,15 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
             }`}
             role='button'
             tabIndex={0}
-            onClick={e => {
-              e.stopPropagation();
-              if (!isAdding) onAdd();
+            onClick={(e) => {
+              e.stopPropagation()
+              if (!isAdding) onAdd()
             }}
-            onKeyDown={e => {
+            onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                e.stopPropagation();
-                if (!isAdding) onAdd();
+                e.preventDefault()
+                e.stopPropagation()
+                if (!isAdding) onAdd()
               }
             }}
           >
@@ -107,9 +108,9 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
           <div className='absolute bottom-3 right-3 z-20 flex items-center gap-2' onClick={e => e.stopPropagation()}>
             <button
               className='p-2 rounded-xl bg-black/60 text-white hover:bg-black/80 transition-all duration-200 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
-              onClick={e => {
-                e.stopPropagation();
-                onPreview();
+              onClick={(e) => {
+                e.stopPropagation()
+                onPreview()
               }}
               title='预览'
             >
@@ -118,9 +119,9 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
             {asset.type === ASSET_TYPE_CODE.COLLECTION && onEnter && (
               <button
                 className='p-2 rounded-xl bg-black/60 text-white hover:bg-black/80 transition-all duration-200 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
-                onClick={e => {
-                  e.stopPropagation();
-                  onEnter();
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEnter()
                 }}
                 title='进入'
               >
@@ -129,9 +130,9 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
             )}
             {onDownload && (
               <button
-                onClick={e => {
-                  e.stopPropagation();
-                  onDownload();
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDownload()
                 }}
                 className='p-2 rounded-xl bg-black/60 text-white hover:bg-black/80 transition-all duration-200 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
                 title='下载'
@@ -140,10 +141,10 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
               </button>
             )}
             <button
-              onClick={e => {
-                e.stopPropagation();
-                onFavorite();
-                (e.currentTarget as HTMLElement).blur();
+              onClick={(e) => {
+                e.stopPropagation()
+                onFavorite()
+                e.currentTarget.blur()
               }}
               className={`p-2 rounded-xl bg-black/60 text-white hover:bg-black/80 hover:text-orange-400 transition-all duration-200 ${asset.isInCollection === 1 ? 'opacity-100' : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'} ${asset.isInCollection === 1 ? 'ring-2 ring-orange-400' : ''}`}
               title={asset.isInCollection === 1 ? '取消收藏' : '收藏'}
@@ -175,5 +176,5 @@ export const DialogAssetCard: React.FC<DialogAssetCardProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

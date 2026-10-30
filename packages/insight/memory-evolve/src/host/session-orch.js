@@ -193,14 +193,6 @@ export class SessionOrch {
     this.agents = ctx.agents
     this.sessionTitle = ctx.sessionTitle // 会话名称服务（rename 改左侧列表标题）
     this.sessionPersistence = ctx.sessionPersistence // 会话持久化（wake offline 读自身模型配置）
-    // ⚠️ 模型目录解析（2026-08-11 踩坑）：llm/settings 是主插件声明式注入的
-    // 服务（lib/index.js export inject 已含）——spawn 显式传 model 时用它
-    // **按模型名解析所属 provider**（与 GUI 模型选择框同源），否则 provider
-    // 仍继承发起会话，把 qwen3.7-plus 发给 deepseek-official 接口会报
-    // INVALID_REQUEST（"supported API model names are …"）。两者可能缺失
-    // （测试/降级环境）——缺了就不解析，退回继承（行为同旧版）。
-    this.llm = ctx.llm
-    this.settings = ctx.settings
     // ⚠️ 挂接工作区重试间隔（2026-08-12 踩坑修复）：spawn 后立即 attach
     // 可能遇到 readSessionHeader 竞态（live 未注册/持久化未就绪）——失败
     // 曾被子静默吞掉，导致会话"创建后不在分组"（重启后 GUI 显示未分组，
@@ -475,58 +467,12 @@ export class SessionOrch {
   }
 
   /**
-   * 按模型名解析所属 provider（与 GUI 模型选择框同源：已配置 provider 的
-   * settings 模型目录）。找不到返回 undefined（调用方退回继承发起会话）。
-   * ⚠️ 2026-08-11 踩坑背景：spawn 显式传 model 时 provider 曾仍继承发起
-   * 会话（如 deepseek-official），把 qwen3.7-plus 发给 deepseek 接口 →
-   * "The supported API model names are deepseek-v4-pro or deepseek-v4-flash,
-   * but you passed qwen3.7-plus" INVALID_REQUEST；手动 GUI 选择框是「在某个
-   * provider 下选模型」天然带 provider，所以能成功。这里还原选择框的数据源。
-   */
-  async #resolveProviderForModel(model) {
-    if (!this.llm || !this.settings) return undefined
-    try {
-      const entries = this.llm.listConfigurableProviders()
-      for (const entry of entries) {
-        let profile
-        try {
-          const value = this.settings.get(entry.settingsNs)
-          profile = value !== undefined && entry.settingsPath.length > 0
-            ? this.#getPath(value, entry.settingsPath)
-            : value
-        } catch { continue /* 该 provider 配置读不到，跳过 */ }
-        // settingsPath 可能指到 providers 层或单个 provider 配置层，两种都兼容
-        const rawModels = profile !== undefined && Array.isArray(profile.models)
-          ? profile.models
-          : Array.isArray(profile?.[entry.provider]?.models)
-            ? profile[entry.provider].models
-            : []
-        if (rawModels.some((m) => String(m?.id ?? '') === model)) return entry.provider
-      }
-    } catch { /* 目录整体读取失败=解析不到 */ }
-    return undefined
-  }
-
-  /** 取对象路径值（与 models.js getPath 同款，本地实现防跨模块耦合）。 */
-  #getPath(root, path) {
-    let node = root
-    for (const key of path) {
-      if (node === null || typeof node !== 'object') return undefined
-      node = node[key]
-    }
-    return node
-  }
-
-  /**
    * 创建新会话并派发初始任务（首条消息 = 完整提示词）。
-   * @param {{prompt:string, cwd?:string, roomId?:string, model?:string, provider?:string, agentPreset?:string, by?:string, requester?:object}} input
+   * @param {{prompt:string, cwd?:string, roomId?:string, agentPreset?:string, by?:string, requester?:object}} input
    *   requester：发起会话的 live Agent（新会话默认**继承它的配置**：
-   *   ① provider/model——新会话无历史配置必须显式给，否则 {{model}} 无值
+   *   ① managed provider/model——新会话无历史配置必须从发起会话继承，否则 {{model}} 无值
    *   回合失败；② cwd 工作目录——曾因不传 cwd 导致新会话落在默认工作区、
-   *   不在发起会话的项目里。用户显式传 cwd/model/provider 时优先）。
-   *   model 显式传时**按模型名自动解析 provider**（GUI 选择框同源：
-   *   settings 模型目录；解析不到退回发起会话 provider 并在 message 提示
-   *   风险）；provider 显式传时直接用它（最高优先）。
+   *   不在发起会话的项目里。用户显式传 cwd 时优先）。
    *   agentPreset 可选：会话的 Agent 预设 id（DSH 260810 起；预设 = 目录 +
    *   agent.cordis.yml，决定工具/人格/提示词组成）。传给 agents.create 的
    *   meta.agentPreset（⚠️ 注意不是 agentOptions——见 packages/core/agent/
@@ -539,7 +485,7 @@ export class SessionOrch {
    *   attach：挂接工作区结果 { ok, workspaceId?, workspaceTitle?, error?, attempts }
    *   （cwd 为 null 时不挂接 → attach=null；失败不阻断 spawn，message 带警告）
    */
-  async spawn({ prompt, cwd, roomId, model, provider, agentPreset, by, requester } = {}) {
+  async spawn({ prompt, cwd, roomId, agentPreset, by, requester } = {}) {
     const text = String(prompt ?? '').trim()
     if (text === '') {
       return { ok: false, message: set_('ses.msg.spawnNeedsPrompt') }
@@ -566,39 +512,11 @@ export class SessionOrch {
       resolvedPreset = presetRaw
     }
     const sessionId = newSessionId()
-    // 模型配置：用户显式 model 优先；否则继承发起会话（产品经理）的
-    // provider/model（新会话无历史 header，必须给——曾因空 agentOptions
-    // 导致 {{model}} 无值回合失败）。⚠️ 模型选择机制（webUI 改模型等）
-    // 后续再完善，当前先继承发起会话（见 TODO）。
+    // New sessions inherit the active managed route. Model selection belongs
+    // to Insight account policy rather than this tool.
     const base = requester?.options ?? {}
-    const explicitModel = model !== undefined && String(model).trim() !== '' ? String(model).trim() : undefined
-    const explicitProvider = provider !== undefined && String(provider).trim() !== '' ? String(provider).trim() : undefined
-    const resolvedModel = explicitModel ?? base.model
-    // provider 解析顺序：显式 provider 参数 > 按 model 自动解析 > 继承发起会话
-    // ⚠️ 2026-08-11 踩坑：曾只换 model 不换 provider（provider 恒=发起会话），
-    // 把 qwen3.7-plus 发给 deepseek-official 报 INVALID_REQUEST；GUI 选择框
-    // =「provider 下选模型」天然带 provider 所以手动选能成功。
-    let resolvedProvider = explicitProvider
-    let providerNote = ''
-    if (!resolvedProvider) {
-      if (explicitModel) {
-        resolvedProvider = await this.#resolveProviderForModel(explicitModel)
-        if (resolvedProvider) {
-          // 解析到：与发起会话不同才提示（相同=无变化，不啰嗦）
-          if (resolvedProvider !== base.provider) {
-            providerNote = `（已按模型名解析 provider=${resolvedProvider}，与发起会话的 ${base.provider} 不同）`
-          }
-        } else {
-          // 解析不到：退回继承，明确提示可能报错（诚实原则，不留黑盒）
-          resolvedProvider = base.provider
-          providerNote = resolvedProvider
-            ? `（⚠️ 模型 ${explicitModel} 不在已配置 provider 的模型目录中，provider 沿用发起会话 ${resolvedProvider}——若该接口不支持此模型会报 INVALID_REQUEST）`
-            : `（⚠️ 模型 ${explicitModel} 解析不到所属 provider，且发起会话无 provider 可继承）`
-        }
-      } else {
-        resolvedProvider = base.provider
-      }
-    }
+    const resolvedProvider = base.provider
+    const resolvedModel = base.model
     // 工作目录：用户显式 cwd 优先；否则继承发起会话（产品经理）的 cwd
     // （header.cwd）——保证员工会话落在同一个项目工作区
     const resolvedCwd = cwd ?? requester?.session?.header?.cwd ?? null
@@ -607,20 +525,11 @@ export class SessionOrch {
     // request/header 时恢复它——新会话无历史则用模型默认思考等级（曾与
     // 产品经理不一致）。把发起会话的 request/header 塞进新会话 seed，
     // 首回合即以同款配置运行（fork 会话同款机制）。
-    // ⚠️ 仅当 provider+model 都一致时继承：显式覆盖了不同 model/provider 时
-    // **不带** reasoningEffort（目标模型可能不支持思考等级，避免报错）。
+    // Preserve the initiating session's managed route and reasoning policy.
     const requesterHeader = requester?.session?.requestHeader?.()
     let seed
     if (requesterHeader?.config?.provider && requesterHeader.config.model) {
-      const sameConfig = resolvedProvider === requesterHeader.config.provider
-        && resolvedModel === requesterHeader.config.model
-      // 同配置：完整继承（含 reasoningEffort 等运行配置）；
-      // 不同配置（显式换模型/provider）：header 用新的 provider/model、
-      // **不带** reasoningEffort（目标模型可能不支持思考等级），也不带
-      // adapterDefaults 标记
-      const config = sameConfig
-        ? { ...requesterHeader.config }
-        : { provider: resolvedProvider ?? requesterHeader.config.provider, model: resolvedModel }
+      const config = { ...requesterHeader.config }
       seed = [{
         type: 'request/header',
         // ⚠️ seed 事件 seq 必须从 0 开始连续（DSH 校验：
@@ -629,7 +538,7 @@ export class SessionOrch {
         time: Date.now(),
         data: {
           header: {
-            ...(sameConfig && requesterHeader.adapterDefaults ? { adapterDefaults: requesterHeader.adapterDefaults } : {}),
+            ...(requesterHeader.adapterDefaults ? { adapterDefaults: requesterHeader.adapterDefaults } : {}),
             config,
           },
           reason: 'initial',
@@ -746,8 +655,8 @@ export class SessionOrch {
     } catch (error) {
       return { ok: false, message: set_('ses.msg.dispatchFailed', { sid: sessionId, detail: errText(error) }) }
     }
-    // 预设提示（与 provider/model 同款：message 里如实反映创建时用的配置；
-    // 未显式传预设 = 走 DSH 默认（agent-presets.default 设置），不啰嗦）
+    // No model configuration is exposed by this tool; only report an explicit
+    // agent preset.
     const presetNote = resolvedPreset ? `；Agent 预设 ${resolvedPreset}` : ''
     return {
       ok: true,
@@ -755,7 +664,7 @@ export class SessionOrch {
       provider: resolvedProvider ?? null,
       agentPreset: resolvedPreset,
       attach,
-      message: set_('ses.msg.spawned', { sid: sessionId, notes: `${presetNote}${roomNote}${providerNote}${attachNote}` }),
+      message: set_('ses.msg.spawned', { sid: sessionId, notes: `${presetNote}${roomNote}${attachNote}` }),
     }
   }
 
@@ -1064,8 +973,6 @@ export function sessionToolDefinition(orch) {
         limit: { type: 'integer', description: 'find 可选：最多返回条数（默认 20，上限 50）' },
         cwd: { type: 'string', description: 'spawn 可选：新会话工作目录（绝对路径；缺省=继承发起会话的工作目录，保证同一项目内协作）' },
         roomId: { type: 'string', description: 'spawn 可选：加入的广播房间 id（形如 room-xxx；需广播模块启用）' },
-        model: { type: 'string', description: 'spawn 可选：覆盖模型（缺省=继承发起会话的模型）。⚠️ 显式传时自动按模型名解析所属 provider（与 GUI 模型选择框同源：已配置 provider 的模型目录，如 qwen3.7-plus → qwen-token-plan-cn；解析不到沿用发起会话 provider 并在返回里提示风险）' },
-        provider: { type: 'string', description: 'spawn 可选：显式指定供应商路由 id（如 deepseek-official、qwen-token-plan-cn；缺省=按 model 自动解析，解析不到用发起会话的 provider）' },
         agentPreset: { type: 'string', description: 'spawn 可选：Agent 预设 id（DSH 260810 起；预设=目录+agent.cordis.yml，决定会话的工具/人格/提示词组成）。格式须匹配 [a-z0-9][a-z0-9-]*；不存在会明确报错并列出可用预设（内置 code/cordis/minimal/standard，本地创作放 ~/.dsh/.agent-presets/）。不传=走 DSH 默认预设。⚠️ 预设只作用于创建时刻，运行中会话不可切换（agent-preset-locked）' },
         title: { type: 'string', description: 'rename 可选：新会话名称（左侧会话列表标题；需会话在本进程 live，可先 wake 恢复再改）' },
         alias: { type: 'string', description: 'rename 可选：新会话别名（≤10 字，广播/快照显示；传空串=清除别名）' },
@@ -1272,11 +1179,9 @@ export function sessionToolDefinition(orch) {
       try {
         switch (action) {
           case 'spawn':
-            // requester=发起会话的 live Agent：新会话继承它的 provider/model
-            // （新会话无历史配置必须显式给，否则 {{model}} 无值回合失败）；
-            // 显式 model 时按模型名解析 provider（GUI 选择框同源）；
-            // agentPreset 显式传时校验格式+存在性后透传 agents.create meta
-            return await orch.spawn({ prompt: args.prompt, cwd: args.cwd, roomId: args.roomId, model: args.model, provider: args.provider, agentPreset: args.agentPreset, by, requester: ctx?.agent })
+            // New sessions inherit the current managed route. An explicit
+            // agent preset is validated before it reaches agents.create.
+            return await orch.spawn({ prompt: args.prompt, cwd: args.cwd, roomId: args.roomId, agentPreset: args.agentPreset, by, requester: ctx?.agent })
           case 'wake':
             return await orch.wake({ sessionId: args.sessionId, prompt: args.prompt })
           case 'status':

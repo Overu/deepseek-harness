@@ -27,8 +27,8 @@ test('canvas/get rejects node IDs that cannot round-trip through selection messa
 })
 
 test('canvas/get uses current Token and the fixed test Gateway', async () => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-  process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = 'test'
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+  process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = 'test'
   const calls = []
   try {
     const result = await fetchCanvas(id, async () => 'current-token', async (url, init) => {
@@ -41,14 +41,14 @@ test('canvas/get uses current Token and the fixed test Gateway', async () => {
     assert.equal(calls[0].init.redirect, 'error')
     assert.equal(calls[0].init.body, '{"id":"2873"}')
   } finally {
-    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-    else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous
+    if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
   }
 })
 
 test('canvas/get in a packaged client uses the production Gateway and Web origin', async () => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-  process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = 'production'
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+  process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = 'production'
   try {
     let call
     await fetchCanvas(id, async () => 'production-token', async (url, init) => {
@@ -59,8 +59,8 @@ test('canvas/get in a packaged client uses the production Gateway and Web origin
     assert.equal(call.init.headers.origin, 'https://dynsight.insight-aigc.com')
     assert.equal(call.init.headers.token, 'production-token')
   } finally {
-    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-    else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous
+    if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
   }
 })
 

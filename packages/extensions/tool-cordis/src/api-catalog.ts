@@ -7642,7 +7642,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ReadOnlyReason',
-    declaration: 'export type ReadOnlyReason = \'management-required\' | \'unaddressable\';',
+    declaration: 'export type ReadOnlyReason = \'management-required\' | \'profile-required\' | \'unaddressable\';',
   },
   {
     name: 'ReadResultView',

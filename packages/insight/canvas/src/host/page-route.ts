@@ -1,3 +1,4 @@
+import { registerCanvasRoute, type CanvasActivities } from './activities.ts'
 import { readFile, realpath } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { extname, isAbsolute, relative, resolve, sep } from 'node:path'
@@ -18,7 +19,7 @@ const MIME: Record<string, string> = {
   mjs: 'text/javascript; charset=utf-8', mp3: 'audio/mpeg', mp4: 'video/mp4',
   ogg: 'audio/ogg', png: 'image/png', svg: 'image/svg+xml',
   ttf: 'font/ttf', wasm: 'application/wasm', webm: 'video/webm',
-  webp: 'image/webp', woff: 'font/woff', woff2: 'font/woff2'
+  webp: 'image/webp', woff: 'font/woff', woff2: 'font/woff2',
 }
 
 interface BrowserConnection {
@@ -89,13 +90,13 @@ export function pageHandler(connection: BrowserConnection, dist = DIST) {
       'content-type': asset === 'index.html' ? 'text/html; charset=utf-8' : MIME[extname(asset).slice(1).toLowerCase()],
       'cache-control': 'no-store',
       'content-security-policy': CSP,
-      'x-content-type-options': 'nosniff'
+      'x-content-type-options': 'nosniff',
     })
     res.end(bytes)
   }
 }
 
-export function registerPageRoute(ctx: Context): void {
-  ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: PREFIX,
+export function registerPageRoute(ctx: Context, activities?: CanvasActivities): void {
+  ctx.effect(() => registerCanvasRoute(ctx, activities, { kind: 'prefix', path: PREFIX,
     handler: pageHandler(connectionOf(ctx)) }), 'desktop-canvas: page')
 }

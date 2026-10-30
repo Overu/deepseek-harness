@@ -1,350 +1,350 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ShoppingCart, Sparkles, ChevronsDown, ChevronsUp, ChevronLeft, ChevronRight } from 'lucide-react';
-import { queryMembershipPlans, type PaymentMethod } from '@/api/order';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useAuth } from '@/contexts/AuthContext';
-import PopPointV2 from './PopPointV2';
-import PopPointPayCodeV2 from './PopPointPayCodeV2';
-import PopPackageCustomization from './PopPackageCustomization';
-import MembershipPromoBanner from './MembershipPromoBanner';
-import FrequentlyAskedQuestions from './FrequentlyAskedQuestions';
-import { cn } from '@/lib/utils';
-import { getDefaultPaymentMethod } from './paymentMethod';
-import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Check, ShoppingCart, Sparkles, ChevronsDown, ChevronsUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { queryMembershipPlans, type PaymentMethod } from '@/api/order'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useAuth } from '@/contexts/AuthContext'
+import PopPointV2 from './PopPointV2'
+import PopPointPayCodeV2 from './PopPointPayCodeV2'
+import PopPackageCustomization from './PopPackageCustomization'
+import MembershipPromoBanner from './MembershipPromoBanner'
+import FrequentlyAskedQuestions from './FrequentlyAskedQuestions'
+import { cn } from '@/lib/utils'
+import { getDefaultPaymentMethod } from './paymentMethod'
+import { useBreakpoint } from '@/hooks/useBreakpoint'
 
-type PeriodKey = 'monthly' | 'yearly';
+type PeriodKey = 'monthly' | 'yearly'
 
 interface BenefitDescription {
-  content_type: string;
+  content_type: string
   content?: {
-    label?: string;
-    desc?: string;
-  }[];
-  sort_order?: number;
+    label?: string
+    desc?: string
+  }[]
+  sort_order?: number
 }
 
 interface MembershipPlan {
-  membership_plan_id: number;
-  membership_plan_code: string;
-  membership_plan_name: string;
-  membership_plan_rank?: number;
-  duration_type?: string;
-  duration_value?: number;
-  original_price?: number;
-  first_sub_price?: number;
-  purchased_count?: number;
+  membership_plan_id: number
+  membership_plan_code: string
+  membership_plan_name: string
+  membership_plan_rank?: number
+  duration_type?: string
+  duration_value?: number
+  original_price?: number
+  first_sub_price?: number
+  purchased_count?: number
   points?: {
-    points_total?: number;
-    points_purchase_reward?: number;
-    points_signin_reward_total?: number;
-  };
-  benefit_descriptions?: BenefitDescription[];
+    points_total?: number
+    points_purchase_reward?: number
+    points_signin_reward_total?: number
+  }
+  benefit_descriptions?: BenefitDescription[]
   display_config?: {
-    cardBgColor?: string;
+    cardBgColor?: string
     tab_color?: {
-      text?: string;
-      bgColor?: string;
-    };
-  };
-  final_price: number; // 最终价格
-  sale_price?: number;
-  discount_applied: boolean; // true 代表有折扣，false 代表没有
-  discount_percent?: number; // 折扣百分比，如果有折扣的话
+      text?: string
+      bgColor?: string
+    }
+  }
+  final_price: number // 最终价格
+  sale_price?: number
+  discount_applied: boolean // true 代表有折扣，false 代表没有
+  discount_percent?: number // 折扣百分比，如果有折扣的话
 }
 
 interface MembershipPlanGroup {
-  membership_plan_code?: string;
-  list?: MembershipPlan[];
+  membership_plan_code?: string
+  list?: MembershipPlan[]
 }
 
 interface MembershipPlansResponse {
-  code?: number | string;
+  code?: number | string
   data?: {
-    groups?: MembershipPlanGroup[];
-  };
+    groups?: MembershipPlanGroup[]
+  }
 }
 
 interface PlanCardData {
-  plan: MembershipPlan;
-  yearlyPlan?: MembershipPlan;
+  plan: MembershipPlan
+  yearlyPlan?: MembershipPlan
 }
 
-type SubscriptionPlanPurchaseMode = 'dialog' | 'page';
+type SubscriptionPlanPurchaseMode = 'dialog' | 'page'
 
 interface SubscriptionPlanPurchaseProps {
-  onClose?: () => void;
-  mode?: SubscriptionPlanPurchaseMode;
+  onClose?: () => void
+  mode?: SubscriptionPlanPurchaseMode
 }
 
 const PERIODS: { key: PeriodKey; label: string; badge?: string }[] = [
   { key: 'monthly', label: '单月购买' },
   { key: 'yearly', label: '按年购买', badge: '' },
-];
+]
 
 const getPriceInFen = (value?: number) => {
-  return Number.isFinite(Number(value)) ? Number(value) : 0;
-};
+  return Number.isFinite(Number(value)) ? Number(value) : 0
+}
 
 const formatPriceFromFen = (value?: number) => {
-  const yuan = getPriceInFen(value) / 100;
-  return Number.isInteger(yuan) ? String(yuan) : yuan.toFixed(2).replace(/\.?0+$/, '');
-};
+  const yuan = getPriceInFen(value) / 100
+  return Number.isInteger(yuan) ? String(yuan) : yuan.toFixed(2).replace(/\.?0+$/, '')
+}
 
-const getOriginalPriceInFen = (plan?: MembershipPlan | null) => getPriceInFen(plan?.original_price);
+const getOriginalPriceInFen = (plan?: MembershipPlan | null) => getPriceInFen(plan?.original_price)
 
-const getSalePriceInFen = (plan?: MembershipPlan | null) => getPriceInFen(plan?.final_price ?? plan?.sale_price);
+const getSalePriceInFen = (plan?: MembershipPlan | null) => getPriceInFen(plan?.final_price ?? plan?.sale_price)
 
-const getRegularPriceInFen = (plan?: MembershipPlan | null) => getPriceInFen(plan?.sale_price);
+const getRegularPriceInFen = (plan?: MembershipPlan | null) => getPriceInFen(plan?.sale_price)
 
 const formatDiscountPercent = (value?: number) => {
-  const discount = getPriceInFen(value);
-  return discount % 10 === 0 ? discount / 10 : discount;
-};
+  const discount = getPriceInFen(value)
+  return discount % 10 === 0 ? discount / 10 : discount
+}
 
 const getPurchasedCount = (plan?: MembershipPlan | null) => {
-  return Number.isFinite(Number(plan?.purchased_count)) ? Number(plan?.purchased_count) : 0;
-};
+  return Number.isFinite(Number(plan?.purchased_count)) ? Number(plan?.purchased_count) : 0
+}
 
 const formatPoint = (value?: number) => {
-  const numericValue = Number(value);
+  const numericValue = Number(value)
   if (!Number.isFinite(numericValue)) {
-    return '-';
+    return '-'
   }
 
-  return numericValue.toLocaleString();
-};
+  return numericValue.toLocaleString()
+}
 
 const groupPlansByPeriod = (response: MembershipPlansResponse): Record<PeriodKey, PlanCardData[]> => {
-  const groups = response.data?.groups || [];
-  const result: Record<PeriodKey, PlanCardData[]> = { monthly: [], yearly: [] };
-  const seenMonthlyId = new Set<number>();
-  const seenYearlyId = new Set<number>();
+  const groups = response.data?.groups || []
+  const result: Record<PeriodKey, PlanCardData[]> = { monthly: [], yearly: [] }
+  const seenMonthlyId = new Set<number>()
+  const seenYearlyId = new Set<number>()
 
-  groups.forEach(group => {
-    const list = Array.isArray(group.list) ? group.list : [];
-    const monthlyPlan = list.find(plan => plan.duration_type === 'MONTH');
-    const yearlyPlan = list.find(plan => plan.duration_type === 'YEAR');
+  groups.forEach((group) => {
+    const list = Array.isArray(group.list) ? group.list : []
+    const monthlyPlan = list.find(plan => plan.duration_type === 'MONTH')
+    const yearlyPlan = list.find(plan => plan.duration_type === 'YEAR')
 
     if (monthlyPlan) {
       if (seenMonthlyId.has(monthlyPlan.membership_plan_id)) {
-        console.warn('[groupPlansByPeriod] 月付 membership_plan_id 重复，已自动忽略，请后端修正：', monthlyPlan.membership_plan_id, monthlyPlan);
+        console.warn('[groupPlansByPeriod] 月付 membership_plan_id 重复，已自动忽略，请后端修正：', monthlyPlan.membership_plan_id, monthlyPlan)
       } else {
-        seenMonthlyId.add(monthlyPlan.membership_plan_id);
-        result.monthly.push({ plan: monthlyPlan, yearlyPlan });
+        seenMonthlyId.add(monthlyPlan.membership_plan_id)
+        result.monthly.push({ plan: monthlyPlan, yearlyPlan })
       }
     }
 
     if (yearlyPlan) {
       if (seenYearlyId.has(yearlyPlan.membership_plan_id)) {
-        console.warn('[groupPlansByPeriod] 年付 membership_plan_id 重复，已自动忽略，请后端修正：', yearlyPlan.membership_plan_id, yearlyPlan);
+        console.warn('[groupPlansByPeriod] 年付 membership_plan_id 重复，已自动忽略，请后端修正：', yearlyPlan.membership_plan_id, yearlyPlan)
       } else {
-        seenYearlyId.add(yearlyPlan.membership_plan_id);
-        result.yearly.push({ plan: yearlyPlan, yearlyPlan });
+        seenYearlyId.add(yearlyPlan.membership_plan_id)
+        result.yearly.push({ plan: yearlyPlan, yearlyPlan })
       }
     }
-  });
+  })
 
   return {
     monthly: result.monthly.sort((a, b) => (a.plan.membership_plan_rank || 0) - (b.plan.membership_plan_rank || 0)),
     yearly: result.yearly.sort((a, b) => (a.plan.membership_plan_rank || 0) - (b.plan.membership_plan_rank || 0)),
-  };
-};
+  }
+}
 
 const getYearlySaleTip = (selectedPeriod: PeriodKey, yearlyPlan?: MembershipPlan) => {
   if (selectedPeriod !== 'yearly') {
-    return '';
+    return ''
   }
 
-  return `按年付费，年总价${formatPriceFromFen(getSalePriceInFen(yearlyPlan))}元`;
-};
+  return `按年付费，年总价${formatPriceFromFen(getSalePriceInFen(yearlyPlan))}元`
+}
 
 export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: SubscriptionPlanPurchaseProps) {
-  const { authStatus } = useAuth();
-  const [payWayData] = useState<PaymentMethod>(() => getDefaultPaymentMethod());
-  const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('monthly');
-  const [plansByPeriod, setPlansByPeriod] = useState<Record<PeriodKey, PlanCardData[]>>({ monthly: [], yearly: [] });
-  const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null);
-  const [payVisible, setPayVisible] = useState(false);
-  const [pointVisible, setPointVisible] = useState(false);
-  const [customizationVisible, setCustomizationVisible] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<number>>(new Set());
-  const isMobile = useBreakpoint(768);
-  const planScrollerRef = useRef<HTMLDivElement>(null);
-  const [planScrollState, setPlanScrollState] = useState({ canScrollLeft: false, canScrollRight: false, hasOverflow: false });
+  const { authStatus } = useAuth()
+  const [payWayData] = useState<PaymentMethod>(() => getDefaultPaymentMethod())
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodKey>('monthly')
+  const [plansByPeriod, setPlansByPeriod] = useState<Record<PeriodKey, PlanCardData[]>>({ monthly: [], yearly: [] })
+  const [selectedPlan, setSelectedPlan] = useState<MembershipPlan | null>(null)
+  const [payVisible, setPayVisible] = useState(false)
+  const [pointVisible, setPointVisible] = useState(false)
+  const [customizationVisible, setCustomizationVisible] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [expandedPlanIds, setExpandedPlanIds] = useState<Set<number>>(new Set())
+  const isMobile = useBreakpoint(768)
+  const planScrollerRef = useRef<HTMLDivElement>(null)
+  const [planScrollState, setPlanScrollState] = useState({ canScrollLeft: false, canScrollRight: false, hasOverflow: false })
 
   const toggleExpand = (id: number) => {
-    setExpandedPlanIds(prev => {
-      const next = new Set(prev);
+    setExpandedPlanIds((prev) => {
+      const next = new Set(prev)
       if (next.has(id)) {
-        next.delete(id);
+        next.delete(id)
       } else {
-        next.add(id);
+        next.add(id)
       }
-      return next;
-    });
-  };
+      return next
+    })
+  }
 
   useEffect(() => {
-    let ignore = false;
+    let ignore = false
 
     const fetchPlans = async () => {
-      setLoading(true);
-      setError('');
+      setLoading(true)
+      setError('')
 
       try {
-        const response = (await queryMembershipPlans()) as unknown as MembershipPlansResponse;
+        const response = (await queryMembershipPlans()) as MembershipPlansResponse
 
         if (ignore) {
-          return;
+          return
         }
 
-        setPlansByPeriod(groupPlansByPeriod(response));
+        setPlansByPeriod(groupPlansByPeriod(response))
       } catch (fetchError) {
-        console.error('Failed to query membership plans:', fetchError);
+        console.error('Failed to query membership plans:', fetchError)
         if (!ignore) {
-          setError('套餐加载失败，请稍后重试');
+          setError('套餐加载失败，请稍后重试')
         }
       } finally {
         if (!ignore) {
-          setLoading(false);
+          setLoading(false)
         }
       }
-    };
+    }
 
-    fetchPlans();
+    fetchPlans()
 
     return () => {
-      ignore = true;
-    };
-  }, []);
+      ignore = true
+    }
+  }, [])
 
-  const currentPlans = plansByPeriod[selectedPeriod];
+  const currentPlans = plansByPeriod[selectedPeriod]
 
   /* ---------- 卡片等高：观测当前周期卡片高度，统一对齐到最高卡片 ---------- */
-  const cardRefs = useRef<Map<number, HTMLElement>>(new Map());
-  const roRef = useRef<ResizeObserver | null>(null);
-  const [planCardsEqualHeight, setPlanCardsEqualHeight] = useState<number | null>(null);
+  const cardRefs = useRef<Map<number, HTMLElement>>(new Map())
+  const roRef = useRef<ResizeObserver | null>(null)
+  const [planCardsEqualHeight, setPlanCardsEqualHeight] = useState<number | null>(null)
 
   const recomputeEqualHeight = useCallback(() => {
     if (cardRefs.current.size === 0) {
-      setPlanCardsEqualHeight(null);
-      return;
+      setPlanCardsEqualHeight(null)
+      return
     }
-    let maxHeight = 0;
-    cardRefs.current.forEach(el => {
-      const h = el.getBoundingClientRect().height;
-      if (h > maxHeight) maxHeight = h;
-    });
+    let maxHeight = 0
+    cardRefs.current.forEach((el) => {
+      const h = el.getBoundingClientRect().height
+      if (h > maxHeight) maxHeight = h
+    })
     // 最小高度兜底（桌面 640 / 移动 560），保证内容不足时仍有基本高度
-    const floor = isMobile ? 560 : 640;
-    const finalHeight = Math.max(floor, Math.ceil(maxHeight));
-    setPlanCardsEqualHeight(prev => (prev === finalHeight ? prev : finalHeight));
-  }, [isMobile]);
+    const floor = isMobile ? 560 : 640
+    const finalHeight = Math.max(floor, Math.ceil(maxHeight))
+    setPlanCardsEqualHeight(prev => (prev === finalHeight ? prev : finalHeight))
+  }, [isMobile])
 
   const attachCardResizeObserver = useCallback(() => {
     // 销毁旧 observer
     if (roRef.current) {
-      roRef.current.disconnect();
-      roRef.current = null;
+      roRef.current.disconnect()
+      roRef.current = null
     }
     if (typeof ResizeObserver === 'undefined' || cardRefs.current.size === 0) {
-      recomputeEqualHeight();
-      return;
+      recomputeEqualHeight()
+      return
     }
     const ro = new ResizeObserver(() => {
-      recomputeEqualHeight();
-    });
-    cardRefs.current.forEach(el => ro.observe(el));
-    roRef.current = ro;
+      recomputeEqualHeight()
+    })
+    cardRefs.current.forEach(el => ro.observe(el))
+    roRef.current = ro
     // 立即观测一次
-    recomputeEqualHeight();
-  }, [recomputeEqualHeight]);
+    recomputeEqualHeight()
+  }, [recomputeEqualHeight])
 
   // 注册卡片 DOM：在 map 里通过 ref callback 写入
   const setPlanCardRef = useCallback(
     (id: number) => (el: HTMLElement | null) => {
       if (!el) {
-        cardRefs.current.delete(id);
-        return;
+        cardRefs.current.delete(id)
+        return
       }
-      cardRefs.current.set(id, el);
+      cardRefs.current.set(id, el)
     },
-    []
-  );
+    [],
+  )
 
   // 周期 / 列表变化 / 权益区展开变化 → 重新挂载观测
   useEffect(() => {
-    attachCardResizeObserver();
+    attachCardResizeObserver()
     return () => {
-      roRef.current?.disconnect();
-      roRef.current = null;
-    };
-  }, [attachCardResizeObserver, currentPlans.length, selectedPeriod, expandedPlanIds, isMobile]);
+      roRef.current?.disconnect()
+      roRef.current = null
+    }
+  }, [attachCardResizeObserver, currentPlans.length, selectedPeriod, expandedPlanIds, isMobile])
 
-  const selectedPeriodMeta = PERIODS.find(period => period.key === selectedPeriod) || PERIODS[0];
-  const showPlanScrollButtons = !loading && !error && currentPlans.length > 0 && planScrollState.hasOverflow;
+  const selectedPeriodMeta = PERIODS.find(period => period.key === selectedPeriod) || PERIODS[0]
+  const showPlanScrollButtons = !loading && !error && currentPlans.length > 0 && planScrollState.hasOverflow
 
   const updatePlanScrollState = useCallback(() => {
-    const scroller = planScrollerRef.current;
+    const scroller = planScrollerRef.current
     if (!scroller) {
-      setPlanScrollState({ canScrollLeft: false, canScrollRight: false, hasOverflow: false });
-      return;
+      setPlanScrollState({ canScrollLeft: false, canScrollRight: false, hasOverflow: false })
+      return
     }
 
-    const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth;
+    const maxScrollLeft = scroller.scrollWidth - scroller.clientWidth
     setPlanScrollState({
       canScrollLeft: scroller.scrollLeft > 1,
       canScrollRight: scroller.scrollLeft < maxScrollLeft - 1,
       hasOverflow: maxScrollLeft > 1,
-    });
-  }, []);
+    })
+  }, [])
 
   useEffect(() => {
-    const frameId = window.requestAnimationFrame(updatePlanScrollState);
-    window.addEventListener('resize', updatePlanScrollState);
+    const frameId = window.requestAnimationFrame(updatePlanScrollState)
+    window.addEventListener('resize', updatePlanScrollState)
 
     return () => {
-      window.cancelAnimationFrame(frameId);
-      window.removeEventListener('resize', updatePlanScrollState);
-    };
-  }, [currentPlans.length, isMobile, selectedPeriod, updatePlanScrollState]);
+      window.cancelAnimationFrame(frameId)
+      window.removeEventListener('resize', updatePlanScrollState)
+    }
+  }, [currentPlans.length, isMobile, selectedPeriod, updatePlanScrollState])
 
   const scrollPlans = (direction: 'left' | 'right') => {
-    const scroller = planScrollerRef.current;
+    const scroller = planScrollerRef.current
     if (!scroller) {
-      return;
+      return
     }
 
     scroller.scrollBy({
       left: direction === 'left' ? -374 : 374,
       behavior: 'smooth',
-    });
-  };
+    })
+  }
 
   const handleBuyPoints = () => {
-    setPointVisible(true);
-  };
+    setPointVisible(true)
+  }
 
   const handleBuyPlan = (plan: MembershipPlan) => {
     if (getSalePriceInFen(plan) <= 0) {
-      return;
+      return
     }
 
-    setSelectedPlan(plan);
-    setPayVisible(true);
-  };
+    setSelectedPlan(plan)
+    setPayVisible(true)
+  }
 
   return (
     <section
       className={cn(
         'relative flex flex-col px-16 py-6 text-white w-screen h-screen mobile:p-4 overflow-y-auto',
-        mode === 'dialog' ? 'bg-[linear-gradient(180deg,#171717_0%,#111_48%,#0d0d0f_100%)] shadow-[0_24px_80px_rgba(0,0,0,0.52)]' : ''
+        mode === 'dialog' ? 'bg-[linear-gradient(180deg,#171717_0%,#111_48%,#0d0d0f_100%)] shadow-[0_24px_80px_rgba(0,0,0,0.52)]' : '',
       )}
     >
       {/* 内容区：可纵向滚动（顶部 Banner + 标题/Tab/卡片区 + FAQ 全部一起滚动；底部免责声明固定不参与滚动） */}
@@ -387,7 +387,7 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                   aria-selected={selectedPeriod === period.key}
                   className={cn(
                     'inline-flex items-center justify-center gap-2 rounded-[5px] border-0 text-sm bg-transparent px-24 py-2 text-white/60 transition-all duration-200 ease-out hover:text-white/90 mobile:px-4',
-                    selectedPeriod === period.key && 'bg-white/[0.14] text-white/95 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+                    selectedPeriod === period.key && 'bg-white/[0.14] text-white/95 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.05)]',
                   )}
                   onClick={() => setSelectedPeriod(period.key)}
                 >
@@ -398,7 +398,7 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
               <button
                 type='button'
                 className={cn(
-                  'hidden mobile:inline-flex items-center justify-center gap-2 rounded-[5px] border-0 text-sm bg-transparent px-24 py-2 text-white/60 transition-all duration-200 ease-out hover:text-white/90 mobile:px-4'
+                  'hidden mobile:inline-flex items-center justify-center gap-2 rounded-[5px] border-0 text-sm bg-transparent px-24 py-2 text-white/60 transition-all duration-200 ease-out hover:text-white/90 mobile:px-4',
                 )}
                 onClick={() => setCustomizationVisible(true)}
               >
@@ -473,16 +473,16 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                 >
                   <div className='flex w-max mobile:flex-col mobile:w-full items-stretch gap-3.5'>
                     {currentPlans.map((card, index) => {
-                      const { plan, yearlyPlan } = card;
-                      const salePriceInFen = getSalePriceInFen(plan);
-                      const regularPriceInFen = getRegularPriceInFen(plan);
-                      const originalPriceInFen = getOriginalPriceInFen(plan);
-                      const benefitDescriptions = Array.isArray(plan.benefit_descriptions) ? plan.benefit_descriptions : [];
-                      const tabColor = plan.display_config?.tab_color;
-                      const yearlySaleTip = getYearlySaleTip(selectedPeriod, yearlyPlan);
-                      const purchasedCount = getPurchasedCount(plan);
-                      const periodLabel = selectedPeriod === 'monthly' ? '月' : '年';
-                      const discountLabel = plan.discount_applied ? `首${periodLabel}${formatDiscountPercent(plan.discount_percent)}折` : '';
+                      const { plan, yearlyPlan } = card
+                      const salePriceInFen = getSalePriceInFen(plan)
+                      const regularPriceInFen = getRegularPriceInFen(plan)
+                      const originalPriceInFen = getOriginalPriceInFen(plan)
+                      const benefitDescriptions = Array.isArray(plan.benefit_descriptions) ? plan.benefit_descriptions : []
+                      const tabColor = plan.display_config?.tab_color
+                      const yearlySaleTip = getYearlySaleTip(selectedPeriod, yearlyPlan)
+                      const purchasedCount = getPurchasedCount(plan)
+                      const periodLabel = selectedPeriod === 'monthly' ? '月' : '年'
+                      const discountLabel = plan.discount_applied ? `首${periodLabel}${formatDiscountPercent(plan.discount_percent)}折` : ''
 
                       return (
                         <motion.article
@@ -490,7 +490,7 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                           ref={setPlanCardRef(plan.membership_plan_id)}
                           className={cn(
                             'relative flex w-[360px] mobile:w-full shrink-0 flex-col self-stretch rounded-lg border border-white/10 bg-[#242424] bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent_42%)] px-4 py-4 transition-[border-color,box-shadow,height] duration-200 ease-out hover:-translate-y-px hover:border-[#b4e0ff57] hover:shadow-[0_16px_36px_rgba(0,0,0,0.36)]',
-                            'min-h-[640px] mobile:min-h-[560px]'
+                            'min-h-[640px] mobile:min-h-[560px]',
                           )}
                           style={{
                             background: plan.display_config?.cardBgColor || undefined,
@@ -524,7 +524,9 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                               </div>
                               {plan.discount_applied && (
                                 <p className='mt-0.5 text-xs bg-[linear-gradient(90deg,#E45B31_0%,#ffffff_55%)] bg-clip-text text-transparent'>
-                                  首次购买首{periodLabel}仅 {formatPriceFromFen(salePriceInFen)} 元，后续恢复 {formatPriceFromFen(regularPriceInFen)} 元/{periodLabel}
+                                  首次购买首{periodLabel}仅 {formatPriceFromFen(
+                                    salePriceInFen,
+                                  )} 元，后续恢复 {formatPriceFromFen(regularPriceInFen)} 元/{periodLabel}
                                 </p>
                               )}
                               {yearlySaleTip && <p className='mt-0.5 text-xs text-white/45'>{yearlySaleTip}</p>}
@@ -601,17 +603,17 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                                   <TooltipProvider>
                                     {benefitDescriptions.map((section, sIdx) => {
                                       if (!Array.isArray(section.content)) {
-                                        return null;
+                                        return null
                                       }
 
                                       return (
                                         <div key={`${section.content_type}-${sIdx}`} className={sIdx < benefitDescriptions.length - 1 ? 'border-white/20 border-b mb-3 pb-3' : ''}>
                                           {section.content.map((item, rowIndex) => {
                                             if (!item.label) {
-                                              return null;
+                                              return null
                                             }
 
-                                            const labelNode = <span className='break-words text-xs text-white/50'>{item.label}</span>;
+                                            const labelNode = <span className='break-words text-xs text-white/50'>{item.label}</span>
 
                                             return (
                                               <div
@@ -630,10 +632,10 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                                                   labelNode
                                                 )}
                                               </div>
-                                            );
+                                            )
                                           })}
                                         </div>
-                                      );
+                                      )
                                     })}
                                   </TooltipProvider>
                                 </div>
@@ -641,7 +643,7 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                             )}
                           </AnimatePresence>
                         </motion.article>
-                      );
+                      )
                     })}
                   </div>
                 </motion.div>
@@ -697,10 +699,10 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
                 title: `${selectedPlan.membership_plan_name}会员（${selectedPeriodMeta.label}）`,
                 priceText: `¥${formatPriceFromFen(getSalePriceInFen(selectedPlan))}`,
               }}
-              onClose={shouldClose => {
-                setPayVisible(false);
+              onClose={(shouldClose) => {
+                setPayVisible(false)
                 if (shouldClose === true) {
-                  onClose?.();
+                  onClose?.()
                 }
               }}
             />
@@ -716,9 +718,9 @@ export function SubscriptionPlanPurchase({ onClose, mode = 'dialog' }: Subscript
 
       <PopPackageCustomization open={customizationVisible} onClose={() => setCustomizationVisible(false)} />
     </section>
-  );
+  )
 }
 
 export default function PopSubscriptionV2({ onClose }: { onClose?: () => void }) {
-  return <SubscriptionPlanPurchase onClose={onClose} />;
+  return <SubscriptionPlanPurchase onClose={onClose} />
 }

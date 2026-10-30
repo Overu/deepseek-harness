@@ -114,6 +114,6 @@ export function apply(ctx: ClientContext): void {
       target()
     }
     document.addEventListener('keydown', onKeyDown, true)
-    return () => document.removeEventListener('keydown', onKeyDown, true)
+    return () =>{  document.removeEventListener('keydown', onKeyDown, true) }
   }, 'dsh-prompt-enhance: shortcut')
 }

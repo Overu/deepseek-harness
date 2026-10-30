@@ -13,6 +13,7 @@
  * （默认中文，与 CoIView 一致），不接全局 locale。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { TabGuideView } from './TabGuideView.tsx'
@@ -315,7 +316,7 @@ type Lang = keyof typeof DICT
 
 /** 选择文案的语言（默认中文）。 */
 function pick(zhText: string, enText: string): string {
-  return (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en'))
+  return (typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en'))
     ? enText
     : zhText
 }
@@ -339,7 +340,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
     headers: { 'content-type': 'application/json' },
     ...init,
   })
-  const data = await res.json().catch(() => ({}))
+  const data: unknown = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`)
   return data as T
 }
@@ -354,7 +355,11 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
  * host 端有同样的校验兜底，这里先拦一次给出友好文案。
  * @returns {{rounds: number, every: number}} 解析后的数字。
  */
-function parseInjectNums(roundsText: string, everyText: string, say: (k: keyof typeof DICT.zh) => string): { rounds: number; every: number } {
+function parseInjectNums(
+  roundsText: string,
+  everyText: string,
+  say: (k: keyof typeof DICT.zh) => string,
+): { rounds: number; every: number } {
   const rounds = roundsText.trim() === '' ? 0 : Number(roundsText)
   const every = everyText.trim() === '' ? 1 : Number(everyText)
   if (!Number.isInteger(rounds) || rounds < 0) throw new Error(say('roundsInvalid'))
@@ -405,7 +410,7 @@ function NumInput(props: {
         min={props.min}
         step={1}
         value={props.value}
-        onChange={(e) => props.onChange(e.target.value)}
+        onChange={(e) =>{  props.onChange(e.target.value) }}
       />
     </label>
   )
@@ -417,7 +422,7 @@ function NumInput(props: {
  * 操作成功（保存/删除/注入/移除）后重新拉取列表，保持数据一致。
  */
 export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element {
-  const lang: Lang = (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en')) ? 'en' : 'zh'
+  const lang: Lang = (typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en')) ? 'en' : 'zh'
   const D = DICT[lang]
   const say = (key: keyof typeof DICT.zh): string => D[key]
 
@@ -466,7 +471,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       setShowSources(false)
     }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    return () =>{  document.removeEventListener('mousedown', onDown) }
   }, [])
 
   const showError = useCallback((err: unknown): void => {
@@ -474,7 +479,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
   }, [])
   const showNotice = useCallback((text: string): void => {
     setNotice(text)
-    window.setTimeout(() => setNotice(null), 4000)
+    window.setTimeout(() =>{  setNotice(null) }, 4000)
   }, [])
 
   const load = useCallback(async (): Promise<void> => {
@@ -495,19 +500,19 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
   useEffect(() => {
     void load()
     void api<{ sources: Source[] }>('/memory-evolve/api/prompts/sources')
-      .then((data) => setSources(data.sources))
+      .then((data) =>{  setSources(data.sources) })
       .catch(() => { /* 来源链接是锦上添花，失败静默 */ })
   }, [load])
 
   // 分类树展示列表：受管分类 + 提示词中出现的其他分类（老数据兜底，防隐身）。
   const displayCategories = useMemo(() => {
-    const promptCats = prompts.map((p) => p.category).filter((c) => c && c !== '未分类')
+    const promptCats = prompts.map(p => p.category).filter(c => c && c !== '未分类')
     return [...new Set([...categories, ...promptCats])].sort((a, b) => a.localeCompare(b, 'zh'))
   }, [categories, prompts])
 
   /** 未分类条目数（分类树「未分类」视图用）。 */
   const uncategorizedCount = useMemo(
-    () => prompts.filter((p) => p.category === '未分类').length,
+    () => prompts.filter(p => p.category === '未分类').length,
     [prompts],
   )
 
@@ -518,25 +523,25 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       if (!q) return true
       return p.name.toLowerCase().includes(q)
         || p.category.toLowerCase().includes(q)
-        || p.tags.some((t) => t.toLowerCase().includes(q))
+        || p.tags.some(t => t.toLowerCase().includes(q))
         || p.content.toLowerCase().includes(q)
     })
   }, [prompts, search, category])
 
-  const selected = prompts.find((p) => p.id === selectedId) ?? null
+  const selected = prompts.find(p => p.id === selectedId) ?? null
 
   /** 选中一个提示词 → 填充表单（丢弃未保存的编辑）。 */
   const selectPrompt = (id: string): void => {
-    const p = prompts.find((x) => x.id === id)
+    const p = prompts.find(x => x.id === id)
     if (!p) return
     setSelectedId(id)
     setCreating(false)
     setName(p.name)
-    setDescription(p.description ?? '')
+    setDescription(p.description)
     setFormCategory(p.category === '未分类' ? '' : p.category)
     setTags(p.tags.join(', '))
     setContent(p.content)
-    setEnabled(p.enabled !== false)
+    setEnabled(p.enabled)
   }
 
   /** 进入新建模式：清空表单。 */
@@ -558,7 +563,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
       name,
       description,
       category: formCategory,
-      tags: tags.split(/[,，]/).map((t) => t.trim()).filter(Boolean),
+      tags: tags.split(/[,，]/).map(t => t.trim()).filter(Boolean),
       content,
       enabled,
     }
@@ -610,7 +615,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
     // 无需说明节奏，避免"只注入一次（每回合出现）"的矛盾感
     const cadence = injection.every === 0 || injection.roundsLeft === 1
       ? ''
-      : (injection.every ?? 1) === 1
+      : injection.every === 1
         ? say('everyTurnParen')
         : say('injectCadenceParen').replace('{n}', String(injection.every))
     const ending = injection.every === 0 || injection.roundsLeft === 1
@@ -720,7 +725,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
     setBusy(true)
     try {
       // 名称留空 → 取内容首个非空行前 20 字（截断 + 省略号标识）
-      const firstLine = text.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? ''
+      const firstLine = text.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
       const promptName = name.trim() || (firstLine.length > 20 ? `${firstLine.slice(0, 20)}…` : firstLine) || '未命名提示词'
       const created = await api<{ prompt: Prompt }>('/memory-evolve/api/prompts', {
         method: 'POST',
@@ -728,7 +733,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
           name: promptName,
           description,
           category: formCategory.trim(),
-          tags: tags.split(/[,，]/).map((t) => t.trim()).filter(Boolean),
+          tags: tags.split(/[,，]/).map(t => t.trim()).filter(Boolean),
           content: text,
           enabled,
         }),
@@ -771,12 +776,12 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
 
   /** 该提示词当前是否有活跃注入（列表徽标 / 详情状态用）。 */
   const activeInjectionOf = (promptId: string): Injection | undefined =>
-    injections.find((i) => i.sourcePromptId === promptId)
+    injections.find(i => i.sourcePromptId === promptId)
 
   /** 注入节奏文案（只注入一次 / 每回合 / 每 N 回合一次）。 */
   const cadenceLabel = (inj: Injection): string => {
     if (inj.every === 0) return say('onceOnly')
-    return (inj.every ?? 1) === 1
+    return inj.every === 1
       ? say('everyTurn')
       : say('injectCadence').replace('{n}', String(inj.every))
   }
@@ -831,7 +836,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
 
   /** 删除分类：确认后调用 API（该分类下提示词自动移到未分类）。 */
   const removeCategory = async (name: string): Promise<void> => {
-    const count = prompts.filter((p) => p.category === name).length
+    const count = prompts.filter(p => p.category === name).length
     const hint = count > 0 ? say('categoryMoved').replace('{count}', String(count)) : ''
     if (!window.confirm(`${say('deleteCategory')}「${name}」？${hint}`)) return
     try {
@@ -862,19 +867,19 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
 
   /** 列表摘要：优先显示简介（AI 选词看的字段）；简介为空回退内容首行。 */
   const summaryLine = (p: Prompt): string => {
-    const desc = (p.description ?? '').trim()
+    const desc = p.description.trim()
     if (desc) return desc.length > 60 ? `${desc.slice(0, 60)}…` : desc
-    const first = p.content.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? ''
+    const first = p.content.split('\n').map(l => l.trim()).find(l => l.length > 0) ?? ''
     return first.length > 60 ? `${first.slice(0, 60)}…` : first
   }
 
   const selectedIsDirty = selected !== null && (
     name !== selected.name
-    || description !== (selected.description ?? '')
+    || description !== selected.description
     || (formCategory || '未分类') !== selected.category
     || tags !== selected.tags.join(', ')
     || content !== selected.content
-    || enabled !== (selected.enabled !== false)
+    || enabled !== (selected.enabled)
   )
 
   return (
@@ -886,7 +891,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
           role="tab"
           aria-selected={view === 'guide'}
           className={view === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setView('guide')}
+          onClick={() =>{  setView('guide') }}
         >
           {say('guide')}
         </button>
@@ -895,7 +900,7 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
           role="tab"
           aria-selected={view === 'main'}
           className={view === 'main' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setView('main')}
+          onClick={() =>{  setView('main') }}
         >
           {say('library')}
         </button>
@@ -911,523 +916,523 @@ export function PromptView(props: ConvViewProps & PromptViewProps): JSX.Element 
         ]} />
       ) : (
         <>
-      {/* 顶栏：搜索 / 筛选 / 注入中 / 来源 / 新建 */}
-      <div className="pm-toolbar">
-        <input
-          className="pm-search"
-          placeholder={say('search')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          className="pm-select"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          title={say('category')}
-        >
-          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <button
-          type="button"
-          className="pm-tool-btn"
-          onClick={() => { setShowInjections(!showInjections); setShowSources(false) }}
-          title={say('injectHint')}
-        >
-          {say('injecting')}{injections.length > 0 ? ` (${injections.length})` : ''}
-        </button>
-        <button
-          type="button"
-          className="pm-tool-btn"
-          onClick={() => { setShowSources(!showSources); setShowInjections(false) }}
-        >
-          {say('sources')}
-        </button>
-        <button type="button" className="pm-primary-btn" onClick={startCreate}>{say('new')}</button>
-      </div>
+          {/* 顶栏：搜索 / 筛选 / 注入中 / 来源 / 新建 */}
+          <div className="pm-toolbar">
+            <input
+              className="pm-search"
+              placeholder={say('search')}
+              value={search}
+              onChange={(e) =>{  setSearch(e.target.value) }}
+            />
+            <select
+              className="pm-select"
+              value={category}
+              onChange={(e) =>{  setCategory(e.target.value) }}
+              title={say('category')}
+            >
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <button
+              type="button"
+              className="pm-tool-btn"
+              onClick={() => { setShowInjections(!showInjections); setShowSources(false) }}
+              title={say('injectHint')}
+            >
+              {say('injecting')}{injections.length > 0 ? ` (${injections.length})` : ''}
+            </button>
+            <button
+              type="button"
+              className="pm-tool-btn"
+              onClick={() => { setShowSources(!showSources); setShowInjections(false) }}
+            >
+              {say('sources')}
+            </button>
+            <button type="button" className="pm-primary-btn" onClick={startCreate}>{say('new')}</button>
+          </div>
 
-      {/* 顶栏消息（错误 / 提示） */}
-      {(error !== null || notice !== null) && (
-        <div className={`pm-banner ${error !== null ? 'pm-banner-error' : ''}`}>
-          {error !== null ? error : notice}
-          {error !== null && (
-            <button type="button" className="pm-banner-close" onClick={() => setError(null)}>×</button>
+          {/* 顶栏消息（错误 / 提示） */}
+          {(error !== null || notice !== null) && (
+            <div className={`pm-banner ${error !== null ? 'pm-banner-error' : ''}`}>
+              {error !== null ? error : notice}
+              {error !== null && (
+                <button type="button" className="pm-banner-close" onClick={() =>{  setError(null) }}>×</button>
+              )}
+            </div>
           )}
-        </div>
-      )}
 
-      {/* 注入中浮层 */}
-      {showInjections && (
-        <div className="pm-overlay" ref={overlayRef}>
-          <div className="pm-overlay-title">{say('injecting')}</div>
-          {injections.length === 0 && <div className="pm-overlay-empty">{say('noInjection')}</div>}
-          {injections.map((inj) => (
-            <div key={inj.id} className="pm-overlay-item">
-              <div className="pm-overlay-item-main">
-                <div className="pm-overlay-item-title">「{inj.title}」</div>
-                <div className="pm-overlay-item-sub">
-                  {remainingLabel(inj)} · {cadenceLabel(inj)}
+          {/* 注入中浮层 */}
+          {showInjections && (
+            <div className="pm-overlay" ref={overlayRef}>
+              <div className="pm-overlay-title">{say('injecting')}</div>
+              {injections.length === 0 && <div className="pm-overlay-empty">{say('noInjection')}</div>}
+              {injections.map(inj => (
+                <div key={inj.id} className="pm-overlay-item">
+                  <div className="pm-overlay-item-main">
+                    <div className="pm-overlay-item-title">「{inj.title}」</div>
+                    <div className="pm-overlay-item-sub">
+                      {remainingLabel(inj)} · {cadenceLabel(inj)}
+                    </div>
+                  </div>
+                  <button type="button" className="pm-danger-btn pm-overlay-remove" onClick={() => void removeInjection(inj.id)}>
+                    {say('removeInjection')}
+                  </button>
                 </div>
-              </div>
-              <button type="button" className="pm-danger-btn pm-overlay-remove" onClick={() => void removeInjection(inj.id)}>
-                {say('removeInjection')}
+              ))}
+            </div>
+          )}
+
+          {/* GitHub 来源浮层 */}
+          {showSources && (
+            <div className="pm-overlay pm-overlay-wide" ref={overlayRef}>
+              <div className="pm-overlay-title">{say('sources')}</div>
+              <div className="pm-overlay-sub">{say('sourcesHint')}</div>
+              {sources.map(s => (
+                <div key={s.url} className="pm-source-item">
+                  <a className="pm-source-link" href={s.url} target="_blank" rel="noreferrer">{s.name}</a>
+                  <div className="pm-source-desc">{s.desc}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 三栏主体 */}
+          <div className="pm-body">
+            {/* 左：分类树（受管分类 + 未分类兜底 + 添加/删除管理） */}
+            <div className="pm-pane-cats">
+              <button
+                type="button"
+                className={`pm-cat ${category === '全部' ? 'pm-cat-active' : ''}`}
+                onClick={() =>{  setCategory('全部') }}
+              >
+                <span className="pm-cat-name">{say('all')}</span>
+                <span className="pm-cat-count">{prompts.length}</span>
               </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* GitHub 来源浮层 */}
-      {showSources && (
-        <div className="pm-overlay pm-overlay-wide" ref={overlayRef}>
-          <div className="pm-overlay-title">{say('sources')}</div>
-          <div className="pm-overlay-sub">{say('sourcesHint')}</div>
-          {sources.map((s) => (
-            <div key={s.url} className="pm-source-item">
-              <a className="pm-source-link" href={s.url} target="_blank" rel="noreferrer">{s.name}</a>
-              <div className="pm-source-desc">{s.desc}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 三栏主体 */}
-      <div className="pm-body">
-        {/* 左：分类树（受管分类 + 未分类兜底 + 添加/删除管理） */}
-        <div className="pm-pane-cats">
-          <button
-            type="button"
-            className={`pm-cat ${category === '全部' ? 'pm-cat-active' : ''}`}
-            onClick={() => setCategory('全部')}
-          >
-            <span className="pm-cat-name">{say('all')}</span>
-            <span className="pm-cat-count">{prompts.length}</span>
-          </button>
-          {displayCategories.map((c) => {
-            const count = prompts.filter((p) => p.category === c).length
-            if (renamingCategory === c) {
-              // 行内重命名编辑
-              return (
-                <div key={c} className="pm-cat-row">
+              {displayCategories.map((c) => {
+                const count = prompts.filter(p => p.category === c).length
+                if (renamingCategory === c) {
+                  // 行内重命名编辑
+                  return (
+                    <div key={c} className="pm-cat-row">
+                      <input
+                        className="pm-cat-add-input"
+                        autoFocus
+                        placeholder={say('renamePh')}
+                        value={renameValue}
+                        onChange={(e) =>{  setRenameValue(e.target.value) }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') void renameCategory(c)
+                          if (e.key === 'Escape') { setRenamingCategory(null); setRenameValue('') }
+                        }}
+                      />
+                      <button type="button" className="pm-cat-add-ok" onClick={() => void renameCategory(c)}>✓</button>
+                    </div>
+                  )
+                }
+                return (
+                  <div key={c} className="pm-cat-row">
+                    <button
+                      type="button"
+                      className={`pm-cat ${category === c ? 'pm-cat-active' : ''}`}
+                      onClick={() =>{  setCategory(c) }}
+                    >
+                      <span className="pm-cat-name">{c}</span>
+                      <span className="pm-cat-count">{count}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="pm-cat-del"
+                      title={say('renameCategory')}
+                      onClick={() => { setRenamingCategory(c); setRenameValue(c) }}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      className="pm-cat-del"
+                      title={say('deleteCategory')}
+                      onClick={() => void removeCategory(c)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
+              })}
+              {uncategorizedCount > 0 && (
+                <button
+                  type="button"
+                  className={`pm-cat ${category === '未分类' ? 'pm-cat-active' : ''}`}
+                  onClick={() =>{  setCategory('未分类') }}
+                >
+                  <span className="pm-cat-name">{say('uncategorized')}</span>
+                  <span className="pm-cat-count">{uncategorizedCount}</span>
+                </button>
+              )}
+              {addingCategory ? (
+                <div className="pm-cat-add">
                   <input
                     className="pm-cat-add-input"
                     autoFocus
-                    placeholder={say('renamePh')}
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
+                    placeholder={say('newCategoryPh')}
+                    value={newCategoryName}
+                    onChange={(e) =>{  setNewCategoryName(e.target.value) }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') void renameCategory(c)
-                      if (e.key === 'Escape') { setRenamingCategory(null); setRenameValue('') }
+                      if (e.key === 'Enter') void addCategory()
+                      if (e.key === 'Escape') { setAddingCategory(false); setNewCategoryName('') }
                     }}
                   />
-                  <button type="button" className="pm-cat-add-ok" onClick={() => void renameCategory(c)}>✓</button>
+                  <button type="button" className="pm-cat-add-ok" onClick={() => void addCategory()}>✓</button>
                 </div>
-              )
-            }
-            return (
-              <div key={c} className="pm-cat-row">
-                <button
-                  type="button"
-                  className={`pm-cat ${category === c ? 'pm-cat-active' : ''}`}
-                  onClick={() => setCategory(c)}
-                >
-                  <span className="pm-cat-name">{c}</span>
-                  <span className="pm-cat-count">{count}</span>
+              ) : (
+                <button type="button" className="pm-cat-add-btn" onClick={() =>{  setAddingCategory(true) }}>
+                  ＋ {say('newCategory')}
                 </button>
-                <button
-                  type="button"
-                  className="pm-cat-del"
-                  title={say('renameCategory')}
-                  onClick={() => { setRenamingCategory(c); setRenameValue(c) }}
-                >
-                  ✎
-                </button>
-                <button
-                  type="button"
-                  className="pm-cat-del"
-                  title={say('deleteCategory')}
-                  onClick={() => void removeCategory(c)}
-                >
-                  ×
-                </button>
-              </div>
-            )
-          })}
-          {uncategorizedCount > 0 && (
-            <button
-              type="button"
-              className={`pm-cat ${category === '未分类' ? 'pm-cat-active' : ''}`}
-              onClick={() => setCategory('未分类')}
-            >
-              <span className="pm-cat-name">{say('uncategorized')}</span>
-              <span className="pm-cat-count">{uncategorizedCount}</span>
-            </button>
-          )}
-          {addingCategory ? (
-            <div className="pm-cat-add">
-              <input
-                className="pm-cat-add-input"
-                autoFocus
-                placeholder={say('newCategoryPh')}
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void addCategory()
-                  if (e.key === 'Escape') { setAddingCategory(false); setNewCategoryName('') }
-                }}
-              />
-              <button type="button" className="pm-cat-add-ok" onClick={() => void addCategory()}>✓</button>
-            </div>
-          ) : (
-            <button type="button" className="pm-cat-add-btn" onClick={() => setAddingCategory(true)}>
-              ＋ {say('newCategory')}
-            </button>
-          )}
-        </div>
-
-        {/* 中：列表 */}
-        <div className="pm-pane-list">
-          {prompts.length === 0 && <div className="pm-pane-empty">{say('empty')}</div>}
-          {prompts.length > 0 && filtered.length === 0 && <div className="pm-pane-empty">{say('noMatch')}</div>}
-          {filtered.map((p) => {
-            const active = activeInjectionOf(p.id)
-            return (
-              <button
-                key={p.id}
-                type="button"
-                className={`pm-item ${selectedId === p.id && !creating ? 'pm-item-active' : ''} ${p.enabled === false ? 'pm-item-disabled' : ''}`}
-                onClick={() => selectPrompt(p.id)}
-              >
-                <div className="pm-item-row1">
-                  <span className="pm-item-name">{p.name}</span>
-                  <span className="pm-item-badge">{p.category}</span>
-                  {p.enabled === false && (
-                    <span className="pm-item-badge pm-item-badge-off" title={say('disabledHint')}>
-                      {say('enabledOff')}
-                    </span>
-                  )}
-                  {active !== undefined && (
-                    <span className="pm-item-badge pm-item-badge-active" title={say('injectHint')}>
-                      {active.roundsLeft === null
-                        ? say('injectingBadgeInfinite')
-                        : say('injectingBadge').replace('{n}', String(active.roundsLeft))}
-                    </span>
-                  )}
-                </div>
-                <div className="pm-item-summary">{summaryLine(p)}</div>
-                <div className="pm-item-row3">
-                  <span className="pm-item-usage">
-                    {say('usage').replace('{n}', String(p.usageCount ?? 0))}
-                  </span>
-                  <span className="pm-item-used">
-                    {p.lastUsedAt !== null
-                      ? say('lastUsed').replace('{time}', formatTime(p.lastUsedAt))
-                      : say('neverUsed')}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* 右：详情表单 */}
-        <div className="pm-pane-detail">
-          {(selected === null && !creating) && (
-            // 未选中提示词 → 「临时注入」快速表单：不建提示词也能直接注入
-            // （自动入库 + 注入一步完成，分类留空归入「临时」）
-            <div className="pm-form">
-              <div className="pm-form-title">{say('quickTitle')}</div>
-              <div className="pm-quick-sub">{say('quickDesc')}</div>
-              <label className="pm-field">
-                <span className="pm-field-label">{say('name')}</span>
-                <input
-                  className="pm-input"
-                  placeholder={say('quickNamePh')}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </label>
-              <label className="pm-field">
-                <span className="pm-field-label">{say('description')}</span>
-                <input
-                  className="pm-input"
-                  placeholder={say('descriptionPh')}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </label>
-              <label className="pm-field pm-field-grow">
-                <span className="pm-field-label">{say('content')} *</span>
-                <textarea
-                  className="pm-textarea"
-                  placeholder={say('contentPh')}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              </label>
-              <label className="pm-field">
-                <span className="pm-field-label">{say('category')}</span>
-                <input
-                  className="pm-input"
-                  list="pm-category-list"
-                  placeholder={say('quickCategoryPh')}
-                  value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                />
-                <datalist id="pm-category-list">
-                  {displayCategories.map((c) => <option key={c} value={c} />)}
-                </datalist>
-              </label>
-              {/* 预设注入：一键「注入一次」/「持续注入」/「⚡ 立即注入」，
-                  普通用户无需理解次数×间隔；「自定义」展开自由输入区 */}
-              <div className="pm-actions">
-                <button
-                  type="button"
-                  className="pm-primary-btn"
-                  title={say('injectOnceBtnHint')}
-                  onClick={() => void quickInject({ rounds: 1, every: 0 })}
-                  disabled={busy}
-                >
-                  {busy ? say('saving') : say('injectOnceBtn')}
-                </button>
-                <button
-                  type="button"
-                  className="pm-tool-btn"
-                  title={say('injectInfiniteBtnHint')}
-                  onClick={() => void quickInject({ rounds: 0, every: 1 })}
-                  disabled={busy}
-                >
-                  {say('injectInfiniteBtn')}
-                </button>
-                {/* 立即注入：当前回合立即生效（会话空闲则马上唤醒），只注入
-                    一次——忽略次数/间隔两个数字（与「注入一次」的区别=生效
-                    时机：下一轮 vs 立刻） */}
-                <button
-                  type="button"
-                  className="pm-tool-btn"
-                  title={say('injectNowBtnHint')}
-                  onClick={() => void quickInject(undefined, true)}
-                  disabled={busy}
-                >
-                  {say('injectNowBtn')}
-                </button>
-                <button
-                  type="button"
-                  className="pm-tool-btn"
-                  title={say('customBtnHint')}
-                  onClick={() => setCustomOpen(!customOpen)}
-                >
-                  {say('customBtn')}
-                </button>
-              </div>
-              {customOpen && (
-                <div className="pm-custom-zone">
-                  <div className="pm-num-row">
-                    <NumInput
-                      label={say('rounds')}
-                      hint={say('roundsHint')}
-                      value={roundsText}
-                      min={0}
-                      onChange={setRoundsText}
-                    />
-                    <NumInput
-                      label={say('cadence')}
-                      hint={say('everyHint')}
-                      value={everyText}
-                      min={0}
-                      onChange={setEveryText}
-                    />
-                  </div>
-                  <EffectHint roundsText={roundsText} everyText={everyText} say={say} />
-                  <div className="pm-actions">
-                    <button type="button" className="pm-primary-btn" onClick={() => void quickInject()} disabled={busy}>
-                      {busy ? say('saving') : say('inject')}
-                    </button>
-                    <button type="button" className="pm-tool-btn" onClick={() => setCustomOpen(false)}>
-                      {say('collapseCustom')}
-                    </button>
-                  </div>
-                </div>
               )}
             </div>
-          )}
-          {(selected !== null || creating) && (
-            <div className="pm-form">
-              <div className="pm-form-title">{creating ? say('formNew') : say('formEdit')}</div>
-              <label className="pm-field">
-                <span className="pm-field-label">{say('name')} *</span>
-                <input
-                  className="pm-input"
-                  placeholder={say('namePh')}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </label>
-              <label className="pm-field">
-                <span className="pm-field-label">{say('description')}</span>
-                <input
-                  className="pm-input"
-                  placeholder={say('descriptionPh')}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </label>
-              <label className="pm-field">
-                <span className="pm-field-label">{say('category')}</span>
-                <input
-                  className="pm-input"
-                  list="pm-category-list"
-                  placeholder={say('categoryPh')}
-                  value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                />
-                <datalist id="pm-category-list">
-                  {displayCategories.map((c) => <option key={c} value={c} />)}
-                </datalist>
-              </label>
-              <label className="pm-field">
-                <span className="pm-field-label">{say('tags')}</span>
-                <input
-                  className="pm-input"
-                  placeholder={say('tagsPh')}
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                />
-              </label>
-              <label className="pm-field pm-field-grow">
-                <span className="pm-field-label">{say('content')} *</span>
-                <textarea
-                  className="pm-textarea"
-                  placeholder={say('contentPh')}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                />
-              </label>
-              {/* 启用状态：禁用后不出现在 AI 的 de_prompts 列表、不能被 AI 注入
-                  （GUI 仍可见可编辑，随时可重新启用） */}
-              <label className="pm-field pm-enable-row">
-                <span className="pm-field-label">
-                  {say('enabled')}
-                  <span className="pm-field-hint">{say('disabledHint')}</span>
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={enabled}
-                  className={`pm-toggle ${enabled ? 'pm-toggle-on' : ''}`}
-                  onClick={() => setEnabled(!enabled)}
-                >
-                  {enabled ? say('enabledOn') : say('enabledOff')}
-                </button>
-              </label>
-              <div className="pm-actions">
-                {!creating && (() => {
-                  if (selected === null) return null
-                  const active = activeInjectionOf(selected.id)
-                  if (active !== undefined) {
-                    // 注入中：显示状态 + 停止注入（已注入的提示词不可重复注入）
-                    return (
-                      <>
-                        <span className="pm-inject-status">
+
+            {/* 中：列表 */}
+            <div className="pm-pane-list">
+              {prompts.length === 0 && <div className="pm-pane-empty">{say('empty')}</div>}
+              {prompts.length > 0 && filtered.length === 0 && <div className="pm-pane-empty">{say('noMatch')}</div>}
+              {filtered.map((p) => {
+                const active = activeInjectionOf(p.id)
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`pm-item ${selectedId === p.id && !creating ? 'pm-item-active' : ''} ${!p.enabled ? 'pm-item-disabled' : ''}`}
+                    onClick={() =>{  selectPrompt(p.id) }}
+                  >
+                    <div className="pm-item-row1">
+                      <span className="pm-item-name">{p.name}</span>
+                      <span className="pm-item-badge">{p.category}</span>
+                      {!p.enabled && (
+                        <span className="pm-item-badge pm-item-badge-off" title={say('disabledHint')}>
+                          {say('enabledOff')}
+                        </span>
+                      )}
+                      {active !== undefined && (
+                        <span className="pm-item-badge pm-item-badge-active" title={say('injectHint')}>
                           {active.roundsLeft === null
                             ? say('injectingBadgeInfinite')
                             : say('injectingBadge').replace('{n}', String(active.roundsLeft))}
-                          {' '}· {cadenceLabel(active)}
                         </span>
-                        <button type="button" className="pm-danger-btn" onClick={() => void removeInjection(active.id)}>
-                          {say('removeInjection')}
+                      )}
+                    </div>
+                    <div className="pm-item-summary">{summaryLine(p)}</div>
+                    <div className="pm-item-row3">
+                      <span className="pm-item-usage">
+                        {say('usage').replace('{n}', String(p.usageCount))}
+                      </span>
+                      <span className="pm-item-used">
+                        {p.lastUsedAt !== null
+                          ? say('lastUsed').replace('{time}', formatTime(p.lastUsedAt))
+                          : say('neverUsed')}
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* 右：详情表单 */}
+            <div className="pm-pane-detail">
+              {(selected === null && !creating) && (
+              // 未选中提示词 → 「临时注入」快速表单：不建提示词也能直接注入
+              // （自动入库 + 注入一步完成，分类留空归入「临时」）
+                <div className="pm-form">
+                  <div className="pm-form-title">{say('quickTitle')}</div>
+                  <div className="pm-quick-sub">{say('quickDesc')}</div>
+                  <label className="pm-field">
+                    <span className="pm-field-label">{say('name')}</span>
+                    <input
+                      className="pm-input"
+                      placeholder={say('quickNamePh')}
+                      value={name}
+                      onChange={(e) =>{  setName(e.target.value) }}
+                    />
+                  </label>
+                  <label className="pm-field">
+                    <span className="pm-field-label">{say('description')}</span>
+                    <input
+                      className="pm-input"
+                      placeholder={say('descriptionPh')}
+                      value={description}
+                      onChange={(e) =>{  setDescription(e.target.value) }}
+                    />
+                  </label>
+                  <label className="pm-field pm-field-grow">
+                    <span className="pm-field-label">{say('content')} *</span>
+                    <textarea
+                      className="pm-textarea"
+                      placeholder={say('contentPh')}
+                      value={content}
+                      onChange={(e) =>{  setContent(e.target.value) }}
+                    />
+                  </label>
+                  <label className="pm-field">
+                    <span className="pm-field-label">{say('category')}</span>
+                    <input
+                      className="pm-input"
+                      list="pm-category-list"
+                      placeholder={say('quickCategoryPh')}
+                      value={formCategory}
+                      onChange={(e) =>{  setFormCategory(e.target.value) }}
+                    />
+                    <datalist id="pm-category-list">
+                      {displayCategories.map(c => <option key={c} value={c} />)}
+                    </datalist>
+                  </label>
+                  {/* 预设注入：一键「注入一次」/「持续注入」/「⚡ 立即注入」，
+                  普通用户无需理解次数×间隔；「自定义」展开自由输入区 */}
+                  <div className="pm-actions">
+                    <button
+                      type="button"
+                      className="pm-primary-btn"
+                      title={say('injectOnceBtnHint')}
+                      onClick={() => void quickInject({ rounds: 1, every: 0 })}
+                      disabled={busy}
+                    >
+                      {busy ? say('saving') : say('injectOnceBtn')}
+                    </button>
+                    <button
+                      type="button"
+                      className="pm-tool-btn"
+                      title={say('injectInfiniteBtnHint')}
+                      onClick={() => void quickInject({ rounds: 0, every: 1 })}
+                      disabled={busy}
+                    >
+                      {say('injectInfiniteBtn')}
+                    </button>
+                    {/* 立即注入：当前回合立即生效（会话空闲则马上唤醒），只注入
+                    一次——忽略次数/间隔两个数字（与「注入一次」的区别=生效
+                    时机：下一轮 vs 立刻） */}
+                    <button
+                      type="button"
+                      className="pm-tool-btn"
+                      title={say('injectNowBtnHint')}
+                      onClick={() => void quickInject(undefined, true)}
+                      disabled={busy}
+                    >
+                      {say('injectNowBtn')}
+                    </button>
+                    <button
+                      type="button"
+                      className="pm-tool-btn"
+                      title={say('customBtnHint')}
+                      onClick={() =>{  setCustomOpen(!customOpen) }}
+                    >
+                      {say('customBtn')}
+                    </button>
+                  </div>
+                  {customOpen && (
+                    <div className="pm-custom-zone">
+                      <div className="pm-num-row">
+                        <NumInput
+                          label={say('rounds')}
+                          hint={say('roundsHint')}
+                          value={roundsText}
+                          min={0}
+                          onChange={setRoundsText}
+                        />
+                        <NumInput
+                          label={say('cadence')}
+                          hint={say('everyHint')}
+                          value={everyText}
+                          min={0}
+                          onChange={setEveryText}
+                        />
+                      </div>
+                      <EffectHint roundsText={roundsText} everyText={everyText} say={say} />
+                      <div className="pm-actions">
+                        <button type="button" className="pm-primary-btn" onClick={() => void quickInject()} disabled={busy}>
+                          {busy ? say('saving') : say('inject')}
                         </button>
-                      </>
-                    )
-                  }
-                  return (
-                    <>
-                      {/* 预设注入：一键「注入一次」/「持续注入」（最常见的两种
+                        <button type="button" className="pm-tool-btn" onClick={() =>{  setCustomOpen(false) }}>
+                          {say('collapseCustom')}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {(selected !== null || creating) && (
+                <div className="pm-form">
+                  <div className="pm-form-title">{creating ? say('formNew') : say('formEdit')}</div>
+                  <label className="pm-field">
+                    <span className="pm-field-label">{say('name')} *</span>
+                    <input
+                      className="pm-input"
+                      placeholder={say('namePh')}
+                      value={name}
+                      onChange={(e) =>{  setName(e.target.value) }}
+                    />
+                  </label>
+                  <label className="pm-field">
+                    <span className="pm-field-label">{say('description')}</span>
+                    <input
+                      className="pm-input"
+                      placeholder={say('descriptionPh')}
+                      value={description}
+                      onChange={(e) =>{  setDescription(e.target.value) }}
+                    />
+                  </label>
+                  <label className="pm-field">
+                    <span className="pm-field-label">{say('category')}</span>
+                    <input
+                      className="pm-input"
+                      list="pm-category-list"
+                      placeholder={say('categoryPh')}
+                      value={formCategory}
+                      onChange={(e) =>{  setFormCategory(e.target.value) }}
+                    />
+                    <datalist id="pm-category-list">
+                      {displayCategories.map(c => <option key={c} value={c} />)}
+                    </datalist>
+                  </label>
+                  <label className="pm-field">
+                    <span className="pm-field-label">{say('tags')}</span>
+                    <input
+                      className="pm-input"
+                      placeholder={say('tagsPh')}
+                      value={tags}
+                      onChange={(e) =>{  setTags(e.target.value) }}
+                    />
+                  </label>
+                  <label className="pm-field pm-field-grow">
+                    <span className="pm-field-label">{say('content')} *</span>
+                    <textarea
+                      className="pm-textarea"
+                      placeholder={say('contentPh')}
+                      value={content}
+                      onChange={(e) =>{  setContent(e.target.value) }}
+                    />
+                  </label>
+                  {/* 启用状态：禁用后不出现在 AI 的 de_prompts 列表、不能被 AI 注入
+                  （GUI 仍可见可编辑，随时可重新启用） */}
+                  <label className="pm-field pm-enable-row">
+                    <span className="pm-field-label">
+                      {say('enabled')}
+                      <span className="pm-field-hint">{say('disabledHint')}</span>
+                    </span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={enabled}
+                      className={`pm-toggle ${enabled ? 'pm-toggle-on' : ''}`}
+                      onClick={() =>{  setEnabled(!enabled) }}
+                    >
+                      {enabled ? say('enabledOn') : say('enabledOff')}
+                    </button>
+                  </label>
+                  <div className="pm-actions">
+                    {!creating && (() => {
+                      if (selected === null) return null
+                      const active = activeInjectionOf(selected.id)
+                      if (active !== undefined) {
+                        // 注入中：显示状态 + 停止注入（已注入的提示词不可重复注入）
+                        return (
+                          <>
+                            <span className="pm-inject-status">
+                              {active.roundsLeft === null
+                                ? say('injectingBadgeInfinite')
+                                : say('injectingBadge').replace('{n}', String(active.roundsLeft))}
+                              {' '}· {cadenceLabel(active)}
+                            </span>
+                            <button type="button" className="pm-danger-btn" onClick={() => void removeInjection(active.id)}>
+                              {say('removeInjection')}
+                            </button>
+                          </>
+                        )
+                      }
+                      return (
+                        <>
+                          {/* 预设注入：一键「注入一次」/「持续注入」（最常见的两种
                           场景）；「⚡ 立即注入」当前回合生效（只注入一次，忽略
                           次数/间隔）；「自定义」展开次数/间隔自由输入 */}
-                      <button
-                        type="button"
-                        className="pm-primary-btn"
-                        title={say('injectOnceBtnHint')}
-                        onClick={() => void injectPreset(1, 0)}
-                      >
-                        {say('injectOnceBtn')}
+                          <button
+                            type="button"
+                            className="pm-primary-btn"
+                            title={say('injectOnceBtnHint')}
+                            onClick={() => void injectPreset(1, 0)}
+                          >
+                            {say('injectOnceBtn')}
+                          </button>
+                          <button
+                            type="button"
+                            className="pm-tool-btn"
+                            title={say('injectInfiniteBtnHint')}
+                            onClick={() => void injectPreset(0, 1)}
+                          >
+                            {say('injectInfiniteBtn')}
+                          </button>
+                          <button
+                            type="button"
+                            className="pm-tool-btn"
+                            title={say('injectNowBtnHint')}
+                            onClick={() => void injectNow(selected.id)}
+                          >
+                            {say('injectNowBtn')}
+                          </button>
+                          <button
+                            type="button"
+                            className="pm-tool-btn"
+                            title={say('customBtnHint')}
+                            onClick={() =>{  setCustomOpen(!customOpen) }}
+                          >
+                            {say('customBtn')}
+                          </button>
+                          {customOpen && (
+                            <div className="pm-custom-zone pm-custom-zone-inline">
+                              <div className="pm-inject-group">
+                                <NumInput
+                                  label={say('rounds')}
+                                  hint={say('roundsHint')}
+                                  value={roundsText}
+                                  min={0}
+                                  onChange={setRoundsText}
+                                />
+                                <NumInput
+                                  label={say('cadence')}
+                                  hint={say('everyHint')}
+                                  value={everyText}
+                                  min={0}
+                                  onChange={setEveryText}
+                                />
+                                <button type="button" className="pm-primary-btn" onClick={() => void injectPrompt()}>
+                                  {say('inject')}
+                                </button>
+                                <button type="button" className="pm-tool-btn" onClick={() =>{  setCustomOpen(false) }}>
+                                  {say('collapseCustom')}
+                                </button>
+                              </div>
+                              <EffectHint roundsText={roundsText} everyText={everyText} say={say} />
+                            </div>
+                          )}
+                          <button type="button" className="pm-tool-btn" onClick={() => void copyPrompt()}>{say('copy')}</button>
+                        </>
+                      )
+                    })()}
+                    <button type="button" className="pm-tool-btn" onClick={() => void savePrompt()} disabled={busy}>
+                      {busy ? say('saving') : say('save')}
+                    </button>
+                    {!creating && (
+                      <button type="button" className="pm-danger-btn" onClick={() => void deletePrompt()}>
+                        {say('delete')}
                       </button>
-                      <button
-                        type="button"
-                        className="pm-tool-btn"
-                        title={say('injectInfiniteBtnHint')}
-                        onClick={() => void injectPreset(0, 1)}
-                      >
-                        {say('injectInfiniteBtn')}
+                    )}
+                    {creating && (
+                      <button type="button" className="pm-tool-btn" onClick={() => { setCreating(false); setSelectedId(null) }}>
+                        {say('cancel')}
                       </button>
-                      <button
-                        type="button"
-                        className="pm-tool-btn"
-                        title={say('injectNowBtnHint')}
-                        onClick={() => void injectNow(selected.id)}
-                      >
-                        {say('injectNowBtn')}
-                      </button>
-                      <button
-                        type="button"
-                        className="pm-tool-btn"
-                        title={say('customBtnHint')}
-                        onClick={() => setCustomOpen(!customOpen)}
-                      >
-                        {say('customBtn')}
-                      </button>
-                      {customOpen && (
-                        <div className="pm-custom-zone pm-custom-zone-inline">
-                          <div className="pm-inject-group">
-                            <NumInput
-                              label={say('rounds')}
-                              hint={say('roundsHint')}
-                              value={roundsText}
-                              min={0}
-                              onChange={setRoundsText}
-                            />
-                            <NumInput
-                              label={say('cadence')}
-                              hint={say('everyHint')}
-                              value={everyText}
-                              min={0}
-                              onChange={setEveryText}
-                            />
-                            <button type="button" className="pm-primary-btn" onClick={() => void injectPrompt()}>
-                              {say('inject')}
-                            </button>
-                            <button type="button" className="pm-tool-btn" onClick={() => setCustomOpen(false)}>
-                              {say('collapseCustom')}
-                            </button>
-                          </div>
-                          <EffectHint roundsText={roundsText} everyText={everyText} say={say} />
-                        </div>
-                      )}
-                      <button type="button" className="pm-tool-btn" onClick={() => void copyPrompt()}>{say('copy')}</button>
-                    </>
-                  )
-                })()}
-                <button type="button" className="pm-tool-btn" onClick={() => void savePrompt()} disabled={busy}>
-                  {busy ? say('saving') : say('save')}
-                </button>
-                {!creating && (
-                  <button type="button" className="pm-danger-btn" onClick={() => void deletePrompt()}>
-                    {say('delete')}
-                  </button>
-                )}
-                {creating && (
-                  <button type="button" className="pm-tool-btn" onClick={() => { setCreating(false); setSelectedId(null) }}>
-                    {say('cancel')}
-                  </button>
-                )}
-              </div>
-              {!creating && selected !== null && selectedIsDirty && (
-                <div className="pm-dirty-hint">{pick('有未保存的修改', 'Unsaved changes')}</div>
+                    )}
+                  </div>
+                  {!creating && selected !== null && selectedIsDirty && (
+                    <div className="pm-dirty-hint">{pick('有未保存的修改', 'Unsaved changes')}</div>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
         </>
       )}
     </div>

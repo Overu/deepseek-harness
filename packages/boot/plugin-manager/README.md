@@ -37,7 +37,9 @@ For a deployment without agent presets, enable the tool in the profile patch. Pr
   disabled: false
 ```
 
-A plugin toggle updates only `disabled` in the last matching override in the profile's `cordis.patch.yml`, or appends an override when none matches. Matching uses the entry id and any module-name assertion. An override holding only `id` and `disabled` is removed, and none is appended, when the bundle layers and the remaining profile patches already give the entry the requested state, so the profile patch records only departures from the bundles. Home and invocation patches are left out of that comparison; they apply after the profile patch and do not decide what it records. A bundle toggle changes `package.json`'s ordered `dsh.profile.bundles` list. Disabling retains the dependency; enabling appends the bundle at the end, which can change configuration precedence. Installation enables a new bundle by default. Home and invocation patches retain their higher priority.
+A plugin toggle updates only `disabled` in the last matching override in the profile's `cordis.patch.yml`, or appends an override when none matches. Matching uses the entry id and any module-name assertion. An override holding only `id` and `disabled` is removed, and none is appended, when the bundle layers and the remaining profile patches already give the entry the requested state, so the profile patch records only departures from the bundles. Home and invocation patches are left out of that comparison; they apply after the profile patch and do not decide what it records. A bundle toggle changes `package.json`'s ordered `dsh.profile.bundles` list. Disabling retains the dependency; enabling appends the bundle at the end, which can change configuration precedence. Installation enables a new bundle by default. Home and invocation patches retain their higher priority. `requiredBundles` protects named product components from bundle disabling, removal, update, replacement and direct top-level plugin switches, while switches nested inside their group rows remain available.
+
+A desktop product can additionally set `DSH_PRODUCT_REQUIRED_BUNDLES` to a JSON array of unique npm package names before DSH starts. The manager validates this launcher-owned policy at startup and combines it with `requiredBundles`, so later profile, home, or invocation configuration can still set unrelated fields such as `registry` without weakening product-required package protection. Official DSH launches leave the variable unset.
 
 Bundle platform declarations are checked before saving an enabled selection. Unsupported Hosts return `unsupported-platform`. The bundle remains visible with its display metadata and can still be deselected. Automatic activation after a package operation uses the same check. The agent-facing next step asks the user to run the bundle on a supported Host.
 
@@ -86,6 +88,7 @@ The CLI exposes `dsh plugin --profile <profile> version-exemptions`, `allow-vers
 
 | Field | Default | Meaning |
 |---|---|---|
+| `requiredBundles` | `[]` | Package names a product profile requires. Names are protected from disabling, removal, updates and replacements; an install with no safely identifiable canonical package, including a git source, tarball, or unreadable local path, is unavailable while this list is nonempty. |
 | `pnpmCommand` | `pnpm` | The pnpm executable name or path, resolved through `PATH` like the `dsh plugin` command. |
 | `inspectTimeoutMs` | `20000` | Bound on one registry lookup an inspection runs, in milliseconds. |
 | `githubConnectionTimeoutMs` | `5000` | Deadline for the GitHub repository check before installation, in milliseconds. |

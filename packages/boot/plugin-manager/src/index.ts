@@ -1,7 +1,7 @@
 /** Current-profile plugin and bundle management over shared dsh plugin operations. */
 import { randomUUID } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
-import { readFile, rm } from 'node:fs/promises'
+import { constants, existsSync, readFileSync } from 'node:fs'
+import { lstat, open, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
@@ -10,6 +10,8 @@ import type { EntryOptions } from '@deepseek-ai/cordis-plugin-loader'
 import type { PatchOptions } from '@deepseek-ai/cordis-plugin-include'
 import z from '@deepseek-ai/schemastery'
 import semver from 'semver'
+import { Parser } from 'tar'
+import type { ReadEntry } from 'tar/read-entry'
 import { TypertRemoteService, Remote, RemoteError, remoteErrorOf } from '@deepseek-ai/dsh-typert-protocol'
 import { detailImageResponse, NPM_FILE_SOURCES } from '@deepseek-ai/dsh-plugin-detail'
 import type { NpmFileSource } from '@deepseek-ai/dsh-plugin-detail/types'
@@ -52,6 +54,8 @@ export { InvalidInstallSpecError, parseInstallSpec, type ParsedInstallSpec } fro
 
 /** The pnpm executable, registries, and limits for diagnostics, lookups and connection checks. */
 export interface Config {
+  /** Bundle package names this profile requires; management operations cannot disable, remove, update, or replace them. */
+  requiredBundles?: string[]
   /** The pnpm executable name or path; resolved through `PATH` like the `dsh plugin` command. */
   pnpmCommand?: string
   /** Maximum retained package-operation diagnostic bytes. */
@@ -96,6 +100,15 @@ const REGISTRY_URL = /^https?:\/\/\S+$/
 
 /** The profile files an installation writes and a failed or cancelled one restores. */
 const RESTORED_FILES = ['package.json', 'pnpm-lock.yaml'] as const
+
+/** Maximum local archive size inspected only to identify a profile-required bundle before pnpm runs. */
+const PACKAGE_TARBALL_BYTES = 10 * 1024 * 1024
+
+/** A manifest in an npm archive needs no more than this many bytes to identify its package. */
+const PACKAGE_MANIFEST_BYTES = 1024 * 1024
+
+/** Product launchers use this fixed environment input for bundles a person cannot remove. */
+const PRODUCT_REQUIRED_BUNDLES_ENV = 'DSH_PRODUCT_REQUIRED_BUNDLES'
 
 /** The manifest fields an inspection reads for a registry spec. */
 const INSPECT_FIELDS = ['name', 'version', 'description', 'dsh'] as const
@@ -258,6 +271,148 @@ function specPackageName(spec: string, dependencies: Readonly<Record<string, str
   return Object.entries(dependencies).find(([dependency, saved]) => specs.includes(dependencySpec(dependency, saved, profileDir)))?.[0]
 }
 
+/** Read a bounded regular file without following links. */
+async function readRegularFile(file: string, limit: number): Promise<Buffer | undefined> {
+  try {
+    const listed = await lstat(file)
+    if (!listed.isFile() || listed.size > limit) return undefined
+    const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW)
+    try {
+      const current = await handle.stat()
+      if (!current.isFile() || current.size > limit) return undefined
+      const bytes = Buffer.alloc(current.size)
+      let offset = 0
+      while (offset < bytes.length) {
+        const read = await handle.read(bytes, offset, bytes.length - offset, null)
+        if (read.bytesRead === 0) return undefined
+        offset += read.bytesRead
+      }
+      return bytes
+    } finally { await handle.close() }
+  } catch (_error) {
+    return undefined
+  }
+}
+
+/** Read an npm package archive's canonical package name without extracting or executing it. */
+async function tarballPackageName(file: string): Promise<string | undefined> {
+  const archive = await readRegularFile(file, PACKAGE_TARBALL_BYTES)
+  if (archive === undefined) return undefined
+  return await new Promise((resolve) => {
+    let settled = false
+    let invalid = false
+    let seenManifest = false
+    let packageName: string | undefined
+    const settle = (value: string | undefined): void => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    const parser = new Parser({ strict: true, maxDecompressionRatio: 20 })
+    parser.once('error', () => { settle(undefined) })
+    parser.once('end', () => { settle(invalid || !seenManifest ? undefined : packageName) })
+    parser.on('entry', (entry: ReadEntry) => {
+      if (entry.path !== 'package/package.json') {
+        entry.resume()
+        return
+      }
+      if (seenManifest || entry.type !== 'File' || entry.size > PACKAGE_MANIFEST_BYTES) {
+        invalid = true
+        entry.resume()
+        return
+      }
+      seenManifest = true
+      const chunks: Buffer[] = []
+      let size = 0
+      entry.on('data', (chunk: Buffer) => {
+        size += chunk.length
+        if (size > PACKAGE_MANIFEST_BYTES) invalid = true
+        else chunks.push(chunk)
+      })
+      entry.once('end', () => {
+        if (invalid) return
+        try {
+          const manifest: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+          packageName = typeof manifest === 'object' && manifest !== null && typeof (manifest as { name?: unknown }).name === 'string'
+            ? (manifest as { name: string }).name
+            : undefined
+          if (packageName === undefined) invalid = true
+        } catch (_error) { invalid = true }
+      })
+      entry.resume()
+    })
+    void (async () => {
+      for (let offset = 0; offset < archive.length; offset += 65536) {
+        parser.write(archive.subarray(offset, offset + 65536))
+        await new Promise<void>(resolve => setImmediate(resolve))
+      }
+      parser.end()
+    })().catch(() => { settle(undefined) })
+  })
+}
+
+/** The package name an existing profile dependency resolves to, or undefined when its local package is unreadable. */
+function installedPackageName(dependency: string, profileDir: string): string | undefined {
+  return packageName(join(profileDir, 'node_modules', dependency))
+}
+
+/** The explicit non-registry target of a package alias, if it has one. */
+function aliasTarget(parsed: ParsedInstallSpec): string | undefined {
+  if (parsed.kind !== 'registry' || parsed.range === undefined) return undefined
+  if (parsed.range.startsWith('npm:')) return parsed.range.slice('npm:'.length)
+  return /^[a-z][a-z0-9+.-]*:/iu.test(parsed.range) ? parsed.range : undefined
+}
+
+/** Resolve the canonical package name an installation can change before pnpm runs. */
+async function installPackageName(
+  spec: string, dependencies: Readonly<Record<string, string>>, profileDir: string,
+): Promise<string | undefined> {
+  const parsed = parsedForRegistry(spec)
+  const target = aliasTarget(parsed)
+  if (target !== undefined) {
+    const targetParsed = parsedForRegistry(target)
+    // A parser fallback with a protocol-looking name has no canonical package identity before pnpm runs.
+    if (targetParsed.kind === 'registry' && target.includes(':')) return undefined
+    return await installPackageName(target, dependencies, profileDir)
+  }
+  if (parsed.kind === 'registry') return parsed.name
+  if (parsed.kind === 'path') return packageName(parsed.path)
+  if (parsed.kind === 'tarball' && parsed.path !== undefined) return await tarballPackageName(parsed.path)
+  const dependency = specPackageName(spec, dependencies, profileDir)
+  return dependency === undefined ? undefined : installedPackageName(dependency, profileDir)
+}
+
+/** Whether a spec requires canonical package inspection rather than trusting its outer package key. */
+function needsCanonicalPackageName(parsed: ParsedInstallSpec): boolean {
+  return parsed.kind !== 'registry' || aliasTarget(parsed) !== undefined
+}
+
+/** Read the product-owned required package names a desktop launcher supplies, rejecting malformed startup policy. */
+function productRequiredBundles(): readonly string[] {
+  const input = process.env[PRODUCT_REQUIRED_BUNDLES_ENV]
+  if (input === undefined) return Object.freeze([])
+  let values: unknown
+  try { values = JSON.parse(input) }
+  catch (_error) { throw new Error(`${PRODUCT_REQUIRED_BUNDLES_ENV} must be a JSON array of npm package names`) }
+  if (!Array.isArray(values)) throw new Error(`${PRODUCT_REQUIRED_BUNDLES_ENV} must be a JSON array of npm package names`)
+  const names: string[] = []
+  const seen = new Set<string>()
+  for (const value of values) {
+    if (typeof value !== 'string' || value.trim() !== value) {
+      throw new Error(`${PRODUCT_REQUIRED_BUNDLES_ENV} must contain npm package names without whitespace`)
+    }
+    let parsed: ParsedInstallSpec
+    try { parsed = parseInstallSpec(value) }
+    catch (_error) { throw new Error(`${PRODUCT_REQUIRED_BUNDLES_ENV} must contain npm package names`) }
+    if (parsed.kind !== 'registry' || parsed.range !== undefined || parsed.name !== value || seen.has(value)) {
+      throw new Error(`${PRODUCT_REQUIRED_BUNDLES_ENV} must contain each npm package name once`)
+    }
+    seen.add(value)
+    names.push(value)
+  }
+  return Object.freeze(names)
+}
+
 /** The package name a local directory declares, or `undefined` without a readable manifest. */
 function packageName(dir: string): string | undefined {
   try {
@@ -312,6 +467,7 @@ declare module '@deepseek-ai/cordis' {
 export class PluginManager extends TypertRemoteService {
   static inject = ['loader', 'profileContext']
   static Config: z<Config> = z.object({
+    requiredBundles: z.array(z.string().min(1)).default([]),
     pnpmCommand: z.string().default('pnpm'),
     outputBytes: z.number().step(1).min(1).default(16384),
     lockWaitMs: z.number().step(1).min(0).default(120000),
@@ -330,6 +486,8 @@ export class PluginManager extends TypertRemoteService {
   })
   /** Management bundles remain protected if their files become unreadable. */
   private readonly managementBundles = new Set<string>()
+  /** Product composition packages that a configured profile must retain. */
+  private readonly requiredBundles: ReadonlySet<string>
   /**
    * The registry each package was last installed from by this manager in this process. pnpm verifies lockfile tarball
    * URLs against its default registry unless they belong to a named registry, so a later removal names it again.
@@ -359,6 +517,7 @@ export class PluginManager extends TypertRemoteService {
     this.ownerEntryId = ctx.fiber.entry?.id
     this.ownerContext = ctx
     this.profile = ctx.profileContext
+    this.requiredBundles = new Set([...((config as Required<Config>).requiredBundles), ...productRequiredBundles()])
     for (const name of this.profile.startedBundles) this.protectsManager(name)
     this.outputBytes = (config as Required<Config>).outputBytes
     this.lockWaitMs = (config as Required<Config>).lockWaitMs
@@ -464,6 +623,7 @@ export class PluginManager extends TypertRemoteService {
   @Remote
   async listPlugins(): Promise<PluginInfo[]> {
     const rows = flatten(composeEntries([readProfilePatches('dsh', this.profile)]))
+    const requiredRows = this.requiredTopLevelRows()
     const snapshot = await readPluginInventory(this.ctx)
     return snapshot.entries.map((entry) => {
       const actual = [...this.ctx.loader.entries()].find(row => row.id === entry.entryId)
@@ -472,6 +632,9 @@ export class PluginManager extends TypertRemoteService {
       if (PROTECTED_PLUGINS.has(entry.moduleName) || entry.entryId === this.ownerEntryId) {
         return { ...entry, readOnlyReason: 'management-required' as const }
       }
+      if (actual?.parent.tree.ctx.fiber.entry?.id === 'include' && requiredRows.some(row =>
+        row.id === actual.options.id && row.name === entry.moduleName,
+      )) return { ...entry, readOnlyReason: 'profile-required' as const }
       if (candidate === undefined || candidates.length > 1 || candidate.name !== entry.moduleName
         || actual?.parent.tree.ctx.fiber.entry?.id !== 'include') {
         return { ...entry, readOnlyReason: 'unaddressable' as const }
@@ -499,7 +662,9 @@ export class PluginManager extends TypertRemoteService {
     const dependencies = Object.keys(recorded)
     const installation = JSON.parse(readFileSync(this.profile.installAnchor, 'utf8')) as InstallationManifest
     const catalog = new Map(OFFICIAL_ON_DEMAND_CATALOG.map(entry => [entry.packageName, entry]))
-    const names = [...new Set([...selected, ...dependencies, ...Object.keys(installation.dependencies ?? {}), ...catalog.keys()])]
+    const names = [...new Set([
+      ...selected, ...dependencies, ...Object.keys(installation.dependencies ?? {}), ...catalog.keys(), ...this.requiredBundles,
+    ])]
     const bundles: Omit<BundleInfo, 'updatable'>[] = []
     const runtimeVersion = getDshRuntimeVersion()
     for (const name of names) {
@@ -532,7 +697,9 @@ export class PluginManager extends TypertRemoteService {
       const removable = owned || (enabled && !installed && !shipped)
       const sourceOf = (packageName?: string): { source?: string } =>
         owned ? { source: dependencySpec(name, recorded[name] as string, this.profile.dir, packageName) } : {}
-      const readOnlyReason = this.protectsManager(name) ? 'management-required' as const : undefined
+      const readOnlyReason = this.requiredBundles.has(name)
+        ? 'profile-required' as const
+        : this.protectsManager(name) ? 'management-required' as const : undefined
       let availability: BundleInfo['availability'] = 'missing'
       let version: string | undefined
       let listing: Pick<BundleInfo, 'listedByDefault'> = {}
@@ -722,6 +889,7 @@ export class PluginManager extends TypertRemoteService {
       from, to: version, step: 'check',
       result: { changed: false, application: 'failed', stage: 'install', target: name, error },
     })
+    if (this.requiredBundles.has(name)) return refusedBefore({ code: 'profile-required' })
     if (typeof target === 'string') return refusedBefore({ code: 'invalid-spec', diagnostic: target })
     const { bundle } = target
     if (semver.valid(version) === null || !semver.gt(version, from)) {
@@ -849,6 +1017,7 @@ export class PluginManager extends TypertRemoteService {
   @Remote
   setBundleEnabled(name: string, enabled: boolean): Promise<ChangeResult> {
     return this.change(result => this.configure(async () => {
+      if (!enabled && this.requiredBundles.has(name)) throw new ManagementFailure('profile-required')
       await this.selectBundle(name, enabled)
       Object.assign(result, enabled ? await this.publishAndReload(this.bundleRows(name).map(row => row.id)) : await this.reload())
     }), { stage: 'enable', target: name, enabled }, 'bundle')
@@ -882,6 +1051,12 @@ export class PluginManager extends TypertRemoteService {
       const before = readProfileManifest('dsh', this.profile.dir).dependencies ?? {}
       // With HMR, an installed package is removed before another version is installed, so its plugins stop first.
       const known = specPackageName(spec, before, this.profile.dir)
+      const parsed = parsedForRegistry(spec)
+      const sourceName = await installPackageName(spec, before, this.profile.dir)
+      if (sourceName !== undefined && this.requiredBundles.has(sourceName)) throw new ManagementFailure('profile-required')
+      if (sourceName === undefined && this.requiredBundles.size > 0 && needsCanonicalPackageName(parsed)) {
+        throw new ManagementFailure('profile-required')
+      }
       if (this.ownerContext.get('hmr') !== undefined && known !== undefined && Object.hasOwn(before, known)) {
         throw new ManagementFailure('already-installed')
       }
@@ -969,6 +1144,7 @@ export class PluginManager extends TypertRemoteService {
         name = target
         const dir = resolveBundleDir('dsh', name, this.profile.installAnchor, this.profile.dir)
         const manifest = bundleManifest(name, this.profile.dir, this.profile.installAnchor)
+        if (this.requiredBundles.has(manifest?.name ?? name)) throw new ManagementFailure('profile-required')
         if (manifest?.dsh?.bundle === undefined) throw new ManagementFailure('not-bundle')
         const compatibility = evaluatePluginCompatibility(manifest, readProfileVersionExemptions(this.profile.dir))
         if (compatibility !== undefined && !compatibility.exempted) throw new ManagementFailure('incompatible-version', [incompatiblePlugin(compatibility)])
@@ -1035,6 +1211,7 @@ export class PluginManager extends TypertRemoteService {
   removeBundle(name: string): Promise<ChangeResult> {
     return this.change(async (result) => {
       const installed = await this.configure(async () => {
+        if (this.requiredBundles.has(name)) throw new ManagementFailure('profile-required')
         const bundle = (await this.listBundles()).find(item => item.name === name)
         if (bundle === undefined || !bundle.removable) throw new ManagementFailure('not-removable')
         if (this.ownerContext.get('hmr') === undefined && (this.profile.startedBundles.includes(name)
@@ -1168,6 +1345,7 @@ export class PluginManager extends TypertRemoteService {
       }
     }
     if (!enabled && previous.includes(name)) {
+      if (this.requiredBundles.has(name)) throw new ManagementFailure('profile-required')
       if (this.protectsManager(name)) throw new ManagementFailure('management-required')
     }
     const bundles = enabled ? [...previous, ...previous.includes(name) ? [] : [name]] : previous.filter(item => item !== name)
@@ -1182,6 +1360,22 @@ export class PluginManager extends TypertRemoteService {
     if (info?.dsh?.bundle === undefined) return []
     const dir = resolveBundleDir('dsh', name, this.profile.installAnchor, this.profile.dir)
     return flatten(composeEntries([bundlePatchPaths(dir, info.dsh.bundle).flatMap(file => loadOverlayPatches('dsh', file))]))
+  }
+
+  /** Direct rows a required bundle contributes; grouped children remain independently configurable. */
+  private requiredTopLevelRows(): EntryOptions[] {
+    return [...this.requiredBundles].flatMap((name) => {
+      try {
+        const info = bundleManifest(name, this.profile.dir, this.profile.installAnchor)
+        if (info?.dsh?.bundle === undefined) return []
+        const dir = resolveBundleDir('dsh', name, this.profile.installAnchor, this.profile.dir)
+        return composeEntries([bundlePatchPaths(dir, info.dsh.bundle).flatMap(file => loadOverlayPatches('dsh', file))])
+          .filter(row => row.group !== true)
+      } catch (_error) {
+        // The required bundle row cannot be resolved until its files are restored; its package stays protected.
+        return []
+      }
+    })
   }
 
   private protectsManager(name: string): boolean {

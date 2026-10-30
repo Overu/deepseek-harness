@@ -8,16 +8,12 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-commands'
 import type { CommandDefinition, CommandInvocation } from '@deepseek-ai/dsh-commands'
 import { checkInputText, formatInputCheckZh } from './shared/validate.ts'
 import { type Config } from './config.ts'
 import { formatEnhanceError, toEnhanceError } from './enhancer.ts'
 import { runEnhance, sessionRouteOf } from './orchestrate.ts'
-
-/** Structural face of the commands registry (optional service). */
-interface CommandsFace {
-  register(definition: CommandDefinition): () => void
-}
 
 /**
  * Register the /enhance command on the (optional) commands service. Absent
@@ -26,7 +22,7 @@ interface CommandsFace {
  * @param readConfig - per-call config reader.
  */
 export function registerEnhanceCommand(ctx: Context, readConfig: () => Config): void {
-  const commands = ctx.get('commands') as unknown as CommandsFace | undefined
+  const commands = ctx.get('commands')
   if (commands === undefined) return
   const definition: CommandDefinition = {
     name: 'enhance',

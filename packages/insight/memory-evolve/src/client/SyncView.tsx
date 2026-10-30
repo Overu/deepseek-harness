@@ -18,8 +18,10 @@
  * 数据源：/memory-evolve/memory-sync/*（host API；与命令组同一套逻辑）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { responseError } from './error-utils.ts'
 
 const API = '/memory-evolve/memory-sync'
 
@@ -89,8 +91,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? `HTTP ${res.status}`)
+    const body: unknown = await res.json().catch(() => ({}))
+    throw new Error(responseError(body) ?? `HTTP ${res.status}`)
   }
   return res.json() as Promise<T>
 }
@@ -98,7 +100,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 /** 截断长文本（冲突三方片段展示用）。 */
 function clamp(text: string | null, max = 60): string {
   if (text === null) {
-    return typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en') ? '(none)' : '（无）'
+    return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en') ? '(none)' : '（无）'
   }
   const flat = text.replace(/\s+/g, ' ')
   return flat.length > max ? `${flat.slice(0, max)}…` : flat
@@ -146,19 +148,19 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
       if (!remoteUrlEdited.current) setRemoteUrl(nextStatus.global?.url ?? '')
       // 启用意向回显：跟随服务端 enabled（停用后刷新回"不启用"）
       setRemoteOn(nextStatus.global?.enabled === true)
-      setConflicts(c.conflicts ?? [])
+      setConflicts(c.conflicts)
       // 全局各轨冲突详情：对 status.global.conflicts > 0 的轨逐轨拉取
       // （/conflicts?fileset=<track>-global；2026-08-11 用户反馈：全局轨
       // 冲突也要能在 UI 解决，不能只报"先到冲突区解决"却无处可点）
       const gMap: Record<string, ConflictItem[]> = {}
       const gCounts = nextStatus.global?.conflicts ?? {}
       const gTracks = (Object.keys(gCounts) as Array<keyof typeof gCounts>)
-        .filter((track) => (gCounts[track] ?? 0) > 0)
+        .filter(track => (gCounts[track] ?? 0) > 0)
       await Promise.all(gTracks.map(async (track) => {
         const fileset = GLOBAL_FILESET[track]
         if (!fileset) return
         const r = await api<{ conflicts: ConflictItem[] }>(`/conflicts?sessionId=${encodeURIComponent(sessionId)}&fileset=${encodeURIComponent(fileset)}`)
-        gMap[track] = r.conflicts ?? []
+        gMap[track] = r.conflicts
       }))
       setGlobalConflicts(gMap)
     } catch (error) {
@@ -210,11 +212,12 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
     if (mode === 'shared') {
       // B 模式依赖设备级共享记忆库：未启用（enabled=false 或未初始化）→
       // 拒绝并跳到「共享记忆库」子 Tab 引导（2026-08-11 用户拍板）
-      if (status?.global?.enabled !== true || status?.global?.initialized !== true) {
+      const global = status?.global
+      if (global?.enabled !== true || !global.initialized) {
         setFeature('remote') // 跳到「共享记忆库」子 Tab 引导启用
         return { ok: false, text: t('syncTab.project.mode.shared.needRemote') }
       }
-      const url = status.global.url
+      const url = global.url
       const r = await api<{ ok: boolean; text: string }>('/setup', { method: 'POST', body: JSON.stringify({ sessionId, url }) })
       return r
     }
@@ -223,10 +226,14 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
     return r
   }
 
+  const globalTracks = status?.global?.tracks
+
   return (
     <div className="mt-panel">
       {!initialized ? (
         <div className="bb-empty">{t('syncTab.loading')}</div>
+      ) : status === null ? (
+        <div className="me-notice-error">{notice?.text ?? t('syncTab.loadFailed', { message: 'unknown error' })}</div>
       ) : (
         <>
           {notice !== null && (
@@ -242,7 +249,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
               role="tab"
               aria-selected={feature === 'project'}
               className={feature === 'project' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-              onClick={() => setFeature('project')}
+              onClick={() =>{  setFeature('project') }}
             >
               {t('syncTab.tab.project')}
             </button>
@@ -251,7 +258,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
               role="tab"
               aria-selected={feature === 'global'}
               className={feature === 'global' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-              onClick={() => setFeature('global')}
+              onClick={() =>{  setFeature('global') }}
             >
               {t('syncTab.tab.global')}
             </button>
@@ -260,7 +267,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
               role="tab"
               aria-selected={feature === 'remote'}
               className={feature === 'remote' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-              onClick={() => setFeature('remote')}
+              onClick={() =>{  setFeature('remote') }}
             >
               {t('syncTab.tab.remote')}
             </button>
@@ -274,11 +281,11 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                 {/* 三态单选：不启用 / A 模式 / B 模式（2026-08-11 用户拍板：
                     一个决策同时表达"是否启用"与"记忆放哪"，无悬空状态） */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label className={`sv-radio-row${status?.projectEnabled !== true ? ' sv-radio-active' : ''}`}>
+                  <label className={`sv-radio-row${status.projectEnabled !== true ? ' sv-radio-active' : ''}`}>
                     <input
                       type="radio"
                       name="sync-project-mode"
-                      checked={status?.projectEnabled !== true}
+                      checked={status.projectEnabled !== true}
                       onChange={() => { void run(() => setProjectMode('off')) }}
                     />
                     <span style={{ flex: 1 }}>
@@ -286,11 +293,11 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                       <span className="sv-radio-desc">{t('syncTab.project.mode.off.desc')}</span>
                     </span>
                   </label>
-                  <label className={`sv-radio-row${status?.projectEnabled === true && status?.remoteKind === 'main-repo' ? ' sv-radio-active' : ''}`}>
+                  <label className={`sv-radio-row${status.projectEnabled === true && status.remoteKind === 'main-repo' ? ' sv-radio-active' : ''}`}>
                     <input
                       type="radio"
                       name="sync-project-mode"
-                      checked={status?.projectEnabled === true && status?.remoteKind === 'main-repo'}
+                      checked={status.projectEnabled === true && status.remoteKind === 'main-repo'}
                       onChange={() => { void run(() => setProjectMode('main')) }}
                     />
                     <span style={{ flex: 1 }}>
@@ -298,11 +305,11 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                       <span className="sv-radio-desc">{t('syncTab.project.mode.main.desc')}</span>
                     </span>
                   </label>
-                  <label className={`sv-radio-row${status?.projectEnabled === true && status?.remoteKind === 'shared-repo' ? ' sv-radio-active' : ''}`}>
+                  <label className={`sv-radio-row${status.projectEnabled === true && status.remoteKind === 'shared-repo' ? ' sv-radio-active' : ''}`}>
                     <input
                       type="radio"
                       name="sync-project-mode"
-                      checked={status?.projectEnabled === true && status?.remoteKind === 'shared-repo'}
+                      checked={status.projectEnabled === true && status.remoteKind === 'shared-repo'}
                       onChange={() => { void run(() => setProjectMode('shared')) }}
                     />
                     <span style={{ flex: 1 }}>
@@ -313,27 +320,27 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                 </div>
 
                 {/* 当前记忆远端状态（一个仓库） */}
-                {status?.projectEnabled === true && status?.initialized === true && (
+                {status.projectEnabled === true && status.initialized && (
                   <div className="sv-status" style={{ marginTop: '10px' }}>
                     <p>
-                      <strong>{t('syncTab.status.remoteKind', { kind: status?.remoteKind === 'main-repo' ? t('syncTab.status.remoteKindMain') : status?.remoteKind === 'shared-repo' ? t('syncTab.status.remoteKindShared') : t('syncTab.status.remoteKindNone') })}</strong>
+                      <strong>{t('syncTab.status.remoteKind', { kind: status.remoteKind === 'main-repo' ? t('syncTab.status.remoteKindMain') : status.remoteKind === 'shared-repo' ? t('syncTab.status.remoteKindShared') : t('syncTab.status.remoteKindNone') })}</strong>
                       <br />
-                      <span className="sv-status-url">{status?.originUrl || t('syncTab.status.remoteKindNone')}</span>
+                      <span className="sv-status-url">{status.originUrl || t('syncTab.status.remoteKindNone')}</span>
                     </p>
                     <p>
-                      {t('syncTab.status.branch', { branch: status?.remoteBranch ?? '?' })}
+                      {t('syncTab.status.branch', { branch: status.remoteBranch ?? '?' })}
                       <br />
                       {/* 「未推送」= 工作树未提交变更 + 已提交未推送的提交
                           （2026-08-11 用户反馈：只看"未提交"会误以为拉取合并
                           已把内容推上去；点拉取合并后 ahead 仍在 → 引导点
                           「推送」才上远端） */}
                       {t('syncTab.status.counts', {
-                        pending: String((status?.uncommitted ?? 0) + (status?.ahead ?? 0)),
-                        behind: String(status?.behind ?? 0),
-                        conflicts: String(status?.conflicts ?? 0),
+                        pending: String((status.uncommitted ?? 0) + (status.ahead ?? 0)),
+                        behind: String(status.behind ?? 0),
+                        conflicts: String(status.conflicts ?? 0),
                       })}
                     </p>
-                    {status?.migrateFrom != null && (
+                    {status.migrateFrom != null && (
                       <p>{t('syncTab.status.migrate', { dir: status.migrateFrom })}</p>
                     )}
                   </div>
@@ -341,7 +348,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
 
                 {/* 项目同步操作（仅启用后可用；只驱动项目轨，与全局分离——
                     2026-08-11 用户拍板：全局同步在「全局记忆」子 Tab） */}
-                {status?.projectEnabled === true && status?.initialized === true && (
+                {status.projectEnabled === true && status.initialized && (
                   <div className="sv-actions">
                     <button type="button" className="me-btn me-btn-primary" disabled={busy} onClick={() => { void run(() => api<{ ok: boolean; text: string }>('/sync', { method: 'POST', body: JSON.stringify({ sessionId }) })) }}>
                       {t('syncTab.actions.sync')}
@@ -351,16 +358,16 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                     </button>
                   </div>
                 )}
-                {status?.enabled === true && status?.projectEnabled === true && status?.initialized !== true && (
+                {status.enabled && status.projectEnabled === true && !status.initialized && (
                   <p className="bb-meta" style={{ marginTop: '8px' }}>{t('syncTab.status.notInit')}</p>
                 )}
               </div>
 
               {/* 冲突区（项目级冲突） */}
-              {status?.enabled === true && conflicts.length > 0 && (
+              {status.enabled && conflicts.length > 0 && (
                 <div className="sv-section">
                   <div className="sv-section-title">{t('syncTab.conflicts.title', { count: conflicts.length })}</div>
-                  {conflicts.map((c) => (
+                  {conflicts.map(c => (
                     <div key={c.index} className="bb-session-line">
                       <div>
                         <strong>#{c.index} {c.entryKey}</strong>（{c.file}）· {c.reason}
@@ -397,7 +404,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
               <div className="sv-section-title">{t('syncTab.section.global')}</div>
               {/* 可用条件 = 共享记忆库已启用（enabled）且已初始化；停用/未配置
                   时明确显示"不可用"并引导（2026-08-11 用户拍板） */}
-              {status?.global?.enabled === true && status?.global?.initialized === true ? (
+              {status.global?.enabled === true && status.global.initialized ? (
                 <>
                   {/* 四轨开关（每轨独立 opt-in，默认关） */}
                   {([
@@ -411,7 +418,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                       <input
                         type="checkbox"
                         className="me-switch"
-                        checked={status.global?.tracks?.[track] === true}
+                        checked={globalTracks?.[track] === true}
                         onChange={(event) => {
                           const target = event.target.checked
                           void run(() => api<{ ok: boolean; text: string }>('/global-track', { method: 'POST', body: JSON.stringify({ sessionId, track, on: target }) }))
@@ -423,7 +430,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                     {/* 「未推送」= 工作树变更轨 + 已提交未推送的轨（2026-08-11
                         用户反馈：与「推送」按钮语义对齐——点拉取合并后领先轨
                         仍在，引导点「推送」才上远端） */}
-                    {t('syncTab.global.uncommitted', { n: String((status.global.uncommitted ?? 0) + (status.global.ahead ?? 0)) })}
+                    {t('syncTab.global.uncommitted', { n: String(status.global.uncommitted + (status.global.ahead ?? 0)) })}
                     <br />
                     {t('syncTab.global.hint')}
                   </p>
@@ -446,7 +453,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                         <div className="sv-section-title">
                           {t('syncTab.conflicts.titleGlobal', { track: t(GLOBAL_TRACK_LABEL[track] ?? 'syncTab.global.title'), count: String(items.length) })}
                         </div>
-                        {items.map((c) => (
+                        {items.map(c => (
                           <div key={`g-${track}-${c.index}`} className="bb-session-line">
                             <div>
                               <strong>#{c.index} {c.entryKey}</strong>（{c.file}）· {c.reason}
@@ -500,7 +507,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                     name="sync-remote-enabled"
                     checked={!remoteOn}
                     onChange={() => {
-                      if (status?.global?.enabled === true) {
+                      if (status.global?.enabled === true) {
                         // 当前已启用 → 直接停用（数据保留）
                         void run(() => api<{ ok: boolean; text: string }>('/global-remote', { method: 'POST', body: JSON.stringify({ enabled: false }) }))
                       } else {
@@ -518,7 +525,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                     type="radio"
                     name="sync-remote-enabled"
                     checked={remoteOn}
-                    onChange={() => setRemoteOn(true)}
+                    onChange={() =>{  setRemoteOn(true) }}
                   />
                   <span style={{ flex: 1 }}>
                     <span className="sv-radio-label">{t('syncTab.remote.mode.on')}</span>
@@ -551,11 +558,11 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                     >
                       {/* 已启用 = 修改并保存（可换另一个共享记忆库，旧分支留档）；
                           未启用 = 启用并保存（2026-08-11 用户拍板） */}
-                      {status?.global?.initialized === true && status?.global?.url !== ''
+                      {status.global?.initialized === true && status.global.url !== ''
                         ? t('syncTab.remote.modify')
                         : t('syncTab.remote.save')}
                     </button>
-                    {status?.global?.initialized === true && status?.global?.url !== '' && (
+                    {status.global?.initialized === true && status.global.url !== '' && (
                       <button
                         type="button"
                         className="me-btn me-btn-danger"
@@ -567,7 +574,7 @@ export function SyncView(props: ConvViewProps & { t: Translate }): JSX.Element {
                     )}
                   </div>
                   {/* 当前已配置地址（只读展示） */}
-                  {status?.global?.initialized === true && status?.global?.url !== '' && (
+                  {status.global?.initialized === true && status.global.url !== '' && (
                     <p className="bb-meta" style={{ marginTop: '8px' }}>
                       {t('syncTab.remote.current', { url: status.global.url })}
                     </p>

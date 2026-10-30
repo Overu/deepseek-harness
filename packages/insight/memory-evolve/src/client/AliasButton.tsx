@@ -7,6 +7,7 @@
  * 别名优先（拟人化，告别满屏长 Session ID）。修改覆盖、清除移除。
  */
 import { useState } from 'react'
+import type { JSX } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 
 const ALIAS_API = '/memory-evolve/api/aliases'
@@ -22,8 +23,8 @@ export function AliasButton(props: { sessionId: string; t: Translate }): JSX.Ele
     setOpen(true)
     setNotice(null)
     // 拉当前别名作占位（GET 全量，取自己）
-    void fetch(`${ALIAS_API}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    void fetch(ALIAS_API)
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data: { aliases?: Record<string, string> }) => {
         setName(data.aliases?.[props.sessionId] ?? '')
       })
@@ -41,7 +42,7 @@ export function AliasButton(props: { sessionId: string; t: Translate }): JSX.Ele
         body: JSON.stringify({ name: text }),
       })
       const body = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string }
-      if (res.ok !== true || body.ok !== true) throw new Error(body.message ?? `HTTP ${res.status}`)
+      if (!res.ok || body.ok !== true) throw new Error(body.message ?? `HTTP ${res.status}`)
       // 保存成功后收起编辑区（避免按钮残留）
       setNotice(text === '' ? props.t('header.setAlias.cleared') : props.t('header.setAlias.saved'))
       setOpen(false)
@@ -58,7 +59,7 @@ export function AliasButton(props: { sessionId: string; t: Translate }): JSX.Ele
     try {
       const res = await fetch(`${ALIAS_API}/${encodeURIComponent(props.sessionId)}`, { method: 'DELETE' })
       const body = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string }
-      if (res.ok !== true || body.ok !== true) throw new Error(body.message ?? `HTTP ${res.status}`)
+      if (!res.ok || body.ok !== true) throw new Error(body.message ?? `HTTP ${res.status}`)
       setName('')
       setNotice(props.t('header.setAlias.cleared'))
       setOpen(false)
@@ -75,7 +76,7 @@ export function AliasButton(props: { sessionId: string; t: Translate }): JSX.Ele
         type="button"
         className="me-copy-session-id"
         title={props.t('header.setAlias.title')}
-        onClick={() => (open ? setOpen(false) : openEditor())}
+        onClick={() => { if (open) setOpen(false); else openEditor() }}
       >
         {props.t('header.setAlias')}
       </button>
@@ -86,7 +87,7 @@ export function AliasButton(props: { sessionId: string; t: Translate }): JSX.Ele
             value={name}
             maxLength={10}
             placeholder={props.t('header.setAlias.placeholder')}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) =>{  setName(e.target.value) }}
             onKeyDown={(e) => { if (e.key === 'Enter') void save() }}
             autoFocus
           />

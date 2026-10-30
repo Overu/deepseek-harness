@@ -197,6 +197,9 @@ export function createElectronBuilderConfig(
       { from: buildPaths.runtime, to: 'runtime' },
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       ...(insight === undefined ? [] : [{ from: INSIGHT_BRANDING_ROOT, to: 'branding' }]),
+      ...(insight === undefined ? [] : [{
+        from: fileURLToPath(new URL('../../../bundled-skills/', import.meta.url)), to: 'bundled-skills',
+      }]),
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],

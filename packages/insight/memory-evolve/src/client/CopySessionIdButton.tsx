@@ -7,6 +7,7 @@
  * 显示「已复制」反馈。
  */
 import { useState } from 'react'
+import type { JSX } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 
 /** @param props - 标准 session slot props（含当前会话 id）。 */
@@ -21,7 +22,7 @@ export function CopySessionIdButton(props: { sessionId: string; t: Translate }):
         void navigator.clipboard.writeText(props.sessionId)
           .then(() => {
             setCopied(true)
-            window.setTimeout(() => setCopied(false), 1500)
+            window.setTimeout(() =>{  setCopied(false) }, 1500)
           })
           .catch(() => { /* 剪贴板被拒：静默 */ })
       }}

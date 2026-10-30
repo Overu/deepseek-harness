@@ -5,6 +5,7 @@ import type { CaptchaView } from '../shared/auth-contracts.ts'
 import type { InsightLoginApi, InsightLoginState } from '../shared/desktop-api.ts'
 import css from './login.module.css'
 import { LoginDotGrid } from './LoginDotGrid.tsx'
+import { LegalDocumentDialog } from './LegalDocumentDialog.tsx'
 
 type LoginMethod = 'sms' | 'password'
 
@@ -12,6 +13,8 @@ type LoginMethod = 'sms' | 'password'
 export interface LoginPageProps {
   api: InsightLoginApi
   logoUrl: string
+  /** Reviewed static HTML shipped with this exact product build. */
+  legalDocuments: Readonly<Record<'service' | 'privacy', string>>
 }
 
 function validPhone(phone: string): boolean {
@@ -35,7 +38,7 @@ function sessionMessage(state: InsightLoginState): string | undefined {
  * @param props - Isolated renderer bridge and Main-provided brand artwork URL.
  * @returns the complete sign-in or migration gate page.
  */
-export function LoginPage({ api, logoUrl }: LoginPageProps) {
+export function LoginPage({ api, logoUrl, legalDocuments }: LoginPageProps) {
   const [state, setState] = useState<InsightLoginState>(initialState)
   const [method, setMethod] = useState<LoginMethod>('sms')
   const [phone, setPhone] = useState('')
@@ -44,6 +47,7 @@ export function LoginPage({ api, logoUrl }: LoginPageProps) {
   const [imageCode, setImageCode] = useState('')
   const [captcha, setCaptcha] = useState<CaptchaView>()
   const [agreed, setAgreed] = useState(false)
+  const [legalDocument, setLegalDocument] = useState<'service' | 'privacy'>()
   const [notice, setNotice] = useState<string>()
   const [countdown, setCountdown] = useState(0)
   const [captchaLoading, setCaptchaLoading] = useState(false)
@@ -177,7 +181,7 @@ export function LoginPage({ api, logoUrl }: LoginPageProps) {
               <Button size="sm" variant="ghost" disabled={!validPhone(phone) || countdown > 0 || busy} onClick={() => void sendCode()}>
                 {countdown > 0 ? `${countdown} 秒后重试` : '获取验证码'}
               </Button></span></label>
-              <Agreement agreed={agreed} setAgreed={setAgreed} api={api} disabled={busy} />
+              <Agreement agreed={agreed} setAgreed={setAgreed} onOpen={setLegalDocument} disabled={busy} />
               <Button type="submit" variant="primary" disabled={!validPhone(phone) || !code || !agreed || busy}>{busy ? '正在登录…' : '登录'}</Button>
             </form>
           ) : (
@@ -191,7 +195,7 @@ export function LoginPage({ api, logoUrl }: LoginPageProps) {
               {captcha ? <button className={css.captcha} type="button" onClick={() => void loadCaptcha()} aria-label="刷新图形验证码"><img src={captcha.image} alt="图形验证码" /></button>
                 : <Button size="sm" variant="ghost" disabled={captchaLoading} onClick={() => void loadCaptcha()}>{captchaLoading ? '加载中…' : '重新加载'}</Button>}
               </span></label>
-              <Agreement agreed={agreed} setAgreed={setAgreed} api={api} disabled={busy} />
+              <Agreement agreed={agreed} setAgreed={setAgreed} onOpen={setLegalDocument} disabled={busy} />
               <Button type="submit" variant="primary" disabled={!validPhone(phone) || !password || !imageCode || !captcha || !agreed || busy}>{busy ? '正在登录…' : '登录'}</Button>
             </form>
           )}
@@ -199,25 +203,28 @@ export function LoginPage({ api, logoUrl }: LoginPageProps) {
           {state.session.kind === 'offline' && <Button size="sm" variant="ghost" onClick={() => void resetLocal()}>清除本地登录状态</Button>}
         </div>
       </section>
+      {legalDocument === undefined ? null : <LegalDocumentDialog
+        title={legalDocument === 'service' ? '软件许可及服务协议' : '隐私政策'}
+        html={legalDocuments[legalDocument]} onClose={() => { setLegalDocument(undefined) }} />}
     </main>
   )
 }
 
-function Agreement({ agreed, setAgreed, api, disabled }: {
+function Agreement({ agreed, setAgreed, onOpen, disabled }: {
   agreed: boolean
   setAgreed: (value: boolean) => void
-  api: InsightLoginApi
+  onOpen: (kind: 'service' | 'privacy') => void
   disabled: boolean
 }) {
   return <div className={css.agreement}>
     <Checkbox checked={agreed} onChange={setAgreed} disabled={disabled} label="我已阅读" />
-    <Button size="sm" variant="ghost" disabled={disabled} onClick={() => void api.openAgreement('service')}>软件许可及服务协议</Button>
+    <Button size="sm" variant="ghost" disabled={disabled} aria-haspopup="dialog" onClick={() => { onOpen('service') }}>软件许可及服务协议</Button>
     <span>和</span>
-    <Button size="sm" variant="ghost" disabled={disabled} onClick={() => void api.openAgreement('privacy')}>隐私政策</Button>
+    <Button size="sm" variant="ghost" disabled={disabled} aria-haspopup="dialog" onClick={() => { onOpen('privacy') }}>隐私政策</Button>
   </div>
 }
 
-function AccountHomeGate({ api, logoUrl, title, message, detail }: LoginPageProps & {
+function AccountHomeGate({ api, logoUrl, title, message, detail }: Pick<LoginPageProps, 'api' | 'logoUrl'> & {
   title: string
   message: string
   detail: string

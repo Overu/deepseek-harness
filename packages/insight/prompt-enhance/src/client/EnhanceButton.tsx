@@ -62,10 +62,10 @@ export function EnhanceButton(props: EnhanceButtonProps): ReactNode {
   // host id for UI keying when present, else a stable per-mount fallback.
   const uiKey = useSessionKey(sessionId, inputActions)
   const wireId = serverSessionId(sessionId)
-  const draft = useInput((state) => stringOf((state as { draft?: unknown }).draft))
-  const phase = useInput((state) => (state as { phase?: unknown }).phase)
-  const occurrenceCount = useInput((state) => countOf((state as { occurrences?: unknown }).occurrences))
-  const imageCount = useInput((state) => countOf((state as { attachmentIds?: unknown }).attachmentIds))
+  const draft = useInput(state => stringOf((state as { draft?: unknown }).draft))
+  const phase = useInput(state => (state as { phase?: unknown }).phase)
+  const occurrenceCount = useInput(state => countOf((state as { occurrences?: unknown }).occurrences))
+  const imageCount = useInput(state => countOf((state as { attachmentIds?: unknown }).attachmentIds))
   const settings = useSyncExternalStore(subscribeClientSettings, getClientSettings)
   const panel = useSyncExternalStore(ui.subscribe, ui.getPanel)
   const rootRef = useRef<HTMLButtonElement | null>(null)
@@ -114,8 +114,8 @@ export function EnhanceButton(props: EnhanceButtonProps): ReactNode {
       return
     }
     const controller = new AbortController()
-    ui.openLoading({ sessionId: uiKey, original: draft, abort: () => controller.abort() })
-    const settle = (result: Parameters<typeof ui.settleResult>[1]): void => ui.settleResult(uiKey, result)
+    ui.openLoading({ sessionId: uiKey, original: draft, abort: () =>{  controller.abort() } })
+    const settle = (result: Parameters<typeof ui.settleResult>[1]): void =>{  ui.settleResult(uiKey, result) }
     const fail = (error: unknown): void => {
       const detail: EnhanceError = error instanceof EnhanceClientError
         ? error.detail
@@ -128,7 +128,7 @@ export function EnhanceButton(props: EnhanceButtonProps): ReactNode {
     if (settings.streaming) {
       requestEnhanceStream({ text: draft, ...(wireId === undefined ? {} : { sessionId: wireId }) }, {
         signal: controller.signal,
-        onDelta: (delta: string): void => ui.appendDelta(uiKey, delta),
+        onDelta: (delta: string): void =>{  ui.appendDelta(uiKey, delta) },
       }).then(settle, fail)
       return
     }
@@ -145,7 +145,7 @@ export function EnhanceButton(props: EnhanceButtonProps): ReactNode {
   useEffect(() => {
     const entry: ui.SessionEntry = {
       root: rootRef.current,
-      run: () => runRef.current(),
+      run: () =>{  runRef.current() },
     }
     return ui.registerSession(uiKey, entry)
   }, [uiKey])
@@ -196,7 +196,7 @@ export function EnhanceButton(props: EnhanceButtonProps): ReactNode {
             state={owned}
             t={t}
             onApply={apply}
-            onCancel={() => ui.closePanel()}
+            onCancel={() =>{  ui.closePanel() }}
             {...(owned.phase === 'error' ? { onRetry: start } : {})}
           />,
           document.body,

@@ -10,6 +10,7 @@
  * 构建时擦除）。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { JSX } from 'react'
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react'
 import {
   IconSearchOutlineMedium,
@@ -233,38 +234,38 @@ function SkillList(props: SkillListProps): JSX.Element {
         <span className="sb-count">{t('skills.count', { count: filtered.length })}</span>
       </div>
       <div className="sb-chips">
-          {sourceCounts.length > 1 && (
-            <>
-              <button
-                type="button"
-                className={`sb-chip${sourceFilter === 'all' ? ' sb-chip--active' : ''}`}
-                onClick={() => onSourceFilter('all')}
-              >
-                {t('filter.all')} {totalCount}
-              </button>
-              {sourceCounts.map(({ source, count }) => (
-                <button
-                  type="button"
-                  key={source}
-                  className={`sb-chip${sourceFilter === source ? ' sb-chip--active' : ''}`}
-                  onClick={() => onSourceFilter(source)}
-                >
-                  {source} {count}
-                </button>
-              ))}
-              <span className="sb-chips-sep" />
-            </>
-          )}
-          {(['all', 'enabled', 'disabled'] as StatusFilter[]).map((status) => (
+        {sourceCounts.length > 1 && (
+          <>
             <button
               type="button"
-              key={status}
-              className={`sb-chip${statusFilter === status ? ' sb-chip--active' : ''}`}
-              onClick={() => onStatusFilter(status)}
+              className={`sb-chip${sourceFilter === 'all' ? ' sb-chip--active' : ''}`}
+              onClick={() =>{  onSourceFilter('all') }}
             >
-              {status === 'all' ? t('filter.all') : status === 'enabled' ? t('status.enabled') : t('disabled.badge')}
+              {t('filter.all')} {totalCount}
             </button>
-          ))}
+            {sourceCounts.map(({ source, count }) => (
+              <button
+                type="button"
+                key={source}
+                className={`sb-chip${sourceFilter === source ? ' sb-chip--active' : ''}`}
+                onClick={() =>{  onSourceFilter(source) }}
+              >
+                {source} {count}
+              </button>
+            ))}
+            <span className="sb-chips-sep" />
+          </>
+        )}
+        {(['all', 'enabled', 'disabled'] as StatusFilter[]).map(status => (
+          <button
+            type="button"
+            key={status}
+            className={`sb-chip${statusFilter === status ? ' sb-chip--active' : ''}`}
+            onClick={() =>{  onStatusFilter(status) }}
+          >
+            {status === 'all' ? t('filter.all') : status === 'enabled' ? t('status.enabled') : t('disabled.badge')}
+          </button>
+        ))}
       </div>
       <div className="sb-list">
         {loading && (
@@ -287,12 +288,12 @@ function SkillList(props: SkillListProps): JSX.Element {
         )}
         {!loading &&
           error === null &&
-          paged.map((skill) => (
+          paged.map(skill => (
             <button
               type="button"
               key={skill.name}
               className={`sb-card${skill.name === selectedName ? ' sb-card--active' : ''}${skill.disabled ? ' sb-card--disabled' : ''}`}
-              onClick={() => onSelect(skill)}
+              onClick={() =>{  onSelect(skill) }}
               title={skill.disabled ? t('disabled.hint') : undefined}
             >
               <span className="sb-card-top">
@@ -439,7 +440,7 @@ function FileTree(props: FileTreeProps): JSX.Element {
           <span className="sb-tree-errmsg" title={dirError}>
             {dirError}
           </span>
-          <button type="button" className="sb-tree-retry" onClick={() => onRetryDir(dirAbs)}>
+          <button type="button" className="sb-tree-retry" onClick={() =>{  onRetryDir(dirAbs) }}>
             {t('refresh')}
           </button>
         </div>
@@ -464,7 +465,7 @@ function FileTree(props: FileTreeProps): JSX.Element {
               type="button"
               className="sb-tree-row"
               style={indent}
-              onClick={() => onToggleDir(abs)}
+              onClick={() =>{  onToggleDir(abs) }}
               title={abs}
             >
               {isOpen ? <IconChevronDownOutlineMedium /> : <IconChevronRightOutlineMedium />}
@@ -481,7 +482,7 @@ function FileTree(props: FileTreeProps): JSX.Element {
           key={abs}
           className={`sb-tree-row sb-tree-row--file${abs === selectedPath ? ' sb-tree-row--active' : ''}`}
           style={{ paddingLeft: 8 + depth * 14 + 14 }}
-          onClick={() => onFileClick(abs)}
+          onClick={() =>{  onFileClick(abs) }}
           title={abs}
         >
           <span className="sb-tree-name">{entry.name}</span>
@@ -506,9 +507,9 @@ function FileTree(props: FileTreeProps): JSX.Element {
               className="sb-root-select"
               value={root}
               title={root}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => onRootChange(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) =>{  onRootChange(e.target.value) }}
             >
-              {rootOptions.map((r) => (
+              {rootOptions.map(r => (
                 <option key={r} value={r}>
                   {basename(r)}
                 </option>
@@ -519,7 +520,7 @@ function FileTree(props: FileTreeProps): JSX.Element {
             {crumbs.map((crumb, i) => (
               <span key={crumb.abs} className="sb-crumb-seg">
                 {i > 0 && <IconChevronRightOutlineMedium className="sb-crumb-sep" />}
-                <button type="button" className="sb-crumb" onClick={() => onJump(crumb.abs)}>
+                <button type="button" className="sb-crumb" onClick={() =>{  onJump(crumb.abs) }}>
                   {crumb.label}
                 </button>
               </span>
@@ -560,7 +561,6 @@ function FileEditor(props: FileEditorProps): JSX.Element {
     file,
     fileLoading,
     fileError,
-    hasSelection,
     editing,
     draft,
     dirty,
@@ -612,12 +612,12 @@ function FileEditor(props: FileEditorProps): JSX.Element {
       </div>
     )
   } else if (file === null) {
-    body = <div className="sb-editor-empty">{hasSelection ? t('no.file') : t('no.file')}</div>
+    body = <div className="sb-editor-empty">{t('no.file')}</div>
   } else if (editing) {
     body = (
       <div className="sb-editor-edit">
         <div className="sb-gutter sb-gutter--edit" ref={gutterRef} aria-hidden>
-          {lineNumbers.map((n) => (
+          {lineNumbers.map(n => (
             <div key={n}>{n}</div>
           ))}
         </div>
@@ -625,7 +625,7 @@ function FileEditor(props: FileEditorProps): JSX.Element {
           className="sb-textarea"
           value={draft}
           spellCheck={false}
-          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onDraftChange(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>{  onDraftChange(e.target.value) }}
           onScroll={(e) => {
             // 行号容器与 textarea 同步纵向滚动
             if (gutterRef.current !== null) {
@@ -640,7 +640,7 @@ function FileEditor(props: FileEditorProps): JSX.Element {
     body = (
       <div className="sb-editor-scroll">
         <div className="sb-gutter" aria-hidden>
-          {lineNumbers.map((n) => (
+          {lineNumbers.map(n => (
             <div key={n}>{n}</div>
           ))}
         </div>
@@ -714,7 +714,7 @@ function DirsModal(props: DirsModalProps): JSX.Element {
 
   return (
     <div className="sb-modal-overlay" onClick={onClose}>
-      <div className="sb-modal sb-modal--dirs" onClick={(e) => e.stopPropagation()}>
+      <div className="sb-modal sb-modal--dirs" onClick={(e) =>{  e.stopPropagation() }}>
         <div className="sb-modal-title">{t('dirs.title')}</div>
         <div className="sb-modal-body">
           <p className="sb-dirs-help">{t('dirs.help')}</p>
@@ -725,7 +725,7 @@ function DirsModal(props: DirsModalProps): JSX.Element {
               value={input}
               placeholder={t('dirs.placeholder')}
               spellCheck={false}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => onInputChange(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) =>{  onInputChange(e.target.value) }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && input.trim() !== '' && !mutating) {
                   e.preventDefault()
@@ -758,7 +758,7 @@ function DirsModal(props: DirsModalProps): JSX.Element {
             )}
             {!loading && dirs.length === 0 && <div className="sb-note">{t('dirs.empty')}</div>}
             {!loading &&
-              dirs.map((dir) => (
+              dirs.map(dir => (
                 <div key={dir.path} className="sb-dirs-row">
                   <span className={`sb-dirs-path${dir.exists ? '' : ' sb-dirs-path--missing'}`} title={dir.path}>
                     {dir.path}
@@ -771,7 +771,7 @@ function DirsModal(props: DirsModalProps): JSX.Element {
                     type="button"
                     className="sb-btn sb-btn--ghost"
                     disabled={mutating}
-                    onClick={() => onRemove(dir.path)}
+                    onClick={() =>{  onRemove(dir.path) }}
                   >
                     {t('dirs.remove')}
                   </button>
@@ -854,7 +854,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
 
   const dirty = editing && file !== null && draft !== file.content
   const currentSkill = useMemo(
-    () => skills.find((s) => s.name === selectedName) ?? null,
+    () => skills.find(s => s.name === selectedName) ?? null,
     [skills, selectedName],
   )
   // 目录中实际出现的来源（首见顺序）+ 计数，用于筛选 chips
@@ -925,8 +925,8 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
           body: JSON.stringify({ name: skill.name }),
         })
         // 本地乐观翻转，随后静默刷新与服务端对齐（保持列表与滚动位置不动）
-        setSkills((prev) =>
-          prev.map((s) => (s.name === skill.name ? { ...s, disabled: !s.disabled } : s)),
+        setSkills(prev =>
+          prev.map(s => (s.name === skill.name ? { ...s, disabled: !s.disabled } : s)),
         )
         await loadSkills(true)
       } catch (err) {
@@ -1003,7 +1003,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
     browseCtrls.current.get(absDir)?.abort()
     const ctrl = new AbortController()
     browseCtrls.current.set(absDir, ctrl)
-    setLoadingDirs((prev) => new Set(prev).add(absDir))
+    setLoadingDirs(prev => new Set(prev).add(absDir))
     setDirErrors((prev) => {
       const next = new Map(prev)
       next.delete(absDir)
@@ -1016,11 +1016,11 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
         { signal: ctrl.signal },
       )
       if (browseCtrls.current.get(absDir) !== ctrl) return
-      setCache((prev) => new Map(prev).set(absDir, data.entries))
+      setCache(prev => new Map(prev).set(absDir, data.entries))
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
       if (browseCtrls.current.get(absDir) !== ctrl) return
-      setDirErrors((prev) =>
+      setDirErrors(prev =>
         new Map(prev).set(absDir, err instanceof Error ? err.message : String(err)),
       )
     } finally {
@@ -1047,7 +1047,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
           return next
         })
       } else {
-        setExpanded((prev) => new Set(prev).add(absDir))
+        setExpanded(prev => new Set(prev).add(absDir))
         // 展开过的不重复请求
         if (!cache.has(absDir)) void fetchDir(root, absDir)
       }
@@ -1131,7 +1131,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
   const handleSelectSkill = useCallback(
     (skill: SkillSummary) => {
       if (skill.name === selectedName) return
-      guardDirty(() => applySkillSelection(skill))
+      guardDirty(() =>{  applySkillSelection(skill) })
     },
     [selectedName, guardDirty, applySkillSelection],
   )
@@ -1233,7 +1233,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
       setSaveState('saved')
       // 成功提示短暂显示后消退
       if (savedTimer.current !== null) clearTimeout(savedTimer.current)
-      savedTimer.current = setTimeout(() => setSaveState('idle'), 2500)
+      savedTimer.current = setTimeout(() =>{  setSaveState('idle') }, 2500)
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
       setSaveState('error')
@@ -1266,7 +1266,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
       if (raw === null) return
       const saved = JSON.parse(raw) as Partial<PersistedState>
       if (typeof saved.skill !== 'string') return
-      const skill = skills.find((s) => s.name === saved.skill)
+      const skill = skills.find(s => s.name === saved.skill)
       if (skill === undefined) return
       const dirBase = skill.resourceBase?.kind === 'directory' ? skill.resourceBase.path : null
       const savedRoot = typeof saved.root === 'string' ? saved.root : dirBase
@@ -1317,13 +1317,13 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
                 type="text"
                 value={query}
                 placeholder={t('search.placeholder')}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) =>{  setQuery(e.target.value) }}
               />
               {query !== '' && (
                 <button
                   type="button"
                   className="sb-search-clear"
-                  onClick={() => setQuery('')}
+                  onClick={() =>{  setQuery('') }}
                   aria-label={t('cancel')}
                 >
                   <IconCloseOutlineMedium />
@@ -1366,11 +1366,11 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
             page={page}
             onSourceFilter={setSourceFilter}
             onStatusFilter={setStatusFilter}
-            onToggleDisabled={(skill) => void handleToggleDisabled(skill)}
+            onToggleDisabled={skill => void handleToggleDisabled(skill)}
             onSelect={handleSelectSkill}
             onRetry={() => void loadSkills()}
-            onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-            onNextPage={() => setPage((p) => p + 1)}
+            onPrevPage={() =>{  setPage(p => Math.max(1, p - 1)) }}
+            onNextPage={() =>{  setPage(p => p + 1) }}
           />
           {actionError !== null && (
             <div className="sb-action-error">
@@ -1379,7 +1379,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
               <button
                 type="button"
                 className="sb-btn sb-btn--ghost"
-                onClick={() => setActionError(null)}
+                onClick={() =>{  setActionError(null) }}
               >
                 <IconCloseOutlineMedium />
               </button>
@@ -1457,13 +1457,13 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
           mutating={dirMutating}
           onInputChange={setDirInput}
           onAdd={() => void handleAddDir()}
-          onRemove={(path) => void handleRemoveDir(path)}
-          onClose={() => setDirsOpen(false)}
+          onRemove={path => void handleRemoveDir(path)}
+          onClose={() =>{  setDirsOpen(false) }}
         />
       )}
       {pendingAction !== null && (
-        <div className="sb-modal-overlay" onClick={() => setPendingAction(null)}>
-          <div className="sb-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="sb-modal-overlay" onClick={() =>{  setPendingAction(null) }}>
+          <div className="sb-modal" onClick={(e) =>{  e.stopPropagation() }}>
             <div className="sb-modal-title">{t('confirm.discard.title')}</div>
             <div className="sb-modal-body">
               {t('confirm.discard.body', { name: file !== null ? basename(file.path) : '' })}
@@ -1472,7 +1472,7 @@ export function SkillsBrowser({ t, sessionId }: SkillsBrowserProps): JSX.Element
               <button
                 type="button"
                 className="sb-btn sb-btn--ghost"
-                onClick={() => setPendingAction(null)}
+                onClick={() =>{  setPendingAction(null) }}
               >
                 {t('cancel')}
               </button>

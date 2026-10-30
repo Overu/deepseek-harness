@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 import { registerCanvasRunTools } from '../src/host/canvas-run-tools.ts'
+import { CanvasActivities } from '../src/host/activities.ts'
 import { CanvasAgentError } from '../src/shared/canvas-agent-protocol.ts'
 
 const canvasId = '103228'
@@ -30,7 +31,7 @@ function fixture(options = {}) {
   } }
   const ctx = {
     logger: { warn: value => warnings.push(value) },
-    tools: { register: definition => { definitions.set(definition.name, definition) } },
+    tools: { register: definition => { definitions.set(definition.name, definition); return () => definitions.delete(definition.name) } },
     effect: fn => { disposers.push(fn()) },
     on: (name, handler) => { events.set(name, handler) },
     get: name => name === 'jobs' ? options.noJobs ? undefined : jobs : name === 'userQuestions' ? options.noQuestions ? undefined : questions : undefined,
@@ -71,7 +72,7 @@ function fixture(options = {}) {
     }
   }
   function state(phase, requestId = 'run-state', nodeId = 'target') { return { requestId, canvasId, nodeId, sequence: ++sequence, phase, version: '14', workflowTaskId: 'workflow-task', nodeTaskId: 'node-task', generation, outputs: phase === 'completed' ? [`https://assets.example/${nodeId === 'target' ? 'new' : nodeId}.png`] : phase === 'failed' ? options.failureOutputs ?? [] : [], ...(phase === 'failed' ? { error: { code: 'RUN_REJECTED', message: 'model rejected', retry: 'user_decision' } } : {}) } }
-  registerCanvasRunTools(ctx, bridge, { ...options.timeouts, results: options.results })
+  registerCanvasRunTools(ctx, bridge, { ...options.timeouts, results: options.results }, options.activities)
   const human = (seq = 1) => events.get('session/event')(session, { seq, type: 'user/message', data: { source: { kind: 'user' } } })
   if (!options.noIntent) human()
   const exec = (callId = 'run', signal = new AbortController().signal) => ({ callId, rootCallId: options.rootCallId ?? callId, agent, signal, deferContext: value => { if (options.deferError) throw new Error('presentation failed'); contexts.push(value) } })
@@ -465,4 +466,35 @@ for (const nodeIds of [['target'], ['target', 'target-2']]) test(nodeIds.length 
   assert.equal(f.listenerCount, 0)
   assert.equal(f.invocations.length, 1)
   f.dispose()
+})
+
+
+test('unload retains an admitted terminal result write after its Job and tool receipt settle', async () => {
+  let releaseWrite, writeStarted
+  const writing = new Promise(resolve => { writeStarted = resolve })
+  const gate = new Promise(resolve => { releaseWrite = resolve })
+  const activities = new CanvasActivities()
+  let resourceClosed = false, saved = false
+  const f = fixture({ activities, results: { async record() {
+    writeStarted()
+    await gate
+    assert.equal(resourceClosed, false, 'result resource must remain available until the final write')
+    saved = true
+  } } })
+  const result = await f.run()
+  assert.equal(result.status, 'submitted')
+  f.emit('completed')
+  await writing
+  await f.jobRecords[0].hooks.done
+  activities.stop()
+  f.dispose()
+  let drained = false
+  const closing = activities.drain().then(() => { drained = true; resourceClosed = true })
+  await Promise.resolve()
+  assert.equal(drained, false)
+  assert.equal(f.listenerCount, 0)
+  releaseWrite()
+  await closing
+  assert.equal(saved, true)
+  assert.equal(resourceClosed, true)
 })

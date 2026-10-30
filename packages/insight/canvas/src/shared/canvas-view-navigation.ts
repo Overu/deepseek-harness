@@ -1,15 +1,30 @@
 import { parseCanvasId } from './protocol.ts'
 
 /** View-only navigation. These messages never enter the Agent command/save queue. */
-export interface CanvasViewIdentity { canvasId: string; viewId: string }
-export interface CanvasViewHello extends CanvasViewIdentity { protocolVersion: 1; type: 'canvas.view.hello' }
-export interface CanvasViewReady extends CanvasViewIdentity { protocolVersion: 1; type: 'canvas.view.ready'; channelId: string }
+export interface CanvasViewIdentity { canvasId: string
+  viewId: string }
+export interface CanvasViewHello extends CanvasViewIdentity { protocolVersion: 1
+  type: 'canvas.view.hello' }
+export interface CanvasViewReady extends CanvasViewIdentity { protocolVersion: 1
+  type: 'canvas.view.ready'
+  channelId: string }
 export interface CanvasViewFocus extends CanvasViewIdentity {
-  protocolVersion: 1; type: 'canvas.view.focus'; channelId: string; requestId: string; revision: number; nodeId?: string; selectNode?: boolean
+  protocolVersion: 1
+  type: 'canvas.view.focus'
+  channelId: string
+  requestId: string
+  revision: number
+  nodeId?: string
+  selectNode?: boolean
 }
 export type CanvasViewFocusStatus = 'focused' | 'cleared' | 'node_missing' | 'view_unavailable'
 export interface CanvasViewFocusResult extends CanvasViewIdentity {
-  protocolVersion: 1; type: 'canvas.view.focus.result'; channelId: string; requestId: string; revision: number; status: CanvasViewFocusStatus
+  protocolVersion: 1
+  type: 'canvas.view.focus.result'
+  channelId: string
+  requestId: string
+  revision: number
+  status: CanvasViewFocusStatus
 }
 export type CanvasViewMessage = CanvasViewHello | CanvasViewReady | CanvasViewFocus | CanvasViewFocusResult
 
@@ -22,7 +37,8 @@ export function canvasNavigationNodeId(params: unknown): string | undefined {
 export function parseCanvasViewMessage(value: unknown, expected: CanvasViewIdentity): CanvasViewMessage | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
   const message = value as Record<string, unknown>
-  if (message.protocolVersion !== 1 || parseCanvasId(message.canvasId) !== expected.canvasId || message.viewId !== expected.viewId) return undefined
+  if (message.protocolVersion !== 1 || parseCanvasId(message.canvasId) !== expected.canvasId ||
+ message.viewId !== expected.viewId) return undefined
   const base = { protocolVersion: 1 as const, canvasId: expected.canvasId, viewId: expected.viewId }
   if (message.type === 'canvas.view.hello') return { ...base, type: message.type }
   if (!boundedId(message.channelId)) return undefined
@@ -34,7 +50,8 @@ export function parseCanvasViewMessage(value: unknown, expected: CanvasViewIdent
     return { ...navigation, type: message.type, ...(message.nodeId === undefined ? {} : { nodeId: message.nodeId }),
       ...(message.selectNode === undefined ? {} : { selectNode: message.selectNode }) }
   }
-  if (message.type === 'canvas.view.focus.result' && ['focused', 'cleared', 'node_missing', 'view_unavailable'].includes(String(message.status))) {
+  if (message.type === 'canvas.view.focus.result' && ['focused', 'cleared', 'node_missing',
+    'view_unavailable'].includes(String(message.status))) {
     return { ...navigation, type: message.type, status: message.status as CanvasViewFocusStatus }
   }
 }

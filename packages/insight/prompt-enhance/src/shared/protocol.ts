@@ -6,26 +6,23 @@
  */
 
 /** Host route path the browser half POSTs the draft to. */
-export const ENHANCE_ENDPOINT = '/prompt-enhance/enhance'
+export const ENHANCE_ENDPOINT = '/api/prompt-enhance'
 
 /**
- * Mount prefix of the plugin's host routes. The webserver registration uses it
- * verbatim; it used to be derived from {@link ENHANCE_ENDPOINT} with a
- * `replace(/\/enhance$/, '')`, which would silently mount the WRONG path the
- * day the endpoint constant is renamed.
+ * Shared connection API prefix used by the host's authenticated Fetch routes.
  */
-export const ENHANCE_PREFIX = '/prompt-enhance'
+export const ENHANCE_PREFIX = '/api'
 
 /**
  * Host route path of the incremental variant: same request body, but the
  * response is an SSE stream of {@link EnhanceStreamEvent} frames so the panel
  * can show the rewrite while it is being written.
  */
-export const ENHANCE_STREAM_ENDPOINT = '/prompt-enhance/enhance-stream'
+export const ENHANCE_STREAM_ENDPOINT = '/api/prompt-enhance-stream'
 
 /** Request body of one enhance call. */
 export interface EnhanceRequestBody {
-  /** Session whose model route should serve the call; absent forces settings/defaults. */
+  /** Session whose route should serve the call; absent uses the Insight default. */
   sessionId?: string
   /** The raw draft text to rewrite. */
   text: string

@@ -12,7 +12,7 @@ import { buildConversationContext, formatContextBlock, selectTurns } from '../sr
 function turn(role: string, ...blocks: (string | null)[]): unknown {
   return {
     role,
-    content: blocks.map((text) => (text === null ? { type: 'tool-call', name: 'search' } : { type: 'text', text })),
+    content: blocks.map(text => (text === null ? { type: 'tool-call', name: 'search' } : { type: 'text', text })),
   }
 }
 
@@ -44,7 +44,7 @@ describe('selectTurns', () => {
     const turns = selectTurns([
       turn('user', 'one'), turn('assistant', 'two'), turn('user', 'three'), turn('assistant', 'four'),
     ], { ...WINDOW, maxMessages: 2 })
-    expect(turns.map((each) => each.text)).toEqual(['three', 'four'])
+    expect(turns.map(each => each.text)).toEqual(['three', 'four'])
   })
 
   it('spends the character budget from the newest turn backwards', () => {
@@ -52,7 +52,7 @@ describe('selectTurns', () => {
       turn('user', 'aaaa'), turn('assistant', 'bbbb'), turn('user', 'cccc'),
     ], { maxMessages: 8, maxChars: 9 })
     // "cccc" (4) + "bbbb" (4) fit; the oldest turn is the one dropped.
-    expect(turns.map((each) => each.text)).toEqual(['bbbb', 'cccc'])
+    expect(turns.map(each => each.text)).toEqual(['bbbb', 'cccc'])
   })
 
   it('keeps a marked head when even the newest turn overflows the budget', () => {

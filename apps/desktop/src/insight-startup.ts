@@ -1,5 +1,4 @@
 /** Native Insight login gate; one immutable account owns each Desktop process. */
-import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { app, BrowserWindow, ipcMain, safeStorage, session, type IpcMainInvokeEvent } from 'electron'
@@ -99,7 +98,7 @@ export async function prepareInsightDesktop(
     } })
   const channels = [INSIGHT_DESKTOP_IPC.loginCurrent, INSIGHT_DESKTOP_IPC.loginSendSmsCode,
     INSIGHT_DESKTOP_IPC.loginCaptcha, INSIGHT_DESKTOP_IPC.loginSms, INSIGHT_DESKTOP_IPC.loginPassword,
-    INSIGHT_DESKTOP_IPC.loginResetLocal, INSIGHT_DESKTOP_IPC.loginSignOut, INSIGHT_DESKTOP_IPC.loginOpenAgreement]
+    INSIGHT_DESKTOP_IPC.loginResetLocal, INSIGHT_DESKTOP_IPC.loginSignOut]
   let closed = false
   const isClosed = (): boolean => closed
   let accepted = false
@@ -135,21 +134,6 @@ export async function prepareInsightDesktop(
   })
   handle(INSIGHT_DESKTOP_IPC.loginResetLocal, () => manager.resetLocal())
   handle(INSIGHT_DESKTOP_IPC.loginSignOut, async () => { ++revision; workspace = { kind: 'idle' }; await manager.signOut(); await clearSession(); publish() })
-  const legalWindows = new Set<BrowserWindow>()
-  handle(INSIGHT_DESKTOP_IPC.loginOpenAgreement, async (kind) => {
-    if (kind !== 'service' && kind !== 'privacy') throw new Error('Invalid Insight agreement')
-    const resource = kind === 'service' ? 'ServiceAgreement.html' : 'PrivacyPolicy.html'
-    const html = await readFile(join(app.getAppPath(), 'renderer', 'insight-legal', resource), 'utf8')
-    if (closed || accepted) return
-    const legal = new BrowserWindow({ ...options, parent: window, title: kind === 'service' ? '软件许可及服务协议' : '隐私政策',
-      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, webSecurity: true } })
-    legalWindows.add(legal)
-    legal.once('closed', () => { legalWindows.delete(legal) })
-    legal.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
-    legal.webContents.on('will-navigate', (event) => { event.preventDefault() })
-    await legal.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
-    if (!legal.isDestroyed()) legal.show()
-  })
   const stop = manager.subscribe((view) => {
     publish()
     const attempt = ++revision
@@ -203,7 +187,6 @@ export async function prepareInsightDesktop(
     if (closed) return
     closed = true; ++revision; stop(); app.off('activate', activate)
     for (const channel of channels) ipcMain.removeHandler(channel)
-    for (const legal of legalWindows) if (!legal.isDestroyed()) legal.destroy()
     if (!window.isDestroyed()) window.destroy()
   }
   let disposed = false

@@ -20,7 +20,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import { Context as ClientContext } from '@deepseek-ai/cordis'
 import { apply, inject } from '../src/client/index'
 import * as ui from '../src/client/ui-state'
 import { getClientSettings, setClientSettings } from '../src/client/settings'
@@ -50,7 +50,7 @@ afterEach(() => {
  */
 function bareContext(): { ctx: ClientContext; disposers: (() => void)[] } {
   const disposers: (() => void)[] = []
-  const ctx = {
+  const ctx = Object.assign(new ClientContext(), {
     effect(execute: () => unknown, _label?: string): () => void {
       const disposer = execute()
       if (typeof disposer === 'function') disposers.push(disposer as () => void)
@@ -59,7 +59,7 @@ function bareContext(): { ctx: ClientContext; disposers: (() => void)[] } {
     inject(): void {
       // No services here, so no wiring callback ever runs.
     },
-  } as unknown as ClientContext
+  })
   return { ctx, disposers }
 }
 
@@ -72,7 +72,7 @@ describe('browser half boot', () => {
 
   it('applies against a shell with no optional services, without throwing', () => {
     const { ctx } = bareContext()
-    expect(() => apply(ctx)).not.toThrow()
+    expect(() =>{  apply(ctx) }).not.toThrow()
   })
 
   it('installs the global shortcut listener and registers its disposer', () => {
@@ -82,7 +82,7 @@ describe('browser half boot', () => {
     expect(addEventListener).toHaveBeenCalledWith('keydown', expect.any(Function), true)
     // One effect (the shortcut) survives even with no locale/slots/configForms.
     expect(disposers).toHaveLength(1)
-    expect(() => disposers[0]!()).not.toThrow()
+    expect(() =>{  disposers[0]!() }).not.toThrow()
   })
 
   it('falls back to the bundled settings mirror instead of an unset one', () => {

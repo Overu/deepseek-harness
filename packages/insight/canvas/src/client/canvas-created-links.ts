@@ -1,16 +1,16 @@
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { ToolChatData } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { MAX_MESSAGE_BYTES, MAX_TITLE_LENGTH } from '../shared/canvas-agent-protocol.ts'
-import { canvasAddress, parseCanvasId } from '../shared/protocol.ts'
+import { canvasAddress, parseCanvasId, type CanvasId } from '../shared/protocol.ts'
 
 export interface CreatedCanvasLink {
-  canvasId: string
+  canvasId: CanvasId
   name: string
 }
 
 /** Only successful, named canvas_create receipts in the native tool projection authorize an entry. */
 function creation(call: ToolCallBlock, closingSeq: number): CreatedCanvasLink | undefined {
-  if (!('kind' in call) || call.kind !== 'tool-result' || call.name !== 'canvas_create' || call.isError
+  if (!('kind' in call) || call.name !== 'canvas_create' || call.isError
     || !Number.isSafeInteger(call.seq) || call.seq > closingSeq) return
   const text = call.content.filter(part => part.type === 'text').map(part => part.text).join('')
   if (text.length > MAX_MESSAGE_BYTES) return
@@ -35,6 +35,6 @@ export function createdCanvasLinks(tools: readonly ToolChatData[], closingSeq: n
     if (link && !links.has(link.canvasId)) links.set(link.canvasId, link)
     call.subCalls.forEach(visit)
   }
-  tools.forEach(tool => visit(tool.root))
+  tools.forEach((tool) =>{  visit(tool.root) })
   return [...links.values()]
 }

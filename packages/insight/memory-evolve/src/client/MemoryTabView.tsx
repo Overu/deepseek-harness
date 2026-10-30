@@ -17,8 +17,10 @@
  * case-insensitively.
  */
 import { useCallback, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { errorText, responseError } from './error-utils.ts'
 import { MemoryQueueView } from './MemoryQueueView.tsx'
 import { TabGuideView, type GuideSection } from './TabGuideView.tsx'
 
@@ -125,7 +127,7 @@ function parseEntries(row: MemoryFileRow): MemoryEntry[] {
       } else if (row.key === 'key') {
         const branchMatch = BRANCH_TAG_RE.exec(rawText)
         if (branchMatch !== null) {
-          const list = branchMatch[1].split(',').map((b) => b.trim()).filter(Boolean)
+          const list = branchMatch[1].split(',').map(b => b.trim()).filter(Boolean)
           branches = list.length > 0 ? list : null
           text = text.replace(BRANCH_TAG_RE, '')
         }
@@ -168,8 +170,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? `HTTP ${res.status}`)
+    const body: unknown = await res.json().catch(() => ({}))
+    throw new Error(responseError(body) ?? `HTTP ${res.status}`)
   }
   return res.json() as Promise<T>
 }
@@ -294,14 +296,14 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
   /** 拉取待确认记忆建议计数（功能 tab 徽标）。 */
   const pollBadge = useCallback((): void => {
     void api<{ suggestions?: number }>('/api/badge')
-      .then((data) => setBadge({ suggestions: data.suggestions ?? 0 }))
+      .then((data) =>{  setBadge({ suggestions: data.suggestions ?? 0 }) })
       .catch(() => { /* 徽标尽力而为 */ })
   }, [])
 
   useEffect(() => {
     pollBadge()
     const timer = window.setInterval(pollBadge, 30_000)
-    return () => window.clearInterval(timer)
+    return () =>{  window.clearInterval(timer) }
   }, [pollBadge])
 
   // 会话切换（组件实例跨会话复用）时恢复该会话的历史选择；无历史回落
@@ -324,9 +326,9 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
       setFiles(res.files)
       setCwd(res.cwd)
       setBranch(res.branch)
-      setBranches(res.branches ?? [])
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
+      setBranches(res.branches)
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
       setFiles([])
     })
   }, [sessionId])
@@ -341,8 +343,8 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
   // 默认选中第一个可用文件；激活 key 失效时自动回退到可用文件
   useEffect(() => {
     if (files === null || files.length === 0) return
-    if (activeKey !== null && files.some((row) => row.key === activeKey)) return
-    const fallback = files.find((row) => row.available) ?? files[0]
+    if (activeKey !== null && files.some(row => row.key === activeKey)) return
+    const fallback = files.find(row => row.available) ?? files[0]
     setActiveKey(fallback.key)
   }, [files, activeKey])
 
@@ -350,7 +352,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
   const flash = (text: string): void => {
     setNotice({ kind: 'ok', text })
     window.setTimeout(() => {
-      setNotice((current) => (current?.text === text ? null : current))
+      setNotice(current => (current?.text === text ? null : current))
     }, 3500)
   }
 
@@ -364,8 +366,8 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                 : row.key === 'archive-key' ? 'projectsDir'
                   : 'agentsFile'
     void api<{ ok: boolean }>('/api/reveal', { method: 'POST', body: JSON.stringify({ target }) })
-      .then(() => flash(t('memoryTab.opened')))
-      .catch((error: Error) => setNotice({ kind: 'error', text: error.message }))
+      .then(() =>{  flash(t('memoryTab.opened')) })
+      .catch((error: unknown) =>{  setNotice({ kind: 'error', text: errorText(error) }) })
   }
 
   /** 手动写入一条项目关键记忆：走宿主 API 的 store.add，保持 § 格式与程序盖戳。 */
@@ -381,9 +383,9 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
       setKeyDshOnly(false)
       load()
       flash(t('memoryTab.keyAdded'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setKeySaving(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setKeySaving(false) })
   }
 
   /** 手动写入一条全局轨记忆（MEMORY.md / USER.md）：走宿主 API 的 store.add
@@ -396,21 +398,21 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
       method: 'POST',
       body: JSON.stringify({ content }),
     }).then(() => {
-      setGlobalDrafts((prev) => ({ ...prev, [key]: '' }))
+      setGlobalDrafts(prev => ({ ...prev, [key]: '' }))
       load()
       flash(t('memoryTab.memoryUserAdded'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setGlobalSaving(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setGlobalSaving(false) })
   }
 
   /** 分支选择互斥：勾「全部」→ 清空所有分支；勾具体分支 → 自动取消「全部」（全部权重最大）。 */
   const toggleScopeBranch = (b: string): void => {
-    setScopeDraft((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]))
+    setScopeDraft(prev => (prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]))
   }
 
   const toggleKeyScopeBranch = (b: string): void => {
-    setKeyScope((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]))
+    setKeyScope(prev => (prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b]))
   }
 
   /** 打开某条目的分支范围编辑（草稿=当前范围）。 */
@@ -430,9 +432,9 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
       setScopeEdit(null)
       load()
       flash(t('memoryTab.keyScopeSaved'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setScopeSaving(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setScopeSaving(false) })
   }
 
   /** 切换一条目的「仅 DSH」标记（[dsh-only]）：标记 = 只注入 DSH 自身，
@@ -451,9 +453,9 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
     }).then(() => {
       load()
       flash(entry.dshOnly ? t('memoryTab.dshOnlyRemoved') : t('memoryTab.dshOnlySet'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setDeleting(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setDeleting(false) })
   }
 
   /**
@@ -475,9 +477,9 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
     }).then(() => {
       load()
       flash(t('memoryTab.deleted'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setDeleting(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setDeleting(false) })
   }
 
   /** 开始编辑某条正文（草稿=当前正文）。 */
@@ -509,9 +511,9 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
       setEditEntryRaw(null)
       load()
       flash(t('memoryTab.updated'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setEditSaving(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setEditSaving(false) })
   }
 
   /**
@@ -536,16 +538,16 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
     }).then(() => {
       load()
       flash(op === 'archive' ? t('memoryTab.archived') : t('memoryTab.promoted'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setDeleting(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setDeleting(false) })
   }
 
   /** 搜索词（小写）；空串表示不过滤。 */
   const q = query.trim().toLowerCase()
 
   /** 当前激活的文件；条目按需解析（raw/AGENTS 为 null）。 */
-  const activeRow = (files ?? []).find((row) => row.key === activeKey) ?? null
+  const activeRow = (files ?? []).find(row => row.key === activeKey) ?? null
   let activeEntries: MemoryEntry[] | null = null
   let activeHidden = false
   if (activeRow !== null && activeRow.available && activeRow.exists) {
@@ -554,7 +556,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
       activeHidden = q !== '' && !activeRow.content.toLowerCase().includes(q)
     } else {
       const all = parseEntries(activeRow)
-      activeEntries = q === '' ? all : all.filter((entry) => entryMatches(entry, q))
+      activeEntries = q === '' ? all : all.filter(entry => entryMatches(entry, q))
       activeHidden = q !== '' && activeEntries.length === 0
     }
   }
@@ -579,7 +581,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
           role="tab"
           aria-selected={feature === 'guide'}
           className={feature === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature(feature === 'guide' ? null : 'guide')}
+          onClick={() =>{  setFeature(feature === 'guide' ? null : 'guide') }}
         >
           {t('memoryTab.feature.guide')}
         </button>
@@ -588,13 +590,13 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
           role="tab"
           aria-selected={feature === 'suggestions'}
           className={feature === 'suggestions' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature(feature === 'suggestions' ? null : 'suggestions')}
+          onClick={() =>{  setFeature(feature === 'suggestions' ? null : 'suggestions') }}
         >
           {t('memoryTab.feature.suggestions')}
           {badge.suggestions > 0 && <span className="mt-feature-count">{badge.suggestions}</span>}
         </button>
         <span className="mt-tab-sep" role="presentation" />
-        {files !== null && (files ?? []).map((row) => (
+        {files !== null && files.map(row => (
           <button
             key={row.key}
             type="button"
@@ -641,14 +643,14 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
               <button
                 type="button"
                 className={view === 'pretty' ? 'mt-view-btn mt-view-btn-active' : 'mt-view-btn'}
-                onClick={() => setView('pretty')}
+                onClick={() =>{  setView('pretty') }}
               >
                 {t('memoryTab.viewPretty')}
               </button>
               <button
                 type="button"
                 className={view === 'raw' ? 'mt-view-btn mt-view-btn-active' : 'mt-view-btn'}
-                onClick={() => setView('raw')}
+                onClick={() =>{  setView('raw') }}
               >
                 {t('memoryTab.viewRaw')}
               </button>
@@ -680,7 +682,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                 {activeRow.path !== undefined && <span className="mt-card-path" title={activeRow.path}>{activeRow.path}</span>}
                 {activeRow.available && (
                   <span className="mt-card-actions">
-                    <button type="button" className="mt-btn" onClick={() => openWithSystem(activeRow)}>
+                    <button type="button" className="mt-btn" onClick={() =>{  openWithSystem(activeRow) }}>
                       {t('memoryTab.open')}
                     </button>
                   </span>
@@ -700,7 +702,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                     rows={2}
                     value={keyDraft}
                     placeholder={t('memoryTab.keyAddPlaceholder')}
-                    onChange={(event) => setKeyDraft(event.target.value)}
+                    onChange={(event) =>{  setKeyDraft(event.target.value) }}
                   />
                   {branches.length > 0 && (
                     <div className="mt-key-scope">
@@ -709,16 +711,16 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                         <input
                           type="checkbox"
                           checked={keyScope.length === 0}
-                          onChange={() => setKeyScope([])}
+                          onChange={() =>{  setKeyScope([]) }}
                         />
                         {t('memoryTab.keyScopeAll')}
                       </label>
-                      {branches.map((b) => (
+                      {branches.map(b => (
                         <label key={b} className="mt-scope-opt">
                           <input
                             type="checkbox"
                             checked={keyScope.includes(b)}
-                            onChange={() => toggleKeyScopeBranch(b)}
+                            onChange={() =>{  toggleKeyScopeBranch(b) }}
                           />
                           {b}
                         </label>
@@ -731,7 +733,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                       <input
                         type="checkbox"
                         checked={keyDshOnly}
-                        onChange={(event) => setKeyDshOnly(event.target.checked)}
+                        onChange={(event) =>{  setKeyDshOnly(event.target.checked) }}
                       />
                       {t('memoryTab.dshOnlyAdd')}
                     </label>
@@ -758,7 +760,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                     placeholder={activeRow.key === 'memory'
                       ? t('memoryTab.memoryAddPlaceholder')
                       : t('memoryTab.userAddPlaceholder')}
-                    onChange={(event) => setGlobalDrafts((prev) => ({ ...prev, [activeRow.key]: event.target.value }))}
+                    onChange={(event) =>{  setGlobalDrafts(prev => ({ ...prev, [activeRow.key]: event.target.value })) }}
                   />
                   <div className="mt-key-add-foot">
                     <span className="mt-key-help">{t('memoryTab.memoryUserAddHelp')}</span>
@@ -766,7 +768,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                       type="button"
                       className="mt-btn mt-btn-primary"
                       disabled={globalSaving || (globalDrafts[activeRow.key] ?? '').trim() === ''}
-                      onClick={() => { void saveGlobal(activeRow.key as 'memory' | 'user') }}
+                      onClick={() => {  saveGlobal(activeRow.key as 'memory' | 'user') }}
                     >
                       {t('memoryTab.memoryAdd')}
                     </button>
@@ -803,7 +805,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                             type="button"
                             className={entry.branches === null ? 'mt-entry-branch mt-entry-branch-all' : 'mt-entry-branch'}
                             title={entry.branches === null ? t('memoryTab.keyScopeAllHint') : t('memoryTab.keyScopeHint')}
-                            onClick={() => openScope(entry)}
+                            onClick={() =>{  openScope(entry) }}
                           >
                             {t('memoryTab.keyScopeLabel')}: {entry.branches === null ? t('memoryTab.keyScopeAll') : entry.branches.join(', ')} ▾
                           </button>
@@ -815,7 +817,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                               className="mt-btn mt-entry-op"
                               title={t('memoryTab.archive')}
                               disabled={deleting}
-                              onClick={() => moveEntry(entry, 'archive')}
+                              onClick={() =>{  moveEntry(entry, 'archive') }}
                             >
                               {t('memoryTab.archive')}
                             </button>
@@ -826,7 +828,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                               className="mt-btn mt-entry-op"
                               title={t('memoryTab.promote')}
                               disabled={deleting}
-                              onClick={() => moveEntry(entry, 'promote')}
+                              onClick={() =>{  moveEntry(entry, 'promote') }}
                             >
                               {t('memoryTab.promote')}
                             </button>
@@ -837,7 +839,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                               className="mt-btn mt-entry-op"
                               title={t('memoryTab.edit')}
                               disabled={deleting}
-                              onClick={() => startEdit(entry)}
+                              onClick={() =>{  startEdit(entry) }}
                             >
                               {t('memoryTab.edit')}
                             </button>
@@ -848,7 +850,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                               className={`mt-btn mt-entry-op${entry.dshOnly ? ' mt-entry-dsh-on' : ''}`}
                               title={t('memoryTab.dshOnlyToggleHint')}
                               disabled={deleting}
-                              onClick={() => toggleDshOnly(entry)}
+                              onClick={() =>{  toggleDshOnly(entry) }}
                             >
                               {entry.dshOnly ? t('memoryTab.dshOnlyOff') : t('memoryTab.dshOnlyOn')}
                             </button>
@@ -858,7 +860,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                             className="mt-btn mt-entry-del"
                             title={t('memoryTab.delete')}
                             disabled={deleting}
-                            onClick={() => deleteEntry(entry)}
+                            onClick={() =>{  deleteEntry(entry) }}
                           >
                             {t('memoryTab.delete')}
                           </button>
@@ -870,7 +872,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                             className="mt-item-edit"
                             rows={3}
                             value={editDraft}
-                            onChange={(event) => setEditDraft(event.target.value.replaceAll('§', ''))}
+                            onChange={(event) =>{  setEditDraft(event.target.value.replaceAll('§', '')) }}
                           />
                           <div className="mt-entry-edit-row">
                             <span className="mt-entry-edit-hint">{t('memoryTab.editHint')}</span>
@@ -882,7 +884,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                             >
                               {t('memoryTab.save')}
                             </button>
-                            <button type="button" className="mt-btn" disabled={editSaving} onClick={() => setEditEntryRaw(null)}>
+                            <button type="button" className="mt-btn" disabled={editSaving} onClick={() =>{  setEditEntryRaw(null) }}>
                               {t('memoryTab.cancel')}
                             </button>
                           </div>
@@ -897,17 +899,17 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                             <input
                               type="checkbox"
                               checked={scopeDraft.length === 0}
-                              onChange={() => setScopeDraft([])}
+                              onChange={() =>{  setScopeDraft([]) }}
                             />
                             {t('memoryTab.keyScopeAll')}
                             <em className="mt-scope-all-hint">{t('memoryTab.keyScopeAllWeight')}</em>
                           </label>
-                          {branches.map((b) => (
+                          {branches.map(b => (
                             <label key={b} className="mt-scope-opt">
                               <input
                                 type="checkbox"
                                 checked={scopeDraft.includes(b)}
-                                onChange={() => toggleScopeBranch(b)}
+                                onChange={() =>{  toggleScopeBranch(b) }}
                               />
                               {b}
                             </label>
@@ -921,7 +923,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                             >
                               {t('memoryTab.keyScopeSave')}
                             </button>
-                            <button type="button" className="mt-btn" disabled={scopeSaving} onClick={() => setScopeEdit(null)}>
+                            <button type="button" className="mt-btn" disabled={scopeSaving} onClick={() =>{  setScopeEdit(null) }}>
                               {t('memoryTab.keyScopeCancel')}
                             </button>
                           </span>
@@ -938,7 +940,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                     type="button"
                     className="mt-btn"
                     disabled={safePage <= 0}
-                    onClick={() => setPage(safePage - 1)}
+                    onClick={() =>{  setPage(safePage - 1) }}
                   >
                     {t('memoryTab.pagePrev')}
                   </button>
@@ -949,7 +951,7 @@ export function MemoryTabView(props: ConvViewProps & MemoryTabViewProps): JSX.El
                     type="button"
                     className="mt-btn"
                     disabled={safePage >= pageCount - 1}
-                    onClick={() => setPage(safePage + 1)}
+                    onClick={() =>{  setPage(safePage + 1) }}
                   >
                     {t('memoryTab.pageNext')}
                   </button>

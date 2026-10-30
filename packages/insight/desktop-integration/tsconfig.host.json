@@ -12,7 +12,8 @@
     "src/protocol.ts",
     "src/host",
     "src/desktop",
-    "src/shared"
+    "src/shared",
+    "src/types.ts"
   ],
   "references": [
     {
@@ -38,6 +39,42 @@
     },
     {
       "path": "../../attachment/attachment"
+    },
+    {
+      "path": "../../web/web"
+    },
+    {
+      "path": "../../web/web-search-deepseek"
+    },
+    {
+      "path": "../../core/agent"
+    },
+    {
+      "path": "../../skill/skill"
+    },
+    {
+      "path": "../../skill/skill-filesystem"
+    },
+    {
+      "path": "../../util/home-paths"
+    },
+    {
+      "path": "../../session-query/session-query"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../preset/agent-preset-registry"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../shell/shell-env"
     }
   ]
 }

@@ -2609,11 +2609,13 @@ export interface PlanModeConfig {
 
 - `inject`: `loader` · `profileContext`
 - `refs`: [`NpmFileSource`](subsystems/boot.md)
-- `source`: [`packages/boot/plugin-manager/src/index.ts:54`](../packages/boot/plugin-manager/src/index.ts)
+- `source`: [`packages/boot/plugin-manager/src/index.ts:56`](../packages/boot/plugin-manager/src/index.ts)
 
 ```ts config-catalog
 /** The pnpm executable, registries, and limits for diagnostics, lookups and connection checks. */
 export interface Config {
+  /** Bundle package names this profile requires; management operations cannot disable, remove, update, or replace them. */
+  requiredBundles?: string[]
   /** The pnpm executable name or path; resolved through `PATH` like the `dsh plugin` command. */
   pnpmCommand?: string
   /** Maximum retained package-operation diagnostic bytes. */
@@ -4831,7 +4833,7 @@ export type Config = Record<string, unknown>
 
 ## `dsh-prompt-enhance`
 
-- `inject`: `llm` · `webServer`
+- `inject`: `llm` · `connection`
 - `source`: [`packages/insight/prompt-enhance/src/config.ts:17`](../packages/insight/prompt-enhance/src/config.ts)
 
 ```ts config-catalog
@@ -4839,10 +4841,6 @@ export type Config = Record<string, unknown>
 export interface Config {
   /** Master switch; off hides the composer button and disables all triggers. */
   enabled: boolean
-  /** Explicit provider override; must be paired with `model`. */
-  provider?: string
-  /** Explicit model override; must be paired with `provider`. */
-  model?: string
   /** Sampling temperature; low keeps the rewrite faithful to the original. */
   temperature: number
   /** Output token budget of one enhancement call. */

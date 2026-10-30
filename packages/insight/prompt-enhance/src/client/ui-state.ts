@@ -253,12 +253,12 @@ export function shortcutTarget(): (() => void) | undefined {
       for (const entry of sessions.values()) {
         if (entry.root !== null && (node === entry.root || node.contains(entry.root))) {
           const found = entry
-          return () => found.run()
+          return () =>{  found.run() }
         }
       }
       node = node.parentElement
     }
   }
   const fallback = lastMountedSession !== undefined ? sessions.get(lastMountedSession) : undefined
-  return fallback === undefined ? undefined : () => fallback.run()
+  return fallback === undefined ? undefined : () =>{  fallback.run() }
 }

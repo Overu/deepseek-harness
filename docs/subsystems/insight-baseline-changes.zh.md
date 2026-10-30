@@ -4,7 +4,7 @@
 
 ## 范围
 
-本记录标明私有 Insight 源码接入与 P2 Desktop 集成修改的既有 DSH 文件，不重复列出未变更上游源码或新增私有包内部实现。官方 Desktop 保持为默认产品，并保留既有启动、profile、账号、窗口和更新行为；Insight 路径在 Electron 读取产品状态前通过显式选择启用。
+本记录标明私有 Insight 源码接入与 Desktop 集成修改的既有 DSH 文件，不重复列出未变更上游源码或新增私有包内部实现。官方 Desktop 保持为默认产品，并保留既有启动、profile、账号、窗口和更新行为；Insight 路径在 Electron 读取产品状态前通过显式选择启用。
 
 ## 既有文件变化
 
@@ -15,11 +15,15 @@
 | `apps/desktop/src/product.ts`、`insight-startup.ts`、`insight-account-exit.ts`、`insight-native-brand.ts` 及其测试 | 在上游 Main 流程外负责经校验的产品/运行时标识、隔离认证、native Home 准入、有序账号拆除与产品原生标签 | 保持为产品模块，避免把 Insight 状态分散到通用 Desktop 服务中 |
 | `apps/desktop/src/host-process.ts` 及其测试 | 只在当前 Host 子进程与 Desktop Main 之间承载有界、经校验且可取消的账号令牌请求 | 为每个 Host 消费方保留令牌隔离、当前子进程校验与拆除取消 |
 | `apps/desktop/src/preload-app.ts`、`preload-insight-login.ts`、`client/insight-login.tsx`、其测试与 `tsdown.config.ts` | 构建登录渲染器桥接，并且只向已认证顶层 Insight 工作区暴露账号摘要与退出 | 让两个渲染器上下文都无法获得令牌或不受限 Main IPC |
-| `apps/desktop/src/project-manager.ts`、`fatal-recovery.ts` 及其测试 | 在 profile 创建、已有 profile 准备和插件恢复时保留产品必需 Integration bundle；只在登录后安装账号范围恢复 | 绝不让认证前恢复打开官方 Home 或其他账号 Home |
-| `apps/desktop/scripts/dev.ts`、`development-app.ts`、`electron-builder-config.mjs` 及其测试 | 应用 Insight 应用 id、名称、图标、隔离开发数据、包元数据和产品/运行时版本拆分 | 保持构建标识为条件行为，让官方制品和签名输入不变 |
+| `apps/desktop/src/project-manager.ts`、`fatal-recovery.ts` 及其测试 | 在 profile 创建、已有 profile 准备和插件恢复时保留产品必需的四个 bundle；只在登录后安装账号范围恢复 | 绝不让认证前恢复打开官方 Home 或其他账号 Home |
+| `apps/desktop/scripts/dev.ts`、`development-app.ts`、`electron-builder-config.mjs`、其声明及测试 | 应用 Insight 应用 id、名称、图标、隔离开发数据、包元数据和产品/运行时版本拆分；将根内置技能目录复制为 Insight 专属资源 | 保持构建标识和资源复制为条件行为，让官方制品和签名输入不变 |
 | `apps/desktop/scripts/package-target.ts` 及其测试 | 在桌面闭包选择前打入精确私有组件，并把 Insight 产品版本与 DSH 运行时版本分别记录 | 保持私有桌面打包和发布标识与公开发布成员独立 |
 | `apps/desktop/electron-builder.config.d.mts`、`apps/desktop/scripts/smoke-packaged-runtime.ts`、其测试与 `scripts/run-gates.ts` | 校验产品专属打包元数据，并在 built-smoke 清单中运行 Integration 真实 Loader 测试 | 保持打包检查与 Insight 产品制品及私有 bundle 运行时入口一致 |
 | `apps/desktop/tsconfig.host.json`、`tsconfig.client.json` | 从 Desktop 构建引用可移植 Integration Host 与 Client 编译面 | 保持 Electron 导入属于 Desktop 适配层，并显式区分可移植包编译面 |
+| `apps/desktop/src/insight-permissions.ts`、`main.ts`、`product.ts` 及其测试 | 执行已批准的 Insight 专属剪贴板、全屏及主 frame 音频权限矩阵；接入原生重启、日志、缩放和全屏菜单；在登录 shell 解析后传入固定必需 bundle 策略、随包 Node 路径及存在的内置技能目录 | 保留官方产品路径；每次同步基线复核两类权限回调、原生 frame 所有权、OS 音频授权、primary-runtime 布局和产品资源路径 |
+| `packages/boot/plugin-manager/src/{index,types,tools,diagnostic,product-policy}.ts`、测试及包元数据 | 将默认空的必需 bundle 配置与可信产品策略合并，在执行端拒绝停用、移除、更新和替换，并检查安装别名与归档 | 保留执行端校验、manifest 事务恢复、有界归档解析及用户 registry；基线提供等价保护后才移除本地策略 |
+| `packages/client/ui-plugin-manager/src/client/{presentation,locales}.ts` 及组件测试 | 为产品必需组件解释已有只读状态 | 展示状态从 Host 策略派生，保留组件内部功能开关 |
+| `packages/client/ui-conversation/src/client/contract/input.ts`、`input/facade.ts`、`input/selected-skills.ts`、README 及强类型 Client 测试消费者 | 在实时编辑器文本上恢复已批准的 `toggleSkill`，派生 `selectedSkills`，不扫描引用、Quote 或命令内容 | 保留可见草稿语义、Session 所有权、忙碌/释放保护与局部编辑回归；同步基线后复核编辑器投影与动作签名 |
 | `packages/llm/llm-pi-ai/src/index.ts` 与 `tests/adapter.spec.ts` | 公开托管网关构建所需的既有 `resolveProfiles`、`credentialStoreFrom` 与 `authContextFrom` helper | 用户明确授权的增量导出；保留上游实现，基线提供这些导出后移除本地差异 |
 | `pnpm-workspace.yaml`、`pnpm-lock.yaml` | 在根依赖锁和构建策略下解析 iframe 及其保留的 Motion 依赖边 | iframe 有其他明确受支持的构建拥有者后再调整 |
 | `tsconfig.base.json`、`tsconfig.host.json`、`tsconfig.client.json` | 将保留的外部插件名（包括 Integration 入口）解析到源码，并显式编译各面 | 这些标识仍不属于生成的 DSH alias 时保留 |

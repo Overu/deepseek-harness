@@ -37,7 +37,9 @@ kind: "package-reference"
   disabled: false
 ```
 
-插件开关只更新 profile 的 `cordis.patch.yml` 中最后一条匹配覆盖项的 `disabled`；没有匹配项时追加。匹配依据是条目 id，以及覆盖项声明的模块名称。如果组合包层和其余 profile patch 已使条目处于所请求的状态，仅含 `id` 与 `disabled` 的覆盖项会被移除，也不会追加覆盖项，因此 profile patch 只记录与组合包不同的设置。该比较不计入 home 和单次启动 patch；它们在 profile patch 之后应用，不决定 profile patch 记录什么。组合包开关修改 `package.json` 的有序 `dsh.profile.bundles` 列表。关闭保留依赖；开启追加到列表末尾，可能改变配置优先级。安装新组合包默认启用。home 和单次启动 patch 保留更高优先级。
+插件开关只更新 profile 的 `cordis.patch.yml` 中最后一条匹配覆盖项的 `disabled`；没有匹配项时追加。匹配依据是条目 id，以及覆盖项声明的模块名称。如果组合包层和其余 profile patch 已使条目处于所请求的状态，仅含 `id` 与 `disabled` 的覆盖项会被移除，也不会追加覆盖项，因此 profile patch 只记录与组合包不同的设置。该比较不计入 home 和单次启动 patch；它们在 profile patch 之后应用，不决定 profile patch 记录什么。组合包开关修改 `package.json` 的有序 `dsh.profile.bundles` 列表。关闭保留依赖；开启追加到列表末尾，可能改变配置优先级。安装新组合包默认启用。home 和单次启动 patch 保留更高优先级。`requiredBundles` 会保护指定产品组件，使其组合包开关、移除、更新、替换和直接顶层插件开关不可用，但组行内部嵌套的开关仍可用。
+
+桌面产品可在启动 DSH 前，将 `DSH_PRODUCT_REQUIRED_BUNDLES` 设为由不重复 npm 包名组成的 JSON 数组。管理器会在启动时校验这项启动器所有的策略，并将其与 `requiredBundles` 合并；之后 profile、home 或单次启动配置仍可设置 `registry` 等无关字段，而不会削弱产品必需包的保护。官方 DSH 启动不设置该变量。
 
 组合包的平台声明会在保存启用选择前检查。Host 不受支持时返回 `unsupported-platform`。组合包仍保留显示信息，并允许取消选择。包操作后的自动启用执行同一检查。给模型的下一步说明会提示用户在受支持的 Host 上运行该组合包。
 
@@ -86,6 +88,7 @@ CLI 提供 `dsh plugin --profile <profile> version-exemptions`、`allow-version 
 
 | 字段 | 默认值 | 含义 |
 |---|---|---|
+| `requiredBundles` | `[]` | 产品 profile 需要的包名。这些名称不能被停用、移除、更新或替换；此列表非空时，无法安全识别规范包名的安装（包括 git、tarball 或不可读取的本地路径）不可用。 |
 | `pnpmCommand` | `pnpm` | pnpm 可执行文件名或路径，与 `dsh plugin` 命令一样通过 `PATH` 解析。 |
 | `inspectTimeoutMs` | `20000` | 单次检查所做注册表查询的上限，单位毫秒。 |
 | `githubConnectionTimeoutMs` | `5000` | 安装前 GitHub 仓库连接检查的时限，单位毫秒。 |

@@ -15,8 +15,10 @@
  * 若目标在未加载的历史窗口，循环点「加载更早」按钮（loadOlder）再定位。
  */
 import { useCallback, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { errorText } from './error-utils.ts'
 import { TabGuideView, type GuideSection } from './TabGuideView.tsx'
 
 /** 宿主返回的书签形状。 */
@@ -71,15 +73,15 @@ function switchToChatTab(): boolean {
   const tabs = document.querySelectorAll<HTMLElement>('[role="tab"]')
   // 1) 文案匹配：中文「对话」/ 英文 "Chat"（官方 locale）。
   for (const tab of tabs) {
-    const text = (tab.textContent ?? '').trim()
+    const text = tab.textContent.trim()
     if (text === '对话' || text === 'Chat' || text.startsWith('对话') || text.startsWith('Chat')) {
       tab.click()
       return true
     }
   }
   // 2) 兜底：第一个 role=tab 通常是 chat（order: 0）。
-  const first = tabs[0]
-  if (first !== undefined) {
+  const first = document.querySelector<HTMLElement>('[role="tab"]')
+  if (first !== null) {
     first.click()
     return true
   }
@@ -98,7 +100,7 @@ function clickLoadOlder(): boolean {
   const buttons = root.querySelectorAll<HTMLButtonElement>('button')
   for (const btn of buttons) {
     if (btn.disabled) continue
-    const text = (btn.textContent ?? '').trim()
+    const text = btn.textContent.trim()
     // 官方 key chat.loadOlder / loading —— 中英文常见文案。
     if (
       text.includes('更早')
@@ -157,7 +159,7 @@ async function jumpToAnchor(bm: Bookmark): Promise<'ok' | 'not-found' | 'no-chat
   const switched = switchToChatTab()
   if (!switched) return 'no-chat'
   // 给 React 一帧挂载 ChatView。
-  await new Promise((r) => window.setTimeout(r, 120))
+  await new Promise(r => window.setTimeout(r, 120))
 
   // 2. 已在窗口内 → 直接滚。
   let el = await waitForAnchor(key, 800)
@@ -213,9 +215,9 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
       return
     }
     void api<{ bookmarks: Bookmark[] }>(`?sessionId=${encodeURIComponent(sessionId)}`)
-      .then((data) => setBookmarks(data.bookmarks ?? []))
-      .catch((error: Error) => {
-        setNotice({ kind: 'error', text: t('bookmark.error', { message: error.message }) })
+      .then((data) =>{  setBookmarks(data.bookmarks) })
+      .catch((error: unknown) => {
+        setNotice({ kind: 'error', text: t('bookmark.error', { message: errorText(error) }) })
         setBookmarks([])
       })
   }, [sessionId, t])
@@ -224,9 +226,9 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
 
   // 星标创建/删除后即时刷新列表。
   useEffect(() => {
-    const onChange = (): void => load()
+    const onChange = (): void =>{  load() }
     window.addEventListener('dsh-memory-evolve:bookmarks-change', onChange)
-    return () => window.removeEventListener('dsh-memory-evolve:bookmarks-change', onChange)
+    return () =>{  window.removeEventListener('dsh-memory-evolve:bookmarks-change', onChange) }
   }, [load])
 
   const onJump = (bm: Bookmark): void => {
@@ -242,7 +244,7 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
           setNotice({ kind: 'error', text: t('bookmark.jump.notFound', { label: bm.label }) })
         }
       })
-      .finally(() => setBusy(false))
+      .finally(() =>{  setBusy(false) })
   }
 
   const onRename = (bm: Bookmark): void => {
@@ -259,10 +261,10 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
         load()
         setNotice({ kind: 'ok', text: t('bookmark.renamed') })
       })
-      .catch((error: Error) => {
-        setNotice({ kind: 'error', text: t('bookmark.error', { message: error.message }) })
+      .catch((error: unknown) => {
+        setNotice({ kind: 'error', text: t('bookmark.error', { message: errorText(error) }) })
       })
-      .finally(() => setBusy(false))
+      .finally(() =>{  setBusy(false) })
   }
 
   const onDelete = (bm: Bookmark): void => {
@@ -276,10 +278,10 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
         load()
         setNotice({ kind: 'ok', text: t('bookmark.deleted') })
       })
-      .catch((error: Error) => {
-        setNotice({ kind: 'error', text: t('bookmark.error', { message: error.message }) })
+      .catch((error: unknown) => {
+        setNotice({ kind: 'error', text: t('bookmark.error', { message: errorText(error) }) })
       })
-      .finally(() => setBusy(false))
+      .finally(() =>{  setBusy(false) })
   }
 
   /** 从此书签的轮次创建官方分支会话（用户拍板本期实现）。 */
@@ -293,7 +295,7 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
       // anchorKey 优先（新式）；旧记录回退 seq（宿主端仍按 seq 分支）。
       body: JSON.stringify({ sessionId: bm.sessionId, seq: bm.seq, anchorKey: bm.anchorKey ?? undefined }),
     })
-      .then((res) => res.json().catch(() => ({})) as Promise<{ sessionId?: string; error?: string }>)
+      .then(res => res.json().catch(() => ({})) as Promise<{ sessionId?: string; error?: string }>)
       .then((data) => {
         if (typeof data.sessionId === 'string') {
           setNotice({ kind: 'ok', text: t('bookmark.fork.ok', { id: data.sessionId }) })
@@ -301,10 +303,10 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
           setNotice({ kind: 'error', text: t('bookmark.error', { message: data.error ?? 'HTTP error' }) })
         }
       })
-      .catch((error: Error) => {
-        setNotice({ kind: 'error', text: t('bookmark.error', { message: error.message }) })
+      .catch((error: unknown) => {
+        setNotice({ kind: 'error', text: t('bookmark.error', { message: errorText(error) }) })
       })
-      .finally(() => setBusy(false))
+      .finally(() =>{  setBusy(false) })
   }
 
   // 搜索过滤：label 或 summary 子串（大小写不敏感）；空关键词 = 全部。
@@ -313,8 +315,8 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
     ? null
     : q === ''
       ? bookmarks
-      : bookmarks.filter((bm) =>
-          bm.label.toLowerCase().includes(q) || bm.summary.toLowerCase().includes(q))
+      : bookmarks.filter(bm =>
+        bm.label.toLowerCase().includes(q) || bm.summary.toLowerCase().includes(q))
 
   const guideSections: GuideSection[] = [
     {
@@ -348,7 +350,7 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
           role="tab"
           aria-selected={feature === 'list'}
           className={feature === 'list' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('list')}
+          onClick={() =>{  setFeature('list') }}
         >
           {t('bookmark.tab.list')}
         </button>
@@ -357,7 +359,7 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
           role="tab"
           aria-selected={feature === 'guide'}
           className={feature === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('guide')}
+          onClick={() =>{  setFeature('guide') }}
         >
           {t('bookmark.tab.guide')}
         </button>
@@ -375,7 +377,7 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
               type="button"
               className="bm-toolbar-btn"
               disabled={busy}
-              onClick={() => load()}
+              onClick={() =>{  load() }}
             >
               {t('bookmark.refresh')}
             </button>
@@ -387,7 +389,7 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
             className="bm-search"
             placeholder={t('bookmark.search.placeholder')}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) =>{  setQuery(event.target.value) }}
             aria-label={t('bookmark.search.placeholder')}
           />
           {notice !== null && (
@@ -402,7 +404,7 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
                 {q === '' ? t('bookmark.empty') : t('bookmark.search.empty')}
               </div>
             )}
-            {filtered !== null && filtered.map((bm) => (
+            {filtered !== null && filtered.map(bm => (
               <div
                 key={bm.id}
                 className="bm-item"
@@ -431,20 +433,20 @@ export function BookmarksView(props: ConvViewProps & BookmarksViewProps): JSX.El
                 {/* 操作钮：stopPropagation 避免冒泡成二次跳转 */}
                 <div
                   className="bm-item-actions"
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => event.stopPropagation()}
+                  onClick={(event) =>{  event.stopPropagation() }}
+                  onKeyDown={(event) =>{  event.stopPropagation() }}
                 >
-                  <button type="button" disabled={busy} onClick={() => onJump(bm)}>
+                  <button type="button" disabled={busy} onClick={() =>{  onJump(bm) }}>
                     {t('bookmark.action.jump')}
                   </button>
                   {/* 分支：从此轮创建官方分支会话（Memory Evolve 增强） */}
-                  <button type="button" disabled={busy} onClick={() => onFork(bm)}>
+                  <button type="button" disabled={busy} onClick={() =>{  onFork(bm) }}>
                     {t('bookmark.action.fork')}
                   </button>
-                  <button type="button" disabled={busy} onClick={() => onRename(bm)}>
+                  <button type="button" disabled={busy} onClick={() =>{  onRename(bm) }}>
                     {t('bookmark.action.rename')}
                   </button>
-                  <button type="button" className="bm-danger" disabled={busy} onClick={() => onDelete(bm)}>
+                  <button type="button" className="bm-danger" disabled={busy} onClick={() =>{  onDelete(bm) }}>
                     {t('bookmark.action.delete')}
                   </button>
                 </div>

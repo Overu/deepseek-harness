@@ -23,7 +23,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 
 /** Reasons a profile control cannot modify its target. */
-export type ReadOnlyReason = 'management-required' | 'unaddressable'
+export type ReadOnlyReason = 'management-required' | 'profile-required' | 'unaddressable'
 
 /** A package whose declared DSH requirements reject the running DSH version, without an exemption for the exact pair. */
 export interface IncompatiblePlugin {

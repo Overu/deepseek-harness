@@ -10,7 +10,7 @@
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
-    { "path": "../../host/webserver" },
+    { "path": "../../client/connection/tsconfig.host.json" },
     { "path": "../../interaction/commands" },
     { "path": "../../llm/llm" },
     { "path": "../../core/session" },

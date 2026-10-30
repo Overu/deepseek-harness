@@ -5,10 +5,10 @@ import { CanvasAgentError } from '../src/shared/canvas-agent-protocol.ts'
 const id = '103161', url = 'https://example-bucket.oss-cn-hangzhou.aliyuncs.com/user/image.png'
 const image = { attachmentId: 'image-1', mediaType: 'image/png', bytes: 3, width: 1, height: 1, name: 'test.png' }
 const args = { canvasId: id, expectedVersion: '18', source: { type: 'attachment', attachmentId: image.attachmentId }, title: '图片素材' }
-const exec = (callId = 'import-1', session = 'session-1', images = [image]) => ({ callId, agent: { id: session, session: { deriveMessages: () => [{ role: 'user', content: images.map(attachment => ({ type: 'image', attachment })) }] } }, signal: new AbortController().signal })
+const exec = (callId = 'import-1', session = 'session-1', images = [image]) => ({ callId, agent: { id: session, session: { id: session, deriveMessages: () => [{ role: 'user', content: images.map(attachment => ({ type: 'image', attachment })) }] } }, signal: new AbortController().signal })
 function fixture(overrides = {}) {
   const definitions = new Map(), calls = [], cleanups = []
-  const ctx = { tools: { register: definition => { definitions.set(definition.name, definition); return () => {} } }, effect: fn => { cleanups.push(fn()) }, attachments: { readImage: async ref => { calls.push(['read-image', ref.attachmentId]); return { ref, data: new Uint8Array([1, 2, 3]) } } } }
+  const ctx = { sessionQuery: { observeSession: async sessionId => ({ header: { id: sessionId, createdAt: 0 }, events: [], [Symbol.dispose]() {} }) }, tools: { register: definition => { definitions.set(definition.name, definition); return () => {} } }, effect: fn => { cleanups.push(fn()) }, attachments: { readImage: async ref => { calls.push(['read-image', ref.attachmentId]); return { ref, data: new Uint8Array([1, 2, 3]) } } } }
   const bridge = { ensureContext: async (...input) => { calls.push(['prepare', ...input]); return { canvasId: input[1], readiness: { version: '18' } } },
     dispatch: async (_target, request, operation) => { calls.push(['dispatch', request, operation]); return operation.action === 'canvas.read' ? { status: 'read', consistency: 'confirmed', nodes: [{ id: 'source', type: 'image', outputs: ['https://cdn.example.com/result.png'], truncatedFields: [] }] } : { status: 'saved', canvasId: id, version: '19', affectedNodeIds: ['asset-node'], unchanged: false } }, ...overrides.bridge }
   const api = { getIdentity: async () => { calls.push(['identity']); return { userId: '123', token: 'private-token' } },

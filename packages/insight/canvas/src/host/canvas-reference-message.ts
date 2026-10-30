@@ -5,8 +5,11 @@ import { serializeNodeRefs, splitNodeRefs } from '../shared/canvas-node-referenc
 import type { CanvasHostBridge } from './canvas-bridge.ts'
 
 export function registerCanvasReferenceMessages(ctx: Context, bridge: CanvasHostBridge): void {
-  const staged = new Map<string, { messageId: string; revision: number; connectionId: string; text: string }>()
-  ctx.effect(() => () => staged.clear(), 'desktop-canvas: staged reference messages')
+  const staged = new Map<string, { messageId: string
+    revision: number
+    connectionId: string
+    text: string }>()
+  ctx.effect(() => () =>{  staged.clear() }, 'desktop-canvas: staged reference messages')
   ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
     const decision = await next()
     if (decision.kind !== 'enter' || signal.aborted) return decision
@@ -34,7 +37,8 @@ export function registerCanvasReferenceMessages(ctx: Context, bridge: CanvasHost
     if (!snapshot) return
     if (event.type === 'user/message') {
       const message: UserMessage = event.data
-      if (message.id !== snapshot.messageId || !message.content.some(block => block.type === 'text' && block.text === snapshot.text)) return
+      if (message.id !== snapshot.messageId || !message.content.some(block => block.type === 'text' &&
+ block.text === snapshot.text)) return
       staged.delete(sessionId)
       // Clear the Dock only after the modified user message has been durably admitted.
       bridge.consumeReferences(sessionId, snapshot.revision, message.id, snapshot.connectionId)

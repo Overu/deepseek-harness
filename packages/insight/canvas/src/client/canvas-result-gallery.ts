@@ -19,7 +19,7 @@ export function canvasResultProducts(sources: readonly CanvasResultSource[]): Ca
     key: `${source.requestId}:${index}`, nodeId: source.nodeId, url,
     kind: source.generation.images > 0 && source.generation.videos === 0 && !source.generation.audios ? 'image'
       : source.generation.videos > 0 && source.generation.images === 0 && !source.generation.audios ? 'video'
-      : (source.generation.audios ?? 0) > 0 && source.generation.images === 0 && source.generation.videos === 0 ? 'audio' : 'unknown',
+        : (source.generation.audios ?? 0) > 0 && source.generation.images === 0 && source.generation.videos === 0 ? 'audio' : 'unknown',
   })))
 }
 

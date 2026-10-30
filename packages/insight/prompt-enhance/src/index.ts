@@ -1,8 +1,7 @@
 /**
  * Host half of the prompt-enhance plugin: the `prompt-enhance` settings
- * section, the POST /prompt-enhance/enhance route (LLM call through
- * ctx.llm, route resolved by precedence: settings pair → session request
- * header → harness default model), and the /enhance slash command. The
+ * section, authenticated POST routes (LLM call through ctx.llm, route resolved
+ * from the session or harness default model), and the /enhance slash command. The
  * browser half (exports "./client") contributes the composer button, the
  * preview panel, and the undo bar.
  * @module dsh-prompt-enhance
@@ -14,7 +13,7 @@ import { registerEnhanceRoute } from './enhance-routes.ts'
 import { registerEnhanceCommand } from './enhance-command.ts'
 
 export const name = 'prompt-enhance'
-export const inject = ['llm', 'webServer']
+export const inject = ['llm', 'connection']
 
 export { Config, DEFAULT_CONFIG, PROMPT_ENHANCE_NAMESPACE, resolveConfig } from './config.ts'
 export type { StrategyMode } from './config.ts'
@@ -31,7 +30,7 @@ export type { EnhanceError, EnhanceResult, EnhanceRequestBody, EnhanceResponse, 
  * entry and is re-resolved per request, so Settings → 插件配置 changes reach
  * the very next call.
  *
- * Besides the declared `inject` services (llm, webServer — both required),
+ * Besides the declared `inject` services (llm, connection — both required),
  * the host half optionally reads three more through `ctx.get` with
  * `undefined` fallbacks, degrading gracefully when absent:
  * - `sessions` — the session's logged request route (model routing);
@@ -40,7 +39,7 @@ export type { EnhanceError, EnhanceResult, EnhanceRequestBody, EnhanceResponse, 
  * @param ctx - registrant context.
  * @param config - deployment configuration (schema defaults filled by the loader).
  */
-export function apply(ctx: Context, config: Config = { ...DEFAULT_CONFIG }): void {
+export function apply(ctx: Context, config: Config = DEFAULT_CONFIG): void {
   const readConfig = (): Config => resolveConfig(config)
   registerEnhanceRoute(ctx, readConfig)
   registerEnhanceCommand(ctx, readConfig)

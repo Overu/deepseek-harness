@@ -4,7 +4,8 @@ export type CanvasJsonValue = null | boolean | number | string | CanvasJsonValue
 export interface CanvasReferenceNode {
   id: string
   data: { [key: string]: CanvasJsonValue }
-  position: { x: number; y: number }
+  position: { x: number
+    y: number }
   type?: string
   [key: string]: CanvasJsonValue | undefined
 }
@@ -24,7 +25,8 @@ export const isReferenceId = (value: unknown): value is string => typeof value =
 const record = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
 
 /** Copy all serializable node fields; never pass a live Store object across the view boundary. */
-export function snapshotReferenceNodes(nodes: readonly unknown[]): { nodes: CanvasReferenceNode[]; error?: CanvasReferenceUpdate['error'] } {
+export function snapshotReferenceNodes(nodes: readonly unknown[]): { nodes: CanvasReferenceNode[]
+  error?: CanvasReferenceUpdate['error'] } {
   try {
     const json = JSON.stringify(nodes)
     if (new TextEncoder().encode(json).length > MAX_REFERENCE_BYTES) return { nodes: [], error: 'too_large' }
@@ -32,16 +34,22 @@ export function snapshotReferenceNodes(nodes: readonly unknown[]): { nodes: Canv
     if (!Array.isArray(copy) || copy.some(node => !record(node) || !isReferenceId(node.id) || !record(node.data)
       || !record(node.position) || !Number.isFinite(node.position.x) || !Number.isFinite(node.position.y)
       || node.type !== undefined && (typeof node.type !== 'string' || node.type.length > 100))
-      || new Set(copy.map(node => node.id)).size !== copy.length) return { nodes: [], error: 'unserializable' }
+      || new Set(copy.map((node: unknown) => record(node) ? node.id : undefined)).size !== copy.length) return {
+      nodes: [], error: 'unserializable' }
     return { nodes: copy as CanvasReferenceNode[] }
   } catch { return { nodes: [], error: 'unserializable' } }
 }
 
-export function parseReferenceUpdate(value: unknown, identity: { canvasId: string; viewId: string; subscriptionId: string }): CanvasReferenceUpdate | undefined {
+export function parseReferenceUpdate(value: unknown, identity: { canvasId: string
+  viewId: string
+  subscriptionId: string }): CanvasReferenceUpdate | undefined {
   if (!record(value) || value.protocolVersion !== 1 || value.type !== 'canvas.references.changed'
-    || parseCanvasId(value.canvasId) !== identity.canvasId || value.viewId !== identity.viewId || value.subscriptionId !== identity.subscriptionId
-    || !Number.isSafeInteger(value.revision) || Number(value.revision) < 0 || !['select', 'update'].includes(String(value.reason))
-    || !Array.isArray(value.nodes) || value.error !== undefined && !['unserializable', 'too_large'].includes(String(value.error))) return undefined
+    || parseCanvasId(value.canvasId) !== identity.canvasId || value.viewId !== identity.viewId ||
+ value.subscriptionId !== identity.subscriptionId
+    || !Number.isSafeInteger(value.revision) || Number(value.revision) < 0 || !['select',
+    'update'].some(reason => reason === value.reason)
+    || !Array.isArray(value.nodes) || value.error !== undefined && !['unserializable',
+    'too_large'].some(error => error === value.error)) return undefined
   const snapshot = snapshotReferenceNodes(value.nodes)
   if (snapshot.error) return undefined
   return { protocolVersion: 1, type: 'canvas.references.changed', ...identity, revision: Number(value.revision),
@@ -53,14 +61,15 @@ export function referenceNodeTitle(node: CanvasReferenceNode): string {
   return typeof node.data.title === 'string' && node.data.title.trim() ? node.data.title : '未命名节点'
 }
 
-export interface ReferenceProduct { kind: 'image' | 'video' | 'audio' | 'text'; value: string }
+export interface ReferenceProduct { kind: 'image' | 'video' | 'audio' | 'text'
+  value: string }
 export function referenceProducts(node: CanvasReferenceNode): ReferenceProduct[] {
   const kind = node.type === 'text' ? 'text' : /audio/i.test(node.type ?? '') ? 'audio'
     : /video/i.test(node.type ?? '') ? 'video' : 'image'
   const candidates: unknown[] = [node.data.value, ...(Array.isArray(node.data.product)
     ? node.data.product.map(product => record(product) ? product.value : undefined) : [])]
   const values = [...new Set(candidates.filter((value): value is string => typeof value === 'string' && value.trim().length > 0))]
-  return values.filter(value => {
+  return values.filter((value) => {
     if (kind === 'text') return true
     try { return ['http:', 'https:'].includes(new URL(value).protocol) } catch { return false }
   }).map(value => ({ kind, value }))
@@ -76,7 +85,8 @@ export interface CanvasReferenceItem {
   node?: CanvasReferenceNode
 }
 
-export function toReferenceItems(references: readonly { canvasId: string; node: CanvasReferenceNode }[]): CanvasReferenceItem[] {
+export function toReferenceItems(references: readonly { canvasId: string
+  node: CanvasReferenceNode }[]): CanvasReferenceItem[] {
   return references.map(ref => ({
     canvasId: ref.canvasId,
     nodeId: ref.node.id,
@@ -98,7 +108,8 @@ export function isCanvasReferenceItem(ref: unknown): ref is CanvasReferenceItem 
 }
 
 /** One standalone text block in the original user message, never in the composer. */
-export interface NodeRefsPayload { version: 1; nodes: CanvasReferenceItem[] }
+export interface NodeRefsPayload { version: 1
+  nodes: CanvasReferenceItem[] }
 export function serializeNodeRefs(nodes: readonly CanvasReferenceItem[]): string {
   const json = JSON.stringify({ version: 1, nodes }).replace(/[<>&]/g, char =>
     '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0'))
@@ -116,13 +127,15 @@ export function parseNodeRefs(text: string): NodeRefsPayload | undefined {
     if (!record(payload) || payload.version !== 1 || !Array.isArray(payload.nodes)
       || !payload.nodes.length || payload.nodes.length > 64) return undefined
     if (!payload.nodes.every(isCanvasReferenceItem)) return undefined
-    return payload as unknown as NodeRefsPayload
+    return { ...payload, version: 1, nodes: payload.nodes }
   } catch { return undefined }
 }
 
-export function splitNodeRefs<T extends { type: string; text?: string }>(content: readonly T[]): { content: readonly T[]; nodes: CanvasReferenceItem[] } {
+export function splitNodeRefs<T extends { type: string
+  text?: string }>(content: readonly T[]): { content: readonly T[]
+  nodes: CanvasReferenceItem[] } {
   const nodes: CanvasReferenceItem[] = []
-  const visible = content.filter(block => {
+  const visible = content.filter((block) => {
     const payload = block.type === 'text' && typeof block.text === 'string' ? parseNodeRefs(block.text) : undefined
     if (!payload) return true
     nodes.push(...payload.nodes)

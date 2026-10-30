@@ -19,7 +19,6 @@ export const INSIGHT_DESKTOP_IPC = {
   loginPassword: 'insight:login:password',
   loginResetLocal: 'insight:login:reset-local',
   loginSignOut: 'insight:login:sign-out',
-  loginOpenAgreement: 'insight:login:open-agreement',
   accountCurrent: 'insight:account:current',
   accountChanged: 'insight:account:changed',
   accountSignOut: 'insight:account:sign-out',
@@ -49,7 +48,6 @@ export interface InsightLoginApi {
   loginPassword(input: PasswordLoginInput, agreed: boolean): Promise<AuthCommandResult>
   resetLocal(): Promise<void>
   signOut(): Promise<void>
-  openAgreement(kind: 'service' | 'privacy'): Promise<void>
 }
 
 /** Product and runtime details safe to show in the signed-in workspace. */

@@ -167,7 +167,6 @@ export function installCoiApi(ctx, svc) {
           cwd,
           branch: body.branch,
           sessionId: body.sessionId,
-          model: body.model,
           refTaskId: body.refTaskId,
           templateId: body.templateId,
           ownerSessionId: body.dsSessionId ?? undefined,
@@ -191,7 +190,6 @@ export function installCoiApi(ctx, svc) {
           cwd,
           branch: body.branch,
           sessionId: body.sessionId,
-          model: body.model,
           refTaskId: body.refTaskId, // 接力源任务（前端 CoIView 以 refTaskId 字段提交；原 ?? body.refTaskId 是自引用笔误，P1-2）
           ownerSessionId: body.dsSessionId ?? undefined,
           ownerCwd: body.dsSessionId ? svc.resolveCwd?.(body.dsSessionId) : undefined, // 发起会话工作目录（项目层级可见性）

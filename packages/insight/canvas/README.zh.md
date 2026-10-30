@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-本包提供画布工具、会话引用、结果卡和嵌入画布页面。它保留已有包标识，并使页面私有浏览器依赖与 DSH 共享 Client 模块分离。官方 Desktop profile 不启用这个私有组件，云操作需要 Insight 桌面账号通道。
+本包提供画布工具、会话引用、结果卡和嵌入画布页面。它保留已有包标识，并使页面私有浏览器依赖与 DSH 共享 Client 模块分离。官方 Desktop profile 不启用这个私有组件，云操作使用已登录的 Insight 桌面账号。
 
 ## 目录
 
@@ -34,7 +34,9 @@ iframe 从 `canvas-app` 构建；guidance 归本包拥有，不属于根目录 `
 <details>
 <summary>实现细节</summary>
 
-Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。
+Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。Host 从 `ctx.insightAccount` 获取凭证，不再单独拥有 Desktop token IPC 客户端；Main 选择匹配的服务环境。
+
+已认证的桥接请求在已有 Web 来源外接受精确的 `dsh-app://app` 来源，仍执行 Connection 认证和 Canvas 所有权检查。关闭时先停止接入、取消消费者并等待分发与结果写入，再等待 OSS 上传结束，最后关闭桥接和存储资源。停止本地跟踪不承诺取消已被云端接受的操作。
 
 </details>
 
@@ -59,7 +61,7 @@ Host 拥有工具、本地路由、桥接所有权和结果持久化，Client �
 
 <a id="known-limitations-and-deferred-work"></a>
 
-- 原生 DSH 载体尚未提供 Insight 账号通道，也未将画布桥适配到自定义页面来源。源码构建成功不代表云生成或原生 iframe 集成通过。
+- 云生成、媒体处理、剪贴板和全屏需要在原生桌面中连接对应服务验证；隔离测试不能替代后端或平台验收。
 
 <a id="dev-note"></a>
 ### 开发备注

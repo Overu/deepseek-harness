@@ -1,15 +1,26 @@
 /** Fixed Insight Gateway model registration and Main-token request isolation. */
 import { Context } from '@deepseek-ai/cordis'
 import LlmRuntime, { LlmError } from '@deepseek-ai/dsh-llm'
+import { ShellEnvRegistry } from '@deepseek-ai/dsh-shell-env'
+import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
+import { WebRuntime } from '@deepseek-ai/dsh-web'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { InsightAccount, type InsightAccountTransport } from '../src/host.ts'
 import * as Integration from '../src/host/index.ts'
 import { createInsightModelGatewayAdapter, INSIGHT_MODEL_ID, INSIGHT_MODEL_PROVIDER } from '../src/host/model-gateway.ts'
 import type { InsightAccountHostMessage, InsightAccountRequestId } from '../src/shared/account-protocol.ts'
 
 const contexts: Context[] = []
+const homes: string[] = []
 
-afterEach(async () => { await Promise.all(contexts.splice(0).map(context => context.fiber.dispose())) })
+afterEach(async () => {
+  vi.unstubAllEnvs()
+  await Promise.all(contexts.splice(0).map(context => context.fiber.dispose()))
+  await Promise.all(homes.splice(0).map(home => rm(home, { recursive: true, force: true })))
+})
 
 class AccountTransport implements InsightAccountTransport {
   readonly sent: InsightAccountHostMessage[] = []
@@ -86,6 +97,21 @@ async function fixture() {
   return { adapter, context, transport }
 }
 
+/** Supply the real Host seams Integration now owns without creating an external business request. */
+async function prepareIntegrationContext(context: Context): Promise<void> {
+  const home = await mkdtemp(join(tmpdir(), 'dsh-insight-integration-'))
+  homes.push(home)
+  vi.stubEnv('DSH_HOME', home)
+  vi.stubEnv('DSH_AGENTS_HOME', join(home, 'agents'))
+  vi.stubEnv('DSH_INSIGHT_SKILL_PROXY_NODE', process.execPath)
+  await context.plugin(WebRuntime)
+  await context.plugin(ShellEnvRegistry, { dshHome: home })
+  await context.plugin(TypertRegistry)
+  context.provide('agents', { get: () => undefined } as never)
+  context.provide('sessionQuery', {} as never)
+  context.provide('workingDirectory', { defaultDirectory: home } as never)
+}
+
 function accountRequests(transport: AccountTransport): Extract<InsightAccountHostMessage, { kind: 'insight-account-request' }>[] {
   return transport.sent.filter((message): message is Extract<InsightAccountHostMessage, { kind: 'insight-account-request' }> => message.kind === 'insight-account-request')
 }
@@ -158,15 +184,23 @@ describe('Insight Gateway model adapter', () => {
     const context = new Context()
     contexts.push(context)
     await context.plugin(LlmRuntime)
+    await prepareIntegrationContext(context)
     const transport = new AccountTransport()
     const restoreProcessTransport = installProcessTransport(transport)
     try {
-      const integrationFiber = context.plugin(Integration, { requestTimeoutMs: 10_000, serviceEnvironment: 'test' })
+      const integrationFiber = context.plugin(Integration, {
+        requestTimeoutMs: 10_000,
+        serviceEnvironment: 'test',
+        skillProxyMaxActiveRequests: 8,
+        skillProxyMaxBufferedRequestBytes: 16_777_216,
+        skillProxyRequestTimeoutMs: 1_250_000,
+      })
       await integrationFiber
       await vi.waitFor(() => {
         expect(context.llm.listProviders()).toContainEqual(expect.objectContaining({ id: INSIGHT_MODEL_PROVIDER }))
         expect(context.insightAccount).toBeInstanceOf(InsightAccount)
       })
+      expect(context.shellEnv.collect({} as never)).toMatchObject({ DSH_SKILL_PROXY_NODE: process.execPath })
       const pending = context.llm.listModels(INSIGHT_MODEL_PROVIDER)
       await vi.waitFor(() => { expect(accountRequests(transport)).toHaveLength(1) })
       const request = accountRequests(transport)[0]!
@@ -185,9 +219,16 @@ describe('Insight Gateway model adapter', () => {
     const context = new Context()
     contexts.push(context)
     await context.plugin(LlmRuntime)
+    await prepareIntegrationContext(context)
     const restoreProcessTransport = installUnavailableProcessTransport()
     try {
-      const integrationFiber = context.plugin(Integration, { requestTimeoutMs: 10_000, serviceEnvironment: 'test' })
+      const integrationFiber = context.plugin(Integration, {
+        requestTimeoutMs: 10_000,
+        serviceEnvironment: 'test',
+        skillProxyMaxActiveRequests: 8,
+        skillProxyMaxBufferedRequestBytes: 16_777_216,
+        skillProxyRequestTimeoutMs: 1_250_000,
+      })
       await expect(integrationFiber).rejects.toThrow('requires a connected Desktop Main IPC channel')
       expect(context.llm.listProviders()).not.toContainEqual(expect.objectContaining({ id: INSIGHT_MODEL_PROVIDER }))
       expect(context.get('insightAccount')).toBeUndefined()

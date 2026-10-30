@@ -105,6 +105,7 @@ const inputState: InputState = {
   draftRev: 0,
   phase: 'plain',
   occurrences: [],
+  selectedSkills: [],
   queue: [],
 }
 
@@ -132,6 +133,7 @@ const kit: Omit<QuestionComposerProps, 'matched'> = {
   useInput: selector => selector(inputState),
   inputActions: {
     insertQuote: () => false,
+    toggleSkill: () => {},
     captureInsertion: () => ({ start: 0, end: 0, draftRev: 0 }),
     insertText: () => false,
     setDraft: () => { throw new Error('unused') },

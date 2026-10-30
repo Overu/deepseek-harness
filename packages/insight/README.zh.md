@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 摘要
 
-本组集中维护 Insight Desktop 集成以及固定的 Canvas、记忆和提示词增强源码。私有组件随桌面发行版交付，不进入公开 npm 基线。P2 的 Insight profile 只激活 Desktop 集成；Canvas、Memory 和 Prompt 保持未激活。官方 Desktop profile 不激活其中任何组件。
+本组集中维护 Insight Desktop 集成以及固定的 Canvas、记忆和提示词增强源码。私有组件随桌面发行版交付，不进入公开 npm 基线。Insight profile 将 Integration、Canvas、Memory 和 Prompt 作为必需组件，保留组件内部功能开关。官方 Desktop profile 不激活其中任何组件。
 
 ## 目录
 

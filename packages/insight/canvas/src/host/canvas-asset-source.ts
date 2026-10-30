@@ -1,3 +1,4 @@
+import { canvasAgent } from './canvas-tools.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type { FileAttachmentRef, StoredImageAttachment } from '@deepseek-ai/dsh-attachment'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
@@ -12,21 +13,33 @@ import { downloadRemoteMedia } from './remote-media-reader.ts'
 import { readWorkspaceAsset } from './workspace-asset-source.ts'
 import type { CanvasHostBridge } from './canvas-bridge.ts'
 
-export type CanvasAssetSource = { type: 'attachment'; attachmentId: string } | { type: 'conversation_asset'; assetRef: string }
-  | { type: 'workspace_file'; path: string } | { type: 'canvas_node'; canvasId: string; nodeId: string; outputIndex?: number }
+export type CanvasAssetSource = { type: 'attachment'
+  attachmentId: string } | { type: 'conversation_asset'
+    assetRef: string }
+  | { type: 'workspace_file'
+    path: string } | { type: 'canvas_node'
+      canvasId: string
+      nodeId: string
+      outputIndex?: number }
 export interface PreparedAssetSource {
-  mediaType: CanvasMediaType; file?: PreparedCanvasFile | StoredImageAttachment;
-  input?: CanvasAssetInput; cleanup(): Promise<void>
+  mediaType: CanvasMediaType
+  file?: PreparedCanvasFile | StoredImageAttachment
+  input?: CanvasAssetInput
+  cleanup(): Promise<void>
 }
-export interface AssetSourceReaders { downloadImage: typeof downloadRemoteImage; downloadMedia: typeof downloadRemoteMedia }
+export interface AssetSourceReaders { downloadImage: typeof downloadRemoteImage
+  downloadMedia: typeof downloadRemoteMedia }
 export const defaultAssetSourceReaders: AssetSourceReaders = { downloadImage: downloadRemoteImage, downloadMedia: downloadRemoteMedia }
 
-export async function prepareCanvasAssetSource(ctx: Context, bridge: CanvasHostBridge, source: CanvasAssetSource, exec: ToolRunContext, request: string, readers = defaultAssetSourceReaders): Promise<PreparedAssetSource | { needsOutput: number }> {
+export async function prepareCanvasAssetSource(ctx: Context, bridge: CanvasHostBridge, source: CanvasAssetSource,
+  exec: ToolRunContext, request: string, readers = defaultAssetSourceReaders): Promise<PreparedAssetSource | { needsOutput: number }> {
   const signal = exec.signal
-  const inspect = async (snapshot: Awaited<ReturnType<typeof snapshotAsset>>, mediaType: CanvasMediaType): Promise<PreparedAssetSource> => {
+  const inspect = async (snapshot: Awaited<ReturnType<typeof snapshotAsset>>,
+    mediaType: CanvasMediaType): Promise<PreparedAssetSource> => {
     try {
       const file = await inspectCanvasMedia(snapshot, mediaType, ctx.attachments, signal)
-      return { mediaType, file, ...(mediaType === 'text' ? { input: parseCanvasAsset({ mediaType, text: file.text }) } : {}), cleanup: snapshot.cleanup }
+      return { mediaType, file, ...(mediaType === 'text' ? { input: parseCanvasAsset({ mediaType,
+        text: file.text }) } : {}), cleanup: () => snapshot.cleanup() }
     } catch (error) { await snapshot.cleanup(); throw error }
   }
   const readRemote = async (url: string, mediaType: 'image' | 'video' | 'audio'): Promise<PreparedAssetSource> => {
@@ -50,10 +63,13 @@ export async function prepareCanvasAssetSource(ctx: Context, bridge: CanvasHostB
     const item = sessionAttachments(exec).find(item => String(item.ref.attachmentId) === source.attachmentId)
     if (!item) throw new CanvasAgentError('ASSET_NOT_FOUND', '素材引用不在当前可见用户消息中')
     if (!item.mediaType) throw new CanvasAgentError('ASSET_VALIDATION_REJECTED', '该附件不是受支持的文本、图片或音视频文件')
-    if (item.kind === 'image') return { mediaType: 'image', file: await readSessionImage(ctx.attachments, exec, source.attachmentId), cleanup: async () => {} }
+    if (item.kind === 'image') return { mediaType: 'image', file: await readSessionImage(ctx.attachments, exec,
+      source.attachmentId), cleanup: async () => {} }
     let snapshot
-    try { snapshot = await snapshotAsset(ctx.attachments.readFileStream(item.ref as FileAttachmentRef, signal), item.ref.name ?? 'attachment', item.mediaType, signal) }
-    catch (error) { if (error instanceof CanvasAgentError) throw error; throw new CanvasAgentError(signal.aborted ? 'CANCELLED_BEFORE_DISPATCH' : 'ASSET_READ_REJECTED', '附件文件无法完整读取，尚未上传') }
+    try { snapshot = await snapshotAsset(ctx.attachments.readFileStream(item.ref as FileAttachmentRef, signal),
+      item.ref.name ?? 'attachment', item.mediaType, signal) }
+    catch (error) { if (error instanceof CanvasAgentError) throw error
+      throw new CanvasAgentError(signal.aborted ? 'CANCELLED_BEFORE_DISPATCH' : 'ASSET_READ_REJECTED', '附件文件无法完整读取，尚未上传') }
     if (snapshot.bytes !== item.ref.bytes) { await snapshot.cleanup(); throw new CanvasAgentError('ASSET_READ_REJECTED', '附件长度与可信引用不一致') }
     return inspect(snapshot, item.mediaType)
   }
@@ -62,7 +78,7 @@ export async function prepareCanvasAssetSource(ctx: Context, bridge: CanvasHostB
     if (!generated) throw new CanvasAgentError('ASSET_NOT_FOUND', '生成素材引用不属于当前对话或来源已不可用')
     return readRemote(generated.url, generated.mediaType)
   }
-  const target = await bridge.ensureContext(String(exec.agent!.id), source.canvasId, 'read', request + ':source-prepare', signal)
+  const target = await bridge.ensureContext(String(canvasAgent(exec).id), source.canvasId, 'read', request + ':source-prepare', signal)
   const read = await bridge.dispatch(target, request + ':source-read', { action: 'canvas.read', nodeIds: [source.nodeId] }, signal)
   if (read.status === 'rejected') throw new CanvasAgentError(read.error.code, read.error.message)
   if (read.status !== 'read' || read.consistency !== 'confirmed') throw new CanvasAgentError('ASSET_READ_REJECTED', '来源画布尚未确认，请先核对原节点')

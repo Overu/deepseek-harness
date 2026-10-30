@@ -15,6 +15,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import type { JSX } from 'react'
 import { CanvasCard } from './CanvasCard.tsx'
 import { AI_ZONE, MAX_SCALE, MIN_SCALE, VIRT_PAD, ZOOM_STEP } from './constants.ts'
 import {
@@ -88,7 +89,7 @@ export function CanvasBoard(props: CanvasBoardProps): JSX.Element {
   const [space, setSpace] = useState(false)
   const [panning, setPanning] = useState(false)
   const [size, setSize] = useState({ w: 800, h: 560 })
-  const [visibleIds, setVisibleIds] = useState<string[]>(() => props.nodes.map((n) => n.id))
+  const [visibleIds, setVisibleIds] = useState<string[]>(() => props.nodes.map(n => n.id))
 
   // ⚠️ 手势进行中（pointer capture 未释放）不能用 props.viewport 覆盖
   // vpRef——pan 的增量计算依赖 vpRef 保持「手势中的最新值」，而 pan 期间
@@ -112,7 +113,7 @@ export function CanvasBoard(props: CanvasBoardProps): JSX.Element {
     sync()
     const ro = new ResizeObserver(sync)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () =>{  ro.disconnect() }
   }, [])
 
   const refreshVisible = useCallback((vp: CanvasViewport, list: CanvasNode[]) => {
@@ -189,12 +190,12 @@ export function CanvasBoard(props: CanvasBoardProps): JSX.Element {
       commitViewport(zoomAt(vpRef.current, cx, cy, nextScale), true)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
-    return () => el.removeEventListener('wheel', onWheel)
+    return () =>{  el.removeEventListener('wheel', onWheel) }
   }, [commitViewport])
 
   const onStagePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
-    const onCard = Boolean((event.target as HTMLElement | null)?.closest?.('[data-node-id]'))
+    const onCard = event.target instanceof Element && event.target.closest('[data-node-id]') !== null
     // 空白拖，或按住空格在卡片上拖 → 平移
     if (!onCard || spaceRef.current) {
       event.preventDefault()
@@ -266,7 +267,7 @@ export function CanvasBoard(props: CanvasBoardProps): JSX.Element {
     if (spaceRef.current) return
     event.preventDefault()
     event.stopPropagation()
-    const node = nodesRef.current.find((n) => n.id === id)
+    const node = nodesRef.current.find(n => n.id === id)
     if (!node) return
     const stage = stageRef.current
     if (stage) {
@@ -285,7 +286,7 @@ export function CanvasBoard(props: CanvasBoardProps): JSX.Element {
   /** 右下角缩放起始：记录原始宽高，之后 move/end 按世界坐标增量更新。 */
   const onResizeStart = useCallback((id: string, event: ReactPointerEvent<HTMLElement>) => {
     if (spaceRef.current) return
-    const node = nodesRef.current.find((n) => n.id === id)
+    const node = nodesRef.current.find(n => n.id === id)
     if (!node) return
     const stage = stageRef.current
     if (stage) {
@@ -303,7 +304,7 @@ export function CanvasBoard(props: CanvasBoardProps): JSX.Element {
 
   const visibleSet = useMemo(() => new Set(visibleIds), [visibleIds])
   const visibleNodes = useMemo(
-    () => props.nodes.filter((n) => visibleSet.has(n.id)),
+    () => props.nodes.filter(n => visibleSet.has(n.id)),
     [props.nodes, visibleSet],
   )
 
@@ -328,7 +329,7 @@ export function CanvasBoard(props: CanvasBoardProps): JSX.Element {
         >
           <span className="cg-ai-zone-label">AI 便签区 · AI 新放的便签落在这里，可拖走</span>
         </div>
-        {visibleNodes.map((node) => (
+        {visibleNodes.map(node => (
           <CanvasCard
             key={node.id}
             node={node}

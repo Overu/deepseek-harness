@@ -730,6 +730,7 @@ describe('PluginManagerPage', () => {
         pkg({ name: 'dsh-broken', enabled: false, error: { code: 'not-bundle' } }),
         pkg({ name: '@deepseek-ai/dsh-web-app', installed: false, removable: false }),
         pkg({ name: 'dsh-protected', readOnlyReason: 'management-required' }),
+        pkg({ name: 'dsh-profile-required', readOnlyReason: 'profile-required' }),
         pkg({ name: '@acme/dsh-tool', enabled: false }),
         // Selected by the profile but not a bundle: a problem the person can switch off, in the profile's own group.
         pkg({ name: 'dsh-selected', installed: false, error: { code: 'not-bundle' } }),
@@ -740,9 +741,9 @@ describe('PluginManagerPage', () => {
     const cards = screen.getAllByRole('listitem')
     // Offered extensions precede installed bundles.
     expect(cards.map(card => card.getAttribute('data-plugin-package'))).toEqual([
-      '@deepseek-ai/dsh-experimental-agent-team-profile', 'dsh-better-sidebar', 'dsh-broken', 'dsh-protected', '@acme/dsh-tool', 'dsh-selected',
+      '@deepseek-ai/dsh-experimental-agent-team-profile', 'dsh-better-sidebar', 'dsh-broken', 'dsh-protected', 'dsh-profile-required', '@acme/dsh-tool', 'dsh-selected',
     ])
-    expect(cards.map(card => card.getAttribute('data-plugin-status'))).toEqual(['disabled', 'running', 'problem', 'running', 'disabled', 'problem'])
+    expect(cards.map(card => card.getAttribute('data-plugin-status'))).toEqual(['disabled', 'running', 'problem', 'running', 'running', 'disabled', 'problem'])
     // Group titles have no counts; the official bundle retains its experimental marker.
     expect(screen.getByRole('heading', { name: en.bundlesTitle })).toBeTruthy()
     expect(screen.getByRole('heading', { name: en.extensionsTitle })).toBeTruthy()
@@ -758,6 +759,9 @@ describe('PluginManagerPage', () => {
     const locked = screen.getByRole('switch', { name: en.enableToggle.replace('{name}', 'dsh-protected') })
     expect(locked).toHaveProperty('disabled', true)
     expect(locked.getAttribute('title')).toBe(en.reasonManagementRequired)
+    const profileLocked = screen.getByRole('switch', { name: en.enableToggle.replace('{name}', 'dsh-profile-required') })
+    expect(profileLocked).toHaveProperty('disabled', true)
+    expect(profileLocked.getAttribute('title')).toBe(en.reasonProfileRequired)
   })
 
   it('omits profile and persistent-terminal bundles while retaining other optional and third-party bundles', () => {

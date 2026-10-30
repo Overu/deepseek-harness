@@ -122,7 +122,7 @@ export interface AdvisorStatus {
   provider: string | null
   model: string | null
   /** 复审中7：门禁未通过时为 null（前端类型必须允许） */
-  routeSource: 'configured' | 'session' | null
+  routeSource: 'session' | null
   runtimeStatus: AdvisorRuntimeStatus
   phase: string
   /** 复审中7：host 契约为 0/1（当前是否有评审在飞，非队列长度） */
@@ -149,8 +149,6 @@ export interface AdvisorInstruction {
 
 export interface AdvisorConfig {
   advisorEnabled: boolean
-  advisorProvider: string | null
-  advisorModel: string | null
   advisorSystemPrompt: string
   /** Q5：内置默认评审提示词全文（空配置时前端回填显示）。 */
   defaultSystemPrompt: string
@@ -347,6 +345,11 @@ export class AdvisorSessionStore {
     for (const listener of this.listeners) listener()
   }
 
+  /** Read lifecycle state without carrying pre-await narrowing across asynchronous work. */
+  private isStarted(): boolean {
+    return this.started
+  }
+
   /** 启动首屏数据和约 1 秒事件轮询；重复调用是幂等的。 */
   start(): void {
     if (this.started) return
@@ -426,6 +429,7 @@ export class AdvisorSessionStore {
     const controller = new AbortController()
     this.pollAbort = controller
     const generation = this.generation
+    const isStale = (): boolean => !this.isStarted() || controller.signal.aborted || generation !== this.generation
     const sessionId = this.snapshot.sessionId
     const params = new URLSearchParams({
       sessionId,
@@ -437,13 +441,13 @@ export class AdvisorSessionStore {
         `/events?${params.toString()}`,
         { signal: controller.signal },
       )
-      if (!this.started || controller.signal.aborted || generation !== this.generation) return
+      if (isStale()) return
 
       let rebuildSucceeded = true
       if (data.gap) {
         // 游标落后 ring：先用终态 records 重建基线，再叠加本次 live 事件。
         rebuildSucceeded = await this.rebuildLiveFromRecords(generation, controller.signal)
-        if (!this.started || controller.signal.aborted || generation !== this.generation) return
+        if (isStale()) return
       }
       this.cursor = data.nextCursor
       this.mergeLiveEvents(data.events)
@@ -455,7 +459,7 @@ export class AdvisorSessionStore {
       }
     } finally {
       if (this.pollAbort === controller) this.pollAbort = null
-      if (this.started && generation === this.generation) this.schedulePoll(POLL_MS)
+      if (this.isStarted() && generation === this.generation) this.schedulePoll(POLL_MS)
     }
   }
 
@@ -761,7 +765,7 @@ export class AdvisorSessionStore {
       if (controller.signal.aborted) return
       const merged = append ? [...this.snapshot.records, ...data.records] : data.records
       // before 分页正常不会重复；仍以 reviewId 去重，抵抗翻页期间新记录插入。
-      const unique = [...new Map(merged.map((record) => [record.reviewId, record])).values()]
+      const unique = [...new Map(merged.map(record => [record.reviewId, record])).values()]
       this.patch({
         records: unique,
         recordsLoading: false,
@@ -806,10 +810,10 @@ export function useAdvisorSessionStore(sessionId: string): {
   // 引用→effect 重跑，表现为状态条「本会话未启用」开关与「待消费指令」
   // 区反复 loading 闪动（2026-08-14 用户反馈）。
   useEffect(() => {
-    const totalOff = snapshot.config !== null && snapshot.config.advisorEnabled !== true
+    const totalOff = snapshot.config !== null && ! snapshot.config.advisorEnabled
     if (totalOff) store.stop()
     else store.start()
-    return () => store.stop()
+    return () =>{  store.stop() }
   }, [store, snapshot.config === null, snapshot.config?.advisorEnabled])
   return { store, snapshot }
 }

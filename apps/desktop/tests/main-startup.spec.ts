@@ -6,7 +6,9 @@ import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, type Dir } from 'node:fs'
+import { opendir } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import type { MenuItemConstructorOptions, MessageBoxOptions } from 'electron'
 import { DESKTOP_IPC, type DesktopUpdateState } from '../src/ipc.ts'
@@ -84,9 +86,10 @@ const harness = await vi.hoisted(async () => {
   const platformDispose = vi.fn(() => platformDisposeDeferred?.promise ?? Promise.resolve())
   let platformCloseDeferred: ReturnType<typeof deferred> | undefined
   const platformCloseAndWait = vi.fn(() => platformCloseDeferred?.promise ?? Promise.resolve())
-  const readLoginShell = async (base: NodeJS.ProcessEnv) => ({
-    environment: { ...base, DSH_TEST_LOGIN_SHELL: 'login' }, failures: [{ shell: '/account/shell', reason: 'timeout' }],
-  })
+  const readLoginShell = async (base: NodeJS.ProcessEnv) => {
+    const environment: NodeJS.ProcessEnv = { ...base, DSH_TEST_LOGIN_SHELL: 'login' }
+    return { environment, failures: [{ shell: '/account/shell', reason: 'timeout' }] }
+  }
   const loginShell = vi.fn((base: NodeJS.ProcessEnv, _config: unknown, _options: { signal?: AbortSignal }) => readLoginShell(base))
   const updateCheck = vi.fn(async (_manual?: boolean): Promise<DesktopUpdateState> => updateState)
   const updateDownload = vi.fn(async (_version: string): Promise<DesktopUpdateState> => updateState)
@@ -262,6 +265,7 @@ const harness = await vi.hoisted(async () => {
     set publishUpdate(value: (state: DesktopUpdateState) => DesktopUpdateState) { publishUpdate = value },
     dialog: { showOpenDialog: vi.fn(), showErrorBox: vi.fn(), showMessageBox: vi.fn() },
     openExternal: vi.fn(async () => {}),
+    openPath: vi.fn(async () => ''),
     protocolHandle: vi.fn<(scheme: string, handler: (request: Request) => Response | Promise<Response>) => void>(),
     applyRelease: vi.fn(() => { preparing.resolve(); return prepared.promise }),
     disableAllPlugins: vi.fn(async () => {
@@ -330,7 +334,7 @@ vi.mock('electron', () => ({
   BrowserWindow: harness.FakeWindow,
   WebContentsView: harness.FakeView,
   dialog: harness.dialog,
-  shell: { openExternal: harness.openExternal },
+  shell: { openExternal: harness.openExternal, openPath: harness.openPath },
   nativeTheme: harness.nativeTheme,
   net: { fetch: vi.fn() },
   ipcMain: {
@@ -357,7 +361,9 @@ vi.mock('../src/background-notice.ts', () => ({ DesktopBackgroundNotice: class {
 } }))
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...original, readFile: vi.fn((path: Parameters<typeof original.readFile>[0], encoding?: 'utf8') => {
+  return { ...original, opendir: vi.fn((path: Parameters<typeof original.opendir>[0]) =>
+    original.opendir(path === join('desktop-test-resources', 'bundled-skills') ? harness.app.getPath('userData') : path)),
+  readFile: vi.fn((path: Parameters<typeof original.readFile>[0], encoding?: 'utf8') => {
     if (path === join('desktop-test-app', 'package.json')) {
       return Promise.resolve(JSON.stringify({ ...harness.applicationManifest, dshMandatoryUpdatePolicy: harness.embeddedPolicy }))
     }
@@ -531,6 +537,18 @@ afterEach(async () => {
 })
 
 describe('desktop main startup', () => {
+  it('removes inherited required-bundle variables for the official product', async () => {
+    harness.loginShell.mockResolvedValueOnce({ environment: {
+      DSH_PRODUCT_REQUIRED_BUNDLES: '["untrusted"]', dsh_product_required_bundles: '["also-untrusted"]',
+      dsh_insight_skill_proxy_node: 'untrusted-node',
+      DSH_BUNDLED_SKILL_DIR: 'official-custom-skills',
+    }, failures: [] })
+    const host = await readyForUpdate()
+    expect(Object.keys(host.environment ?? {}).some(key => key.toUpperCase() === 'DSH_PRODUCT_REQUIRED_BUNDLES')).toBe(false)
+    expect(Object.keys(host.environment ?? {}).some(key => key.toUpperCase() === 'DSH_INSIGHT_SKILL_PROXY_NODE')).toBe(false)
+    expect(host.environment?.DSH_BUNDLED_SKILL_DIR).toBe('official-custom-skills')
+  })
+
   it.each([true, false])('selects the package manager before Host startup (packaged=%s)', async (packaged) => {
     harness.app.isPackaged = packaged
     await readyForUpdate()
@@ -1339,11 +1357,97 @@ describe('desktop main startup', () => {
     await harness.preparing.promise
     expect(harness.desktopPathCalls).toEqual(['insight-account-home'])
     expect(harness.projectManagerArguments[0]).toMatchObject([
-      { profile: 'desktop-test-profile' }, expect.anything(), ['@insight-ai/desktop-integration'],
+      { profile: 'desktop-test-profile' }, expect.anything(), ['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance'],
     ])
     harness.prepared.resolve()
     await harness.hostStarted.promise
     expect(harness.hosts[0]!.environment).toMatchObject({ DSH_HOME: 'insight-account-home', DSH_INSIGHT_SERVICE_ENVIRONMENT: 'test' })
+  })
+
+  it('sets Insight required bundles after removing inherited case variants', async () => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    harness.loginShell.mockResolvedValueOnce({ environment: {
+      dSh_PrOdUcT_ReQuIrEd_BuNdLeS: '["untrusted"]', dSh_InSiGhT_sKiLl_PrOxY_nOdE: 'untrusted-node',
+      DSH_BUNDLED_SKILL_DIR: 'untrusted-skills', dsh_bundled_skill_dir: 'also-untrusted-skills',
+    }, failures: [] })
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    expect(harness.hosts[0]!.environment?.DSH_PRODUCT_REQUIRED_BUNDLES)
+      .toBe(JSON.stringify(['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance']))
+    expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_PRODUCT_REQUIRED_BUNDLES')).toEqual(['DSH_PRODUCT_REQUIRED_BUNDLES'])
+    expect(harness.hosts[0]!.environment?.DSH_INSIGHT_SKILL_PROXY_NODE)
+      .toBe(join('desktop-test-resources', 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin', 'node.exe'))
+    expect(harness.hosts[0]!.environment?.DSH_BUNDLED_SKILL_DIR).toBe(join('desktop-test-resources', 'bundled-skills'))
+    expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_BUNDLED_SKILL_DIR'))
+      .toEqual(['DSH_BUNDLED_SKILL_DIR'])
+  })
+
+  it('uses the prepared development primary-runtime Node for the Insight skill proxy', async () => {
+    harness.app.isPackaged = false
+    vi.stubEnv('DSH_DESKTOP_PRODUCT', 'insight')
+    vi.stubEnv('INSIGHT_DESKTOP_VERSION', '1.3.0')
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    expect(harness.hosts[0]!.environment?.DSH_INSIGHT_SKILL_PROXY_NODE)
+      .toBe(join('test-primary-runtime', 'dependencies', 'node', 'bin', 'node.exe'))
+    expect(harness.hosts[0]!.environment?.DSH_BUNDLED_SKILL_DIR)
+      .toBe(fileURLToPath(new URL('../../../bundled-skills', import.meta.url)))
+  })
+
+  it.each(['missing', 'file'] as const)('reports invalid Insight bundled resources before starting a Host: %s', async (kind) => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    if (kind === 'missing') vi.mocked(opendir).mockRejectedValueOnce(new Error('missing bundled resources'))
+    else {
+      const target = join(harness.app.getPath('userData'), 'wrong-resource-file')
+      writeFileSync(target, 'ordinary file')
+      const realFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+      vi.mocked(opendir).mockImplementationOnce(() => realFs.opendir(target))
+    }
+    harness.dialog.showMessageBox.mockImplementation(() => {
+      harness.dialogShown.resolve()
+      return Promise.resolve({ response: 0 })
+    })
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.dialogShown.promise
+    expect(harness.hosts).toHaveLength(0)
+    expect((harness.dialog.showMessageBox.mock.calls[0]![0] as MessageBoxOptions).detail)
+      .toContain('Insight bundled skills directory is unavailable')
+  })
+
+  it('settles an account expiry while bundled resource discovery is pending without starting a Host', async () => {
+    selectInsightProduct()
+    const context = insightContext()
+    let expire: (() => void) | undefined
+    context.onExpired.mockImplementation((listener) => { expire = listener; return () => {} })
+    insightStartup.prepare.mockResolvedValueOnce(context)
+    const opening = Promise.withResolvers<Dir>()
+    const started = Promise.withResolvers<undefined>()
+    vi.mocked(opendir).mockImplementationOnce(() => { started.resolve(undefined); return opening.promise })
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    await vi.waitFor(() => { expect(context.onExpired).toHaveBeenCalledOnce() })
+    await started.promise
+    expect(harness.hosts).toHaveLength(0)
+    if (expire === undefined) throw new Error('account expiry listener missing')
+    expire()
+    expect(context.closeAdmission).toHaveBeenCalledOnce()
+    expect(harness.hosts).toHaveLength(0)
+    const realFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
+    const directory = await realFs.opendir(harness.app.getPath('userData'))
+    opening.resolve(directory)
+    harness.prepared.resolve()
+    await vi.waitFor(() => { expect(harness.app.relaunch).toHaveBeenCalledOnce() })
+    expect(harness.hosts).toHaveLength(0)
+    await expect(directory.read()).rejects.toMatchObject({ code: 'ERR_DIR_CLOSED' })
   })
 
   it('enters the Insight workspace without connecting official welcome and scopes account IPC to the workspace frame', async () => {
@@ -1408,6 +1512,31 @@ describe('desktop main startup', () => {
     expect(harness.app.relaunch).toHaveBeenCalledOnce()
     expect(readFileSync(history, 'utf8')).toBe('preserved session history')
     expect(harness.desktopPathCalls).toContain('insight-account-home')
+  })
+
+  it('adds Insight desktop controls without changing the official menu', async () => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    await import('../src/main.ts')
+    await harness.preparing.promise
+    harness.prepared.resolve()
+    await harness.hostStarted.promise
+    harness.hosts[0]!.ready.resolve()
+    await harness.navigated.promise
+
+    const items = applicationMenuItems()
+    expect(items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: '重启应用与 Host' }),
+      expect.objectContaining({ label: '查看日志' }),
+      expect.objectContaining({ label: '放大', role: 'zoomIn' }),
+      expect.objectContaining({ label: '缩小', role: 'zoomOut' }),
+      expect.objectContaining({ label: '实际大小', role: 'resetZoom' }),
+      expect.objectContaining({ label: '切换全屏', role: 'togglefullscreen' }),
+    ]))
+    const logs = items.find(item => item.label === '查看日志') as { click: () => void }
+    logs.click()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(harness.openPath).toHaveBeenCalledWith(harness.app.getPath('logs'))
   })
 
   it('forces an expired Insight account exit without waiting for a cancelled sign-out confirmation', async () => {

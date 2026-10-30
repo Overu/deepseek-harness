@@ -6,6 +6,7 @@
  * AdvisorPanel 只负责五区 UI；数据与副作用全部由 advisor-store.ts 管理。
  */
 import { Component, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import type { JSX } from 'react'
 import { createPortal } from 'react-dom'
 import type { PropsRuntime, Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
@@ -54,7 +55,7 @@ interface CapsuleDragState {
 }
 
 /** English browser → English panel labels; anything else keeps Chinese. */
-const isEn = (): boolean => typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en')
+const isEn = (): boolean => typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en')
 
 const STATUS_META: Record<AdvisorRuntimeStatus, { icon: string; label: string; cls: string }> = {
   get disabled() { return { icon: '✖', label: isEn() ? 'Disabled' : '已停用', cls: 'advisor-status-disabled' } },
@@ -294,12 +295,12 @@ export function AdvisorHost(props: AdvisorHostProps): JSX.Element {
     }
 
     mediaQuery.addEventListener('change', onMediaChange)
-    return () => mediaQuery.removeEventListener('change', onMediaChange)
+    return () =>{  mediaQuery.removeEventListener('change', onMediaChange) }
   }, [panelEnabled])
 
   useEffect(() => {
     store.setPanelVisible(expanded)
-    return () => store.setPanelVisible(false)
+    return () =>{  store.setPanelVisible(false) }
   }, [expanded, store])
 
   const toggle = (): void => {
@@ -317,8 +318,8 @@ export function AdvisorHost(props: AdvisorHostProps): JSX.Element {
   const runtimeStatus = snapshot.status?.runtimeStatus ?? 'disabled'
   const capsuleStateClass = !enabled ? 'advisor-capsule-disabled'
     : runtimeStatus === 'reviewing' ? 'advisor-capsule-reviewing'
-    : runtimeStatus === 'quota_exhausted' || runtimeStatus === 'halted' ? 'advisor-capsule-error'
-    : 'advisor-capsule-idle'
+      : runtimeStatus === 'quota_exhausted' || runtimeStatus === 'halted' ? 'advisor-capsule-error'
+        : 'advisor-capsule-idle'
 
   const headerTitle = panelEnabled
     ? (props.t?.('advisor.header.toggle.title') ?? '打开或折叠会话评审面板')
@@ -480,7 +481,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
 
   const visibleRecords = useMemo(() => {
     const cutoff = timeCutoff(filters.timeRange)
-    return cutoff === null ? snapshot.records : snapshot.records.filter((record) => record.ts >= cutoff)
+    return cutoff === null ? snapshot.records : snapshot.records.filter(record => record.ts >= cutoff)
   }, [snapshot.records, filters.timeRange])
 
   const submitInstruction = async (): Promise<void> => {
@@ -541,9 +542,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
 
       {snapshot.status?.gateStatus !== undefined && snapshot.status.gateStatus !== 'ok' && (
         <div className="advisor-warning" role="status">
-          模型门禁未通过：{snapshot.status.disabledReason ?? (snapshot.status.gateStatus === 'config-incomplete'
-            ? 'provider/model 必须同时填写或同时留空'
-            : '当前会话模型不可用')}
+          模型门禁未通过：{snapshot.status.disabledReason ?? '当前会话模型不可用'}
         </div>
       )}
       {snapshot.statusError !== null && (
@@ -552,7 +551,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
       {snapshot.notice !== null && (
         <div className={`advisor-notice advisor-notice-${snapshot.notice.kind}`} role="status">
           <span>{snapshot.notice.text}</span>
-          <button type="button" className="advisor-notice-close" onClick={() => store.clearNotice()} aria-label="关闭提示">×</button>
+          <button type="button" className="advisor-notice-close" onClick={() =>{  store.clearNotice() }} aria-label="关闭提示">×</button>
         </div>
       )}
 
@@ -563,7 +562,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
           role="tab"
           aria-selected={tab === 'scopes'}
           className={`advisor-tab${tab === 'scopes' ? ' advisor-tab-active' : ''}`}
-          onClick={() => setTab('scopes')}
+          onClick={() =>{  setTab('scopes') }}
         >
           约束
         </button>
@@ -572,7 +571,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
           role="tab"
           aria-selected={tab === 'live'}
           className={`advisor-tab${tab === 'live' ? ' advisor-tab-active' : ''}`}
-          onClick={() => setTab('live')}
+          onClick={() =>{  setTab('live') }}
         >
           实时
         </button>
@@ -581,7 +580,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
           role="tab"
           aria-selected={tab === 'history'}
           className={`advisor-tab${tab === 'history' ? ' advisor-tab-active' : ''}`}
-          onClick={() => setTab('history')}
+          onClick={() =>{  setTab('history') }}
         >
           记录
         </button>
@@ -591,7 +590,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
           role="tab"
           aria-selected={tab === 'settings'}
           className={`advisor-tab${tab === 'settings' ? ' advisor-tab-active' : ''}`}
-          onClick={() => setTab('settings')}
+          onClick={() =>{  setTab('settings') }}
         >
           设置
         </button>
@@ -604,123 +603,123 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
       ) : tab === 'live' ? (
         /* 2026-08-12 用户反馈：指令区（发指令/新建评审会话）只在实时 tab 显示 */
         <div className="advisor-live">
-        <section ref={flowRef} className="advisor-flow" onScroll={onFlowScroll} aria-label="实时评审流">
-          {snapshot.eventsError !== null && (
-            <ErrorNotice text={`实时流加载失败：${snapshot.eventsError}`} onRetry={() => store.resetCursorAndLive()} />
-          )}
-          {snapshot.eventsLoading && snapshot.reviews.length === 0 && <LoadingBlock text="正在连接 Advisor 实时流…" />}
-          {!snapshot.eventsLoading && snapshot.reviews.length === 0 && snapshot.eventsError === null && (
-            <div className="advisor-empty">
-              {snapshot.status?.effectiveEnabled
-                ? '暂无评审活动。新的评审会在这里实时出现。'
-                : '未启用：可使用上方会话开关，或在下方设置中开启 Advisor。'}
+          <section ref={flowRef} className="advisor-flow" onScroll={onFlowScroll} aria-label="实时评审流">
+            {snapshot.eventsError !== null && (
+              <ErrorNotice text={`实时流加载失败：${snapshot.eventsError}`} onRetry={() =>{  store.resetCursorAndLive() }} />
+            )}
+            {snapshot.eventsLoading && snapshot.reviews.length === 0 && <LoadingBlock text="正在连接 Advisor 实时流…" />}
+            {!snapshot.eventsLoading && snapshot.reviews.length === 0 && snapshot.eventsError === null && (
+              <div className="advisor-empty">
+                {snapshot.status?.effectiveEnabled
+                  ? '暂无评审活动。新的评审会在这里实时出现。'
+                  : '未启用：可使用上方会话开关，或在下方设置中开启 Advisor。'}
+              </div>
+            )}
+            {snapshot.reviews.map((item, index) => (
+              <ReviewCard
+                key={item.reviewId}
+                item={item}
+                defaultInputOpen={index === snapshot.reviews.length - 1}
+              />
+            ))}
+            {!following && (
+              <button
+                type="button"
+                className="advisor-follow-button"
+                onClick={() => {
+                  setFollowing(true)
+                  const node = flowRef.current
+                  if (node !== null) node.scrollTop = node.scrollHeight
+                }}
+              >
+                回到最新
+              </button>
+            )}
+          </section>
+          <section className="advisor-instructions" aria-label="Advisor 指令区">
+            <div className="advisor-instruction-compose">
+              <textarea
+                className="advisor-textarea advisor-instruction-input"
+                rows={2}
+                maxLength={2_000}
+                value={instruction}
+                onChange={(event) =>{  setInstruction(event.target.value) }}
+                onKeyDown={onInstructionKeyDown}
+                placeholder="给会话评审发指令…（Enter 发送，Shift+Enter 换行）"
+              />
+              <button
+                type="button"
+                className="advisor-button advisor-button-primary"
+                disabled={snapshot.instructionMutating || instruction.trim() === ''}
+                onClick={() => void submitInstruction()}
+              >
+                发送
+              </button>
             </div>
-          )}
-          {snapshot.reviews.map((item, index) => (
-            <ReviewCard
-              key={item.reviewId}
-              item={item}
-              defaultInputOpen={index === snapshot.reviews.length - 1}
-            />
-          ))}
-          {!following && (
+            <div className="advisor-steer-hint">
+              评审建议按严重度实时送达（nit/concern/blocker 走 steer，info 默认仅记录）；
+              指令框提问会立即触发 Advisor 回答并注入会话流。
+            </div>
+            {/* Q3 重构：评审员会话管理——上下文统计 + 新建评审会话 */}
+            <div className="advisor-conversation-bar">
+              <span className="advisor-conversation-stats" title="评审员持续会话已占用的上下文（字符数估算，中文 1 字≈1 token；对比模型上下文窗口判断是否新建评审会话）">
+                {latestEpoch !== null ? `评审会话 #${latestEpoch}` : '评审会话'} · 上下文 {latestContextCount} 条
+                {contextChars !== null && ` · ≈${contextChars}`}
+              </span>
+              <button
+                type="button"
+                className="advisor-new-conversation"
+                disabled={snapshot.instructionMutating}
+                onClick={() => {
+                  if (window.confirm('新建评审会话将清空评审员的全部上下文与记忆（评审员从零开始）。\n确认后可在第一条指令中告知背景信息。')) {
+                    void store.resetConversation()
+                  }
+                }}
+                title="清空评审员持续会话（上下文+记忆），从零开始；适合换任务/控制上下文长度"
+              >
+                🔄 新建评审会话
+              </button>
+            </div>
             <button
               type="button"
-              className="advisor-follow-button"
-              onClick={() => {
-                setFollowing(true)
-                const node = flowRef.current
-                if (node !== null) node.scrollTop = node.scrollHeight
-              }}
+              className="advisor-pending-toggle"
+              aria-expanded={pendingOpen}
+              onClick={() =>{  setPendingOpen(value => !value) }}
             >
-              回到最新
+              <span>待消费指令 ({snapshot.pending.length})</span>
+              <span aria-hidden="true">{pendingOpen ? '▴' : '▾'}</span>
             </button>
-          )}
-        </section>
-                <section className="advisor-instructions" aria-label="Advisor 指令区">
-        <div className="advisor-instruction-compose">
-        <textarea
-        className="advisor-textarea advisor-instruction-input"
-        rows={2}
-        maxLength={2_000}
-        value={instruction}
-        onChange={(event) => setInstruction(event.target.value)}
-        onKeyDown={onInstructionKeyDown}
-        placeholder="给会话评审发指令…（Enter 发送，Shift+Enter 换行）"
-        />
-        <button
-        type="button"
-        className="advisor-button advisor-button-primary"
-        disabled={snapshot.instructionMutating || instruction.trim() === ''}
-        onClick={() => void submitInstruction()}
-        >
-        发送
-        </button>
-        </div>
-        <div className="advisor-steer-hint">
-        评审建议按严重度实时送达（nit/concern/blocker 走 steer，info 默认仅记录）；
-        指令框提问会立即触发 Advisor 回答并注入会话流。
-        </div>
-        {/* Q3 重构：评审员会话管理——上下文统计 + 新建评审会话 */}
-        <div className="advisor-conversation-bar">
-        <span className="advisor-conversation-stats" title="评审员持续会话已占用的上下文（字符数估算，中文 1 字≈1 token；对比模型上下文窗口判断是否新建评审会话）">
-        {latestEpoch !== null ? `评审会话 #${latestEpoch}` : '评审会话'} · 上下文 {latestContextCount} 条
-        {contextChars !== null && ` · ≈${contextChars}`}
-        </span>
-        <button
-        type="button"
-        className="advisor-new-conversation"
-        disabled={snapshot.instructionMutating}
-        onClick={() => {
-        if (window.confirm('新建评审会话将清空评审员的全部上下文与记忆（评审员从零开始）。\n确认后可在第一条指令中告知背景信息。')) {
-        void store.resetConversation()
-        }
-        }}
-        title="清空评审员持续会话（上下文+记忆），从零开始；适合换任务/控制上下文长度"
-        >
-        🔄 新建评审会话
-        </button>
-        </div>
-        <button
-        type="button"
-        className="advisor-pending-toggle"
-        aria-expanded={pendingOpen}
-        onClick={() => setPendingOpen((value) => !value)}
-        >
-        <span>待消费指令 ({snapshot.pending.length})</span>
-        <span aria-hidden="true">{pendingOpen ? '▴' : '▾'}</span>
-        </button>
-        {pendingOpen && (
-        <div className="advisor-pending-list">
-        {snapshot.instructionsLoading && <span className="advisor-muted">加载中…</span>}
-        {!snapshot.instructionsLoading && snapshot.pending.length === 0 && (
-        <span className="advisor-muted">暂无待消费指令</span>
-        )}
-        {snapshot.pending.map((item) => (
-        <div key={item.id} className="advisor-pending-item">
-        <span className="advisor-pending-state">{item.state === 'reserved' ? '消费中' : '待消费'}</span>
-        <span className="advisor-pending-text" title={item.text}>{item.text}</span>
-        </div>
-        ))}
-        {snapshot.pending.length > 0 && (
-        <button
-        type="button"
-        className="advisor-link advisor-link-danger"
-        disabled={snapshot.instructionMutating}
-        onClick={() => void store.clearInstructions()}
-        >
-        清空待消费指令
-        </button>
-        )}
-        </div>
-        )}
-        {snapshot.instructionsError !== null && (
-        <div className="advisor-inline-error">
-        {snapshot.instructionsError}
-        <button type="button" className="advisor-link" onClick={() => void store.refreshInstructions()}>重试</button>
-        </div>
-        )}
-        </section>
+            {pendingOpen && (
+              <div className="advisor-pending-list">
+                {snapshot.instructionsLoading && <span className="advisor-muted">加载中…</span>}
+                {!snapshot.instructionsLoading && snapshot.pending.length === 0 && (
+                  <span className="advisor-muted">暂无待消费指令</span>
+                )}
+                {snapshot.pending.map(item => (
+                  <div key={item.id} className="advisor-pending-item">
+                    <span className="advisor-pending-state">{item.state === 'reserved' ? '消费中' : '待消费'}</span>
+                    <span className="advisor-pending-text" title={item.text}>{item.text}</span>
+                  </div>
+                ))}
+                {snapshot.pending.length > 0 && (
+                  <button
+                    type="button"
+                    className="advisor-link advisor-link-danger"
+                    disabled={snapshot.instructionMutating}
+                    onClick={() => void store.clearInstructions()}
+                  >
+                    清空待消费指令
+                  </button>
+                )}
+              </div>
+            )}
+            {snapshot.instructionsError !== null && (
+              <div className="advisor-inline-error">
+                {snapshot.instructionsError}
+                <button type="button" className="advisor-link" onClick={() => void store.refreshInstructions()}>重试</button>
+              </div>
+            )}
+          </section>
         </div>
       ) : tab === 'settings' ? (
         /* 2026-08-12 用户反馈：会话评审设置移入独立 Tab（交互统一） */
@@ -731,7 +730,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
             <select
               className="advisor-select"
               value={filters.session}
-              onChange={(event) => setFilters({ ...filters, session: event.target.value as 'current' | 'all' })}
+              onChange={(event) =>{  setFilters({ ...filters, session: event.target.value as 'current' | 'all' }) }}
               aria-label="会话筛选"
             >
               <option value="current">当前会话</option>
@@ -740,7 +739,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
             <select
               className="advisor-select"
               value={filters.severity}
-              onChange={(event) => setFilters({ ...filters, severity: event.target.value as '' | AdvisorNoteSeverity })}
+              onChange={(event) =>{  setFilters({ ...filters, severity: event.target.value as '' | AdvisorNoteSeverity }) }}
               aria-label="严重度筛选"
             >
               <option value="">全部严重度</option>
@@ -753,7 +752,7 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
             <select
               className="advisor-select"
               value={filters.timeRange}
-              onChange={(event) => setFilters({ ...filters, timeRange: event.target.value as AdvisorHistoryFilters['timeRange'] })}
+              onChange={(event) =>{  setFilters({ ...filters, timeRange: event.target.value as AdvisorHistoryFilters['timeRange'] }) }}
               aria-label="时间筛选"
             >
               <option value="all">全部时间</option>
@@ -766,12 +765,12 @@ export function AdvisorPanel({ store, snapshot, onCollapse }: AdvisorPanelProps)
                 className="advisor-input"
                 list="advisor-workspaces"
                 value={filters.workspace}
-                onChange={(event) => setFilters({ ...filters, workspace: event.target.value })}
+                onChange={(event) =>{  setFilters({ ...filters, workspace: event.target.value }) }}
                 placeholder="工作空间（可选）"
                 aria-label="工作空间筛选"
               />
               <datalist id="advisor-workspaces">
-                {workspaceOptions.map((workspace) => <option key={workspace} value={workspace} />)}
+                {workspaceOptions.map(workspace => <option key={workspace} value={workspace} />)}
               </datalist>
               <button type="button" className="advisor-button" onClick={() => void store.loadRecords(filters)}>
                 查询
@@ -819,7 +818,7 @@ function ReviewCard(props: {
 }): JSX.Element {
   const { item, history = false } = props
   const [inputOpen, setInputOpen] = useState(props.defaultInputOpen)
-  useEffect(() => setInputOpen(props.defaultInputOpen), [props.defaultInputOpen])
+  useEffect(() =>{  setInputOpen(props.defaultInputOpen) }, [props.defaultInputOpen])
 
   const terminal = item.finished ?? item.record
   const ts = item.started?.ts ?? terminal?.ts ?? 0
@@ -862,7 +861,7 @@ function ReviewCard(props: {
             type="button"
             className="advisor-input-summary"
             aria-expanded={inputOpen}
-            onClick={() => setInputOpen((value) => !value)}
+            onClick={() =>{  setInputOpen(value => !value) }}
           >
             {/* Q3 重构：上下文统计（历史条数 + 会话代数）+ 本轮增量条数 */}
             <span>
@@ -886,7 +885,7 @@ function ReviewCard(props: {
       ) : note !== null ? (
         <div className="advisor-note">
           {/* 2026-08-12 用户反馈：说明"已抑制"含义（闸门拦截、未注入主会话） */}
-          {terminal?.outcome === 'suppressed' && (
+          {terminal.outcome === 'suppressed' && (
             <div className="advisor-note-meta">已抑制：此条建议被闸门拦截（去重 / 空泛抑制 / 每轮一条），未注入主会话</div>
           )}
           {note.text}
@@ -985,7 +984,7 @@ function ScopesTab({ store, snapshot }: {
         value={draft.conversation.text}
         placeholder="只对本次评审会话生效…（可多行，多条指令一次写）"
         saving={snapshot.scopesSaving}
-        onSave={(text) => save('conversation', text)}
+        onSave={(text) =>{  save('conversation', text) }}
       />
 
       {/* 第 3 层：本会话约束（跨新建评审会话保留） */}
@@ -994,7 +993,7 @@ function ScopesTab({ store, snapshot }: {
         value={draft.session.text}
         placeholder="只对本会话生效…"
         saving={snapshot.scopesSaving}
-        onSave={(text) => save('session', text)}
+        onSave={(text) =>{  save('session', text) }}
       />
 
       {/* 第 2 层：本项目约束（本工作区所有会话共享） */}
@@ -1003,7 +1002,7 @@ function ScopesTab({ store, snapshot }: {
         value={draft.project.text}
         placeholder="对本项目所有会话生效…"
         saving={snapshot.scopesSaving}
-        onSave={(text) => save('project', text)}
+        onSave={(text) =>{  save('project', text) }}
       />
 
       {/* 第 0 层：全局约束（所有项目所有会话生效）——2026-08-12 用户拍板：
@@ -1013,7 +1012,7 @@ function ScopesTab({ store, snapshot }: {
         value={draft.global.text}
         placeholder="对所有项目所有会话生效…（如：评审意见一律用中文、不要重复已提过的建议）"
         saving={snapshot.scopesSaving}
-        onSave={(text) => save('global', text)}
+        onSave={(text) =>{  save('global', text) }}
       />
     </section>
   )
@@ -1052,7 +1051,7 @@ function ScopeField(props: {
         type="button"
         className="advisor-button advisor-scope-save"
         disabled={props.saving || (!dirty && value === props.value)}
-        onClick={() => props.onSave(value)}
+        onClick={() =>{  props.onSave(value) }}
       >
         {props.saving ? '保存中…' : '保存'}
       </button>
@@ -1065,16 +1064,13 @@ function SettingsDisclosure({ store, snapshot }: {
   snapshot: AdvisorStoreSnapshot
 }): JSX.Element {
   const [draft, setDraft] = useState<Pick<AdvisorConfig,
-    'advisorProvider' | 'advisorModel' | 'advisorSystemPrompt' | 'advisorPanelEnabled'
-    | 'advisorInfoInject'
+    'advisorSystemPrompt' | 'advisorPanelEnabled' | 'advisorInfoInject'
   > | null>(null)
   const [localError, setLocalError] = useState<string | null>(null)
 
   useEffect(() => {
     if (snapshot.config === null) return
     setDraft({
-      advisorProvider: snapshot.config.advisorProvider,
-      advisorModel: snapshot.config.advisorModel,
       advisorSystemPrompt: snapshot.config.advisorSystemPrompt,
       advisorPanelEnabled: snapshot.config.advisorPanelEnabled,
       advisorInfoInject: snapshot.config.advisorInfoInject,
@@ -1083,12 +1079,6 @@ function SettingsDisclosure({ store, snapshot }: {
 
   const save = async (): Promise<void> => {
     if (draft === null) return
-    const provider = draft.advisorProvider?.trim() ?? ''
-    const model = draft.advisorModel?.trim() ?? ''
-    if ((provider === '') !== (model === '')) {
-      setLocalError('provider 与 model 必须同时填写，或同时留空以继承会话模型。')
-      return
-    }
     // Q5：提示词与内置默认相同 → 存 ''（等价内置，未来升级默认提示词自动跟随）；
     // 不同 → 存自定义（下次评审立即生效）
     const defaultPrompt = snapshot.config?.defaultSystemPrompt ?? ''
@@ -1098,8 +1088,6 @@ function SettingsDisclosure({ store, snapshot }: {
     setLocalError(null)
     await store.saveConfig({
       ...draft,
-      advisorProvider: provider === '' ? null : provider,
-      advisorModel: model === '' ? null : model,
       advisorSystemPrompt: prompt,
     })
   }
@@ -1123,7 +1111,7 @@ function SettingsDisclosure({ store, snapshot }: {
                 <input
                   type="checkbox"
                   checked={draft.advisorPanelEnabled}
-                  onChange={(event) => setDraft({ ...draft, advisorPanelEnabled: event.target.checked })}
+                  onChange={(event) =>{  setDraft({ ...draft, advisorPanelEnabled: event.target.checked }) }}
                 />
                 <span>显示悬浮胶囊按钮</span>
               </label>
@@ -1132,29 +1120,9 @@ function SettingsDisclosure({ store, snapshot }: {
                 <input
                   type="checkbox"
                   checked={draft.advisorInfoInject}
-                  onChange={(event) => setDraft({ ...draft, advisorInfoInject: event.target.checked })}
+                  onChange={(event) =>{  setDraft({ ...draft, advisorInfoInject: event.target.checked }) }}
                 />
                 <span>info 级建议也注入会话</span>
-              </label>
-            </div>
-            <div className="advisor-settings-grid">
-              <label className="advisor-field">
-                <span>供应商（Provider）</span>
-                <input
-                  className="advisor-input"
-                  value={draft.advisorProvider ?? ''}
-                  onChange={(event) => setDraft({ ...draft, advisorProvider: event.target.value })}
-                  placeholder="留空则继承会话"
-                />
-              </label>
-              <label className="advisor-field">
-                <span>模型（Model）</span>
-                <input
-                  className="advisor-input"
-                  value={draft.advisorModel ?? ''}
-                  onChange={(event) => setDraft({ ...draft, advisorModel: event.target.value })}
-                  placeholder="留空则继承会话"
-                />
               </label>
             </div>
             {/* Q5：提示词——空配置时回填显示内置默认全文，可编辑保存（=自定义），可一键恢复默认 */}
@@ -1170,13 +1138,13 @@ function SettingsDisclosure({ store, snapshot }: {
                 rows={22}
                 maxLength={8_192}
                 value={draft.advisorSystemPrompt === '' ? (snapshot.config?.defaultSystemPrompt ?? '') : draft.advisorSystemPrompt}
-                onChange={(event) => setDraft({ ...draft, advisorSystemPrompt: event.target.value })}
+                onChange={(event) =>{  setDraft({ ...draft, advisorSystemPrompt: event.target.value }) }}
                 placeholder="留空使用内置评审提示词"
               />
               <button
                 type="button"
                 className="advisor-link"
-                disabled={draft === null || snapshot.configSaving}
+                disabled={snapshot.configSaving}
                 onClick={() => {
                   // 2026-08-13 用户反馈：恢复默认按钮不可点（配置为空时
                   // 禁用）。改为**始终可点**——点击即保存空配置（空=使用

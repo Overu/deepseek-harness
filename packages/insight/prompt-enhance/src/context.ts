@@ -129,7 +129,8 @@ export function selectTurns(messages: readonly unknown[], options: ContextWindow
   const kept: ContextTurn[] = []
   let used = 0
   for (let index = windowed.length - 1; index >= 0; index--) {
-    const turn = windowed[index]!
+    const turn = windowed[index]
+    if (turn === undefined) continue
     // Same gauge as `shared/validate.countText`, the input cap, and the host
     // logs: Unicode code points, not UTF-16 units. `turn.text.length` would
     // spend double budget on CJK/emoji-heavy history and make `maxChars`
@@ -168,7 +169,7 @@ function neutralize(text: string): string {
  * @returns the framed snippet.
  */
 export function formatContextBlock(turns: readonly ContextTurn[]): string {
-  const body = turns.map((turn) => `[${turn.role}] ${neutralize(turn.text)}`).join('\n')
+  const body = turns.map(turn => `[${turn.role}] ${neutralize(turn.text)}`).join('\n')
   return `<conversation_context>\n${body}\n</conversation_context>`
 }
 

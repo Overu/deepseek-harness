@@ -34,7 +34,19 @@
       "types": "./lib/types/client/login.d.ts",
       "default": "./lib/login.js"
     },
-    "./client/*.css": "./lib/*.css"
+    "./client/*.css": "./lib/*.css",
+    "./typert": {
+      "types": "./lib/typert.host.d.ts",
+      "default": "./lib/typert.host.js"
+    },
+    "./remote": {
+      "types": "./lib/typert.remote-client.d.ts",
+      "default": "./lib/typert.remote-client.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    }
   },
   "dsh": {
     "bundle": {
@@ -46,7 +58,8 @@
         "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-ui-conversation",
         "@deepseek-ai/dsh-client-ui-slots",
-        "@deepseek-ai/dsh-client-ui-settings"
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-connection"
       ],
       "platform": "web"
     }
@@ -55,11 +68,23 @@
     "@deepseek-ai/cordis": "workspace:~",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
-    "@deepseek-ai/dsh-llm-deepseek": "workspace:*"
+    "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
+    "@deepseek-ai/dsh-web": "workspace:*",
+    "@deepseek-ai/dsh-web-search-deepseek": "workspace:*",
+    "@deepseek-ai/dsh-skill": "workspace:*",
+    "@deepseek-ai/dsh-skill-filesystem": "workspace:*",
+    "@deepseek-ai/dsh-home-paths": "workspace:*",
+    "@deepseek-ai/dsh-session-query": "workspace:*",
+    "@deepseek-ai/dsh-working-directory": "workspace:*",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
+    "@deepseek-ai/dsh-shell-env": "workspace:*"
   },
   "dependencies": {
     "@deepseek-ai/dsh-brand": "workspace:*",
-    "@deepseek-ai/schemastery": "workspace:~"
+    "@deepseek-ai/schemastery": "workspace:~",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -81,7 +106,23 @@
     "@deepseek-ai/dsh-attachment": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-llm-pi-ai": "workspace:*",
-    "@deepseek-ai/dsh-llm-deepseek": "workspace:*"
+    "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
+    "@deepseek-ai/dsh-web": "workspace:*",
+    "@deepseek-ai/dsh-web-search-deepseek": "workspace:*",
+    "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-skill": "workspace:*",
+    "@deepseek-ai/dsh-skill-filesystem": "workspace:*",
+    "@deepseek-ai/dsh-home-paths": "workspace:*",
+    "@deepseek-ai/dsh-session-query": "workspace:*",
+    "@deepseek-ai/dsh-working-directory": "workspace:*",
+    "@deepseek-ai/dsh-agent-preset-registry": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-shell-env": "workspace:*",
+    "@deepseek-ai/dsh-api-gateway": "workspace:*",
+    "@deepseek-ai/dsh-typert-registry": "workspace:*",
+    "@deepseek-ai/dsh-remote-mock": "workspace:*"
   },
   "scripts": {
     "bundle": "tsdown",
@@ -96,6 +137,11 @@
     "resources/**",
     "cordis.patch.yml",
     "README.md",
-    "README.zh.md"
+    "README.zh.md",
+    "lib/typert.host.js",
+    "lib/typert.host.d.ts",
+    "lib/typert.remote-client.js",
+    "lib/typert.remote-client.d.ts",
+    "lib/types/types.js"
   ]
 }

@@ -41,11 +41,11 @@ test('audio/video uploads stream exact file bytes and register native types and 
 })
 
 test('identity uses current desktop token and fixed test/production GET with no redirects', async () => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   try {
-    for (const [environment, suffix] of [[undefined, '-test'], ['test', '-test'], ['production', '']]) {
-      if (environment === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-      else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = environment
+    for (const [environment, suffix] of [['test', '-test'], ['production', '']]) {
+      if (environment === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+      else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
       const f = fixture(); assert.deepEqual(await f.api.getIdentity(), identity)
       assert.equal(f.tokenCount(), 1); assert.equal(f.calls.length, 1)
       assert.equal(f.calls[0].url, `https://gapi${suffix}.insight-aigc.com/user-server/getUserDetail`)
@@ -54,7 +54,7 @@ test('identity uses current desktop token and fixed test/production GET with no 
       assert.equal(f.calls[0].init.headers.origin, `https://dynsight${suffix}.insight-aigc.com`)
       assert.equal(f.calls[0].init.redirect, 'error')
     }
-  } finally { if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT; else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous }
+  } finally { if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT; else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous }
 })
 test('identity success forms and Long JSON tokens are preserved exactly', async () => {
   for (const code of ['SUCCESS', 200, 0, '0']) {
@@ -64,13 +64,13 @@ test('identity success forms and Long JSON tokens are preserved exactly', async 
   const f = fixture({ reply: () => new Response('{"code":0,"id":103}') }); assert.deepEqual(await f.api.getIdentity(), identity)
 })
 test('invalid environment and cancelled token lookup never send a request', async () => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   try {
-    process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = 'invalid'; const f = fixture()
+    process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = 'invalid'; const f = fixture()
     await assert.rejects(f.api.getIdentity(), { code: 'CONFIGURATION_ERROR', requestPhase: 'not_sent' })
     await assert.rejects(f.api.uploadMedia(stored(), identity), { code: 'CONFIGURATION_ERROR', requestPhase: 'not_sent' })
     assert.equal(f.tokenCount(), 0); assert.equal(f.calls.length, 0); assert.equal(f.puts.length, 0)
-  } finally { if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT; else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous }
+  } finally { if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT; else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous }
   const f = fixture(); const controller = new AbortController(); controller.abort()
   await assert.rejects(f.api.getIdentity(controller.signal), { code: 'CANCELLED_BEFORE_DISPATCH', requestPhase: 'not_sent' })
   assert.equal(f.calls.length, 0); assert.equal(f.tokenCount(), 0)
@@ -201,4 +201,23 @@ test('OSS PUT resolved with an explicit HTTP 403 reports rejection without retry
   const f = fixture({ put: async () => ({ res: { status: 403 }, message: 'private-secret' }) })
   await assert.rejects(f.api.uploadMedia(stored(), identity), error => error.code === 'ASSET_UPLOAD_REJECTED' && error.requestPhase === 'rejected' && safeError(error))
   assert.equal(f.calls.length, 1); assert.equal(f.puts.length, 1)
+})
+
+test('plugin disposal waits for an OSS upload after its caller has cancelled', async () => {
+  let started, complete
+  const entered = new Promise(resolve => { started = resolve })
+  const outstanding = new Promise(resolve => { complete = resolve })
+  const f = fixture({ put: async () => { started(); await outstanding; return { res: { status: 200 } } } })
+  const controller = new AbortController()
+  const uploading = f.api.uploadMedia(stored(), identity, controller.signal)
+  await entered
+  controller.abort()
+  await assert.rejects(uploading, { code: 'ASSET_UPLOAD_UNKNOWN' })
+  let disposed = false
+  const closing = f.api.dispose().then(() => { disposed = true })
+  await Promise.resolve()
+  assert.equal(disposed, false)
+  complete()
+  await closing
+  assert.equal(disposed, true)
 })

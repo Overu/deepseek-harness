@@ -67,7 +67,7 @@ export function scopeBadgeText(node: CanvasNode, currentSessionId?: string): str
   //     解析：别名→会话标题；2026-08-14 用户要求不再显示长 sessionId，
   //     解析不到才兜底短 id）。
   if (currentSessionId && node.sessionId && node.sessionId === currentSessionId) {
-    return `💬 当前会话`
+    return '💬 当前会话'
   }
   if (node.sessionId) {
     const name = node.sessionName || shortSessionId(node.sessionId)
@@ -184,10 +184,8 @@ export function intersectsViewport(
 
 export async function copyText(text: string): Promise<boolean> {
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
+    await navigator.clipboard.writeText(text)
+    return true
   } catch {
     // 降级到 execCommand
   }
@@ -199,11 +197,33 @@ export async function copyText(text: string): Promise<boolean> {
     ta.style.left = '-9999px'
     document.body.appendChild(ta)
     ta.select()
+    // oxlint-disable-next-line typescript/no-deprecated -- Compatibility fallback for hosts without Clipboard API access.
     const ok = document.execCommand('copy')
     ta.remove()
     return ok
   } catch {
     return false
+  }
+}
+
+interface SaveFilePickerOptions {
+  suggestedName: string
+  types: Array<{
+    description: string
+    accept: Record<string, string[]>
+  }>
+}
+
+interface SaveFileHandle {
+  createWritable(): Promise<{
+    write(data: string): Promise<void>
+    close(): Promise<void>
+  }>
+}
+
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options: SaveFilePickerOptions) => Promise<SaveFileHandle>
   }
 }
 
@@ -222,9 +242,7 @@ export async function saveTextToFile(title: string, content: string): Promise<{ 
   const safeName = sanitizeFileName(title) || '便签'
   const fileName = /\.(md|txt)$/i.test(safeName) ? safeName : `${safeName}.md`
   // 首选：系统原生保存对话框（File System Access API）。
-  const picker = (window as unknown as { showSaveFilePicker?: (opts: object) => Promise<{
-    createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }>
-  }> }).showSaveFilePicker
+  const picker = window.showSaveFilePicker
   if (typeof picker === 'function') {
     try {
       const handle = await picker({
@@ -240,7 +258,7 @@ export async function saveTextToFile(title: string, content: string): Promise<{ 
       return { ok: true }
     } catch (error) {
       // 用户取消（AbortError）不算失败；其他错误降级下载
-      if ((error as { name?: string })?.name === 'AbortError') {
+      if (error instanceof DOMException && error.name === 'AbortError') {
         return { ok: false, canceled: true }
       }
     }
@@ -255,7 +273,7 @@ export async function saveTextToFile(title: string, content: string): Promise<{ 
     document.body.appendChild(a)
     a.click()
     a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    setTimeout(() =>{  URL.revokeObjectURL(url) }, 5000)
     return { ok: true, message: '已下载到浏览器默认下载目录' }
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) }

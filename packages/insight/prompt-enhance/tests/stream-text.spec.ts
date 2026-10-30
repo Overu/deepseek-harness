@@ -13,7 +13,7 @@ import { createStreamNormalizer } from '../src/shared/stream-text'
 /** Feed every chunk and concatenate what the normalizer releases. */
 function feed(chunks: string[]): { shown: string; tail: string } {
   const normalizer = createStreamNormalizer()
-  const shown = chunks.map((chunk) => normalizer.push(chunk)).join('')
+  const shown = chunks.map(chunk => normalizer.push(chunk)).join('')
   return { shown, tail: normalizer.finish() }
 }
 

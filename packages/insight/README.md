@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This group keeps the Insight Desktop integration together with fixed Canvas, memory, and prompt enhancement sources. These private components are delivered through the desktop distribution and are excluded from the public npm baseline. The Insight profile activates only the Desktop integration in P2; Canvas, Memory, and Prompt remain inactive. The official Desktop profile activates none of them.
+This group keeps the Insight Desktop integration together with fixed Canvas, memory, and prompt enhancement sources. These private components are delivered through the desktop distribution and are excluded from the public npm baseline. The Insight profile requires Integration, Canvas, Memory, and Prompt; component-internal feature switches remain available. The official Desktop profile activates none of them.
 
 ## Table of Contents
 

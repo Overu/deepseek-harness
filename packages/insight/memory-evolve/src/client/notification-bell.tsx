@@ -26,6 +26,7 @@
  * 监听 badge-change 事件即时刷新。
  */
 import { createRoot } from 'react-dom/client'
+import type { JSX } from 'react'
 import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 
 /* ------------------------------------------------------------------ */
@@ -197,11 +198,11 @@ function writeDock(dock: BellDock): void {
 /** 邮件字段行：📮 主题：xxx / 📝 简介：xxx / 📄 内容（值可空，正文在后续行）。 */
 const MAIL_FIELD_RE = /^(📮|📝|👤|🕐|📄)\s*(主题|简介|发送人|时间|内容|Subject|Intro|Sender|Time|Content)\s*[：:]?\s*(.*)$/
 /** 纯装饰分隔线（━ / ─ / — / - / = 重复），展示时丢掉。 */
-const SEP_RE = /^[━─—\-_=]{4,}\s*$/
+const SEP_RE = /^[-━─—_=]{4,}\s*$/
 
 /** 连续空行压成至多一个空行，并去掉首尾空白。 */
 function collapseBlank(text: string): string {
-  return String(text ?? '')
+  return text
     .replace(/\r\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim()
@@ -209,7 +210,7 @@ function collapseBlank(text: string): string {
 
 /** 去掉「📮 主题：」这类字段前缀，避免主题栏再显示一遍「主题」。 */
 function stripSubjectPrefix(s: string): string {
-  return String(s ?? '').replace(/^[📮📝👤🕐📄]\s*(主题|简介|发送人|时间|内容|Subject|Intro|Sender|Time|Content)\s*[：:]\s*/, '').trim()
+  return s.replace(/^(?:📮|📝|👤|🕐|📄)\s*(主题|简介|发送人|时间|内容|Subject|Intro|Sender|Time|Content)\s*[：:]\s*/, '').trim()
 }
 
 /**
@@ -217,7 +218,7 @@ function stripSubjectPrefix(s: string): string {
  * 列表和大弹窗共用，保证预览与全文的去重规则一致。
  */
 function parseNotifyContent(raw: string): MailFields {
-  const lines = String(raw ?? '').replace(/\r\n/g, '\n').split('\n')
+  const lines = raw.replace(/\r\n/g, '\n').split('\n')
   const result: MailFields = {
     mail: false,
     headline: '',
@@ -243,7 +244,7 @@ function parseNotifyContent(raw: string): MailFields {
     if (m) {
       result.mail = true
       const key = m[2]
-      const val = (m[3] ?? '').trim()
+      const val = (m.at(3) ?? '').trim()
       if (key === '主题' || key === 'Subject') result.subject = val
       else if (key === '简介' || key === 'Intro') result.intro = val
       else if (key === '发送人' || key === 'Sender') result.sender = val
@@ -322,14 +323,15 @@ const NOTIFY_LINK_RE = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<
  * 返回类型 string | ReactNode[]：preview 与详情弹窗两处复用。
  */
 function linkify(text: string | null | undefined): string | React.ReactNode[] {
-  const s = String(text ?? '')
+  const s = (text ?? '')
   NOTIFY_LINK_RE.lastIndex = 0 // 全局正则跨调用复用，必须重置游标
   const parts: (string | { u: string; l: string })[] = []
   let last = 0
   let m: RegExpExecArray | null
   while ((m = NOTIFY_LINK_RE.exec(s)) !== null) {
     if (m.index > last) parts.push(s.slice(last, m.index))
-    if (m[1] !== undefined) parts.push({ u: m[2], l: m[1] }) // markdown 链接：u=URL l=标题
+    const label = m.at(1)
+    if (label !== undefined) parts.push({ u: m[2], l: label }) // markdown 链接：u=URL l=标题
     else parts.push({ u: m[3], l: m[3] }) // 裸 URL：u 与 l 都是 URL 本身
     last = NOTIFY_LINK_RE.lastIndex
   }
@@ -339,8 +341,8 @@ function linkify(text: string | null | undefined): string | React.ReactNode[] {
     p && typeof p === 'object' ? (
       <a key={k} href={p.u} target="_blank" rel="noreferrer">{p.l}</a>
     ) : (
-      String(p).replace(/\*\*/g, '')
-    )
+      p.replace(/\*\*/g, '')
+    ),
   )
 }
 
@@ -368,7 +370,7 @@ function AttachmentList({ item }: { item: NotificationItem }): JSX.Element {
     <div className="me-notify-attachments">
       {item.attachments.map((att, i) => (
         <div key={i} className="me-notify-att">
-          {att.mime?.startsWith('image/') ? (
+          {att.mime.startsWith('image/') ? (
             <img
               className="me-notify-att-img"
               src={`${API}/${encodeURIComponent(item.id)}/attachment/${i}`}
@@ -431,8 +433,8 @@ function Bell({ openSession, t }: NotificationBellOpts): JSX.Element {
   /** 轮询未读数（尽力而为，失败静默保持旧值）。 */
   const poll = useCallback((): void => {
     void fetch(`${API}/unread`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: { count?: number }) => setUnread(data.count ?? 0))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data: { count?: number }) =>{  setUnread(data.count ?? 0) })
       .catch(() => { /* best-effort */ })
   }, [])
 
@@ -462,7 +464,7 @@ function Bell({ openSession, t }: NotificationBellOpts): JSX.Element {
       })
     }
     window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    return () =>{  window.removeEventListener('resize', onResize) }
   }, [])
 
   // 拖拽期间禁选中，避免划过页面把会话标题选蓝。
@@ -478,9 +480,9 @@ function Bell({ openSession, t }: NotificationBellOpts): JSX.Element {
   /** 拉取未读列表。 */
   const loadList = useCallback((): void => {
     void fetch(`${API}/list?type=unread`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: { items?: NotificationItem[] }) => setItems(data.items ?? []))
-      .catch(() => setItems([]))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data: { items?: NotificationItem[] }) =>{  setItems(data.items ?? []) })
+      .catch(() =>{  setItems([]) })
   }, [])
 
   /** 标记已读（批量 ids）。 */
@@ -516,9 +518,9 @@ function Bell({ openSession, t }: NotificationBellOpts): JSX.Element {
   /** 打开「查看详情」大弹窗：拉全文（host full(id) 无论是否落文件都返回完整内容）。 */
   const viewDetail = useCallback((item: NotificationItem): void => {
     void fetch(`${API}/${encodeURIComponent(item.id)}/content`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: { content?: string }) => setModal({ item, content: data.content ?? item.content }))
-      .catch(() => setModal({ item, content: item.content }))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data: { content?: string }) =>{  setModal({ item, content: data.content ?? item.content }) })
+      .catch(() =>{  setModal({ item, content: item.content }) })
   }, [])
 
   const toggle = (): void => {
@@ -696,11 +698,11 @@ function Bell({ openSession, t }: NotificationBellOpts): JSX.Element {
                   {item.attachments.length > 0 && <AttachmentList item={item} />}
                   {/* 底部操作：已读按钮（不自动已读）+ 长文「查看详情」。 */}
                   <div className="me-notify-item-actions">
-                    <button type="button" className="me-notify-markread" onClick={() => markReadItem(item.id)}>
+                    <button type="button" className="me-notify-markread" onClick={() =>{  markReadItem(item.id) }}>
                       {t('notify.markRead')}
                     </button>
                     {item.isLong && (
-                      <button type="button" className="me-notify-more" onClick={() => viewDetail(item)}>
+                      <button type="button" className="me-notify-more" onClick={() =>{  viewDetail(item) }}>
                         {t('notify.viewDetail')}
                       </button>
                     )}
@@ -714,11 +716,11 @@ function Bell({ openSession, t }: NotificationBellOpts): JSX.Element {
 
       {/* 「查看详情」大弹窗：长通知全文展示，几千字可滚动。 */}
       {modal && modalParsed && (
-        <div className="me-notify-modal-backdrop" onClick={() => setModal(null)}>
-          <div className="me-notify-modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+        <div className="me-notify-modal-backdrop" onClick={() =>{  setModal(null) }}>
+          <div className="me-notify-modal" role="dialog" aria-modal="true" onClick={(e) =>{  e.stopPropagation() }}>
             <div className="me-notify-modal-head">
               <span className="me-notify-modal-title">{displaySubject(modal.item) || t('notify.title')}</span>
-              <button type="button" className="me-notify-modal-close" onClick={() => setModal(null)} aria-label={t('notify.close')}>
+              <button type="button" className="me-notify-modal-close" onClick={() =>{  setModal(null) }} aria-label={t('notify.close')}>
                 <CloseIcon />
               </button>
             </div>
@@ -763,7 +765,7 @@ function Bell({ openSession, t }: NotificationBellOpts): JSX.Element {
                     {t('notify.jump')}
                   </button>
                 )}
-                <button type="button" className="me-notify-delete" onClick={() => removeItem(modal.item.id)}>
+                <button type="button" className="me-notify-delete" onClick={() =>{  removeItem(modal.item.id) }}>
                   {t('notify.delete')}
                 </button>
               </div>

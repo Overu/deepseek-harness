@@ -50,7 +50,7 @@
     "build:web": "pnpm --dir canvas-app build",
     "build": "tsc -b tsconfig.json && tsdown --config-loader native --env.DSH_BUILD_FACE client",
     "typecheck": "tsc -b tsconfig.json",
-    "test": "node --import tsx --test test/*.test.mjs"
+    "test": "node --import ./test/fixtures/insight-host-env.mjs --import tsx/esm --test test/*.test.mjs"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -78,11 +78,13 @@
     "@deepseek-ai/dsh-agent": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-tools": "workspace:*",
-    "@deepseek-ai/dsh-client-ui-attachment": "workspace:*"
+    "@deepseek-ai/dsh-client-ui-attachment": "workspace:*",
+    "@insight-ai/desktop-integration": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
-    "@deepseek-ai/dsh-tools": "workspace:*"
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@insight-ai/desktop-integration": "workspace:*"
   },
   "dependencies": {
     "ali-oss": "6.20.0",

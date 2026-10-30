@@ -29,6 +29,7 @@
  */
 import { createRoot, type Root } from 'react-dom/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { errorText } from './error-utils.ts'
 import { TurnBookmarkButton } from './TurnBookmarkButton.tsx'
 
 /** 注入的星标宿主容器 data 标记（保活重扫时跳过已注入的）。 */
@@ -108,7 +109,7 @@ function turnFromAnchorId(id: string): number | null {
 function isBranchButton(btn: Element): boolean {
   const title = (btn.getAttribute('title') ?? '') + ' ' + (btn.getAttribute('aria-label') ?? '')
   if (title === ' ') return false
-  return BRANCH_PATTERNS.some((p) => title.includes(p))
+  return BRANCH_PATTERNS.some(p => title.includes(p))
 }
 
 /** 截断文本到摘要上限（去空白压缩）。 */
@@ -136,18 +137,17 @@ function extractSummary(node: HTMLElement, root: HTMLElement): string {
   // 往前找：最后一条 input-message（新版按 kind）；老格式按「无 Branch 按钮」。
   for (let i = index - 1; i >= 0; i -= 1) {
     const prev = nodes[i]
-    if (prev === undefined) continue
     const parsed = parseAnchorKey(prev)
     if (parsed !== null && parsed.legacySeq === null) {
       // 新版：kind 明确 → input-message 即用户消息；其余（assistant-step/
       // tool-result 等）继续往前跨轮。
-      if (parsed.kind === 'input-message') return clip(prev.textContent ?? '')
+      if (parsed.kind === 'input-message') return clip(prev.textContent)
       continue
     }
     // 老格式（node:）：无 kind → 按「没有 Branch 按钮的节点 = user 消息」判断。
     const hasBranch = prev.querySelector('button') !== null
       && Array.from(prev.querySelectorAll('button')).some(isBranchButton)
-    if (!hasBranch) return clip(prev.textContent ?? '')
+    if (!hasBranch) return clip(prev.textContent)
   }
   return ''
 }
@@ -236,7 +236,7 @@ export function createBookmarkInjector(
           anchorKey: parsed.legacySeq === null ? parsed.rawKey : undefined,
         }),
       })
-        .then((res) => res.json().catch(() => ({})) as Promise<{ sessionId?: string; error?: string }>)
+        .then(res => res.json().catch(() => ({})) as Promise<{ sessionId?: string; error?: string }>)
         .then((data) => {
           if (typeof data.sessionId === 'string') {
             window.alert(deps.t('bookmark.fork.ok', { id: data.sessionId }))
@@ -244,8 +244,8 @@ export function createBookmarkInjector(
             window.alert(deps.t('bookmark.error', { message: data.error ?? 'HTTP error' }))
           }
         })
-        .catch((error: Error) => {
-          window.alert(deps.t('bookmark.error', { message: error.message }))
+        .catch((error: unknown) => {
+          window.alert(deps.t('bookmark.error', { message: errorText(error) }))
         })
     })
   }

@@ -6,8 +6,13 @@ import type { CanvasMediaType } from '../shared/canvas-media.ts'
 import type { AssetSnapshot } from './asset-snapshot.ts'
 
 export interface PreparedCanvasFile extends AssetSnapshot {
-  mediaType: CanvasMediaType; mimeType: string; text?: string;
-  width?: number; height?: number; duration?: number; hasAudio?: boolean
+  mediaType: CanvasMediaType
+  mimeType: string
+  text?: string
+  width?: number
+  height?: number
+  duration?: number
+  hasAudio?: boolean
 }
 const invalid = (message: string) => new CanvasAgentError('ASSET_VALIDATION_REJECTED', message)
 export function rasterType(bytes: Uint8Array): ImageMediaType | undefined {
@@ -17,7 +22,8 @@ export function rasterType(bytes: Uint8Array): ImageMediaType | undefined {
   if (['GIF87a', 'GIF89a'].includes(data.subarray(0, 6).toString('ascii'))) return 'image/gif'
   if (data.subarray(0, 4).toString() === 'RIFF' && data.subarray(8, 12).toString() === 'WEBP') return 'image/webp'
 }
-export async function inspectCanvasMedia(snapshot: AssetSnapshot, type: CanvasMediaType, attachments: Pick<AttachmentStore, 'saveImage'>, caller: AbortSignal): Promise<PreparedCanvasFile> {
+export async function inspectCanvasMedia(snapshot: AssetSnapshot, type: CanvasMediaType,
+  attachments: Pick<AttachmentStore, 'saveImage'>, caller: AbortSignal): Promise<PreparedCanvasFile> {
   const signal = AbortSignal.any([caller, AbortSignal.timeout(15_000)])
   let input: Input | undefined
   const abort = () => input?.dispose()
@@ -26,7 +32,8 @@ export async function inspectCanvasMedia(snapshot: AssetSnapshot, type: CanvasMe
     signal.throwIfAborted()
     if (type === 'text') {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(await readFile(snapshot.path))
-      if (!text.trim() || text.includes('\0') || text.length > MAX_CONTENT_LENGTH || /[\u0001-\u0008\u000b\u000c\u000e-\u001f]/u.test(text)) throw invalid('文本需为有效UTF-8正文，最多32768字符，不能含二进制控制字符')
+      if (!text.trim() || text.includes('\0') || text.length > MAX_CONTENT_LENGTH ||
+ /[\u0001-\u0008\u000b\u000c\u000e-\u001f]/u.test(text)) throw invalid('文本需为有效UTF-8正文，最多32768字符，不能含二进制控制字符')
       return { ...snapshot, mediaType: type, mimeType: 'text/plain', text }
     }
     if (type === 'image') {
@@ -43,9 +50,11 @@ export async function inspectCanvasMedia(snapshot: AssetSnapshot, type: CanvasMe
     const duration = await input.computeDuration(undefined, { skipLiveWait: true })
     if (!Number.isFinite(duration) || duration <= 0 || type === 'video' && duration > 300) throw invalid('媒体时长无效，视频最多300秒')
     const mimeType = (await input.getMimeType()).split(';', 1)[0]
-    if (!['video/mp4', 'video/quicktime', 'video/webm', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/aac'].includes(mimeType)) throw invalid('媒体容器不在画布支持范围内')
+    if (!['video/mp4', 'video/quicktime', 'video/webm', 'audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4',
+      'audio/aac'].includes(mimeType)) throw invalid('媒体容器不在画布支持范围内')
     signal.throwIfAborted()
-    return { ...snapshot, mediaType: type, mimeType, duration: Math.ceil(duration), hasAudio: !!audio, ...(video ? { width: video.displayWidth, height: video.displayHeight } : {}) }
+    return { ...snapshot, mediaType: type, mimeType, duration: Math.ceil(duration), hasAudio: !!audio, ...(video ? {
+      width: await video.getDisplayWidth(), height: await video.getDisplayHeight() } : {}) }
   } catch (error) {
     if (caller.aborted) throw new CanvasAgentError('CANCELLED_BEFORE_DISPATCH', '素材校验已取消')
     if (error instanceof CanvasAgentError) throw error

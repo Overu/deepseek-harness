@@ -19,7 +19,9 @@
  * 切换后组件不重渲染也能拿到最新会话 id），书签 Tab 传字符串。
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { JSX } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { errorText } from './error-utils.ts'
 
 /** 单条书签（与宿主 API 对齐的最小字段）。 */
 interface BookmarkRow {
@@ -78,7 +80,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
     if (!sessionId) return
     void api<{ bookmarks: BookmarkRow[] }>(`?sessionId=${encodeURIComponent(sessionId)}`)
       .then((data) => {
-        const found = (data.bookmarks ?? []).find((b) =>
+        const found = data.bookmarks.find(b =>
           (b.anchorKey != null && b.anchorKey === anchorKey)
           || (b.anchorKey == null && b.seq === seq)) ?? null
         setBookmark(found)
@@ -97,7 +99,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
       }
     }
     document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
+    return () =>{  document.removeEventListener('mousedown', onDoc) }
   }, [menuOpen])
 
   /** 默认标签名：轮次 N（turn 优先；老格式只有 seq；都没有则显示 ?）。 */
@@ -135,10 +137,10 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
           // 通知书签列表 Tab 刷新（若已打开）。
           window.dispatchEvent(new CustomEvent('dsh-memory-evolve:bookmarks-change'))
         })
-        .catch((error: Error) => {
-          window.alert(t('bookmark.error', { message: error.message }))
+        .catch((error: unknown) => {
+          window.alert(t('bookmark.error', { message: errorText(error) }))
         })
-        .finally(() => setBusy(false))
+        .finally(() =>{  setBusy(false) })
     } else if (bookmark !== null) {
       void api<{ bookmark: BookmarkRow }>('', {
         method: 'PATCH',
@@ -153,10 +155,10 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
           })
           window.dispatchEvent(new CustomEvent('dsh-memory-evolve:bookmarks-change'))
         })
-        .catch((error: Error) => {
-          window.alert(t('bookmark.error', { message: error.message }))
+        .catch((error: unknown) => {
+          window.alert(t('bookmark.error', { message: errorText(error) }))
         })
-        .finally(() => setBusy(false))
+        .finally(() =>{  setBusy(false) })
     } else {
       setBusy(false)
     }
@@ -176,10 +178,10 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
         setBookmark(null)
         window.dispatchEvent(new CustomEvent('dsh-memory-evolve:bookmarks-change'))
       })
-      .catch((error: Error) => {
-        window.alert(t('bookmark.error', { message: error.message }))
+      .catch((error: unknown) => {
+        window.alert(t('bookmark.error', { message: errorText(error) }))
       })
-      .finally(() => setBusy(false))
+      .finally(() =>{  setBusy(false) })
   }
 
   const bookmarked = bookmark !== null
@@ -198,7 +200,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
         disabled={busy}
         onClick={() => {
           if (bookmarked) {
-            setMenuOpen((open) => !open)
+            setMenuOpen(open => !open)
           } else {
             createOrRename('create')
           }
@@ -209,7 +211,7 @@ export function TurnBookmarkButton(props: TurnBookmarkButtonProps): JSX.Element 
       </button>
       {menuOpen && bookmarked && (
         <div className="bm-star-menu" role="menu">
-          <button type="button" role="menuitem" onClick={() => createOrRename('rename')}>
+          <button type="button" role="menuitem" onClick={() =>{  createOrRename('rename') }}>
             {t('bookmark.menu.rename')}
           </button>
           <button type="button" role="menuitem" className="bm-danger" onClick={remove}>

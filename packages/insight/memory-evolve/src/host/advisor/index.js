@@ -67,28 +67,14 @@ function releaseReviewer(token) {
 }
 
 /**
- * 唯一模型解析算法（双审 B2 修订）。
+ * Resolve the managed model used by the session being reviewed.
  *
  * @param {string} sessionId - 会话 id（继承路径需要）
- * @param {object} config - 合并后的插件配置（含 advisorProvider/advisorModel）
  * @param {(sessionId: string) => object | undefined} getAgent - ctx.agents.get
- * @returns {{ gate: 'ok', provider: string, model: string, routeSource: 'configured'|'session' } |
- *           { gate: 'config-incomplete'|'session-model-unavailable', reason: string, routeSource: null }}
+ * @returns {{ gate: 'ok', provider: string, model: string, routeSource: 'session' } |
+ *           { gate: 'session-model-unavailable', reason: string, routeSource: null }}
  */
-export function resolveAdvisorRoute(sessionId, config, getAgent) {
-  const provider = typeof config.advisorProvider === 'string' && config.advisorProvider.trim() !== '' ? config.advisorProvider.trim() : null
-  const model = typeof config.advisorModel === 'string' && config.advisorModel.trim() !== '' ? config.advisorModel.trim() : null
-  if (provider !== null && model !== null) {
-    return { gate: 'ok', provider, model, routeSource: 'configured' }
-  }
-  if (provider !== null || model !== null) {
-    return {
-      gate: 'config-incomplete',
-      reason: 'advisorProvider 与 advisorModel 必须同时配置（当前只配置了其中一个）',
-      routeSource: null,
-    }
-  }
-  // 双空 → 继承会话模型（agent.options 为请求所用模型）
+export function resolveAdvisorRoute(sessionId, getAgent) {
   const agent = getAgent?.(sessionId)
   const inheritedProvider = agent?.options?.provider
   const inheritedModel = agent?.options?.model
@@ -97,7 +83,7 @@ export function resolveAdvisorRoute(sessionId, config, getAgent) {
   }
   return {
     gate: 'session-model-unavailable',
-    reason: '未配置评审模型且无法解析当前会话模型（agent.options 缺失）',
+    reason: '无法解析当前会话模型（agent.options 缺失）',
     routeSource: null,
   }
 }
@@ -309,7 +295,7 @@ export function installAdvisor(ctx, config, deps = {}) {
   // ---- 运行时管理 ----
   const runtimes = new Map()
   const runtimeSignatures = new Map()
-  const effectiveRoute = (sessionId) => resolveAdvisorRoute(sessionId, config, getAgent)
+  const effectiveRoute = (sessionId) => resolveAdvisorRoute(sessionId, getAgent)
   const runtimeSignature = (sessionId) => {
     const route = effectiveRoute(sessionId)
     if (route.gate !== 'ok') return `gate:${route.gate}`
@@ -448,8 +434,6 @@ export function installAdvisor(ctx, config, deps = {}) {
     configSnapshot() {
       return {
         advisorEnabled: config.advisorEnabled === true,
-        advisorProvider: typeof config.advisorProvider === 'string' && config.advisorProvider !== '' ? config.advisorProvider : null,
-        advisorModel: typeof config.advisorModel === 'string' && config.advisorModel !== '' ? config.advisorModel : null,
         advisorSystemPrompt: config.advisorSystemPrompt ?? '',
         // Q5：内置默认提示词全文（前端空配置时回填显示，编辑保存即自定义）
         defaultSystemPrompt: DEFAULT_ADVISOR_SYSTEM_PROMPT,

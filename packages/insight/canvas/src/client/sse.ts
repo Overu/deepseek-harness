@@ -18,7 +18,8 @@ export async function consumeSse(body: ReadableStream<Uint8Array>, receive: (val
       const { value, done } = await reader.read()
       buffer += done ? decoder.decode() : decoder.decode(value, { stream: true })
       let index: number
-      while ((index = buffer.indexOf('\n')) !== -1) { const current = buffer.slice(0, index).replace(/\r$/, ''); buffer = buffer.slice(index + 1); line(current) }
+      while ((index = buffer.indexOf('\n')) !== -1) { const current = buffer.slice(0, index).replace(/\r$/, '')
+        buffer = buffer.slice(index + 1); line(current) }
       if (new TextEncoder().encode(buffer).byteLength + bytes > MAX_MESSAGE_BYTES + 100) throw new CanvasAgentError('BRIDGE_OVERLOADED', 'SSE 事件超过上限')
       if (done) break
     }

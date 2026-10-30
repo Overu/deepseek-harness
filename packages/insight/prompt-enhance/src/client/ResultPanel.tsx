@@ -64,7 +64,7 @@ function localizedErrorMessage(
   code: EnhanceError['code'],
   params: EnhanceError['params'],
 ): string {
-  if (code === 'rejected' && typeof params?.count === 'number' && typeof params?.max === 'number') {
+  if (code === 'rejected' && typeof params?.count === 'number' && typeof params.max === 'number') {
     return t('error.tooLong', { count: params.count, max: params.max })
   }
   if (code === 'upstream' && typeof params?.reason === 'string') {
@@ -95,6 +95,7 @@ function fallbackCopy(text: string): boolean {
     textarea.style.opacity = '0'
     document.body.appendChild(textarea)
     textarea.select()
+    // oxlint-disable-next-line no-deprecated -- supports non-secure local origins without Clipboard API.
     const ok = document.execCommand('copy')
     textarea.remove()
     return ok
@@ -137,7 +138,7 @@ export function ResultPanel(props: ResultPanelProps): ReactNode {
       }
     }
     document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
+    return () =>{  document.removeEventListener('keydown', onKeyDown) }
   }, [onCancel])
 
   // The element that owned focus when the panel opened, captured at mount.
@@ -167,11 +168,12 @@ export function ResultPanel(props: ResultPanelProps): ReactNode {
   const copy = useCallback((): void => {
     if (state.result === undefined) return
     const text = state.result.text
-    const done = (ok: boolean): void => setCopied(ok ? 'ok' : 'failed')
+    const done = (ok: boolean): void =>{  setCopied(ok ? 'ok' : 'failed') }
     // navigator.clipboard only exists in secure contexts (https / localhost);
     // guard the dereference and fall back for plain-http LAN access.
-    if (navigator.clipboard !== undefined) {
-      navigator.clipboard.writeText(text).then(() => done(true), () => done(fallbackCopy(text)))
+    const clipboard = Reflect.get(navigator, 'clipboard') as Clipboard | undefined
+    if (clipboard !== undefined) {
+      clipboard.writeText(text).then(() =>{  done(true) }, () =>{  done(fallbackCopy(text)) })
       return
     }
     done(fallbackCopy(text))

@@ -64,21 +64,21 @@ test('page route serves Vite HTML and asset types with a restrictive CSP', async
 
 test('canvas page exposes the current public share origin, not the local server', async t => {
   const handler = pageHandler({ requestRejection: () => undefined }, await fixture(t))
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   try {
     for (const [environment, origin] of [
       ['test', 'https://dynsight-test.insight-aigc.com'],
       ['production', 'https://dynsight.insight-aigc.com']
     ]) {
-      process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = environment
+      process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
       const res = response()
       await handler({ method: 'GET', url: '/desktop-canvas/view?id=2873' }, res)
       assert.equal(res.status, 200)
       assert.match(String(res.body), new RegExp(`<meta name="desktop-canvas-web-origin" content="${origin}"`))
     }
   } finally {
-    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-    else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous
+    if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
   }
 })
 
@@ -102,14 +102,14 @@ test('page route rejects invalid IDs, methods, missing files, traversal and esca
 })
 
 test('invalid desktop environment cannot silently inject the test share origin', async t => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   try {
-    process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = 'invalid'
+    process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = 'invalid'
     const res = response()
     await pageHandler({ requestRejection: () => undefined }, await fixture(t))({ method: 'GET', url: '/desktop-canvas/view?id=2873' }, res)
     assert.equal(res.status, 500)
   } finally {
-    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-    else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous
+    if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
   }
 })

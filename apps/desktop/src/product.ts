@@ -4,6 +4,14 @@ import { parse } from 'semver'
 /** Product selector written to an Insight packaged application's manifest. */
 export const INSIGHT_DESKTOP_PRODUCT = 'insight'
 
+/** Product components selected on startup and retained by recovery. */
+export const INSIGHT_REQUIRED_BUNDLES: readonly string[] = [
+  '@insight-ai/desktop-integration',
+  '@insight-ai/desktop-canvas-plugin',
+  'dsh-memory-evolve',
+  'dsh-prompt-enhance',
+]
+
 /** Environment variable that selects the Insight product for development. */
 export const DESKTOP_PRODUCT_ENV = 'DSH_DESKTOP_PRODUCT'
 

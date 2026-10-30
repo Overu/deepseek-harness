@@ -1,3 +1,4 @@
+import { registerCanvasRoute, type CanvasActivities } from './activities.ts'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
@@ -13,7 +14,7 @@ function send(res: ServerResponse, status: number, error: string): void {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff'
+    'x-content-type-options': 'nosniff',
   })
   res.end(JSON.stringify({ error }))
 }
@@ -61,17 +62,18 @@ export function modelParamsHandler(connection: BrowserConnection, transport: typ
         method: 'GET',
         headers: { accept: 'application/json' },
         redirect: 'error',
-        signal
+        signal,
       })
       if (clientAbort.signal.aborted) return
       if (!upstream.ok) { send(res, 502, 'model params unavailable'); return }
       const bytes = await readLimited(upstream)
       JSON.parse(bytes.toString('utf8'))
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- The client may disconnect during the awaited read.
       if (clientAbort.signal.aborted) return
       res.writeHead(200, {
         'content-type': 'application/json; charset=utf-8',
         'cache-control': 'no-store',
-        'x-content-type-options': 'nosniff'
+        'x-content-type-options': 'nosniff',
       })
       res.end(bytes)
     } catch {
@@ -81,8 +83,8 @@ export function modelParamsHandler(connection: BrowserConnection, transport: typ
   }
 }
 
-export function registerModelParamsRoute(ctx: Context): void {
+export function registerModelParamsRoute(ctx: Context, activities?: CanvasActivities): void {
   const connection = Reflect.get(ctx, 'connection') as BrowserConnection
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: PATH,
+  ctx.effect(() => registerCanvasRoute(ctx, activities, { kind: 'exact', path: PATH,
     handler: modelParamsHandler(connection) }), 'desktop-canvas: model params')
 }

@@ -243,7 +243,6 @@ function updateMenuGeometry(preferredRoot?: HTMLElement): void {
  */
 export function createInputSheetEnhance(): () => void {
   let disposed = false
-  let observer: MutationObserver | null = null
   /** rAF 节流句柄：MutationObserver 高频触发时合并为每帧一次 ensure。 */
   let raf = 0
   /** 几何更新 rAF 句柄（resize / vv / mutation 合并）。 */
@@ -399,7 +398,7 @@ export function createInputSheetEnhance(): () => void {
   // 保活：React 重渲染会清掉注入的按钮，MutationObserver 观察 body 子树，
   // rAF 节流后 O(n rows) 检查补插（与 session-filter / tab-collapse 同款）。
   ensureButton()
-  observer = new MutationObserver(scheduleEnsure)
+  const observer = new MutationObserver(scheduleEnsure)
   observer.observe(document.body, { childList: true, subtree: true })
   // capture 先保存稳定的 composedPath；bubble 再决定是否关闭，避免阻断目标控件。
   document.addEventListener('click', onDocClickCapture, true)
@@ -419,7 +418,7 @@ export function createInputSheetEnhance(): () => void {
       cancelAnimationFrame(geoRaf)
       geoRaf = 0
     }
-    if (observer !== null) observer.disconnect()
+    observer.disconnect()
     document.removeEventListener('click', onDocClickCapture, true)
     document.removeEventListener('click', onDocClick)
     window.removeEventListener('resize', onViewportChange)

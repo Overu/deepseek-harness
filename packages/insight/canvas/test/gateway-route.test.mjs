@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
 import { Readable } from 'node:stream'
 import test from 'node:test'
 import { gatewayHandler } from '../src/host/gateway-route.ts'
-import { LoginRequiredError } from '../src/host/desktop-token.ts'
+import { LoginRequiredError } from '../src/host/account-errors.ts'
 
 const prefix = '/desktop-canvas/api/legacy'
 
@@ -143,8 +143,8 @@ test('gateway forwards canvas business APIs without per-endpoint registration', 
 })
 
 test('gateway uses the fixed production host and preserves a JSON conflict response', async () => {
-  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-  process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = 'production'
+  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+  process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = 'production'
   const calls = []
   try {
     const raw = '{"code":"VERSION_CONFLICT","msg":"版本冲突"}'
@@ -163,8 +163,8 @@ test('gateway uses the fixed production host and preserves a JSON conflict respo
     assert.equal(calls[0].url, 'https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/saveOrUpdate')
     assert.equal(calls[0].init.headers.origin, 'https://dynsight.insight-aigc.com')
   } finally {
-    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
-    else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous
+    if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
   }
 })
 

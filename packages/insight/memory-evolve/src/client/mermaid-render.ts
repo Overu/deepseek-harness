@@ -65,6 +65,12 @@ interface MermaidEngine {
   render(id: string, text: string): Promise<{ svg: string }>
 }
 
+declare global {
+  interface Window {
+    mermaid?: MermaidEngine
+  }
+}
+
 /** 单个代码块的处理状态（WeakMap 持有，块离开 DOM 自动回收）。 */
 interface BlockState {
   /** 上一次读取到的源码（用于稳定判定）。 */
@@ -112,7 +118,7 @@ function loadMermaid(): Promise<MermaidEngine> {
       reject(new Error(reason))
     }
     script.onload = () => {
-      const mermaid = (window as unknown as { mermaid?: MermaidEngine }).mermaid
+      const mermaid = window.mermaid
       if (mermaid === undefined) {
         fail('mermaid global missing after script load')
         return
@@ -136,7 +142,7 @@ function loadMermaid(): Promise<MermaidEngine> {
       })
       resolve(mermaid)
     }
-    script.onerror = () => fail(`mermaid engine load failed: ${ENGINE_SRC}`)
+    script.onerror = () =>{  fail(`mermaid engine load failed: ${ENGINE_SRC}`) }
     document.head.appendChild(script)
   })
   return enginePromise
@@ -167,7 +173,7 @@ function detectTheme(): 'dark' | 'base' {
  */
 function isMermaidBlock(block: HTMLElement): boolean {
   const info = block.querySelector<HTMLElement>('[class*="infostring"]')
-  return info?.textContent?.trim().toLowerCase() === 'mermaid'
+  return info?.textContent.trim().toLowerCase() === 'mermaid'
 }
 
 /**
@@ -190,9 +196,9 @@ function showErrorHint(block: HTMLElement, error?: unknown): void {
   // mermaid 错误信息首行含定位（如 "Lexical error on line 5. Unrecognized text."），
   // 展示给用户/AI 便于针对性修正；截断防超长。
   const detail = error instanceof Error
-    ? (String(error.message).split('\n')[0] ?? '').slice(0, 80)
+    ? (error.message.split('\n').at(0) ?? '').slice(0, 80)
     : ''
-  const zh = (document.documentElement.lang ?? '').toLowerCase().startsWith('zh')
+  const zh = document.documentElement.lang.toLowerCase().startsWith('zh')
   hint.textContent = zh
     ? `⚠ mermaid 渲染失败${detail === '' ? '' : `：${detail}`}，已保留代码（可复制修正）`
     : `⚠ mermaid render failed${detail === '' ? '' : `: ${detail}`}, code kept`
@@ -221,7 +227,6 @@ function showErrorHint(block: HTMLElement, error?: unknown): void {
  * @returns 修正后的源码；无需修正时返回 null。
  */
 function autoFixMermaid(source: string): string | null {
-  let changed = false
   const fixed = source.split('\n').map((line) => {
     // 规则 1：subgraph 标题引号化。
     //   形如 "subgraph 标题" 的行；标题未用引号包裹、也未用 [id] 形式，
@@ -232,9 +237,8 @@ function autoFixMermaid(source: string): string | null {
       if (
         !title.startsWith('"') &&
         !title.startsWith('[') &&
-        /[（）()！？!?，。；：、""''【】《》]/.test(title)
+        /[（）()！？!?，。；：、"'【】《》]/.test(title)
       ) {
-        changed = true
         return `${sub[1]}"${title.replace(/"/g, '\\"')}"`
       }
       return line
@@ -246,7 +250,6 @@ function autoFixMermaid(source: string): string | null {
     if (edge !== null && edge[1].includes('-->') && !edge[2].startsWith('"') && !edge[2].startsWith("'")) {
       const fixedLabel = fixDangerChars(edge[2])
       if (fixedLabel !== edge[2]) {
-        changed = true
         return `${edge[1]}|${fixedLabel}|${edge[3]}`
       }
       return line
@@ -257,13 +260,13 @@ function autoFixMermaid(source: string): string | null {
     if (node !== null && !node[3].startsWith('"') && !node[3].startsWith("'") && /['"]/.test(node[3])) {
       const fixedText = fixDangerChars(node[3])
       if (fixedText !== node[3]) {
-        changed = true
         return `${node[1]}${node[2]}${fixedText}${node[4]}${node[5]}`
       }
     }
     return line
   })
-  return changed ? fixed.join('\n') : null
+  const result = fixed.join('\n')
+  return result === source ? null : result
 }
 
 /**
@@ -314,7 +317,7 @@ function ensureDownloadButton(block: HTMLElement): void {
   const btn = document.createElement('button')
   btn.type = 'button'
   btn.className = 'me-mermaid-download'
-  const zh = (document.documentElement.lang ?? '').toLowerCase().startsWith('zh')
+  const zh = document.documentElement.lang.toLowerCase().startsWith('zh')
   btn.textContent = zh ? '下载' : 'SVG'
   btn.title = zh ? '下载此图为 SVG（矢量，可无损缩放）' : 'Download diagram as SVG'
   btn.addEventListener('click', (event) => {

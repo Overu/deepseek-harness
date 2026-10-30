@@ -3,6 +3,9 @@
       name: ./lib/index.js
       config:
         requestTimeoutMs: 10000
+        skillProxyMaxActiveRequests: 8
+        skillProxyMaxBufferedRequestBytes: 16777216
+        skillProxyRequestTimeoutMs: 1250000
         serviceEnvironment: !!js process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
 
 - id: agent-default-model
@@ -44,4 +47,12 @@
   disabled: true
 
 - id: llm-deepseek-account
+  disabled: true
+
+- id: web
+  config:
+    searchProvider: insight-enterprise-search
+    fetchProvider: http
+
+- id: web-search-deepseek
   disabled: true

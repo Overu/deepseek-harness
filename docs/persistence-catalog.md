@@ -6592,7 +6592,7 @@ Sources: [`packages/core/session/src/types.ts:211`](../packages/core/session/src
 
 SHA-256: `8b4e139d7dff3b34650723dd2df4577df5756acb100c0b05cd2bc54ff945c86c`
 
-Sources: [`packages/insight/canvas/src/host/canvas-process-tools.ts:22`](../packages/insight/canvas/src/host/canvas-process-tools.ts)
+Sources: [`packages/insight/canvas/src/host/canvas-process-tools.ts:23`](../packages/insight/canvas/src/host/canvas-process-tools.ts)
 
 | Property | Presence | Type |
 |---|---|---|
@@ -6604,7 +6604,7 @@ Sources: [`packages/insight/canvas/src/host/canvas-process-tools.ts:22`](../pack
 
 SHA-256: `967bece1340c44904c197407498b7312aa3ee163f6ad39cef9f49d0bde1b2a7c`
 
-Sources: [`packages/insight/canvas/src/host/canvas-run-tools.ts:24`](../packages/insight/canvas/src/host/canvas-run-tools.ts)
+Sources: [`packages/insight/canvas/src/host/canvas-run-tools.ts:28`](../packages/insight/canvas/src/host/canvas-run-tools.ts)
 
 | Property | Presence | Type |
 |---|---|---|

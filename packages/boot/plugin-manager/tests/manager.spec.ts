@@ -1,5 +1,5 @@
 /** Persistent manager behavior through a real profile Include and Loader. */
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { realpath } from 'node:fs/promises'
 import { once } from 'node:events'
 import { createServer } from 'node:http'
@@ -7,6 +7,7 @@ import type { Socket } from 'node:net'
 import { join, resolve } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { gzipSync } from 'node:zlib'
 import { execa } from 'execa'
 import type { Context } from '@deepseek-ai/cordis'
 import { afterAll, beforeAll, expect, it, onTestFinished, vi } from 'vitest'
@@ -32,6 +33,48 @@ import { isolateGitCommandLineConfig } from './git-environment.ts'
 let restoreGitCommandLineConfig: () => void
 beforeAll(() => { restoreGitCommandLineConfig = isolateGitCommandLineConfig() })
 afterAll(() => { restoreGitCommandLineConfig() })
+
+/** Build a valid regular or extended-header tar entry for archive preflight tests. */
+function tarEntry(path: string, contents: Buffer, type = '0'): Buffer {
+  const header = Buffer.alloc(512)
+  header.write(path)
+  header.write('0000644\0', 100)
+  header.write('0000000\0', 108)
+  header.write('0000000\0', 116)
+  header.write(`${contents.length.toString(8).padStart(11, '0')}\0`, 124)
+  header.write('00000000000\0', 136)
+  header.fill(0x20, 148, 156)
+  header[156] = type.charCodeAt(0)
+  header.write('ustar\0', 257)
+  header.write('00', 263)
+  const checksum = header.reduce((sum, byte) => sum + byte, 0)
+  header.write(`${checksum.toString(8).padStart(6, '0')}\0 `, 148)
+  return Buffer.concat([header, contents, Buffer.alloc((512 - contents.length % 512) % 512)])
+}
+
+/** Encode a POSIX PAX extended-header record. */
+function paxRecord(key: string, value: string): Buffer {
+  const valueRecord = `${key}=${value}\n`
+  let length = Buffer.byteLength(valueRecord) + 2
+  while (true) {
+    const record = `${length} ${valueRecord}`
+    const nextLength = Buffer.byteLength(record)
+    if (nextLength === length) return Buffer.from(record)
+    length = nextLength
+  }
+}
+
+/** Run an assertion with one launcher-owned product policy and restore the process input afterwards. */
+async function withProductRequiredBundles<T>(value: string | undefined, operation: () => Promise<T>): Promise<T> {
+  const previous = process.env.DSH_PRODUCT_REQUIRED_BUNDLES
+  if (value === undefined) delete process.env.DSH_PRODUCT_REQUIRED_BUNDLES
+  else process.env.DSH_PRODUCT_REQUIRED_BUNDLES = value
+  try { return await operation() }
+  finally {
+    if (previous === undefined) delete process.env.DSH_PRODUCT_REQUIRED_BUNDLES
+    else process.env.DSH_PRODUCT_REQUIRED_BUNDLES = previous
+  }
+}
 
 async function fixture(reload: 'live' | 'startup' = 'live', overlay = false, prepare?: (ctx: Context) => void, config: Config = {}, packageManager?: ProfileContext['packageManager'], prepareFiles?: (dir: string) => void, sourceInstallation = false) {
   const temporaryHome = mkdtempSync(join(tmpdir(), 'plugin-manager-'))
@@ -964,6 +1007,139 @@ it('refuses management bundle disablement and permits repeated bundle selections
   const { manager } = await fixture()
   expect(await manager.setBundleEnabled('core', false)).toMatchObject({ application: 'failed', changed: false })
   expect(await manager.setBundleEnabled('extra', true)).toMatchObject({ application: 'applied', changed: false })
+})
+
+it('retains profile-required bundles while allowing their grouped child controls', async () => {
+  const { manager, dir, bundle, ctx, profile } = await fixture('live', false, (ctx) => { ctx.loader.builtins.group = Group }, {
+    requiredBundles: ['extra'],
+  })
+  bundle('extra', [{ id: 'required', name: './plugin.mjs' }, {
+    id: 'required-group', name: 'cordis:group', group: true,
+    config: [{ id: 'required-child', name: './plugin.mjs', config: { service: 'requiredChild' } }],
+  }])
+  await reconcileProfilePatches(ctx, readProfilePatches('test', profile), 'test')
+  const direct = (await manager.listPlugins()).find(row => row.entryId === 'include:required')!
+  const child = (await manager.listPlugins()).find(row => row.entryId === 'include:required-child')!
+  expect(direct.readOnlyReason).toBe('profile-required')
+  expect(child.readOnlyReason).toBeUndefined()
+  expect((await manager.listBundles()).find(row => row.name === 'extra')).toMatchObject({
+    removable: false, updatable: false, readOnlyReason: 'profile-required',
+  })
+  expect(await manager.setPluginEnabled(direct.entryId, false)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.setPluginEnabled(child.entryId, false)).toMatchObject({ application: 'applied' })
+  expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.removeBundle('extra')).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.updateBundle('extra', '2.0.0')).toMatchObject({ result: { error: { code: 'profile-required' } } })
+  expect(readProfileManifest('test', dir).dsh?.profile?.bundles).toContain('extra')
+})
+
+it('refuses replacing a profile-required bundle before pnpm, including identifiable local archives', async () => {
+  const { manager, dir } = await fixture('live', false, undefined, { requiredBundles: ['extra'] })
+  const pnpm = vi.spyOn(operations, 'runProfilePnpm')
+  onTestFinished(() => { pnpm.mockRestore() })
+  const tarball = join(dir, 'extra.tgz')
+  const manifest = Buffer.from(JSON.stringify({ name: 'extra' }))
+  writeFileSync(tarball, gzipSync(Buffer.concat([tarEntry('package/package.json', manifest), Buffer.alloc(1024)])))
+  const symlink = join(dir, 'extra-link.tgz')
+  symlinkSync(tarball, symlink)
+  expect(await manager.installBundle('extra@2.0.0')).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.installBundle('shadow@npm:extra@2.0.0')).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.installBundle(`shadow@file:${join(dir, 'node_modules', 'extra')}`)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.installBundle(tarball)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.installBundle(symlink)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.installBundle(`file:${join(dir, 'missing')}`)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.installBundle('github:example/unknown-bundle')).toMatchObject({ error: { code: 'profile-required' } })
+  for (const spec of [
+    'shadow@https://example.test/required.tgz',
+    'shadow@github:example/required',
+    'shadow@git+https://example.test/required.git',
+    'shadow@workspace:*',
+  ]) expect(await manager.installBundle(spec)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(pnpm).not.toHaveBeenCalled()
+})
+
+it('allows a valid local archive whose manifest does not name a required bundle to reach pnpm', async () => {
+  const { manager, dir } = await fixture('live', false, undefined, { requiredBundles: ['extra'] })
+  const pnpm = vi.spyOn(operations, 'runProfilePnpm').mockResolvedValue({
+    exitCode: 1, output: 'expected test stop', truncated: false, logPath: join(dir, 'pnpm.log'), kind: 'unknown',
+  })
+  onTestFinished(() => { pnpm.mockRestore() })
+  const tarball = join(dir, 'harmless.tgz')
+  writeFileSync(tarball, gzipSync(Buffer.concat([
+    tarEntry('package/package.json', Buffer.from(JSON.stringify({ name: 'harmless' }))),
+    Buffer.alloc(1024),
+  ])))
+  expect(await manager.installBundle(tarball)).toMatchObject({ application: 'failed', packageResult: { exitCode: 1 } })
+  expect(pnpm).toHaveBeenCalledOnce()
+})
+
+it('rejects duplicate and PAX-redirected package manifests before pnpm', async () => {
+  const { manager, dir } = await fixture('live', false, undefined, { requiredBundles: ['extra'] })
+  const pnpm = vi.spyOn(operations, 'runProfilePnpm')
+  onTestFinished(() => { pnpm.mockRestore() })
+  const harmless = Buffer.from(JSON.stringify({ name: 'harmless' }))
+  const required = Buffer.from(JSON.stringify({ name: 'extra' }))
+  const duplicate = join(dir, 'duplicate-package-manifest.tgz')
+  writeFileSync(duplicate, gzipSync(Buffer.concat([
+    tarEntry('package/package.json', harmless),
+    tarEntry('package/package.json', required),
+    Buffer.alloc(1024),
+  ])))
+  const paxRedirect = join(dir, 'pax-redirect-package-manifest.tgz')
+  writeFileSync(paxRedirect, gzipSync(Buffer.concat([
+    tarEntry('package/package.json', harmless),
+    tarEntry('PaxHeader', paxRecord('path', 'package/package.json'), 'x'),
+    tarEntry('ignored-path', required),
+    Buffer.alloc(1024),
+  ])))
+  expect(await manager.installBundle(duplicate)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(await manager.installBundle(paxRedirect)).toMatchObject({ error: { code: 'profile-required' } })
+  expect(pnpm).not.toHaveBeenCalled()
+})
+
+it('does not expose required bundle policy as a live settings field', () => {
+  expect(PluginManager.Config.dict?.requiredBundles?.meta.volatile).toBeUndefined()
+})
+
+it('merges product-required bundles with ordinary manager configuration', async () => {
+  await withProductRequiredBundles(JSON.stringify(['extra']), async () => {
+    const { manager } = await fixture('live', false, undefined, { registry: 'https://registry.example.test/' })
+    expect(await manager.registries()).toMatchObject({ registry: 'https://registry.example.test/' })
+    expect(await manager.setBundleEnabled('extra', false)).toMatchObject({ error: { code: 'profile-required' } })
+  })
+})
+
+it.each([
+  '{',
+  JSON.stringify({ extra: true }),
+  JSON.stringify(['extra@1.0.0']),
+  JSON.stringify([' extra']),
+  JSON.stringify(['extra', 'extra']),
+  JSON.stringify(['extra', 1]),
+  JSON.stringify(['a'.repeat(215)]),
+])('rejects malformed product-required bundle policy %j during startup', async (input) => {
+  await withProductRequiredBundles(input, async () => {
+    const { manager } = await fixture()
+    expect(manager).toBeUndefined()
+  })
+})
+
+it('restores the profile when pnpm resolves an unexpected required package identity', async () => {
+  const { manager, dir, bundle } = await fixture('live', false, undefined, { requiredBundles: ['extra'] })
+  const before = readFileSync(join(dir, 'package.json'), 'utf8')
+  const install = vi.spyOn(operations, 'runProfilePnpm').mockImplementation(async () => {
+    bundle('shadow', [])
+    writeFileSync(join(dir, 'node_modules', 'shadow', 'package.json'), JSON.stringify({
+      name: 'extra', version: '2.0.0', dsh: { bundle: { patch: './cordis.patch.yml' } },
+    }))
+    const manifest = readProfileManifest('test', dir)
+    manifest.dependencies = { ...manifest.dependencies, shadow: 'npm:harmless@2.0.0' }
+    writeFileSync(join(dir, 'package.json'), JSON.stringify(manifest))
+    return { exitCode: 0, output: '', truncated: false, logPath: join(dir, 'pnpm.log') }
+  })
+  onTestFinished(() => { install.mockRestore() })
+  expect(await manager.installBundle('shadow@npm:harmless@2.0.0')).toMatchObject({ error: { code: 'profile-required' } })
+  expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(before)
 })
 
 it.each([

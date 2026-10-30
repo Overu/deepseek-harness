@@ -1,4 +1,6 @@
 /** Insight-specific DSH workspace branding and account footer registrations. */
+import insightSkillsRemote from '@insight-ai/desktop-integration/remote'
+export type {} from '@insight-ai/desktop-integration/remote'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
@@ -10,16 +12,26 @@ import { InsightAccountSettings, type InsightAccountSettingsInjected } from './A
 import { InsightAccountSource } from './account-source.ts'
 import { InsightBrandMark, InsightBrandName } from './Brand.tsx'
 import { InsightSettingsLauncher, type InsightSettingsLauncherInjected } from './SettingsLauncher.tsx'
+import { InsightSkillPicker, type InsightSkillPickerInjected } from './InsightSkillPicker.tsx'
 
 /** Required service: the generic browser slot registry. */
-export const inject = ['slots']
+export const inject = ['slots', 'remote']
 
 /**
  * Replace generic DSH product branding and expose the Main-owned account summary.
  * The account bridge is optional so ordinary Web clients keep their existing UI.
  * @param ctx - Root client context.
+ * @returns disposer removing the product UI before its generated Remote contribution.
  */
-export function apply(ctx: Context): void {
+export async function apply(ctx: Context): Promise<() => Promise<void>> {
+  const unmount = await ctx.remote.$mount(insightSkillsRemote)
+  const ui = ctx.inject(['remote.insightSkills'], registerProductUi)
+  try { await ui } catch (error) { await ui.dispose(); await unmount(); throw error }
+  return async () => { await ui.dispose(); await unmount() }
+}
+
+function registerProductUi(ctx: Context): void {
+  const inventory = ctx.remote.insightSkills
   const bridge = (globalThis as typeof globalThis & { insightAccount?: InsightAccountApi }).insightAccount
   const account = new InsightAccountSource(bridge)
   ctx.effect(() => () => { account.dispose() }, 'insight desktop account bridge')
@@ -47,4 +59,15 @@ export function apply(ctx: Context): void {
     name: 'settings.section', id: 'insight', order: -100, label: '因赛AI',
     inject: (): InsightAccountSettingsInjected => ({ hooks: { account: account.store } }),
   }, InsightAccountSettings))
+  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
+    name: 'conversation.input.left', id: 'insight-skills', order: -100,
+    inject: (): InsightSkillPickerInjected => ({
+      loadInventory: async (sessionId, signal) => {
+        const result = await inventory.list({ sessionId }, signal)
+        if (!result.ok) throw new Error(result.error.message)
+        return result.value
+      },
+    }),
+  }, InsightSkillPicker))
+
 }

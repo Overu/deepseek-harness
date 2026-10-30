@@ -68,7 +68,7 @@ function makeFakeInput(initial: Partial<InputState> & { draft: string }) {
     draftRev: 0,
     queue: [],
     ...initial,
-  } as InputState
+  }
   const subscribers = new Set<() => void>()
   function useInput<S>(selector: (s: InputState) => S): S {
     return useSyncExternalStore(
@@ -124,7 +124,7 @@ describe('dsh 0.1.2-rc.1 dual-compat (host omits sessionId)', () => {
   // silently never appears after an apply.
   it('keys the button and the undo bar to the same composer and drops the session route', async () => {
     const input = makeFakeInput({ draft: '旧原文' })
-    const setDraft = vi.fn((text: string) => input.set({ draft: text }))
+    const setDraft = vi.fn((text: string) =>{  input.set({ draft: text }) })
     renderComposer(input, { setDraft } as never, undefined)
     vi.mocked(requestEnhance).mockResolvedValue({ text: '增强文本', provider: 'p', model: 'm', elapsedMs: 5 })
 
@@ -155,7 +155,7 @@ describe('EnhanceButton guard chain', () => {
   })
 
   it('refuses image-only drafts', () => {
-    const input = makeFakeInput({ draft: '', attachmentIds: ['img1' as never] })
+    const input = makeFakeInput({ draft: '', attachmentIds: ['img1'] })
     renderComposer(input, { setDraft: vi.fn() } as never, 's1')
     fireEvent.click(enhanceButton())
     expect(screen.getByText(zh['error.imagesOnly'])).toBeTruthy()
@@ -203,7 +203,7 @@ describe('enhance → apply → undo loop', () => {
 
   it('runs the full loop: loading → result → apply fills back and raises the undo bar → undo restores', async () => {
     const input = makeFakeInput({ draft: '旧原文' })
-    const setDraft = vi.fn((text: string) => input.set({ draft: text }))
+    const setDraft = vi.fn((text: string) =>{  input.set({ draft: text }) })
     renderComposer(input, { setDraft } as never, 's1')
     vi.mocked(requestEnhance).mockResolvedValue({ text: '增强文本', provider: 'p', model: 'm', elapsedMs: 5 })
 
@@ -241,7 +241,7 @@ describe('enhance → apply → undo loop', () => {
 
   it('applying over a diverged draft pushes the CURRENT draft as undo original', async () => {
     const input = makeFakeInput({ draft: '旧原文' })
-    const setDraft = vi.fn((text: string) => input.set({ draft: text }))
+    const setDraft = vi.fn((text: string) =>{  input.set({ draft: text }) })
     renderComposer(input, { setDraft } as never, 's1')
     vi.mocked(requestEnhance).mockResolvedValue({ text: '增强文本', provider: 'p', model: 'm', elapsedMs: 5 })
 

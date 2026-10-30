@@ -40,7 +40,6 @@
  * 4. 固定宽度面板改自适应：pm-pane-*、sb-main、pm-overlay、sb-modal
  * 5. 内部滚动列表放开：me-list / mt-entries / bb-content 等 max-height 解除，
  *    内容随页面整体滚动（手机上避免嵌套滚动，体验更顺滑）
- * 6. 长表格横向滚动：mt-models-table 给 min-width 强制滚动容器生效
  */
 
 /* ================================================================
@@ -432,30 +431,11 @@ html[data-dsh-mobile] .bm-item-head {
 }
 
 /* ================================================================
- * 9. 设置 / 模型 Tab（me- / mt-models- 类）
+ * 9. 设置 Tab（me- 类）
  * ================================================================ */
 
 /* 设置 Tab（SettingsTabView）与 UI 设置（UiSettingsView）复用 me-panel /
    me-form / me-field / me-block，已由第 0 节通用规则覆盖，无需重复。 */
-
-/* 模型表格容器：桌面 flex:1 限高内滚（纵向），手机上改 flex:none
-   高度随内容（纵向随页面滚动），横向滚动保留（表格列多时左右滑）。 */
-html[data-dsh-mobile] .mt-models-scroll {
-  flex: none;
-  overflow-x: auto;
-}
-
-/* 模型表格：给一个最小宽度（约 640px），保证列不被压扁、横向滚动
-   容器真正生效（桌面 width:100% 会自动压缩列宽导致阅读困难）。
-   !important：对抗兜底层模式 3 —— 兜底对 [class*="table"] 强制
-   min-width: 0（让表格收缩回视口宽、内部滚动），此处要保 640px
-   表格宽度，方向相反，必须 !important（协议文档端到端验证第 12 项
-   即此场景）。 */
-html[data-dsh-mobile] .mt-models-table {
-  min-width: 640px !important;
-}
-
-/* 模型行内思考等级标签区：flex-wrap 已自带，无需处理。 */
 
 /* ================================================================
  * 10. DSH 对话区（中心列，ConversationRoot/ChatView）——消息与屏幕等宽

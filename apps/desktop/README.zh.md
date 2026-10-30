@@ -159,7 +159,7 @@ Electron 根据应用语言选择类型化的八种[内置 Client 语言](../../
 
 Windows 和 macOS 会在原生全屏切换及每次页面加载后向渲染器同步全屏状态，让浮层调整顶栏避让距离。
 
-Windows 使用 40 DIP 顶栏，保留原生窗口按钮，颜色随应用调色板同步。侧栏开关旁的本地化“应用”和“编辑”入口打开原生弹出菜单。仅当应用框架发布 shell overlay 席位后才挂载菜单，启动加载期间不显示。“应用”提供检查更新和退出；“编辑”向当前编辑器发送对应按键，提供撤销、重做、剪切、复制、粘贴、删除和全选，不受自定义快捷键绑定影响。插件管理使用主应用的“插件”页面。按 Alt 不会出现额外的原生菜单行。其他平台保留原生菜单。可编辑区域保留快捷键和不带快捷键标注的右键菜单；命令可用状态由 Chromium 提供，选中的只读文本提供“复制”命令。
+Windows 使用 40 DIP 顶栏，保留原生窗口按钮，颜色随应用调色板同步。侧栏开关旁的本地化“应用”和“编辑”入口打开原生弹出菜单。仅当应用框架发布 shell overlay 席位后才挂载菜单，启动加载期间不显示。“应用”提供检查更新和退出；Insight 额外提供重启应用与 Host、查看日志、缩放控制和通过 Electron role 实现的全屏。“编辑”向当前编辑器发送对应按键，提供撤销、重做、剪切、复制、粘贴、删除和全选，不受自定义快捷键绑定影响。插件管理使用主应用的“插件”页面。按 Alt 不会出现额外的原生菜单行。其他平台保留原生菜单。可编辑区域保留快捷键和不带快捷键标注的右键菜单；命令可用状态由 Chromium 提供，选中的只读文本提供“复制”命令。
 
 macOS 上自定义菜单保留 Electron 的标准 Window 菜单及应用隐藏命令，包括 Minimize（⌘M）和 Hide（⌘H）。Linux 保留应用菜单和 Edit 菜单。
 
@@ -180,6 +180,12 @@ Desktop 的致命故障通过原生恢复对话框提供退出、重启、禁用
 ### Host 环境
 
 macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的环境，不包含 shell 启动文件导出的变量。第一个 Host 启动之前，Desktop 以 `<shell> -ilc` 运行一次账户的登录 shell（取自用户数据库，不看 `$SHELL`），读取定界符之间的 `env -0` 输出，使 `~/.zprofile` 和 `~/.zshrc`（或该 shell 的对应文件）对 Host、agent shell、终端和 profile 配置生效。读取与 profile 准备并行进行。读取进程没有终端输入，并设置 `DISABLE_AUTO_UPDATE=true`、`ZSH_TMUX_AUTOSTARTED=true` 和 `ZSH_TMUX_AUTOSTART=false`，避免 oh-my-zsh 和 tmux 插件阻塞。shell 的值覆盖继承的值，但 `PWD`、`OLDPWD`、`SHLVL`、`_`、上述读取变量以及启动方自有的 `DSH_*` 和 `ELECTRON_*` 除外；Desktop 在读取之前已按 `DSH_HOME` 等变量解析路径，因此 Host 保持相同的值。读取在结束定界符出现时完成，因此启动文件启动的后台进程可以继续运行，其输出被丢弃。候选 shell 无法启动、以非零状态退出、没有输出定界内容或超过 `DSH_DESKTOP_LOGIN_SHELL_TIMEOUT_MS`（1000 到 2147483647 的整数毫秒，默认 `10000`；超时会结束其进程组）时，Desktop 记录一条警告，并依次尝试 `/bin/zsh`、`/bin/bash` 和 `/bin/sh`；全部失败时 Host 使用继承的环境。读取命令使用 POSIX 语法，因此 csh、tcsh 或 nushell 等账户 shell 会失败，Host 改为获得第一个系统 shell 的启动文件所设置的环境。读取期间退出 Desktop 会结束正在运行的读取进程组。每个应用进程只读取一次，因此修改 shell 启动文件后需要退出并重新打开 Desktop。Windows 从图形界面启动的程序已经从注册表继承用户和系统环境变量，因此 Windows 跳过这一步。
+
+启动 Host 前，Desktop 会移除启动器或登录 shell 继承的所有大小写变体 `DSH_PRODUCT_REQUIRED_BUNDLES` 和 `DSH_INSIGHT_SKILL_PROXY_NODE`。官方产品保持两者缺失。Insight 仅将 `product.ts` 中固定的产品 bundle 列表序列化为 JSON 后写入，并传递既有 primary-runtime Node 路径；它只向 Host 侧插件管理传递产品要求，不读取或替换用户 registry，也不携带第二份 Node 运行时。
+
+<a id="insight-bundled-skills"></a>
+
+Insight 还会将继承的所有大小写变体 `DSH_BUNDLED_SKILL_DIR` 替换为产品资源目录：开发时使用仓库根 `bundled-skills`，安装后使用 `resources/bundled-skills`。Host 启动前，Desktop 会打开、枚举并关闭该目录；失败时阻止启动，不读取技能文件。Insight 打包通过 `extraResources` 复制根目录，保持内部结构，并与插件包分离。官方产品保留既有技能目录环境。
 
 <a id="develop"></a>
 
@@ -383,6 +389,8 @@ node apps/desktop/node_modules/pnpm/bin/pnpm.mjs --dir apps/desktop run test:upd
 私有 Platform 部署请求头由内嵌浏览器会话注入，仅用于配置来源的文档和 API 请求。Cookie 覆盖按名称合并。跨来源请求移除部署请求头；bootstrap 仅暴露 origin、token 和已解析的语言。
 
 账号提供者的 `embeddedPageDist` 配置为内嵌用量和充值页面 URL 添加 `dist` 查询参数。默认值为空；私有前端分支选择值应写在本地 profile patch 中。此配置不改变 API 地址或凭证传递方式。
+
+Insight 将渲染器权限限制为所属工作区主 frame 与已识别的本地 Canvas frame。两者可以写入净化后的剪贴板内容并进入全屏；只有主 frame 可以通过既有操作系统麦克风流程请求音频媒体。视频、剪贴板读取、设备、捕获、位置、通知、文件系统、锁、未知、过期窗口及外部来源请求一律拒绝。
 
 <a id="dev-note"></a>
 

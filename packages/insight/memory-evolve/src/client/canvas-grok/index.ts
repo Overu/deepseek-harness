@@ -63,7 +63,7 @@ export function registerCanvasTab(ctx: CanvasTabHost, opts: RegisterCanvasTabOpt
       id: slotId,
       order: slotOrder,
       label: () => slotLabel,
-    }, (props) => CanvasView({ ...props, t: opts.t, openSession: opts.openSession })))
+    }, props => CanvasView({ ...props, t: opts.t, openSession: opts.openSession })))
   return () => {
     disposeSlot()
     disposeStyle()

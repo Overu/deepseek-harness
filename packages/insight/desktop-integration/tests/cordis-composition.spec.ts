@@ -23,9 +23,18 @@ const basePatch = fileURLToPath(new URL('../../../bundle/base/cordis.patch.yml',
 const webPatch = fileURLToPath(new URL('../../../bundle/web-app/cordis.patch.yml', import.meta.url))
 const insightPatch = fileURLToPath(new URL('../cordis.patch.yml', import.meta.url))
 const insightEntry = pathToFileURL(fileURLToPath(new URL('../lib/index.js', import.meta.url))).href
+const productRequiredBundles = [
+  '@insight-ai/desktop-integration',
+  '@insight-ai/desktop-canvas-plugin',
+  'dsh-memory-evolve',
+  'dsh-prompt-enhance',
+]
 
 let context: Context | undefined
-beforeEach(() => { vi.stubEnv('DSH_INSIGHT_SERVICE_ENVIRONMENT', 'test') })
+beforeEach(() => {
+  vi.stubEnv('DSH_INSIGHT_SERVICE_ENVIRONMENT', 'test')
+  vi.stubEnv('DSH_PRODUCT_REQUIRED_BUNDLES', JSON.stringify(productRequiredBundles))
+})
 afterEach(async () => {
   await context?.fiber.dispose()
   context = undefined
@@ -41,9 +50,20 @@ function composedInsightEntries() {
 }
 
 describe('Insight Desktop profile composition', () => {
+  it.each(['skillProxyMaxActiveRequests', 'skillProxyMaxBufferedRequestBytes', 'skillProxyRequestTimeoutMs'])(
+    'rejects fractional %s before mounting business services', (field) => {
+      const config = {
+        requestTimeoutMs: 10_000, serviceEnvironment: 'test' as const, skillProxyMaxActiveRequests: 8,
+        skillProxyMaxBufferedRequestBytes: 16_777_216, skillProxyRequestTimeoutMs: 1_250_000,
+      }
+      expect(Integration.Config(config)).toEqual(config)
+      expect(() => Integration.Config({ ...config, [field]: 1.5 })).toThrow()
+    },
+  )
+
   it('exports exactly the Cordis entrypoint required by its bundle row', () => {
     expect(Object.keys(Integration).sort()).toEqual(['Config', 'apply', 'inject', 'name'])
-    expect(Integration.inject).toEqual(['llm'])
+    expect(Integration.inject).toEqual(['llm', 'web', 'shellEnv'])
   })
 
   it('keeps the upstream profile untouched until the Insight bundle layer applies', () => {
@@ -57,11 +77,23 @@ describe('Insight Desktop profile composition', () => {
   it('loads Insight while leaving every upstream account, brand, and telemetry row disabled', async () => {
     const entries = composedInsightEntries()
     const integration = entries.find(entry => entry.id === 'insight-desktop-integration')
-    expect(integration).toMatchObject({ name: insightEntry, config: { requestTimeoutMs: 10_000 } })
+    expect(integration).toMatchObject({
+      name: insightEntry,
+      config: {
+        requestTimeoutMs: 10_000,
+        skillProxyMaxActiveRequests: 8,
+        skillProxyMaxBufferedRequestBytes: 16_777_216,
+        skillProxyRequestTimeoutMs: 1_250_000,
+      },
+    })
     expect(integration?.disabled).not.toBe(true)
     expect(entries.find(entry => entry.id === 'agent-default-model')?.config).toEqual({
       provider: 'yinsai-gateway', model: 'deepseek-flash',
     })
+    expect(entries.find(entry => entry.id === 'web')?.config).toMatchObject({
+      searchProvider: 'insight-enterprise-search', fetchProvider: 'http',
+    })
+    expect(entries.find(entry => entry.id === 'plugin-manager')?.config ?? {}).not.toHaveProperty('requiredBundles')
     for (const id of suppressed) expect(entries.find(entry => entry.id === id)?.disabled).toBe(true)
 
     context = new Context()

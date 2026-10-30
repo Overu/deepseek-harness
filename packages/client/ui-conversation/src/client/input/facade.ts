@@ -28,6 +28,7 @@ import { SubmitMachine } from './machine.ts'
 import { resolveDraftInput, snapshotDraft } from '../draft.ts'
 import { DraftEditorRuntime } from './editor/runtime.ts'
 import type { EditorProjection } from './editor/projection.ts'
+import { explicitSkillTokenSpans, isExplicitSkillName, selectedExplicitSkills } from './selected-skills.ts'
 
 /** Popup face the shell needs (dismissal only; typed structurally to avoid a value import). */
 export interface PopupDismissFace {
@@ -141,6 +142,7 @@ export class SessionInputShell implements SessionInput {
   /** The public provide-channel action face (one stable identity per session). */
   readonly actions: InputActions = {
     insertQuote: text => this.insertQuote(text),
+    toggleSkill: (name) => { this.toggleSkill(name) },
     captureInsertion: () => ({ ...this.caretSpan(), draftRev: this.rev }),
     insertText: (text, span) => {
       if (frozen(this.snapshot.phase) || this.disposed) return false
@@ -236,6 +238,24 @@ export class SessionInputShell implements SessionInput {
     const inserted = this.draftEditor.insertQuote(text.replace(/\r\n?/gu, '\n'), { remove: this.deps.quoteRemoveLabel?.() ?? '' })
     if (inserted) this.focus()
     return inserted
+  }
+
+  /**
+   * Toggle one visible explicit skill token using the live detect projection.
+   * Atomic references, quotes, and command chips are opaque in that projection,
+   * so this action cannot delete their displayed contents.
+   * @param name - skill name without its leading slash.
+   */
+  private toggleSkill(name: string): void {
+    if (this.disposed || this.snapshot.phase !== 'plain' || !isExplicitSkillName(name)) return
+    const spans = explicitSkillTokenSpans(this.projection.detectText, name)
+    if (spans.length > 0) {
+      for (const span of [...spans].reverse()) this.draftEditor.replaceText(span, '')
+      return
+    }
+    const text = this.projection.detectText
+    const prefix = text === '' || /\s$/u.test(text) ? '' : ' '
+    this.draftEditor.replaceText({ start: text.length, end: text.length }, `${prefix}/${name} `)
   }
 
   /**
@@ -851,6 +871,7 @@ export class SessionInputShell implements SessionInput {
       phase: core.phase,
       ...(core.claim !== undefined ? { claim: core.claim } : {}),
       occurrences: this.projection.occurrences,
+      selectedSkills: selectedExplicitSkills(this.projection.detectText),
       queue: this.deps.inbox?.getSnapshot()?.['next-turn'] ?? EMPTY_QUEUE,
     }
   }

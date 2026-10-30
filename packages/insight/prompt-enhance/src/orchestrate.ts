@@ -213,7 +213,7 @@ export interface RunEnhanceOptions {
 }
 
 /**
- * Resolve the model route (settings pair → session route → harness default),
+ * Resolve the model route (session route → harness default),
  * look up the LLM service, and run one normalized enhancement.
  * @throws an error whose `detail` (via `toEnhanceError`) carries the wire
  *   error — `unconfigured` when no route resolves, `internal` when the LLM
@@ -228,7 +228,7 @@ export async function runEnhance(ctx: Context, config: Config, options: RunEnhan
   const requestId = randomUUID().slice(0, 8)
   const started = Date.now()
   try {
-    const route = resolveRoute(config, options.sessionRoute, defaultRouteOf(ctx))
+    const route = resolveRoute(options.sessionRoute, defaultRouteOf(ctx))
     if (route === undefined) {
       // No detail line: the fix instructions are the localized primary copy.
       throw new EnhanceFailure({ code: 'unconfigured' })

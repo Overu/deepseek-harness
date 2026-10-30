@@ -21,12 +21,10 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
-import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { MemoryTabView } from './MemoryTabView.tsx'
 import { SkillsTabView } from './SkillsTabView.tsx'
 import { TodosTabView } from './TodosTabView.tsx'
 import { SettingsTabView } from './SettingsTabView.tsx'
-import { ModelsTabView } from './ModelsTabView.tsx'
 import { UiSettingsTabView } from './UiSettingsView.tsx'
 import { CoIView } from './CoIView.tsx'
 import { HeaderActions } from './HeaderActions.tsx'
@@ -278,65 +276,6 @@ export const zh = {
   'todosTab.feature.guide': '指南',
   'todosTab.feature.todoSuggestions': '待确认待办管理',
   'todosTab.feature.todo': '待办',
-  // 模型设置 Tab（models-hub）：表格展示 DSH 供应商/模型 + 每模型
-  // 启用/备注/可用思考等级配置（对应 de_models 工具的 Web 数据面）：
-  'modelsTab.label': '模型设置',
-  'modelsTab.feature.models': '模型设置',
-  'modelsTab.feature.guide': '指南',
-  'modelsTab.guide.what.title': '模型设置是什么',
-  'modelsTab.guide.what.body': '以表格形式一览 DSH 的全部供应商与模型，并为每个模型维护插件侧配置（启用状态、备注、思考等级）——所有配置归属本插件（models.json），不修改 DSH 配置、不与其他插件耦合：',
-  'modelsTab.guide.what.item1': '表格列：启用开关、供应商（含 DSH 激活状态）、模型（名称 + ID）、上下文 / 输出容量、思考等级、图片输入标记（🖼）、备注；支持搜索与「显示思考等级」切换；',
-  'modelsTab.guide.what.item2': '每模型可设置：启用 / 禁用（插件口径的可用性标记，不改变 DSH 实际路由）、备注、是否支持思考、可用思考等级、推荐思考等级、自定义等级；',
-  'modelsTab.guide.what.item3': '配置写入即持久化（<memoryDir>/models.json），重启不丢。',
-  'modelsTab.guide.config.title': '每模型配置项',
-  'modelsTab.guide.config.body': '展开一行（「配置等级」）即可编辑思考相关配置：',
-  'modelsTab.guide.config.item1': '启用 / 禁用：决定 de_models 工具默认列出的可用模型（默认全部启用）；',
-  'modelsTab.guide.config.item2': '支持思考：关闭后该模型不允许思考（仅 off 等级可用）；',
-  'modelsTab.guide.config.item3': '推荐思考等级：默认「自动」跟随模型自身推荐，可手动指定任一可用等级；',
-  'modelsTab.guide.config.item4': '可用思考等级：勾选哪些等级允许使用（默认全部）；可添加自定义等级（如 ultra），移除自定义等级；',
-  'modelsTab.guide.config.item5': '图片输入能力：模型显式声明支持图片输入时显示「🖼 图片输入」标记（来自 DSH 模型能力元数据，只读展示）；未声明 = 未知，不显示。',
-  'modelsTab.guide.tool.title': 'de_models 工具（给 AI 用）',
-  'modelsTab.guide.tool.body': '本模块同时注册 de_models 工具，AI 可以直接查询当前可用模型（接口）清单：',
-  'modelsTab.guide.tool.item1': '默认只返回「启用」的模型（all=true 查看全部含禁用），可按供应商过滤；',
-  'modelsTab.guide.tool.item2': '每个模型返回：是否启用、DSH 是否激活、是否支持图片输入（supportsImage：true / false / null=未知）、是否支持思考、可用思考等级（含推荐与自定义）、备注。',
-  'modelsTab.guide.switch.title': '开关',
-  'modelsTab.guide.switch.body': '模型设置默认开启；可在「Memory Evolve 设置」Tab 的「配置」里独立关闭（与其他模块同款开关）——关闭后本 Tab 与 de_models 工具隐藏，配置数据保留。',
-  'modelsTab.searchPh': '搜索供应商、模型或备注…',
-  'modelsTab.showReasoning': '显示思考等级',
-  'modelsTab.refresh': '刷新',
-  'modelsTab.loading': '加载中…',
-  'modelsTab.count': '共 {total} 个模型 · {enabled} 个启用',
-  'modelsTab.loadFailed': '加载失败：{message}',
-  'modelsTab.empty': '（暂无模型）',
-  'modelsTab.enabled': '启用',
-  'modelsTab.enable': '启用',
-  'modelsTab.disable': '禁用',
-  'modelsTab.provider': '供应商',
-  'modelsTab.model': '模型',
-  'modelsTab.capacity': '上下文/输出',
-  'modelsTab.reasoning': '思考等级',
-  'modelsTab.note': '备注',
-  'modelsTab.notePh': '输入备注…',
-  'modelsTab.dormant': '未激活',
-  'modelsTab.thinking': '支持思考',
-  'modelsTab.thinkingHint': '关闭后该模型不允许思考（仅 off 等级可用）',
-  'modelsTab.thinkingOff': '不支持思考',
-  'modelsTab.supportsImage': '🖼 图片输入',
-  'modelsTab.supportsImageHint': '该模型显式声明支持图片输入（来自 DSH 模型能力元数据 inputModalities）',
-  'modelsTab.recommendedLevel': '推荐思考等级',
-  'modelsTab.recommendedAuto': '自动（跟随模型推荐）',
-  'modelsTab.levelsNone': '全部禁用',
-  'modelsTab.editLevels': '配置等级',
-  'modelsTab.closeEditor': '收起',
-  'modelsTab.editorTitle': '可用思考等级（勾选 = 允许该等级；推荐来自模型能力）',
-  'modelsTab.recommended': '推荐',
-  'modelsTab.addLevel': '添加',
-  'modelsTab.removeLevel': '移除',
-  'modelsTab.levelIdPh': '等级 ID（如 ultra）',
-  'modelsTab.levelNamePh': '显示名（如 Ultra）',
-  'modelsTab.save': '保存',
-  'modelsTab.saving': '保存中…',
-  'modelsTab.cancel': '取消',
   // Web UI 设置 Tab（ui-settings-hub）：「综合」= 各功能独立小开关（用户
   // 拍板：功能未定型前不精确分类，统一收「综合」）；「指南」= 精简简介
   // （用户拍板：不细讲每个小功能怎么用）。真正的功能注入是全局 DOM 增强
@@ -712,8 +651,6 @@ export const zh = {
   'panel.guide.coi.desc': '把任务派给外部 CLI 代理（kimi / codex / grok / hermes 等）：统一调度不卡主进程、实时看进度、会话自动分层管理可一键恢复、跨 COI 接力、任务结果留档并沉淀到记忆。说「派给 kimi / codex 做 XX」即可，或打开「COI 调度」Tab 手动发起。默认禁用：在「配置」里打开「COI 调度」开关（工具即时生效，Tab 刷新后出现）。',
   'panel.guide.prompt.title': '提示词管理器（Prompt Manager）',
   'panel.guide.prompt.desc': '把常用的工作范式固化成提示词资产：选中一条即可注入——写入后模型下一轮自动看到、不打断回复；支持一次性、持续 N 轮、每 M 回合提醒一次（次数 / 间隔可输入任意数字，按对话回合计数自动过期），「注入中」可随时停止；也支持临时注入：不建提示词直接输入内容注入，自动存入库中。默认禁用：在「配置」里打开「提示词管理器」开关，Tab 刷新后出现。',
-  'panel.guide.models.title': '模型设置（de_models）',
-  'panel.guide.models.desc': '「模型设置」Tab + de_models 工具：表格一览 DSH 现有供应商与模型，给每个模型设置「插件侧」的启用状态、备注、是否支持思考与可用 / 推荐思考等级（可勾选等级白名单、添加自定义等级）——这些配置只对本插件有用（决定 de_models 查询口径与 Tab 展示），不修改、也不影响 DSH 自身的模型设置（DSH 的模型配置仍以官方「设置 → 模型」为准）。默认禁用：在「配置」里打开「模型设置」开关后，Tab 刷新出现、de_models 工具生效。',
   'panel.guide.advisor.title': '会话评审（Advisor）',
   'panel.guide.advisor.desc': '给每个会话挂一个独立评审员——它只观察你在界面上看到的对话（不含思考 / 工具调用），每轮实时评审，需要时以「用户指令」的形式提醒你（info / nit / concern / blocker 四级；info 默认仅记录；对话流中以折叠行 [severity] 显示，方便你认出哪些话是评审员说的）。评审员是持续会话——记住全部历史、永不截断；面板里可新建评审会话（重头开始）、直接提问、设置四层级约束（系统提示词 / 项目约束 / 会话约束 / 本次评审会话约束，越局部越优先）。默认关闭：先在「配置」打开总闸，再在会话页悬浮面板里为本会话手动启用；评审模型缺省继承当前会话模型，可单独配置。',
   'panel.guide.broadcast.title': '会话广播（de_broadcast）',
@@ -827,8 +764,6 @@ export const zh = {
   'panel.config.sessionEnabled.hint': '启用会话编排（de_session）：让 AI **程序化创建/唤醒 DSH 会话**——spawn 新建标准会话（与手动打开完全同构：系统提示词/工具/记忆快照/持久化，出现在左侧会话列表可接管），prompt=完整提示词（角色/任务自由组合的长文本），创建后立即自动开跑，可选 cwd/加入广播房间/覆盖模型；wake 唤醒已有会话（等价替用户发消息，对方 AI 自动醒来处理，进程重启后自动恢复）；status/list 查状态；**会话头部「⧉ 复制会话ID」「✎ 别名」按钮随本开关**（会话身份功能，曾误挂在广播下）。**独立子模块**（默认关闭；依赖 DSH agents 服务，仅同进程会话可唤醒；关闭时工具对模型不可见）',
   'panel.config.promptsEnabled': '提示词管理器',
   'panel.config.promptsEnabled.hint': '启用「提示词」Tab：提示词库（用户自写范式 + 内置示例）+ 注入轨（一次性/持续 N 轮/每 M 回合一次，次数与间隔可输入任意数字——写入后模型下一轮自动看到，回合递减自动过期，可随时停止；不建提示词也能临时注入，自动入库归入「临时」分类）。默认关闭；关闭时快照段/事件监听/API 全部卸载，Tab 刷新后隐藏',
-  'panel.config.modelsEnabled': '模型设置',
-  'panel.config.modelsEnabled.hint': '启用「模型设置」Tab + de_models 工具：表格展示 DSH 供应商/模型，给每个模型设置启用状态、备注、是否支持思考、可用/推荐思考等级（可加自定义等级）；de_models 供 AI 查询可用模型清单。**默认关闭**（注册即占模型工具列表，需要时再开）；⚠️ 本模块的配置**只对插件自身有用，不修改也不影响 DSH 的模型设置**（DSH 侧仍以官方「设置 → 模型」为准）。关闭时 Tab 与工具隐藏、API 拒绝访问，配置数据保留',
   'panel.config.uiSettingsEnabled': 'Web UI 设置',
   'panel.config.uiSettingsEnabled.hint': '启用「Web UI 设置」模块：左侧会话列表顶部出现筛选条，默认只显示进行中的会话（正在生成/等审批/等回答/有子代理在跑/出错/已完成未查看——纯 idle 的折叠隐藏），可一键切回全部；纯客户端样式增强（CSS + DOM 注入，不改 DSH 框架）；筛选偏好记在浏览器本地。**默认关闭**；关闭时筛选条与注入样式全部移除',
   'panel.config.save': '保存配置',
@@ -1057,63 +992,6 @@ export const en: Record<MemoryEvolveKey, string> = {
   'todosTab.feature.guide': 'Guide',
   'todosTab.feature.todoSuggestions': 'Todo suggestions',
   'todosTab.feature.todo': 'Todos',
-  'modelsTab.label': 'Model Settings',
-  'modelsTab.feature.models': 'Model Settings',
-  'modelsTab.feature.guide': 'Guide',
-  'modelsTab.guide.what.title': 'What is Model Settings',
-  'modelsTab.guide.what.body': 'A table view of every DSH provider and model, with per-model plugin-side settings (enabled state, note, reasoning levels). All settings belong to this plugin (models.json) — DSH configuration is never touched and nothing couples to other plugins:',
-  'modelsTab.guide.what.item1': 'Columns: enabled switch, provider (with DSH activation state), model (name + ID), context / output capacity, reasoning levels, image-input marker (🖼), note; search and a "show reasoning levels" toggle;',
-  'modelsTab.guide.what.item2': 'Per model: enable / disable (a plugin-side availability flag — DSH routing is untouched), note, thinking support, allowed reasoning levels, recommended level, custom levels;',
-  'modelsTab.guide.what.item3': 'Settings persist immediately (<memoryDir>/models.json) across restarts.',
-  'modelsTab.guide.config.title': 'Per-model settings',
-  'modelsTab.guide.config.body': 'Expand a row ("configure levels") to edit reasoning settings:',
-  'modelsTab.guide.config.item1': 'Enable / disable: decides which models the de_models tool lists by default (all enabled by default);',
-  'modelsTab.guide.config.item2': 'Thinking support: when off the model cannot reason (only the off level remains);',
-  'modelsTab.guide.config.item3': 'Recommended level: "auto" follows the model own recommendation by default; you can pin any available level;',
-  'modelsTab.guide.config.item4': 'Allowed levels: tick which levels may be used (all by default); custom levels (e.g. ultra) can be added / removed;',
-  'modelsTab.guide.config.item5': 'Image input: models explicitly declaring image support show the "🖼 image input" marker (from DSH model capability metadata, read-only); undeclared = unknown, no marker.',
-  'modelsTab.guide.tool.title': 'de_models tool (for the AI)',
-  'modelsTab.guide.tool.body': 'This module also registers the de_models tool so the AI can query the available model (endpoint) list:',
-  'modelsTab.guide.tool.item1': 'Only "enabled" models are returned by default (all=true shows everything incl. disabled), filterable by provider;',
-  'modelsTab.guide.tool.item2': 'Each model reports: enabled, DSH-activated, image input support (supportsImage: true / false / null=unknown), thinking support, allowed reasoning levels (incl. recommended and custom), note.',
-  'modelsTab.guide.switch.title': 'Switch',
-  'modelsTab.guide.switch.body': 'Model Settings are on by default; they can be turned off independently under "Config" in the "Memory Evolve Settings" tab like other modules — the tab and the de_models tool hide, settings data is kept.',
-  'modelsTab.searchPh': 'Search provider, model, or note…',
-  'modelsTab.showReasoning': 'Show reasoning levels',
-  'modelsTab.refresh': 'Refresh',
-  'modelsTab.loading': 'Loading…',
-  'modelsTab.count': '{total} models · {enabled} enabled',
-  'modelsTab.loadFailed': 'Load failed: {message}',
-  'modelsTab.empty': '(No models)',
-  'modelsTab.enabled': 'Enabled',
-  'modelsTab.enable': 'Enable',
-  'modelsTab.disable': 'Disable',
-  'modelsTab.provider': 'Provider',
-  'modelsTab.model': 'Model',
-  'modelsTab.capacity': 'Context/Output',
-  'modelsTab.reasoning': 'Reasoning',
-  'modelsTab.note': 'Note',
-  'modelsTab.notePh': 'Add a note…',
-  'modelsTab.dormant': 'Inactive',
-  'modelsTab.thinking': 'Support thinking',
-  'modelsTab.thinkingHint': 'When off, this model cannot reason (only the off level stays available)',
-  'modelsTab.thinkingOff': 'Thinking off',
-  'modelsTab.supportsImage': '🖼 Image input',
-  'modelsTab.supportsImageHint': 'This model explicitly declares image input support (from DSH model capability metadata inputModalities)',
-  'modelsTab.recommendedLevel': 'Recommended level',
-  'modelsTab.recommendedAuto': 'Auto (follow model recommendation)',
-  'modelsTab.levelsNone': 'All disabled',
-  'modelsTab.editLevels': 'Configure levels',
-  'modelsTab.closeEditor': 'Collapse',
-  'modelsTab.editorTitle': 'Available reasoning levels (check = allowed; recommended comes from the model)',
-  'modelsTab.recommended': 'Recommended',
-  'modelsTab.addLevel': 'Add',
-  'modelsTab.removeLevel': 'Remove',
-  'modelsTab.levelIdPh': 'Level ID (e.g. ultra)',
-  'modelsTab.levelNamePh': 'Display name (e.g. Ultra)',
-  'modelsTab.save': 'Save',
-  'modelsTab.saving': 'Saving…',
-  'modelsTab.cancel': 'Cancel',
   // DSH UI Settings tab (ui-settings-hub): module intro (guide sub-tab) +
   // future extension seat (themes etc.). The real feature (session filter)
   // is a global DOM enhancement independent of this tab; the feature
@@ -1489,10 +1367,8 @@ export const en: Record<MemoryEvolveKey, string> = {
   'panel.guide.coi.desc': 'Dispatch tasks to external CLI agents (kimi / codex / grok / hermes…): unified scheduling without blocking, live progress, layered sessions with one-click resume, cross-COI chaining, results archived and distilled into memory. Say "dispatch XX to kimi / codex" or use the COI Dispatch tab. Off by default: enable "COI dispatch" under Config.',
   'panel.guide.prompt.title': 'Prompt manager',
   'panel.guide.prompt.desc': 'Turn recurring working patterns into prompt assets: pick one and inject — the model sees it next turn without interrupting the reply; supports one-shot, N turns, or every-M-turns reminders (numbers freely editable, auto-expiring by turn count), stoppable anytime; ad-hoc injection works without creating a prompt first. Off by default: enable "Prompt manager" under Config.',
-  'panel.guide.models.title': 'Model settings (de_models)',
-  'panel.guide.models.desc': 'The "Model settings" tab + de_models tool: a table of DSH providers and models with plugin-side per-model settings (enabled, note, thinking support, allowed / recommended reasoning levels incl. custom levels) — these settings only affect this plugin (de_models queries and tab display); DSH own model settings stay untouched. Off by default: enable "Model settings" under Config.',
   'panel.guide.advisor.title': 'Session review (Advisor)',
-  'panel.guide.advisor.desc': `Attach an independent reviewer to every session — it only observes what you see in the UI (no thinking / tool calls), reviews each turn in real time and nudges you as "user instructions" when needed (info / nit / concern / blocker; info is record-only by default; in the chat flow these appear as collapsed [severity] lines so you can tell them apart). It works as a persistent session — full context, never truncated; the panel supports starting a fresh reviewer, asking it directly, and four levels of constraints (system prompt / project / session / reviewer-session, most-local wins). Off by default: open the master switch under Config, then enable per session in the floating panel; the reviewer model inherits the session model by default and can be set separately.`,
+  'panel.guide.advisor.desc': 'Attach an independent reviewer to every session — it only observes what you see in the UI (no thinking / tool calls), reviews each turn in real time and nudges you as "user instructions" when needed (info / nit / concern / blocker; info is record-only by default; in the chat flow these appear as collapsed [severity] lines so you can tell them apart). It works as a persistent session — full context, never truncated; the panel supports starting a fresh reviewer, asking it directly, and four levels of constraints (system prompt / project / session / reviewer-session, most-local wins). Off by default: open the master switch under Config, then enable per session in the floating panel; the reviewer model inherits the session model by default and can be set separately.',
   'panel.guide.broadcast.title': 'Session broadcast (de_broadcast)',
   'panel.guide.broadcast.desc': 'Message passing between DSH sessions: copy your session ID (⧉ button in the session header), send it to another session and let its AI use de_broadcast send to reach you — the receiver snapshot gets a targeted unread notice (visible only to the receiver), the AI reads the full text via list / read, auto-deleted once everyone has read it; very long content is stored to a file. Rooms support multi-member collaboration across working directories; project groups reach a whole directory. Off by default: enable "Session broadcast" under Config.',
   'panel.guide.session.title': 'Session search (de_session_search)',
@@ -1604,8 +1480,6 @@ export const en: Record<MemoryEvolveKey, string> = {
   'panel.config.sessionEnabled.hint': 'Enable session orchestration (de_session): lets AI **programmatically create/wake DSH sessions** — spawn creates a standard session (identical to one opened manually: system prompt/tools/memory snapshot/persistence, appears in the left session list and can be taken over), prompt = the full instruction text (role/task freely composed), it starts running immediately; optional cwd / join a broadcast room / model override; wake wakes an existing session (equivalent to sending a message on its behalf — its AI wakes up and processes it, auto-resumed after process restart); status/list inspect state; the header **"⧉ Copy session ID" / "✎ alias" buttons follow this switch** (session-identity features, previously mis-housed under broadcast). **Independent submodule** (off by default; depends on the DSH agents service, only same-process sessions can be woken; when off the tool is invisible to the model)',
   'panel.config.promptsEnabled': 'Prompt manager',
   'panel.config.promptsEnabled.hint': 'Enable the Prompts tab: a prompt library (user-written paradigms + built-in examples) plus an injection track (once / N consecutive turns / every M turns — count and cadence accept any integers; injected content is visible to the model next turn, expires automatically by turn counting, and can be stopped anytime; quick inject works without saving a prompt first, auto-saved to the Temp category). Off by default; when off the snapshot section, event listener and API are fully uninstalled and the tab hides after refresh',
-  'panel.config.modelsEnabled': 'Model Settings',
-  'panel.config.modelsEnabled.hint': 'Enable the "Model Settings" tab + de_models tool: a table of DSH providers/models with per-model settings (enabled, note, thinking support, allowed/recommended reasoning levels, custom levels); de_models lets the AI query the available model list. **Off by default** (registering takes a slot in the model tool list; turn it on when needed). ⚠️ These settings **only affect this plugin and never modify or affect DSH\'s own model settings** (DSH side stays as the official "Settings → Models" says). When off the tab and tool hide and the API refuses access, settings data is kept',
   'panel.config.uiSettingsEnabled': 'Web UI Settings',
   'panel.config.uiSettingsEnabled.hint': 'Enable the "Web UI Settings" module: a filter bar appears above the left session list, showing only active sessions by default (generating / awaiting approval / awaiting answer / subagents running / error / finished-but-unviewed — purely idle ones collapse away), one click switches back to all; pure client-side styling (CSS + DOM injection, no DSH framework changes); the filter preference is remembered in the browser. **Off by default**; when off, the filter bar and injected styles are fully removed',
   'panel.config.save': 'Save config',
@@ -1682,7 +1556,8 @@ export const inject = ['slots', 'locale', 'uiConversation', 'uiWorkspace']
  * @param ctx - client root context.
  */
 export function apply(ctx: Context): void {
-  const t = ctx.locale.bind(NS) as unknown as Translate
+  const translate = ctx.locale.bind(NS)
+  const t = (key: string, params?: Record<string, unknown>): string => translate(key as MemoryEvolveKey, params)
 
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'memory-evolve: dictionaries')
 
@@ -1821,7 +1696,7 @@ export function apply(ctx: Context): void {
   let notifyBellCancelled = false
   let disposeNotifyBell: (() => void) | undefined
   void fetch('/memory-evolve/api/notifications/unread')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then(() => {
       if (notifyBellCancelled) return
       disposeNotifyBell = createNotificationBell({
@@ -1836,10 +1711,10 @@ export function apply(ctx: Context): void {
   }, 'memory-evolve: notification bell')
 
   // 会话页顶部 Tab 顺序（2026-08-11 用户拍板：记忆 技能 待办 COI调度 会话广播
-  // 提示词 无限画板 记忆同步 模型设置 书签 Web UI设置 Memory Evolve设置；order
+  // 提示词 无限画板 记忆同步 书签 Web UI设置 Memory Evolve设置；order
   // 按 10 步进，留插入余量）：
   //   10 记忆 / 20 技能 / 30 待办 / 40 COI调度 / 50 会话广播 / 60 提示词 /
-  //   80 无限画板 / 80 记忆同步 / 90 模型设置 / 100 书签 / 110 Web UI设置 /
+  //   80 无限画板 / 80 记忆同步 / 100 书签 / 110 Web UI设置 /
   //   120 Memory Evolve 设置
   // 每个 label 携带各自的待确认红点计数（记忆=记忆建议数、技能=技能建议数、
   // 待办=待办建议数），badge 变化时重新注册触发 label 重求值。
@@ -1858,7 +1733,7 @@ export function apply(ctx: Context): void {
         id: 'memory-files',
         order: 10,
         label: () => (memoryBadgeCount > 0 ? t('memoryTab.label.pending', { count: memoryBadgeCount }) : t('memoryTab.label')),
-      }, (props) => MemoryTabView({ ...props, t })))
+      }, props => MemoryTabView({ ...props, t })))
   }
   const registerSkillsTab = (): void => {
     disposeSkillsTab?.()
@@ -1868,7 +1743,7 @@ export function apply(ctx: Context): void {
         id: 'skills-hub',
         order: 20,
         label: () => (skillsBadgeCount > 0 ? t('skillsTab.label.pending', { count: skillsBadgeCount }) : t('skillsTab.label')),
-      }, (props) => SkillsTabView({ ...props, t })))
+      }, props => SkillsTabView({ ...props, t })))
   }
   // 待办 Tab 生命周期（todoEnabled 运行时开关）：默认启用；配置面板保存后
   // 经 RUNTIME_CONFIG_CHANGED 事件即时隐藏/恢复，无需刷新页面。
@@ -1878,13 +1753,13 @@ export function apply(ctx: Context): void {
       id: 'todos-hub',
       order: 30,
       label: () => (todosBadgeCount > 0 ? t('todosTab.label.pending', { count: todosBadgeCount }) : t('todosTab.label')),
-    }, (props) => TodosTabView({ ...props, t }))))
+    }, props => TodosTabView({ ...props, t }))))
   const onRuntimeConfigChanged = (event: Event): void => {
-    const detail = (event as CustomEvent<{ todoEnabled?: boolean }>).detail
+    const detail = (event as CustomEvent<{ todoEnabled?: boolean } | undefined>).detail
     todoTabLifecycle.setEnabled(detail?.todoEnabled !== false)
   }
   window.addEventListener(RUNTIME_CONFIG_CHANGED, onRuntimeConfigChanged)
-  ctx.effect(() => () => window.removeEventListener(RUNTIME_CONFIG_CHANGED, onRuntimeConfigChanged), 'memory-evolve: todo tab runtime listener')
+  ctx.effect(() => () =>{  window.removeEventListener(RUNTIME_CONFIG_CHANGED, onRuntimeConfigChanged) }, 'memory-evolve: todo tab runtime listener')
   // 设置 Tab（Memory Evolve 设置，order 120 放最后）：整体指南 + 配置。
   let disposeSettingsTab: (() => void) | undefined
   const registerSettingsTab = (): void => {
@@ -1895,23 +1770,7 @@ export function apply(ctx: Context): void {
         id: 'settings-hub',
         order: 120,
         label: () => t('settingsTab.label'),
-      }, (props) => SettingsTabView({ ...props, t })))
-  }
-  // 模型设置 Tab（order 90，书签之后）：表格展示 DSH 供应商/模型 +
-  // 每模型启用/备注/思考等级配置（de_models 工具的 Web 数据面）。
-  // 与其他模块同款独立开关 modelsEnabled（默认开）：开关在「设置」Tab 的
-  // 「配置」里切换，开启后刷新页面出现；关闭时 Tab 完全不可见（host 的
-  // /api/models 路由在模块关闭时返回"未启用"）。
-  let disposeModelsTab: (() => void) | undefined
-  const registerModelsTab = (): void => {
-    disposeModelsTab?.()
-    disposeModelsTab = ctx.slots.inject('conversation.view', () =>
-      ctx.slots.register({
-        name: 'conversation.view',
-        id: 'models-hub',
-        order: 90,
-        label: () => t('modelsTab.label'),
-      }, (props) => ModelsTabView({ ...props, t })))
+      }, props => SettingsTabView({ ...props, t })))
   }
   // 记忆同步 Tab（order 80）：跟随 syncEnabled 运行时开关
   // （开启后刷新页面出现，关闭时完全不可见）。
@@ -1924,13 +1783,13 @@ export function apply(ctx: Context): void {
         id: 'memory-sync-hub',
         order: 80,
         label: () => t('syncTab.label'),
-      }, (props) => SyncView({ ...props, t })))
+      }, props => SyncView({ ...props, t })))
   }
   const pollBadge = (): void => {
     // 三个 tab 未注册前不轮询（registerMemoryTab 是探测成功的标志）。
     if (tabCancelled || disposeMemoryTab === undefined) return
     void fetch('/memory-evolve/api/badge')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data: { suggestions?: number; skills?: number; todoSuggestions?: number }) => {
         const suggestions = data.suggestions ?? 0
         const skills = data.skills ?? 0
@@ -1952,37 +1811,34 @@ export function apply(ctx: Context): void {
   }
 
   void fetch('/memory-evolve/api/config')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-    .then((data: { config?: { memoryTabEnabled?: boolean; modelsEnabled?: boolean; syncEnabled?: boolean; todoEnabled?: boolean } }) => {
-      // 模型设置 tab：跟随 modelsEnabled 运行时开关（默认开，与其他模块
-      // 同款独立开关，在「设置」Tab 的「配置」里切换；开启后刷新页面出现）。
-      if (!tabCancelled && data.config?.modelsEnabled === true && disposeModelsTab === undefined) {
-        registerModelsTab()
-      }
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then((data: { config?: { memoryTabEnabled?: boolean; syncEnabled?: boolean; todoEnabled?: boolean } }) => {
+      const config = data.config
+      if (config === undefined) return
       // 记忆同步 tab：跟随 syncEnabled 运行时开关（默认关，设置面板/命令
       // setup 打开后刷新页面出现）
-      if (!tabCancelled && data.config?.syncEnabled === true && disposeSyncTab === undefined) {
+      if (!tabCancelled && config.syncEnabled === true && disposeSyncTab === undefined) {
         registerSyncTab()
       }
       // memoryTabEnabled is a read-only field of /api/config (default true;
       // only config.yaml can turn it off — deliberately NOT a runtime key,
       // since switching it off from inside the tab would hide the tab itself).
-      if (tabCancelled || data.config?.memoryTabEnabled !== true) return
+      if (tabCancelled || config.memoryTabEnabled !== true) return
       // 四个核心 tab 一起注册：记忆 / 技能 / 待办 / 设置（顺序 10/20/30/120）。
       // 待办 Tab 额外受 todoEnabled 运行时开关控制（默认开；关闭时隐藏）。
       registerMemoryTab()
       registerSkillsTab()
-      todoTabLifecycle.setEnabled(data.config?.todoEnabled !== false)
+      todoTabLifecycle.setEnabled(config.todoEnabled !== false)
       registerSettingsTab()
       pollBadge()
       const timer = setInterval(pollBadge, BADGE_POLL_MS)
-      ctx.effect(() => () => clearInterval(timer), 'memory-evolve: memory tab badge poller')
+      ctx.effect(() => () =>{  clearInterval(timer) }, 'memory-evolve: memory tab badge poller')
       // The tab's own queue actions (approve/archive/reject skills too) fire
       // this event after a mutation — re-poll immediately so the red-dot
       // label updates without waiting for the next 30s poll.
-      const onTabChanged = (): void => pollBadge()
+      const onTabChanged = (): void =>{  pollBadge() }
       window.addEventListener('dsh-memory-evolve:badge-change', onTabChanged)
-      ctx.effect(() => () => window.removeEventListener('dsh-memory-evolve:badge-change', onTabChanged), 'memory-evolve: memory tab badge listener')
+      ctx.effect(() => () =>{  window.removeEventListener('dsh-memory-evolve:badge-change', onTabChanged) }, 'memory-evolve: memory tab badge listener')
     })
     .catch(() => { /* the tab is optional; a failure just leaves it hidden */ })
   ctx.effect(() => () => {
@@ -1999,12 +1855,6 @@ export function apply(ctx: Context): void {
   ctx.effect(() => () => {
     disposeSyncTab?.()
   }, 'memory-evolve: sync tab')
-
-  // 模型设置 Tab 的清理（注册本身在 /api/config 探测成功后进行——
-  // 与其他模块同款独立开关 modelsEnabled）。
-  ctx.effect(() => () => {
-    disposeModelsTab?.()
-  }, 'memory-evolve: models tab')
 
   // COI 调度 Tab（conversation.view 第二个 slot）：探测 host 端 COI API
   // 存在才注册（coiEnabled=false 时 API 404，Tab 自动隐藏）。label 带红点
@@ -2039,9 +1889,9 @@ export function apply(ctx: Context): void {
       ? `?limit=200&sessionId=${encodeURIComponent(currentCoiSessionId)}`
       : '?limit=200'
     void fetch(`/memory-evolve/api/coi/tasks${q}`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data: { tasks?: Array<{ status?: string }> }) => {
-        const running = (data.tasks ?? []).filter((t) => t.status === 'running' || t.status === 'queued').length
+        const running = (data.tasks ?? []).filter(t => t.status === 'running' || t.status === 'queued').length
         if (running !== coiRunningCount) {
           coiRunningCount = running
           registerCoiTab()
@@ -2051,17 +1901,17 @@ export function apply(ctx: Context): void {
   }
 
   void fetch('/memory-evolve/api/coi/config')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then(() => {
       if (coiCancelled) return
       registerCoiTab()
       pollCoiRunning()
       const coiTimer = setInterval(pollCoiRunning, BADGE_POLL_MS)
-      ctx.effect(() => () => clearInterval(coiTimer), 'memory-evolve: coi tab badge poller')
+      ctx.effect(() => () =>{  clearInterval(coiTimer) }, 'memory-evolve: coi tab badge poller')
       // 派发任务/任务状态变化后（CoIView 触发 badge-change）立即重查红点。
-      const onCoiBadgeChange = (): void => pollCoiRunning()
+      const onCoiBadgeChange = (): void =>{  pollCoiRunning() }
       window.addEventListener('dsh-memory-evolve:badge-change', onCoiBadgeChange)
-      ctx.effect(() => () => window.removeEventListener('dsh-memory-evolve:badge-change', onCoiBadgeChange), 'memory-evolve: coi tab badge listener')
+      ctx.effect(() => () =>{  window.removeEventListener('dsh-memory-evolve:badge-change', onCoiBadgeChange) }, 'memory-evolve: coi tab badge listener')
     })
     .catch(() => { /* COI 未启用：Tab 保持隐藏 */ })
   ctx.effect(() => () => {
@@ -2073,15 +1923,14 @@ export function apply(ctx: Context): void {
   // 并 createPortal(document.body) 挂悬浮面板；不得注册 conversation.view Tab。
   // dispose 注册（稳定版复审 P1-1）：插件卸载/热重载时必须移除槽位，
   // 否则 AdvisorHost 卸载后 store 的轮询失去 UI 但仍持续打 /events。
-  let disposeAdvisor: (() => void) | undefined
-  disposeAdvisor = ctx.slots.inject('conversation.session.header.actions', () =>
+  const disposeAdvisor = ctx.slots.inject('conversation.session.header.actions', () =>
     ctx.slots.register({
       name: 'conversation.session.header.actions',
       id: 'advisor-review-panel',
       order: 30,
-    }, (props) => AdvisorHost({ ...props, t })))
+    }, props => AdvisorHost({ ...props, t })))
   ctx.effect(() => () => {
-    disposeAdvisor?.()
+    disposeAdvisor()
   }, 'memory-evolve: advisor panel')
 
   // DSH 重连会让 host 的内存 ring/连接代次发生变化；转成浏览器事件后，
@@ -2098,7 +1947,7 @@ export function apply(ctx: Context): void {
   let sessionHeaderCancelled = false
   let disposeCopyId: (() => void) | undefined
   void fetch('/memory-evolve/api/config')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then((data: { config?: { sessionEnabled?: boolean } }) => {
       if (sessionHeaderCancelled || data.config?.sessionEnabled !== true) return
       // 头部 actions 是 strict-session slot：entry 组件自动收到 sessionId。
@@ -2107,7 +1956,7 @@ export function apply(ctx: Context): void {
           name: 'conversation.session.header.actions',
           id: 'copy-session-id',
           order: 0,
-        }, (props) => HeaderActions({ ...props, t })))
+        }, props => HeaderActions({ ...props, t })))
     })
     .catch(() => { /* 会话编排未启用：头部按钮保持隐藏 */ })
   ctx.effect(() => () => {
@@ -2120,7 +1969,7 @@ export function apply(ctx: Context): void {
   let broadcastTabCancelled = false
   let disposeBroadcastTab: (() => void) | undefined
   void fetch('/memory-evolve/api/broadcast/messages')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then(() => {
       if (broadcastTabCancelled) return
       disposeBroadcastTab = ctx.slots.inject('conversation.view', () =>
@@ -2129,7 +1978,7 @@ export function apply(ctx: Context): void {
           id: 'broadcast-hub',
           order: 50,
           label: () => t('broadcastTab.label'),
-        }, (props) => BroadcastView({ ...props, t })))
+        }, props => BroadcastView({ ...props, t })))
     })
     .catch(() => { /* 广播未启用：Tab 保持隐藏 */ })
   ctx.effect(() => () => {
@@ -2157,7 +2006,7 @@ export function apply(ctx: Context): void {
   let disposeContextMeterWarn: (() => void) | undefined
   let disposeMermaidRender: (() => void) | undefined
   void fetch('/memory-evolve/api/ui-settings/state')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then((data: { enabled?: boolean }) => {
       if (uiSettingsCancelled || data.enabled !== true) return
       // 1. 创建各功能控制器（先创建、后按开关状态 setEnabled）。
@@ -2176,7 +2025,7 @@ export function apply(ctx: Context): void {
       const contextMeterWarn = createContextMeterWarn()
       disposeContextMeterWarn = contextMeterWarn.dispose
       const mermaidRenderer = createMermaidRenderer()
-      disposeMermaidRender = mermaidRenderer.dispose
+      disposeMermaidRender = () => { mermaidRenderer.dispose() }
       // 按「综合」子 tab 的独立开关应用初始状态。
       const features = readFeatures()
       sessionFilter.setEnabled(features.sessionFilter)
@@ -2186,7 +2035,7 @@ export function apply(ctx: Context): void {
       mermaidRenderer.setEnabled(features.mermaidRender)
       // 开关变更事件（UiSettingsTabView 切换后广播）→ 即时同步注入。
       const onFeaturesChanged = (event: Event): void => {
-        const next = (event as CustomEvent<ReturnType<typeof readFeatures>>).detail
+        const next = (event as CustomEvent<ReturnType<typeof readFeatures> | undefined>).detail
         if (next === undefined) return
         sessionFilter.setEnabled(next.sessionFilter)
         wideChat.setEnabled(next.wideChat)
@@ -2195,7 +2044,7 @@ export function apply(ctx: Context): void {
         mermaidRenderer.setEnabled(next.mermaidRender)
       }
       window.addEventListener(FEATURES_EVENT, onFeaturesChanged)
-      ctx.effect(() => () => window.removeEventListener(FEATURES_EVENT, onFeaturesChanged), 'memory-evolve: ui-settings features listener')
+      ctx.effect(() => () =>{  window.removeEventListener(FEATURES_EVENT, onFeaturesChanged) }, 'memory-evolve: ui-settings features listener')
       // 2. 注册「Web UI 设置」Tab。
       disposeUiSettingsTab = ctx.slots.inject('conversation.view', () =>
         ctx.slots.register({
@@ -2203,7 +2052,7 @@ export function apply(ctx: Context): void {
           id: 'ui-settings-hub',
           order: 110,
           label: () => t('uiSettingsTab.label'),
-        }, (props) => UiSettingsTabView({ ...props, t })))
+        }, props => UiSettingsTabView({ ...props, t })))
     })
     .catch(() => { /* Web UI 设置未启用：不注入任何东西 */ })
   ctx.effect(() => () => {
@@ -2233,12 +2082,12 @@ export function apply(ctx: Context): void {
         label: () => promptBadgeCount > 0
           ? t('promptTab.label.active', { count: promptBadgeCount })
           : t('promptTab.label'),
-      }, (props) => PromptView({ ...props, t })))
+      }, props => PromptView({ ...props, t })))
   }
   const pollPromptBadge = (): void => {
     if (promptCancelled || disposePromptTab === undefined) return
     void fetch('/memory-evolve/api/prompts/injections')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
       .then((data: { injections?: unknown[] }) => {
         const count = data.injections?.length ?? 0
         if (count !== promptBadgeCount) {
@@ -2249,16 +2098,16 @@ export function apply(ctx: Context): void {
       .catch(() => { /* badge is best-effort; the tab still works */ })
   }
   void fetch('/memory-evolve/api/prompts/sources')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then(() => {
       if (promptCancelled) return
       registerPromptTab()
       pollPromptBadge()
       const promptBadgeTimer = setInterval(pollPromptBadge, BADGE_POLL_MS)
-      ctx.effect(() => () => clearInterval(promptBadgeTimer), 'memory-evolve: prompt tab badge poller')
-      const onPromptBadgeChange = (): void => pollPromptBadge()
+      ctx.effect(() => () =>{  clearInterval(promptBadgeTimer) }, 'memory-evolve: prompt tab badge poller')
+      const onPromptBadgeChange = (): void =>{  pollPromptBadge() }
       window.addEventListener('dsh-memory-evolve:badge-change', onPromptBadgeChange)
-      ctx.effect(() => () => window.removeEventListener('dsh-memory-evolve:badge-change', onPromptBadgeChange), 'memory-evolve: prompt tab badge listener')
+      ctx.effect(() => () =>{  window.removeEventListener('dsh-memory-evolve:badge-change', onPromptBadgeChange) }, 'memory-evolve: prompt tab badge listener')
     })
     .catch(() => { /* host 端不可用：Tab 保持隐藏 */ })
   ctx.effect(() => () => {
@@ -2284,7 +2133,7 @@ export function apply(ctx: Context): void {
   let currentBookmarkSessionId = '' // 由捕获器写入，注入器点击时读取
   let bookmarkInjectorStarted = false // 防重复创建（捕获器可能多次渲染）
   void fetch('/memory-evolve/api/bookmarks/state')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then((data: { enabled?: boolean }) => {
       if (bookmarkCancelled || data.enabled !== true) return
       // 1. 会话 id 捕获器（header.actions 是 list 槽，可与官方/插件其他按钮共存）。
@@ -2307,14 +2156,14 @@ export function apply(ctx: Context): void {
           }
           return null // 不渲染任何 UI
         }))
-      // 2. 「书签」Tab（order 100：模型设置 90 之后、Web UI 设置 110 之前）。
+      // 2. 「书签」Tab（order 100：位于 Web UI 设置 110 之前）。
       disposeBookmarkTab = ctx.slots.inject('conversation.view', () =>
         ctx.slots.register({
           name: 'conversation.view',
           id: 'bookmarks-hub',
           order: 100,
           label: () => t('bookmarkTab.label'),
-        }, (props) => BookmarksView({ ...props, t })))
+        }, props => BookmarksView({ ...props, t })))
     })
     .catch(() => { /* 书签未启用：不注入任何东西 */ })
   ctx.effect(() => () => {
@@ -2338,7 +2187,7 @@ export function apply(ctx: Context): void {
   let canvasCancelled = false
   let disposeCanvasTab: (() => void) | undefined
   void fetch('/memory-evolve/api/canvas/state')
-    .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+    .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
     .then((data: { enabled?: boolean }) => {
       if (canvasCancelled || data.enabled !== true) return
       disposeCanvasTab = registerCanvasTab(

@@ -1,7 +1,8 @@
+import { registerCanvasRoute, type CanvasActivities } from './activities.ts'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
-import { desktopToken, LoginRequiredError } from './desktop-token.ts'
+import { LoginRequiredError } from './account-errors.ts'
 import { desktopServiceProfile } from './service-environment.ts'
 import { CanvasAssetApiError, createCanvasAssetApi } from './canvas-assets.ts'
 import { UPLOAD_LIBRARY_ID, UPLOAD_TYPE } from '../shared/upload/constants.ts'
@@ -16,7 +17,7 @@ const CANVAS_SERVICE_PREFIXES = [
   '/game-ai-editor-center/upscale/',
   '/material-server/asset/',
   '/order-server/api/cost/',
-  '/account-service/api/account/'
+  '/account-service/api/account/',
 ] as const
 
 interface BrowserConnection {
@@ -30,7 +31,7 @@ function send(res: ServerResponse, status: number, error: string): void {
   res.writeHead(status, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
-    'x-content-type-options': 'nosniff'
+    'x-content-type-options': 'nosniff',
   })
   res.end(JSON.stringify({ error }))
 }
@@ -39,7 +40,9 @@ async function requestBody(req: IncomingMessage): Promise<Buffer> {
   const chunks: Buffer[] = []
   let total = 0
   for await (const chunk of req) {
-    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    const value: unknown = chunk
+    const bytes = value instanceof Uint8Array ? Buffer.from(value) : typeof value === 'string' ? Buffer.from(value) : undefined
+    if (!bytes) throw new Error('Invalid HTTP body bytes')
     total += bytes.length
     if (total > MAX_REQUEST_BYTES) throw new RequestTooLargeError()
     chunks.push(bytes)
@@ -73,8 +76,8 @@ async function responseBody(response: Response): Promise<Buffer> {
 /** Proxy canvas business requests to the fixed Gateway using the desktop login. */
 export function gatewayHandler(
   connection: BrowserConnection,
-  tokenProvider: (signal?: AbortSignal) => Promise<string> = desktopToken,
-  transport: typeof fetch = fetch
+  tokenProvider: (signal?: AbortSignal) => Promise<string>,
+  transport: typeof fetch = fetch,
 ) {
   return async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
     const rejection = connection.requestRejection(req)
@@ -135,7 +138,7 @@ export function gatewayHandler(
       signal.throwIfAborted()
       if (uploadFileName !== undefined) {
         // Resolve the identity with the same token used for STS; never trust an iframe userId.
-        const assets = createCanvasAssetApi({ tokenProvider: async () => token, transport })
+        const assets = createCanvasAssetApi({ tokenProvider: () => Promise.resolve(token), transport })
         const identity = await assets.getIdentity(signal)
         const credentials = await assets.getUploadCredentials(uploadFileName, identity, signal)
         if (clientAbort.signal.aborted) return
@@ -150,15 +153,15 @@ export function gatewayHandler(
           ...(method === 'GET' ? {} : { 'content-type': 'application/json' }),
           origin: profile.web,
           referer: `${profile.web}/`,
-          token
+          token,
         },
         ...(body === undefined ? {} : { body: body.toString('utf8') }),
         redirect: 'error',
-        signal
+        signal,
       })
       if (clientAbort.signal.aborted) return
       const upstreamType = upstream.headers.get('content-type') ?? ''
-      if (!/^application\/(?:json|[A-Za-z0-9._-]+\+json)(?:\s*;|$)/iu.test(upstreamType)) {
+      if (!/^application\/(?:json|[a-z0-9._-]+\+json)(?:\s*;|$)/iu.test(upstreamType)) {
         send(res, upstream.ok ? 502 : upstream.status, '画布服务返回了非 JSON 响应')
         return
       }
@@ -167,11 +170,12 @@ export function gatewayHandler(
         throw new ResponseTooLargeError()
       }
       const bytes = await responseBody(upstream)
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- The client may disconnect during the awaited read.
       if (clientAbort.signal.aborted) return
       res.writeHead(upstream.status, {
         'content-type': upstreamType,
         'cache-control': 'no-store',
-        'x-content-type-options': 'nosniff'
+        'x-content-type-options': 'nosniff',
       })
       res.end(bytes)
     } catch (error) {
@@ -190,8 +194,9 @@ export function gatewayHandler(
   }
 }
 
-export function registerGatewayRoute(ctx: Context): void {
+export function registerGatewayRoute(ctx: Context, tokenProvider: (signal?: AbortSignal) => Promise<string>,
+  activities?: CanvasActivities): void {
   const connection = Reflect.get(ctx, 'connection') as BrowserConnection
-  ctx.effect(() => ctx.webServer.register({ kind: 'prefix', path: PREFIX,
-    handler: gatewayHandler(connection) }), 'desktop-canvas: gateway')
+  ctx.effect(() => registerCanvasRoute(ctx, activities, { kind: 'prefix', path: PREFIX,
+    handler: gatewayHandler(connection, tokenProvider) }), 'desktop-canvas: gateway')
 }

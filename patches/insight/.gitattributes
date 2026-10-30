@@ -1,0 +1,2 @@
+# Source patches preserve whitespace in upstream context and removed lines.
+*.patch whitespace=-blank-at-eol

@@ -88,3 +88,36 @@ test('Host plugin teardown closes existing command streams and leaves sent write
   await handler({ method: 'POST', url: '/desktop-canvas/api/bridge/attach', headers: {} }, answer)
   assert.equal(answer.status, 503)
 })
+
+
+test('native application origin remains subject to authentication, exact origin and bridge ownership', async t => {
+  const bridge = createCanvasHostBridge()
+  t.after(() => bridge.dispose())
+  let rejection
+  const handler = bridgeHandler({ requestRejection: () => rejection }, bridge)
+  t.after(() => handler.close())
+  const request = async (claimed, actual, key) => {
+    const response = { writeHead(status) { this.status = status }, end(body) { this.body = JSON.parse(body) } }
+    await handler({ method: 'POST', url: '/desktop-canvas/api/bridge/' + (key ? 'client-event' : 'attach'),
+      headers: { 'content-type': 'application/json', 'x-canvas-bridge-origin': claimed,
+        ...(actual === undefined ? {} : { origin: actual }), ...(key ? { 'x-canvas-bridge-key': key } : {}) },
+      async *[Symbol.asyncIterator]() { yield JSON.stringify(key
+        ? { type: 'session.sync', protocolVersion: 4, connectionId: registered.connectionId, revision: 1, sessionIds: ['session'] }
+        : { protocolVersion: 4, clientId: 'native-client', ownershipProtocol: 'web-locks-v1' }) }
+    }, response)
+    return response
+  }
+  rejection = 401
+  assert.equal((await request('dsh-app://app')).status, 401)
+  rejection = undefined
+  for (const origin of ['dsh-app://shell', 'dsh-app://app/', 'dsh-app://other', 'file://app', 'null']) {
+    assert.equal((await request(origin)).status, 403)
+  }
+  assert.equal((await request('dsh-app://app', 'https://other.example')).status, 403)
+  const attached = await request('dsh-app://app')
+  assert.equal(attached.status, 200)
+  const registered = attached.body
+  assert.equal((await request('dsh-app://app', undefined, 'wrong-key')).status, 403)
+  assert.equal((await request('dsh-app://app', undefined, registered.bridgeKey)).status, 200)
+  assert.equal(bridge.checkClient(registered.bridgeKey, 'https://other.example'), false)
+})

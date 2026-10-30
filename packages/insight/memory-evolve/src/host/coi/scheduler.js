@@ -236,7 +236,7 @@ export class CoiScheduler {
       cwd,
       branch: req.branch ?? null,
       sessionId: sessionId && adapter.type === 'ai-cli' ? sessionId : null,
-      model: req.model ?? null,
+      model: adapter.defaults?.model ?? null,
       refTaskId: req.refTaskId ?? null,
       templateId: req.templateId ?? null,
       agentLabel: req.agentLabel ?? null,

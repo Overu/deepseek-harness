@@ -15,6 +15,7 @@
  * 样式复用 mt- 前缀（styles.css：mt-panel / mt-file-tabs / mt-feature-count）。
  */
 import { useCallback, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { MemoryQueueView } from './MemoryQueueView.tsx'
@@ -106,8 +107,8 @@ export function TodosTabView(props: ConvViewProps & TodosTabViewProps): JSX.Elem
   /** 拉取待确认待办数（尽力而为）。 */
   const pollBadge = useCallback((): void => {
     void fetch('/memory-evolve/api/badge')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: { todoSuggestions?: number }) => setTodoSuggestionsCount(data.todoSuggestions ?? 0))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data: { todoSuggestions?: number }) =>{  setTodoSuggestionsCount(data.todoSuggestions ?? 0) })
       .catch(() => { /* 徽标尽力而为；功能不受影响 */ })
   }, [])
 
@@ -118,7 +119,7 @@ export function TodosTabView(props: ConvViewProps & TodosTabViewProps): JSX.Elem
   useEffect(() => {
     pollBadge()
     const timer = window.setInterval(pollBadge, 30_000)
-    const onChange = (): void => pollBadge()
+    const onChange = (): void =>{  pollBadge() }
     window.addEventListener('dsh-memory-evolve:badge-change', onChange)
     return () => {
       window.clearInterval(timer)
@@ -135,7 +136,7 @@ export function TodosTabView(props: ConvViewProps & TodosTabViewProps): JSX.Elem
           role="tab"
           aria-selected={feature === 'guide'}
           className={feature === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('guide')}
+          onClick={() =>{  setFeature('guide') }}
         >
           {t('todosTab.feature.guide')}
         </button>
@@ -144,7 +145,7 @@ export function TodosTabView(props: ConvViewProps & TodosTabViewProps): JSX.Elem
           role="tab"
           aria-selected={feature === 'todo-suggestions'}
           className={feature === 'todo-suggestions' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('todo-suggestions')}
+          onClick={() =>{  setFeature('todo-suggestions') }}
         >
           {t('todosTab.feature.todoSuggestions')}
           {todoSuggestionsCount > 0 && <span className="mt-feature-count">{todoSuggestionsCount}</span>}
@@ -154,7 +155,7 @@ export function TodosTabView(props: ConvViewProps & TodosTabViewProps): JSX.Elem
           role="tab"
           aria-selected={feature === 'todo'}
           className={feature === 'todo' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('todo')}
+          onClick={() =>{  setFeature('todo') }}
         >
           {t('todosTab.feature.todo')}
         </button>

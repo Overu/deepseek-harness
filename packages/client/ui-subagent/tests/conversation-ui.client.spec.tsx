@@ -102,6 +102,7 @@ function props(
     useTrajectory: unused,
     inputActions: {
       insertQuote: () => false,
+      toggleSkill: unused,
       captureInsertion: unused,
       insertText: unused,
       setDraft: unused,

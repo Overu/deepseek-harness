@@ -60,7 +60,7 @@ type ModifierFlags = Record<'ctrl' | 'alt' | 'shift' | 'meta', boolean>
  */
 export function parseShortcut(spec: string | undefined): ShortcutCombo | null {
   if (spec === undefined) return null
-  const tokens = spec.trim().toLowerCase().split('+').map((token) => token.trim()).filter((token) => token !== '')
+  const tokens = spec.trim().toLowerCase().split('+').map(token => token.trim()).filter(token => token !== '')
   if (tokens.length === 0 || tokens.length > 5) return null
   const modifiers: ModifierFlags = { ctrl: false, alt: false, shift: false, meta: false }
   const last = tokens[tokens.length - 1] ?? ''

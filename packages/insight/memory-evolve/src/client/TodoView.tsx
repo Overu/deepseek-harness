@@ -10,8 +10,10 @@
  * 看板与列表共用同一套操作路径（完成/恢复、编辑、删除、快速添加），仅展示层不同。
  */
 import { Fragment, useCallback, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 import type { ChangeEvent } from 'react'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
+import { errorText, responseError } from './error-utils.ts'
 
 /** 四条待办轨。 */
 type TodoTarget = 'life' | 'work' | 'project' | 'daily'
@@ -81,8 +83,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? `HTTP ${res.status}`)
+    const body: unknown = await res.json().catch(() => ({}))
+    throw new Error(responseError(body) ?? `HTTP ${res.status}`)
   }
   return res.json() as Promise<T>
 }
@@ -132,9 +134,9 @@ function statusLabel(t: Translate, status: string): string {
 /** 'YYYY-MM-DD' → '8月5日'（过往分组标题）。 */
 function dayLabel(day: string): string {
   const [, month, date] = day.split('-')
-  return typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('en')
-      ? `${Number(month)}/${Number(date)}`
-      : `${Number(month)}月${Number(date)}日`
+  return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('en')
+    ? `${Number(month)}/${Number(date)}`
+    : `${Number(month)}月${Number(date)}日`
 }
 
 /**
@@ -195,7 +197,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
           return res.cwd ? 'project' : 'work'
         })
       })
-      .catch((error: Error) => setNotice({ kind: 'error', text: error.message }))
+      .catch((error: unknown) =>{  setNotice({ kind: 'error', text: errorText(error) }) })
   }, [sessionId, target, showExpired])
 
   useEffect(() => {
@@ -206,7 +208,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
   const flash = (text: string): void => {
     setNotice({ kind: 'ok', text })
     window.setTimeout(() => {
-      setNotice((current) => (current?.text === text ? null : current))
+      setNotice(current => (current?.text === text ? null : current))
     }, 3000)
   }
 
@@ -232,9 +234,9 @@ export function TodoView(props: TodoViewProps): JSX.Element {
       setDraftDue('')
       load()
       flash(t('todo.added'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setBusy(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setBusy(false) })
   }
 
   /** 完成 / 恢复（列表与看板共用）。 */
@@ -254,9 +256,9 @@ export function TodoView(props: TodoViewProps): JSX.Element {
     }).then(() => {
       load()
       flash(done ? t('todo.done') : t('todo.undone'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setBusy(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setBusy(false) })
   }
 
   /** 删除（确认后；列表与看板共用）。 */
@@ -271,9 +273,9 @@ export function TodoView(props: TodoViewProps): JSX.Element {
     }).then(() => {
       load()
       flash(t('todo.deleted'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setBusy(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setBusy(false) })
   }
 
   /** 开始行内编辑。 */
@@ -305,9 +307,9 @@ export function TodoView(props: TodoViewProps): JSX.Element {
       setEditId(null)
       load()
       flash(t('todo.updated'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setBusy(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setBusy(false) })
   }
 
   /**
@@ -332,9 +334,9 @@ export function TodoView(props: TodoViewProps): JSX.Element {
     }).then(() => {
       load()
       flash(t('todo.updated'))
-    }).catch((error: Error) => {
-      setNotice({ kind: 'error', text: error.message })
-    }).finally(() => setBusy(false))
+    }).catch((error: unknown) => {
+      setNotice({ kind: 'error', text: errorText(error) })
+    }).finally(() =>{  setBusy(false) })
   }
 
   /** 今天（本地时区），用于逾期标红。不能 toISOString——那是 UTC 日期，
@@ -357,7 +359,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
   const groups: { day: string | null; items: TodoItem[] }[] = []
   for (const item of visible) {
     const day = item.past === true ? item.day ?? null : null
-    const last = groups[groups.length - 1]
+    const last = groups.at(-1)
     if (day !== null && last !== undefined && last.day === day) last.items.push(item)
     else groups.push({ day, items: [item] })
   }
@@ -423,15 +425,15 @@ export function TodoView(props: TodoViewProps): JSX.Element {
     const done = DONE_STATUSES.has(item.status)
     return (
       <span className="me-item-actions">
-        <button type="button" className="me-btn me-btn-ok" disabled={busy} onClick={() => toggleDone(item)}>
+        <button type="button" className="me-btn me-btn-ok" disabled={busy} onClick={() =>{  toggleDone(item) }}>
           {done ? t('todo.undone') : t('todo.done')}
         </button>
         {editId !== item.id && (
-          <button type="button" className="me-btn" disabled={busy} onClick={() => startEdit(item)}>
+          <button type="button" className="me-btn" disabled={busy} onClick={() =>{  startEdit(item) }}>
             {t('todo.edit')}
           </button>
         )}
-        <button type="button" className="me-btn me-btn-danger" disabled={busy} onClick={() => removeTodo(item)}>
+        <button type="button" className="me-btn me-btn-danger" disabled={busy} onClick={() =>{  removeTodo(item) }}>
           {t('memoryTab.delete')}
         </button>
       </span>
@@ -445,10 +447,10 @@ export function TodoView(props: TodoViewProps): JSX.Element {
         className="me-item-edit"
         rows={2}
         value={editDraft}
-        onChange={(event) => setEditDraft(event.target.value)}
+        onChange={(event) =>{  setEditDraft(event.target.value) }}
       />
       <div className="me-todo-edit-row">
-        <select value={editQuad} onChange={(event) => setEditQuad(event.target.value)}>
+        <select value={editQuad} onChange={(event) =>{  setEditQuad(event.target.value) }}>
           <option value="">{t('todo.quadrant.none')}</option>
           <option value="q1">{t('todo.quadrant.q1')}</option>
           <option value="q2">{t('todo.quadrant.q2')}</option>
@@ -458,9 +460,9 @@ export function TodoView(props: TodoViewProps): JSX.Element {
         <input
           type="date"
           value={editDue}
-          onChange={(event) => setEditDue(event.target.value)}
+          onChange={(event) =>{  setEditDue(event.target.value) }}
         />
-        <select value={editStatus} onChange={(event) => setEditStatus(event.target.value)}>
+        <select value={editStatus} onChange={(event) =>{  setEditStatus(event.target.value) }}>
           <option value="pending">{t('todo.status.pending')}</option>
           <option value="doing">{t('todo.status.doing')}</option>
           <option value="done">{t('todo.status.done')}</option>
@@ -471,11 +473,11 @@ export function TodoView(props: TodoViewProps): JSX.Element {
           type="button"
           className="me-btn me-btn-ok"
           disabled={busy || editDraft.trim() === ''}
-          onClick={() => saveEdit(item)}
+          onClick={() =>{  saveEdit(item) }}
         >
           {t('todo.save')}
         </button>
-        <button type="button" className="me-btn" disabled={busy} onClick={() => setEditId(null)}>
+        <button type="button" className="me-btn" disabled={busy} onClick={() =>{  setEditId(null) }}>
           {t('todo.cancel')}
         </button>
       </div>
@@ -532,7 +534,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
               {bucket.length === 0 ? (
                 <p className="me-todo-quad-empty">{t('todo.board.empty')}</p>
               ) : (
-                bucket.map((item) => renderBoardCard(item))
+                bucket.map(item => renderBoardCard(item))
               )}
             </div>
           </section>
@@ -553,7 +555,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
     }
     return (
       <ul className="me-list">
-        {groups.map((group) => (
+        {groups.map(group => (
           <Fragment key={group.day ?? group.items[0].id}>
             {group.day !== null && (
               <li className="me-todo-day">{dayLabel(group.day)}</li>
@@ -591,18 +593,18 @@ export function TodoView(props: TodoViewProps): JSX.Element {
           role="tab"
           aria-selected={target === 'all'}
           className={target === 'all' ? 'me-tab me-tab-active' : 'me-tab'}
-          onClick={() => setTarget('all')}
+          onClick={() =>{  setTarget('all') }}
         >
           {t('todo.track.all')}
         </button>
-        {TARGETS.map((track) => (
+        {TARGETS.map(track => (
           <button
             key={track}
             type="button"
             role="tab"
             aria-selected={target === track}
             className={target === track ? 'me-tab me-tab-active' : 'me-tab'}
-            onClick={() => setTarget(track)}
+            onClick={() =>{  setTarget(track) }}
           >
             {t(`todo.track.${track}`)}
           </button>
@@ -612,7 +614,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
           role="tab"
           aria-selected={target === 'past'}
           className={target === 'past' ? 'me-tab me-tab-active' : 'me-tab'}
-          onClick={() => setTarget('past')}
+          onClick={() =>{  setTarget('past') }}
         >
           {t('todo.track.past')}
         </button>
@@ -628,10 +630,10 @@ export function TodoView(props: TodoViewProps): JSX.Element {
             <select
               className="me-todo-select"
               value={addTarget}
-              onChange={(event) => setAddTarget(event.target.value as TodoTarget)}
+              onChange={(event) =>{  setAddTarget(event.target.value as TodoTarget) }}
               title={t('todo.track')}
             >
-              {TARGETS.map((track) => (
+              {TARGETS.map(track => (
                 <option key={track} value={track}>{t(`todo.track.${track}`)}</option>
               ))}
             </select>
@@ -641,13 +643,13 @@ export function TodoView(props: TodoViewProps): JSX.Element {
             className="me-todo-input"
             value={draft}
             placeholder={t('todo.addPlaceholder')}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => setDraft(event.target.value)}
+            onChange={(event: ChangeEvent<HTMLInputElement>) =>{  setDraft(event.target.value) }}
             onKeyDown={(event) => { if (event.key === 'Enter') addTodo() }}
           />
           <select
             className="me-todo-select"
             value={draftQuad}
-            onChange={(event) => setDraftQuad(event.target.value)}
+            onChange={(event) =>{  setDraftQuad(event.target.value) }}
             title={t('todo.quadrant')}
           >
             <option value="">{t('todo.quadrant.none')}</option>
@@ -660,7 +662,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
             type="date"
             className="me-todo-date"
             value={draftDue}
-            onChange={(event) => setDraftDue(event.target.value)}
+            onChange={(event) =>{  setDraftDue(event.target.value) }}
             title={t('todo.due')}
           />
           <button type="button" className="me-btn me-btn-ok" disabled={busy || draft.trim() === ''} onClick={addTodo}>
@@ -672,7 +674,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
       <div className="me-todo-filters">
         <label className="me-todo-filter">
           <span>{t('todo.filterStatus')}</span>
-          <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | 'active' | 'done')}>
+          <select value={statusFilter} onChange={(event) =>{  setStatusFilter(event.target.value as 'all' | 'active' | 'done') }}>
             <option value="active">{t('todo.status.active')}</option>
             <option value="all">{t('todo.all')}</option>
             <option value="done">{t('todo.status.done')}</option>
@@ -680,7 +682,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
         </label>
         <label className="me-todo-filter">
           <span>{t('todo.filterQuadrant')}</span>
-          <select value={quadFilter} onChange={(event) => setQuadFilter(event.target.value)}>
+          <select value={quadFilter} onChange={(event) =>{  setQuadFilter(event.target.value) }}>
             <option value="all">{t('todo.all')}</option>
             <option value="q1">{t('todo.quadrant.q1')}</option>
             <option value="q2">{t('todo.quadrant.q2')}</option>
@@ -694,7 +696,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
             <input
               type="checkbox"
               checked={showExpired}
-              onChange={(event) => setShowExpired(event.target.checked)}
+              onChange={(event) =>{  setShowExpired(event.target.checked) }}
             />
             <span>{t('todo.showExpired')}</span>
           </label>
@@ -705,7 +707,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
             type="button"
             className={viewMode === 'list' ? 'me-todo-view-btn me-todo-view-btn-active' : 'me-todo-view-btn'}
             aria-pressed={viewMode === 'list'}
-            onClick={() => setViewMode('list')}
+            onClick={() =>{  setViewMode('list') }}
           >
             {t('todo.view.list')}
           </button>
@@ -713,7 +715,7 @@ export function TodoView(props: TodoViewProps): JSX.Element {
             type="button"
             className={viewMode === 'board' ? 'me-todo-view-btn me-todo-view-btn-active' : 'me-todo-view-btn'}
             aria-pressed={viewMode === 'board'}
-            onClick={() => setViewMode('board')}
+            onClick={() =>{  setViewMode('board') }}
           >
             {t('todo.view.board')}
           </button>

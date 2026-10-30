@@ -8,8 +8,10 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Context } from '@deepseek-ai/cordis'
+import { Context } from '@deepseek-ai/cordis'
 import type { CommandDefinition, CommandInvocation } from '@deepseek-ai/dsh-commands'
+import { CommandId } from '@deepseek-ai/dsh-commands/brand'
+import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DEFAULT_CONFIG, type Config } from '../src/config'
 import { registerEnhanceCommand } from '../src/enhance-command'
 import { runEnhance, sessionRouteOf } from '../src/orchestrate'
@@ -20,7 +22,7 @@ vi.mock('../src/orchestrate', () => ({
 }))
 
 /** One command registration captured from the stub commands service. */
-function captureDefinition(readConfig: () => Config = () => ({ ...DEFAULT_CONFIG })): CommandDefinition {
+function captureDefinition(readConfig: () => Config = () => Object.assign({}, DEFAULT_CONFIG)): CommandDefinition {
   let captured: CommandDefinition | undefined
   const commands = {
     register: (definition: CommandDefinition): (() => void) => {
@@ -28,10 +30,10 @@ function captureDefinition(readConfig: () => Config = () => ({ ...DEFAULT_CONFIG
       return () => {}
     },
   }
-  const ctx = {
+  const ctx = Object.assign(new Context(), {
     get: (key: string) => (key === 'commands' ? commands : undefined),
     effect: (fn: () => unknown) => fn(),
-  } as unknown as Context
+  })
   registerEnhanceCommand(ctx, readConfig)
   if (captured === undefined) throw new Error('registerEnhanceCommand did not register')
   return captured
@@ -40,12 +42,12 @@ function captureDefinition(readConfig: () => Config = () => ({ ...DEFAULT_CONFIG
 /** Minimal invocation shape; brand types are irrelevant to the command logic. */
 function invocation(rawInput: string): CommandInvocation {
   return {
-    commandId: 'cmd-1',
-    agent: { session: { id: 's1' } },
+    commandId: CommandId('cmd-1'),
+    agent: { id: SessionId('s1'), session: { id: SessionId('s1') } } as CommandInvocation['agent'],
     rawInput,
     attachments: [],
     signal: new AbortController().signal,
-  } as unknown as CommandInvocation
+  }
 }
 
 beforeEach(() => {
@@ -56,8 +58,8 @@ beforeEach(() => {
 describe('/enhance slash command', () => {
   it('silently skips when the commands service is absent', () => {
     const effect = vi.fn()
-    const ctx = { get: () => undefined, effect } as unknown as Context
-    expect(() => registerEnhanceCommand(ctx, () => ({ ...DEFAULT_CONFIG }))).not.toThrow()
+    const ctx = Object.assign(new Context(), { get: () => undefined, effect })
+    expect(() =>{  registerEnhanceCommand(ctx, () => Object.assign({}, DEFAULT_CONFIG)) }).not.toThrow()
     expect(effect).not.toHaveBeenCalled()
   })
 
@@ -76,7 +78,7 @@ describe('/enhance slash command', () => {
   })
 
   it('rejects when the plugin is disabled', async () => {
-    const definition = captureDefinition(() => ({ ...DEFAULT_CONFIG, enabled: false }))
+    const definition = captureDefinition(() => Object.assign({}, DEFAULT_CONFIG, { enabled: false }))
     const result = await definition.handler(invocation('hello'))
     expect(result.kind).toBe('error')
     expect((result as { text: string }).text).toContain('关闭')
@@ -84,7 +86,7 @@ describe('/enhance slash command', () => {
   })
 
   it('rejects over-length input without calling the LLM', async () => {
-    const definition = captureDefinition(() => ({ ...DEFAULT_CONFIG, maxInputChars: 10 }))
+    const definition = captureDefinition(() => Object.assign({}, DEFAULT_CONFIG, { maxInputChars: 10 }))
     const result = await definition.handler(invocation('x'.repeat(20)))
     expect(result.kind).toBe('error')
     expect(runEnhance).not.toHaveBeenCalled()

@@ -1,13 +1,22 @@
-import { parseCanvasViewMessage, type CanvasViewFocus, type CanvasViewFocusStatus, type CanvasViewIdentity, type CanvasViewMessage } from '../shared/canvas-view-navigation.ts'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
+import { parseCanvasViewMessage, type CanvasViewFocus, type CanvasViewFocusStatus, type CanvasViewIdentity,
+  type CanvasViewMessage } from '../shared/canvas-view-navigation.ts'
 
 /** A bounded transport for the latest explicit click; it only sends view messages. */
 export function createCanvasViewNavigation(options: {
-  identity: CanvasViewIdentity; origin: string; getFrame(): Window | null | undefined
+  identity: CanvasViewIdentity
+  origin: string
+  getFrame(): Window | null | undefined
   receiveTarget: Pick<Window, 'addEventListener' | 'removeEventListener'>
   onResult(status: CanvasViewFocusStatus): void
 }) {
-  let desired: { revision: number; nodeId?: string; selectNode?: boolean } | undefined
-  let pending: { revision: number; nodeId?: string; selectNode?: boolean; requestId: string } | undefined
+  let desired: { revision: number
+    nodeId?: string
+    selectNode?: boolean } | undefined
+  let pending: { revision: number
+    nodeId?: string
+    selectNode?: boolean
+    requestId: string } | undefined
   let channelId: string | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   let deadline: ReturnType<typeof setTimeout> | undefined
@@ -18,7 +27,8 @@ export function createCanvasViewNavigation(options: {
   const hello = () => send({ ...options.identity, protocolVersion: 1, type: 'canvas.view.hello' })
   const retry = () => {
     if (disposed || !pending) return
-    if (channelId) send({ ...options.identity, ...pending, channelId, protocolVersion: 1, type: 'canvas.view.focus' } satisfies CanvasViewFocus)
+    if (channelId) send({ ...options.identity, ...pending, channelId, protocolVersion: 1,
+      type: 'canvas.view.focus' } satisfies CanvasViewFocus)
     else hello()
     if (++attempts < 3) timer = setTimeout(retry, 4000)
   }
@@ -26,7 +36,7 @@ export function createCanvasViewNavigation(options: {
     if (disposed || !Number.isSafeInteger(revision) || revision < 0 || desired && revision < desired.revision) return
     desired = { revision, nodeId, ...(selectNode === undefined ? {} : { selectNode }) }; clear(); attempts = 0
     if (!nodeId && !channelId) { pending = undefined; return }
-    pending = { ...desired, requestId: crypto.randomUUID() }
+    pending = { ...desired, requestId: randomUUID() }
     deadline = setTimeout(() => { pending = undefined; clear(); if (nodeId) options.onResult('view_unavailable') }, 30000)
     retry()
   }
@@ -53,6 +63,7 @@ export function createCanvasViewNavigation(options: {
       // Ask the loaded document for its channel. A same-document onLoad must not repeat focus.
       hello()
     },
-    dispose() { disposed = true; pending = undefined; clear(); options.receiveTarget.removeEventListener('message', receive as EventListener) },
+    dispose() { disposed = true; pending = undefined; clear(); options.receiveTarget.removeEventListener('message',
+      receive as EventListener) },
   }
 }

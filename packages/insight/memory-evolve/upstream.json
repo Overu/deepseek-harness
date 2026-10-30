@@ -4,5 +4,6 @@
   "archiveSha256": "68af8262130d2d9b76413bb69a58453fc99e2057d3ee43018e6828dc9669c302",
   "upstreamVersion": "0.1.0",
   "importedAt": "2026-10-28",
-  "patch": "../../../patches/insight/memory-evolve.patch"
+  "patch": "../../../patches/insight/memory-evolve.patch",
+  "purpose": "Pinned source intake and account-scoped DSH Desktop adaptation; local changes replay from the parent patch"
 }

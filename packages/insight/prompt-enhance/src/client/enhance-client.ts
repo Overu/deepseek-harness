@@ -1,5 +1,5 @@
 /**
- * Browser-side client of the POST /prompt-enhance/enhance host route:
+ * Browser-side client of the authenticated POST /api/prompt-enhance host route:
  * same-origin fetch with abort support and a typed error surface. Every
  * failure is a structured EnhanceError the panel renders verbatim.
  * @module dsh-prompt-enhance/client/enhance-client
@@ -43,12 +43,12 @@ const KNOWN_ERROR_CODES = new Set<EnhanceErrorCode>([
 function parseError(value: unknown): EnhanceError {
   const record = value as Partial<EnhanceError> | null
   if (record !== null && typeof record === 'object') {
-    const code: EnhanceErrorCode = typeof record.code === 'string' && KNOWN_ERROR_CODES.has(record.code as EnhanceErrorCode)
-      ? record.code as EnhanceErrorCode
+    const code: EnhanceErrorCode = typeof record.code === 'string' && KNOWN_ERROR_CODES.has(record.code)
+      ? record.code
       : 'internal'
     const message = typeof record.message === 'string' && record.message !== '' ? record.message : undefined
-    const params = record.params !== null && typeof record.params === 'object'
-      ? record.params as Record<string, string | number>
+    const params = typeof record.params === 'object'
+      ? record.params
       : undefined
     return { code, ...(message !== undefined ? { message } : {}), ...(params !== undefined ? { params } : {}) }
   }
@@ -151,7 +151,7 @@ export interface EnhanceStreamOptions {
 export async function requestEnhanceStream(body: EnhanceRequestBody, options: EnhanceStreamOptions): Promise<EnhanceResult> {
   let response: Response
   try {
-    response = await fetch(ENHANCE_STREAM_ENDPOINT, {
+    response = await fetch(ENHANCE_STREAM_ENDPOINT.slice(1), {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
       body: jsonBody(body),
@@ -164,10 +164,10 @@ export async function requestEnhanceStream(body: EnhanceRequestBody, options: En
     void error
     throw new EnhanceClientError({ code: 'internal', message: '无法连接宿主服务，请确认 dsh web 正在运行后重试。' })
   }
-  const contentType = String(response.headers.get('content-type') ?? '').toLowerCase()
+  const contentType = (response.headers.get('content-type') ?? '').toLowerCase()
   const stream = response.body
-  const streamable = response.ok && stream !== null && stream !== undefined && contentType.includes('event-stream')
-  if (stream === null || stream === undefined || !streamable) {
+  const streamable = response.ok && contentType.includes('event-stream')
+  if (!streamable || stream === null) {
     // Not a stream (old host, buffered proxy, or a rejection that predates
     // the stream): release the body and take the one-shot path instead.
     // `cancel()` may return a promise in some runtimes and undefined in
@@ -209,7 +209,7 @@ export async function requestEnhanceStream(body: EnhanceRequestBody, options: En
 export async function requestEnhance(body: EnhanceRequestBody, signal?: AbortSignal): Promise<EnhanceResult> {
   let response: Response
   try {
-    response = await fetch(ENHANCE_ENDPOINT, {
+    response = await fetch(ENHANCE_ENDPOINT.slice(1), {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: jsonBody(body),

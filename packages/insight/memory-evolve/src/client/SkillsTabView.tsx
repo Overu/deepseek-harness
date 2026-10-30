@@ -14,6 +14,7 @@
  * 样式复用 mt- 前缀（styles.css：mt-panel / mt-file-tabs / mt-feature-count）。
  */
 import { useCallback, useEffect, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import { MemoryQueueView } from './MemoryQueueView.tsx'
@@ -117,8 +118,8 @@ export function SkillsTabView(props: ConvViewProps & SkillsTabViewProps): JSX.El
   /** 拉取待确认技能数（尽力而为）。 */
   const pollBadge = useCallback((): void => {
     void fetch('/memory-evolve/api/badge')
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((data: { skills?: number }) => setSkillsCount(data.skills ?? 0))
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data: { skills?: number }) =>{  setSkillsCount(data.skills ?? 0) })
       .catch(() => { /* 徽标尽力而为；功能不受影响 */ })
   }, [])
 
@@ -129,7 +130,7 @@ export function SkillsTabView(props: ConvViewProps & SkillsTabViewProps): JSX.El
   useEffect(() => {
     pollBadge()
     const timer = window.setInterval(pollBadge, 30_000)
-    const onChange = (): void => pollBadge()
+    const onChange = (): void =>{  pollBadge() }
     window.addEventListener('dsh-memory-evolve:badge-change', onChange)
     return () => {
       window.clearInterval(timer)
@@ -146,7 +147,7 @@ export function SkillsTabView(props: ConvViewProps & SkillsTabViewProps): JSX.El
           role="tab"
           aria-selected={feature === 'guide'}
           className={feature === 'guide' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('guide')}
+          onClick={() =>{  setFeature('guide') }}
         >
           {t('skillsTab.feature.guide')}
         </button>
@@ -155,7 +156,7 @@ export function SkillsTabView(props: ConvViewProps & SkillsTabViewProps): JSX.El
           role="tab"
           aria-selected={feature === 'skills'}
           className={feature === 'skills' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('skills')}
+          onClick={() =>{  setFeature('skills') }}
         >
           {t('skillsTab.feature.skills')}
           {skillsCount > 0 && <span className="mt-feature-count">{skillsCount}</span>}
@@ -165,7 +166,7 @@ export function SkillsTabView(props: ConvViewProps & SkillsTabViewProps): JSX.El
           role="tab"
           aria-selected={feature === 'skill-browser'}
           className={feature === 'skill-browser' ? 'mt-file-tab mt-file-tab-active' : 'mt-file-tab'}
-          onClick={() => setFeature('skill-browser')}
+          onClick={() =>{  setFeature('skill-browser') }}
         >
           {t('skillsTab.feature.skillBrowser')}
         </button>

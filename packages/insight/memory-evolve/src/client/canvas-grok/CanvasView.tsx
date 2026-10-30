@@ -6,6 +6,7 @@
  * 画布手势本身交给 CanvasBoard。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { JSX } from 'react'
 import type { ConvViewProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { Translate } from '@deepseek-ai/dsh-client-ui-slots'
 import {
@@ -136,16 +137,17 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
 
   /** 初始加载：探测后端 → 后端有板则用后端数据（并接管保存）。 */
   useEffect(() => {
-    let cancelled = false
+    const controller = new AbortController()
+    const isCancelled = (): boolean => controller.signal.aborted
     void (async () => {
       const ready = await detectBackend()
-      if (cancelled) return
+      if (isCancelled()) return
       if (!ready) {
         setSyncState('offline')
         return
       }
       const remote = await loadCanvasFromBackend(sessionId)
-      if (cancelled) return
+      if (isCancelled()) return
       if (remote !== null) {
         // 乐观锁 rev 必须用后端当前值（曾硬编码 0 导致保存被 409 全拒）
         backendRevRef.current = remote.rev
@@ -162,7 +164,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
       setBackendReady(true)
       setSyncState('idle')
     })()
-    return () => { cancelled = true }
+    return () => { controller.abort() }
   }, [sessionId])
 
   /** 后端整板保存：**立即 + 串行队列**（不用防抖——防抖 + 卸载 cancel 会
@@ -205,7 +207,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
     if (patch.nodes !== undefined || patch.lastAiNodeId !== undefined) {
       persistBackend(state)
     } else {
-      viewportSaver.schedule(() => persistBackend(state))
+      viewportSaver.schedule(() =>{  persistBackend(state) })
     }
   }, [persistBackend, viewportSaver])
 
@@ -226,7 +228,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
   const textFilledRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     if (!backendReady) return
-    const candidates = nodes.filter((n) =>
+    const candidates = nodes.filter(n =>
       (n.type === 'markdown' || n.type === 'plainText')
       && typeof n.path === 'string' && n.path !== ''
       && !n.content
@@ -255,7 +257,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
           // ⚠️ 必须基于 nodesRef.current（最新镜像）合并，不能用 effect
           // 闭包里的旧 nodes——否则会覆盖用户拖动中的卡片位置
           // （2026-08-14 修复，与 CanvasBoard pan 还原同模式）。
-          const next = nodesRef.current.map((n) => n.id === node.id ? { ...n, content: clipped } : n)
+          const next = nodesRef.current.map(n => n.id === node.id ? { ...n, content: clipped } : n)
           nodesRef.current = next
           setNodes(next)
           persist({ nodes: next })
@@ -264,14 +266,13 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
         }
       })()
     }
-    candidates.forEach((n) => fill(n, 0))
+    candidates.forEach((n) =>{  fill(n, 0) })
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backendReady, nodes])
 
   useEffect(() => {
-    const timer = setTimeout(() => setAppliedQuery(query), 180)
-    return () => clearTimeout(timer)
+    const timer = setTimeout(() =>{  setAppliedQuery(query) }, 180)
+    return () =>{  clearTimeout(timer) }
   }, [query])
 
   useEffect(() => {
@@ -284,19 +285,19 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
       setStageSize({ w: r.width, h: r.height })
     })
     ro.observe(stage)
-    return () => ro.disconnect()
+    return () =>{  ro.disconnect() }
   }, [])
 
   const showToast = useCallback((text: string) => {
     setToast(text)
     if (toastTimer.current) clearTimeout(toastTimer.current)
-    toastTimer.current = setTimeout(() => setToast(null), 1600)
+    toastTimer.current = setTimeout(() =>{  setToast(null) }, 1600)
   }, [])
 
   const pulseHighlight = useCallback((id: string) => {
     setHighlightIds(new Set([id]))
     if (highlightTimer.current) clearTimeout(highlightTimer.current)
-    highlightTimer.current = setTimeout(() => setHighlightIds(new Set()), HIGHLIGHT_MS)
+    highlightTimer.current = setTimeout(() =>{  setHighlightIds(new Set()) }, HIGHLIGHT_MS)
   }, [])
 
   const visibleNodes = useMemo(
@@ -304,7 +305,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
     // 是模拟常量（'sess-demo-current'/'proj-demo'），不传会导致「本会话」
     // 视角永远匹配不上真实节点（2026-08-14 用户反馈：记忆.png 标当前会话
     // 却本会话视角看不到，只有项目/所有项目视角可见）。
-    () => nodes.filter((n) => isNodeVisible(n, viewMode, sessionId, currentProjectId)),
+    () => nodes.filter(n => isNodeVisible(n, viewMode, sessionId, currentProjectId)),
     [nodes, viewMode, sessionId, currentProjectId],
   )
 
@@ -320,7 +321,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
 
   const lod = viewport.scale < LOD_SCALE
 
-  const previewNode = focusId ? nodes.find((n) => n.id === focusId) ?? null : null
+  const previewNode = focusId ? nodes.find(n => n.id === focusId) ?? null : null
   const removeNode = previewNode
 
   const applyViewport = useCallback((next: CanvasViewport, shouldPersist: boolean) => {
@@ -453,20 +454,20 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
     if (!id) return
     setNodes((prev) => {
       const z = nextZ(prev)
-      return prev.map((n) => n.id === id ? { ...n, placement: { ...n.placement, zIndex: z } } : n)
+      return prev.map(n => n.id === id ? { ...n, placement: { ...n.placement, zIndex: z } } : n)
     })
   }, [])
 
   const onChangeContent = useCallback((id: string, content: string) => {
     setNodes((prev) => {
-      const next = prev.map((n) => n.id === id ? { ...n, content } : n)
+      const next = prev.map(n => n.id === id ? { ...n, content } : n)
       persist({ nodes: next })
       return next
     })
   }, [persist])
 
   const onCopy = useCallback(async (id: string, kind: 'id' | 'title' | 'path' | 'ref') => {
-    const node = nodes.find((n) => n.id === id)
+    const node = nodes.find(n => n.id === id)
     if (!node) return
     const text =
       kind === 'id' ? node.id
@@ -490,7 +491,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
 
   /** 系统默认应用打开上板文件（2026-08-14：路径上板/搜索上板一键打开）。 */
   const onOpen = useCallback(async (id: string) => {
-    const node = nodes.find((n) => n.id === id)
+    const node = nodes.find(n => n.id === id)
     if (!node?.path) {
       showToast('该节点没有本地路径可打开')
       return
@@ -502,7 +503,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
   /** 在系统文件管理器中打开上板文件**所在文件夹**（2026-08-14 用户
    *  要求：文件类型便签一键直达所在目录；后端对目录节点打开自身）。 */
   const onOpenFolder = useCallback(async (id: string) => {
-    const node = nodes.find((n) => n.id === id)
+    const node = nodes.find(n => n.id === id)
     if (!node?.path) {
       showToast('该节点没有本地路径可打开')
       return
@@ -514,7 +515,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
   /** 保存文本/便签内容到本机（2026-08-14：弹系统保存对话框，AI 与
    *  用户加的 markdown/纯文本标签都能落地到实机文件）。 */
   const onSave = useCallback(async (id: string) => {
-    const node = nodes.find((n) => n.id === id)
+    const node = nodes.find(n => n.id === id)
     if (!node || typeof node.content !== 'string' || node.content === '') {
       showToast('该节点没有可保存的内容')
       return
@@ -549,7 +550,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
     if (result.node && typeof result.rev === 'number') {
       backendRevRef.current = result.rev
       setNodes((prev) => {
-        const next = prev.map((n) => n.id === id ? { ...n, ...(result.node as Partial<CanvasNode>) } : n)
+        const next = prev.map(n => n.id === id ? { ...n, ...(result.node as Partial<CanvasNode>) } : n)
         return next
       })
     }
@@ -565,7 +566,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
    * 闭包持有它，组件卸载后 timer 回调依然能完成跳转。
    */
   const openSessionWithToast = useCallback((targetSessionId: string) => {
-    const node = nodes.find((n) => n.sessionId === targetSessionId)
+    const node = nodes.find(n => n.sessionId === targetSessionId)
     const name = node?.sessionName ?? shortSessionId(targetSessionId)
     showToast(`正在跳转到会话：${name}`)
     setTimeout(() => {
@@ -575,11 +576,11 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
 
   const onConfirmRemove = useCallback(() => {
     if (!focusId) return
-    const next = nodes.filter((n) => n.id !== focusId)
+    const next = nodes.filter(n => n.id !== focusId)
     const nextLast = lastAiNodeId === focusId ? null : lastAiNodeId
     upsert(next, { lastAiNodeId: nextLast })
     setLastAiNodeId(nextLast)
-    setSelectedId((cur) => cur === focusId ? null : cur)
+    setSelectedId(cur => cur === focusId ? null : cur)
     setFocusId(null)
     setDialog(null)
     showToast('已从画板移除')
@@ -604,10 +605,10 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
       setFlashIds(new Set())
       return
     }
-    const hits = visibleRef.current.filter((n) => matchesQuery(n, q))
-    setFlashIds(new Set(hits.map((n) => n.id)))
+    const hits = visibleRef.current.filter(n => matchesQuery(n, q))
+    setFlashIds(new Set(hits.map(n => n.id)))
     if (flashTimer.current) clearTimeout(flashTimer.current)
-    flashTimer.current = setTimeout(() => setFlashIds(new Set()), FLASH_MS)
+    flashTimer.current = setTimeout(() =>{  setFlashIds(new Set()) }, FLASH_MS)
     if (hits[0]) {
       const vp = viewportRef.current
       const sz = stageSizeRef.current
@@ -627,13 +628,13 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
         <div className="cg-toolbar-group">
           <span className="cg-meta">视角</span>
           <div className="cg-seg" role="tablist" aria-label="视角筛选">
-            <button type="button" className={viewMode === 'session' ? 'cg-on' : ''} onClick={() => changeViewMode('session')}>
+            <button type="button" className={viewMode === 'session' ? 'cg-on' : ''} onClick={() =>{  changeViewMode('session') }}>
               本会话
             </button>
-            <button type="button" className={viewMode === 'project' ? 'cg-on' : ''} onClick={() => changeViewMode('project')}>
+            <button type="button" className={viewMode === 'project' ? 'cg-on' : ''} onClick={() =>{  changeViewMode('project') }}>
               本项目
             </button>
-            <button type="button" className={viewMode === 'global' ? 'cg-on' : ''} onClick={() => changeViewMode('global')}>
+            <button type="button" className={viewMode === 'global' ? 'cg-on' : ''} onClick={() =>{  changeViewMode('global') }}>
               所有项目
             </button>
           </div>
@@ -644,18 +645,18 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
           <input
             value={query}
             placeholder="搜索画板节点…"
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) =>{  setQuery(e.target.value) }}
           />
         </label>
 
         <div className="cg-toolbar-group">
-          <button type="button" className="cg-btn cg-ghost" onClick={() => setDialog('path')}>
+          <button type="button" className="cg-btn cg-ghost" onClick={() =>{  setDialog('path') }}>
             <IconPlusOutlineMedium /> 路径上板
           </button>
-          <button type="button" className="cg-btn cg-ghost" onClick={() => setDialog('note')}>
+          <button type="button" className="cg-btn cg-ghost" onClick={() =>{  setDialog('note') }}>
             <IconPlusOutlineMedium /> 便签
           </button>
-          <button type="button" className="cg-btn cg-ghost" onClick={() => setDialog('catalog')}>
+          <button type="button" className="cg-btn cg-ghost" onClick={() =>{  setDialog('catalog') }}>
             <IconPlusOutlineMedium /> 搜索上板
           </button>
         </div>
@@ -667,7 +668,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
             type="button"
             className="cg-btn cg-ghost cg-scale"
             title="复位视角"
-            onClick={() => applyViewport({ ...DEFAULT_VIEWPORT }, true)}
+            onClick={() =>{  applyViewport({ ...DEFAULT_VIEWPORT }, true) }}
           >
             {Math.round(viewport.scale * 100)}%
           </button>
@@ -703,11 +704,11 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
         onMoveNode={onMoveNode}
         onResizeNode={onResizeNode}
         onPreview={onPreview}
-        onOpen={onOpen}
-        onOpenFolder={onOpenFolder}
-        onSave={onSave}
+        onOpen={(id) => { void onOpen(id) }}
+        onOpenFolder={(id) => { void onOpenFolder(id) }}
+        onSave={(id) => { void onSave(id) }}
         onMigrate={onMigrateClick}
-        onCopy={onCopy}
+        onCopy={(id, kind) => { void onCopy(id, kind) }}
         onAskRemove={onAskRemove}
         onChangeContent={onChangeContent}
       />
@@ -716,7 +717,7 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
         kind={dialog}
         previewNode={dialog === 'preview' ? previewNode : null}
         removeNode={dialog === 'remove' ? removeNode : null}
-        migrateNode={dialog === 'migrate' ? (focusId ? nodes.find((n) => n.id === focusId) ?? null : null) : null}
+        migrateNode={dialog === 'migrate' ? (focusId ? nodes.find(n => n.id === focusId) ?? null : null) : null}
         backendReady={backendReady}
         sessionId={sessionId}
         onClose={closeDialog}
@@ -725,8 +726,8 @@ export function CanvasView(props: ConvViewProps & CanvasViewProps): JSX.Element 
         onCatalog={onCatalog}
         onConfirmRemove={onConfirmRemove}
         onToast={showToast}
-        onOpen={onOpen}
-        onMigrate={onMigrate}
+        onOpen={(id) => { void onOpen(id) }}
+        onMigrate={(id, scope) => { void onMigrate(id, scope) }}
       />
 
       {toast ? <div className="cg-toast" role="status">{toast}</div> : null}

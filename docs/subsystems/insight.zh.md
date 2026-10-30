@@ -12,7 +12,7 @@ Insight 应用使用显示名 `因赛AI`、应用 id `com.insight-aigc.desktop` 
 
 Insight 产品版本与 DSH 运行时版本相互独立。打包要求显式的 Insight `1.x` 语义版本，让工作区包版本保持 DSH 运行时版本，并把运行时记录在 `dshDesktopRuntimeVersion`。Main 在安全产品元数据中同时提供两个版本，便于支持人员区分产品投放与基线运行时变化。
 
-P2 的 Insight 产品界面仅支持中文。产品选择会强制既有原生 Desktop 消息角色使用中文，并提供中文登录与账号文案；它不增加语言选择器或 Insight 翻译字典。官方产品保留既有语言行为。
+Insight 产品界面仅支持中文。产品选择会强制既有原生 Desktop 消息角色使用中文，并提供中文登录与账号文案；它不增加语言选择器或 Insight 翻译字典。官方产品保留既有语言行为。
 
 ## 启动与账号归属
 
@@ -20,11 +20,11 @@ Insight 在创建账号 profile 或启动 Host 前打开隔离的原生登录窗
 
 一个 Desktop 进程只归属一个不可变的已认证账号。账号 scope 是对服务环境和稳定用户 id 计算 SHA-256 后取得的前 32 个十六进制字符。新的 DSH Home 为 `<userData>/insight/accounts/<scope>/harness-native`；其中的标记把该目录与 scope、环境和标记版本绑定。
 
-Home 准备采用故障关闭。旧 `<scope>/harness` 路径、被检查且属于符号链接的 Insight 账号路径、没有预期标记的非空 native Home 或不匹配的标记都会阻止 Host 启动并报告 `migration-required`。P2 绝不读取或改写旧 Home 内容。因此历史对话、工作区、插件和配置保持不动，直到独立的 P4 迁移路径处理这些数据。
+Home 准备采用故障关闭。旧 `<scope>/harness` 路径、被检查且属于符号链接的 Insight 账号路径、没有预期标记的非空 native Home 或不匹配的标记都会阻止 Host 启动并报告 `migration-required`。当前启动路径不读取或改写旧 Home 内容。因此历史对话、工作区、插件和配置保持不动，直到独立的 P4 迁移路径处理这些数据。
 
 ## 进程数据流
 
-登录渲染器只获得 session 状态、短信/密码命令、协议窗口和本地退出所需的窄 preload API。准入后，Desktop Main 使用固定账号 Home 作为 `DSH_HOME` 启动 Host，在 Main 自有认证状态中保存访问令牌，并将 `@insight-ai/desktop-integration` 激活为产品必需 profile bundle。
+登录渲染器只获得 session 状态、短信/密码命令、协议窗口和本地退出所需的窄 preload API。准入后，Desktop Main 使用固定账号 Home 作为 `DSH_HOME` 启动 Host，在 Main 自有认证状态中保存访问令牌，并激活产品必需的 Integration、Canvas、Memory 和 Prompt 四个 bundle。
 
 Host bundle 挂载 `ctx.insightAccount`。可信 Host 消费方通过私有子进程通道，用品牌化请求 id 请求访问令牌。两端都校验精确消息字段、限制并发请求、支持取消与截止时间，并忽略重复或迟到响应。Desktop Main 只回答当前存活 Host 子进程；令牌不会写入日志、保留在 Host 诊断中、通过 Remote 暴露或发送给渲染器。
 
@@ -62,15 +62,15 @@ Source: [`packages/insight/desktop-integration/src/host/account-service.ts`](../
 
 ## 源码与发布归属
 
-[packages/insight](../../packages/insight/README.zh.md) 负责私有 Desktop 集成和三个固定业务源码包。Canvas、Memory 和 Prompt 保留其源码标识并进入桌面依赖闭包，但 P2 不把它们加入 Insight profile；其业务激活归 P3 负责。
+[packages/insight](../../packages/insight/README.zh.md) 负责私有 Desktop 集成和三个固定业务源码包。Canvas、Memory 和 Prompt 保留其源码标识，并在 Insight profile 中激活。Desktop Main 在解析登录 shell 环境后传入固定的必需 bundle 策略；Plugin Manager 将它与普通 profile 配置合并，不替换用户 registry。组件停用、移除、更新和替换操作执行此策略；内部功能开关仍归各包拥有。
 
 [Integration bundle README](../../packages/insight/desktop-integration/README.zh.md) 负责记录 bundle 本地 Host 条目和运行时包解析维护规则。
 
 每个固定业务包在 `upstream.json` 中记录上游仓库、提交和版本；工作区版本跟随 DSH 根版本。源码改动提交到父仓，`patches/insight` 记录相对固定输入的可回放差异。正常构建不会给已安装文件打补丁。[产品清单](../../scripts/insight-package-policy.ts) 中的精确标识保持私有，并排除于公开 npm 基线。
 
-`bundled-skills` 保持为外部同步的根目录，内部结构不变。客户端标签生成器读取既有名称和 `ui.json`，桌面打包保持该目录与插件包分离。技能内容、脚本和业务正确性由来源仓库负责，不属于本次迁移。
+`bundled-skills` 保持为外部同步的根目录，内部结构不变。运行时从该目录发现技能，并读取每个已安装技能说明旁可选的 `ui.json` 展示信息。Insight Desktop 传入 `DSH_BUNDLED_SKILL_DIR`，打包时将目录作为独立资源复制；[Desktop Host 环境](../../apps/desktop/README.zh.md#insight-bundled-skills) 负责说明开发和安装后的路径。技能内容、脚本和业务正确性由来源仓库负责，不属于本次迁移。
 
-Insight 构建目前排除 DSH 自动更新与强制更新流程。手动更新检查会报告暂时无法检查。P2 不接入既有 OSS/CDN 发布通道、测试通道发现、签名或安装后更新验收；这些发布机制仍属于 P5 工作，而不是认证包能力。
+Insight 构建目前排除 DSH 自动更新与强制更新流程。手动更新检查会报告暂时无法检查。当前集成不接入既有 OSS/CDN 发布通道、测试通道发现、签名或安装后更新验收；这些发布机制仍属于 P5 工作，而不是认证包能力。
 
 ## 源码开发
 
