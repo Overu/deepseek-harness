@@ -28,6 +28,8 @@
 
 迁移证据保留在 [Insight 历史记录](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md)。当决定依赖精确源码、平台或渠道证据时，读取交付记录，而非只依赖本运维摘要。
 
+1.0.11-rc.1 Candidate 构建尚未发布：Windows 和 macOS x64 已成功，GitHub arm64 runner 分配仍受阻。保留已完成产物和原构建身份；精确 run、源码及剩余发布步骤由[执行记录](history/releases/1.0.11-rc.1.md)维护。
+
 <a id="developing-locally"></a>
 
 ## 本地开发
@@ -78,6 +80,8 @@ macOS 签名配置写入 runner 临时目录，通过路径传给后续步骤，
 
 ## 已知故障恢复
 
+arm64 job 未执行任何步骤即被取消，并出现“The job was not acquired by Runner of type hosted even after multiple attempts”注释，表示 runner 容量故障。保留成功平台产物，待原 run 结束后在同一 run 重跑未成功任务。重跑不保证获得容量；所有平台与 finalizer 成功前仍不能发布。
+
 | 症状 | 迁移中观察到的原因 | 已成功的处理 | 不要做 |
 | --- | --- | --- | --- |
 | 修复发布器后 rerun 仍报原错误 | GitHub rerun 固定原 workflow 提交，不会加载后来修复 | 以新 workflow_dispatch 加载新发布器，同时固定并复用原打包来源 | 不要为发布脚本修复重建或替换同版本安装包 |
@@ -87,6 +91,7 @@ macOS 签名配置写入 runner 临时目录，通过路径传给后续步骤，
 | OSS 拒绝内存 metadata | OSS SDK 不接受浏览器 API 使用的 typed-array 输入 | 将小型 manifest、签名和指针值转换为 Node `Buffer` | 不要把安装器文件读入内存；按文件上传 |
 | 指针写入结果未知 | OSS 缺少原子指针 compare-and-swap | 停止，读取远端指针，并与目标已签名字节比较后再决定下一步 | 不要盲目重试或覆盖指针 |
 | macOS DMG 验证报告精确 CloudKit 中断 | Apple 在公证后验证 ticket 时可能丢失 CloudKit 连接 | 让有界只读验证器完成两次预定等待后的重试 | 不要重试无关的签名、公证或 Gatekeeper 失败 |
+| App 验证报告 CloudKit 网络丢失，退出码 68、Code=-1005 | App 验证路径没有 DMG 验证器的重试 | 在原 run 重跑未成功任务后 x64 恢复，成功的 Windows 产物继续保留 | 不要禁用最终验证，也不要把 DMG 成功视为 App 成功 |
 
 <a id="limits-and-follow-up"></a>
 

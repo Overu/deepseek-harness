@@ -26,6 +26,8 @@ The published 1.0.10 application predates the source change that reads both fina
 
 The migration evidence is retained under [Insight history](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md). Read the delivery record when a decision depends on the exact source, platform, or channel evidence rather than this operational summary.
 
+The 1.0.11-rc.1 Candidate build is not published: Windows and macOS x64 succeeded, while GitHub arm64 runner allocation remains blocked. Preserve the completed artifacts and original build identity; the [execution record](history/releases/1.0.11-rc.1.md) owns the exact run, source, and remaining publication steps.
+
 ## Developing locally
 
 Run `npm run dev:insight` from the repository root. The launcher selects the Insight product and defaults the development product version to 1.0.11-rc.1. It reuses the Desktop development launcher and uses the Shell-compatible Insight development user-data location.
@@ -66,6 +68,8 @@ The notarization dependency changed from major version 2 to 3 to obtain the stap
 
 ## Known failure recovery
 
+A cancelled arm64 job with no executed steps and the annotation “The job was not acquired by Runner of type hosted even after multiple attempts” indicates runner capacity failure. Retain successful target artifacts and rerun unsuccessful jobs in the same run after it finishes. Rerunning does not guarantee capacity; publication remains blocked until every target and the finalizer succeed.
+
 | Symptom | Cause observed during migration | Successful response | Do not do |
 | --- | --- | --- | --- |
 | A rerun still uses the old publisher after a source fix | GitHub reruns retain the original workflow commit | Start a new workflow_dispatch with the fixed publisher while retaining the original package source | Do not rebuild or replace same-version app assets for a publisher-only fix |
@@ -75,6 +79,7 @@ The notarization dependency changed from major version 2 to 3 to obtain the stap
 | OSS rejects in-memory metadata | The OSS SDK does not accept the typed-array input used by browser APIs | Convert small manifest, signature, and pointer values to Node `Buffer` values | Do not load installer files into memory; upload them as files |
 | Pointer write result is unknown | OSS lacks atomic pointer compare-and-swap | Stop, read the remote pointer, and compare it with the intended signed bytes before deciding the next action | Do not blindly retry or overwrite the pointer |
 | macOS DMG validation reports the exact CloudKit interruption | Apple ticket validation can lose its CloudKit connection after notarization | Let the bounded read-only verifier retry its two scheduled delays | Do not retry unrelated signing, notarization, or Gatekeeper failures |
+| App validation reports CloudKit network loss with status 68 and Code=-1005 | The App validation path has no DMG verifier retry | Rerunning unsuccessful jobs in the original run recovered x64 while retaining the successful Windows artifact | Do not disable final validation or treat DMG success as App success |
 
 ## Limits and follow-up
 

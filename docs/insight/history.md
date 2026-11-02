@@ -16,6 +16,7 @@ Read an original report when a migration decision, acceptance result, or failure
 | Why were specific permissions, skills, and message rendering changed? | [Permission matrix](history/shell/analysis/2026-10-29-dsh-insight-permission-design.md), [skill design](history/shell/analysis/2026-10-29-dsh-insight-toggle-skill-design.md), [Canvas historical references](history/shell/analysis/2026-11-02-dsh-insight-canvas-history-rendering.md) |
 | How was old account history retained? | [P4 delivery](history/shell/analysis/2026-10-30-dsh-insight-p4-delivery.md), [read-only inventory](history/shell/analysis/2026-10-30-dsh-insight-p4-readonly-inventory.md) |
 | Which build, Candidate upload, and old-client checks succeeded? | [P5 delivery](history/shell/analysis/2026-10-30-dsh-insight-p5-delivery.md), [publication execution](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md) |
+| What is the 1.0.11-rc.1 source, build result, and remaining publication work? | [Candidate execution record](history/releases/1.0.11-rc.1.md) |
 | What official changes were reviewed before P6? | [Per-file preflight](history/shell/analysis/2026-11-02-dsh-insight-p6-preflight-review.md), [P6 handoff](history/shell/analysis/2026-11-02-dsh-insight-p6-handoff.md) |
 | What did the original Shell release protocol do? | [Old release runbook](history/shell/release-runbook.md), [V2 checklist](history/shell/releases/update-v2-operator-checklist.md), [1.0.9 evidence](history/shell/releases/1.0.9.md) |
 

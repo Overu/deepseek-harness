@@ -43,6 +43,7 @@ When a touched area or CI failure makes one relevant, reproduce that named check
 
 | Goal | Context and current result | Why open and when to act |
 | --- | --- | --- |
+| Insight welcome headline | The requested text is “以专业为引擎，让团队与 AI 共成长”, without the preview badge; the official hero currently exposes only a logo slot | A title slot design is retained; changing the official component requires separate approval, which has not been given |
 | Friendly plugin names and descriptions | Local-entry display can show absolute paths; a package-meta design was retained without implementation approval | Revisit on a concrete display defect; do not implement the previously unapproved official extension automatically |
 | Marketing inspiration library | User chose to keep the old test endpoint and static fallback | Backend ownership/connection remains disputed; change only after a separate decision |
 | Faster login restoration | A hidden window avoids the login-page flash, but credential validation and Home preparation still take time | Optimize on reproducible latency or failure feedback; do not bypass validation or create an empty Home |
