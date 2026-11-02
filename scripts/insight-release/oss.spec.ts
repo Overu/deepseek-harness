@@ -50,6 +50,16 @@ describe('Insight OSS transport', () => {
     expect(puts[2]).toEqual({ key: 'desktop/candidate-v3/win32-x64/current.json', headers: { 'cache-control': 'public,max-age=60,must-revalidate', 'If-None-Match': '*' } })
   })
 
+  it('reports STS HTTP status without exposing response bytes', async () => {
+    const provider = createGithubStsProvider({ environment, fetch: async (url) => {
+      const href = url instanceof URL ? url.href : typeof url === 'string' ? url : url.url
+      if (href.startsWith('https://token.actions.githubusercontent.com/')) return Response.json({ value: 'oidc' })
+      return new Response('private backend detail', { status: 403 })
+    } })
+    await expect(provider()).rejects.toThrow('OSS STS request failed with HTTP 403.')
+    await expect(provider()).rejects.not.toThrow('private backend detail')
+  })
+
   it('rejects an STS expiration beyond its approved duration', async () => {
     const now = Date.parse('2026-10-30T00:00:00.000Z')
     let call = 0

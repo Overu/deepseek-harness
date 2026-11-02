@@ -46,7 +46,7 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 `.github/workflows/insight-publish.yml` 是独立的手动工作流。它校验固定仓库 id、`insight` ref、当前提交、工作流身份、请求版本和请求源码提交。`scripts/insight-release/runtime/` 下的隔离运行时只安装发布器依赖，并将已审查的发布器源码和随包公钥复制到临时 loader 根目录。loader 使用显式隔离的 TypeScript 配置，防止仓库源码别名绕过轻量运行时依赖。
 
-只有最终发布步骤接收 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。OSS 客户端只接受已批准的 GitHub 工作流 OIDC 身份，并向既有 Insight 后端申请短期 STS 凭据，不使用长期 OSS access key。
+只有最终发布步骤接收 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。OSS 客户端只接受已批准的 GitHub 工作流 OIDC 身份，并向既有 Insight 后端申请短期 STS 凭据，不使用长期 OSS access key。OIDC 或 STS 请求失败时报告 HTTP 状态，不记录 token 或响应正文。
 
 发布工作流的 target 输入决定渠道：平台目标发布 Candidate；`stable` 为全部三个目标发布 Stable。Candidate 接受 final 或 prerelease 版本。Stable 要求 final 版本，且三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。
 

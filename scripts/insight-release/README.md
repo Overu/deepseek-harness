@@ -46,7 +46,7 @@ The source record does not bind GitHub's rerun-attempt counter. A legacy record 
 
 `.github/workflows/insight-publish.yml` is a separate manual workflow. It checks the fixed repository id, `insight` ref, current commit, workflow identity, requested version, and requested source commit. Its isolated runtime under `scripts/insight-release/runtime/` installs only the publisher dependencies and copies the reviewed publisher sources plus the checked-in public verification key into a temporary loader root. The loader uses an explicit isolated TypeScript configuration so repository source aliases cannot bypass the lightweight runtime dependencies.
 
-Only the final publish step receives `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`. The OSS client accepts only the approved GitHub workflow OIDC identity and requests short-lived STS credentials from the existing Insight backend. It does not use a long-lived OSS access key.
+Only the final publish step receives `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`. The OSS client accepts only the approved GitHub workflow OIDC identity and requests short-lived STS credentials from the existing Insight backend. It does not use a long-lived OSS access key. Failed OIDC or STS requests report the HTTP status without logging tokens or response bodies.
 
 The publish workflow target input selects the channel: a platform target publishes Candidate; `stable` publishes Stable for all three targets. Candidate accepts final or prerelease versions. Stable requires a final version and three verified distribution targets with the same version, source commit, and DSH runtime version.
 
