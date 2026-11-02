@@ -10,6 +10,7 @@
 
 | 文件 | 目的 | 保留条件 |
 | --- | --- | --- |
+| `packages/client/ui-conversation/src/client/locales.ts`、`skeleton/EmptyHero.tsx`、`skeleton/HeroShell.module.css` 及测试/快照 | 直接在共享字典使用 Insight 中文欢迎语，并移除预览标签及无用样式；不新增标题插槽 API | 用户明确接受共享 Web/Desktop 品牌变化。同步基线时保留中文标题与标签移除，其他语言的标题翻译继续沿用上游 |
 | `apps/desktop-host/package.json`、`apps/desktop/package.json` | 让四个私有 Insight 包进入既有递归运行时与 Main 进程依赖闭包 | Insight 组件随桌面运行时交付期间保留 |
 | `apps/desktop/src/main.ts` 及其测试 | 在 `userData` 前选择产品，要求 Insight 登录先于 Host 启动，把一个账号 Home 与凭据回调绑定到 Host，暴露渲染器安全账号操作，应用品牌，并且只在账号关停后重启 | 保持 Insight 生命周期分支显式，同时让官方路径不变 |
 | `apps/desktop/src/product.ts`、`insight-startup.ts`、`insight-account-exit.ts`、`insight-native-brand.ts` 及其测试 | 在上游 Main 流程外负责经校验的产品/运行时标识、隔离认证、隐藏的已保存登录态恢复、native Home 准入、有序账号拆除与产品原生标签 | 保持为产品模块，避免把 Insight 状态分散到通用 Desktop 服务中 |

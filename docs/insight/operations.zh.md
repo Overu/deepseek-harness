@@ -28,7 +28,7 @@
 
 迁移证据保留在 [Insight 历史记录](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md)。当决定依赖精确源码、平台或渠道证据时，读取交付记录，而非只依赖本运维摘要。
 
-1.0.11-rc.1 Candidate 构建尚未发布：Windows 和 macOS x64 已成功，GitHub arm64 runner 分配仍受阻。保留已完成产物和原构建身份；精确 run、源码及剩余发布步骤由[执行记录](history/releases/1.0.11-rc.1.md)维护。
+首轮 1.0.11-rc.1 构建在 Windows 和 macOS x64 成功后因 GitHub arm64 容量不足受阻。已授权的欢迎语修改需要在相同未发布版本上重新构建全部目标；旧源码产物不能混入新 Release。各轮 run、源码及发布结果由[执行记录](history/releases/1.0.11-rc.1.md)维护。
 
 <a id="developing-locally"></a>
 

@@ -26,7 +26,7 @@ The published 1.0.10 application predates the source change that reads both fina
 
 The migration evidence is retained under [Insight history](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md). Read the delivery record when a decision depends on the exact source, platform, or channel evidence rather than this operational summary.
 
-The 1.0.11-rc.1 Candidate build is not published: Windows and macOS x64 succeeded, while GitHub arm64 runner allocation remains blocked. Preserve the completed artifacts and original build identity; the [execution record](history/releases/1.0.11-rc.1.md) owns the exact run, source, and remaining publication steps.
+The initial 1.0.11-rc.1 build was blocked by GitHub arm64 capacity after Windows and macOS x64 succeeded. The authorized welcome change requires a new all-target build at the same unpublished version; old-source artifacts cannot be mixed into its Release. The [execution record](history/releases/1.0.11-rc.1.md) owns each run, source, and publication result.
 
 ## Developing locally
 
