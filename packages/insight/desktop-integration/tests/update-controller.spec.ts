@@ -269,6 +269,40 @@ describe('Insight update controller', () => {
     expect(controller.snapshot).toMatchObject({ track: 'candidate', version: '1.0.10-rc.1' })
   })
 
+  it('does not queue an automatic stable check behind an explicit candidate check for a final client', async () => {
+    let finishCandidate!: (state: InsightNativeUpdateState) => void
+    let candidateStarted!: () => void
+    const started = new Promise<void>((resolve) => { candidateStarted = resolve })
+    const calls: string[] = []
+    const coordinator = {
+      state: { phase: 'idle' as const },
+      check(track: 'stable' | 'candidate') {
+        calls.push(track)
+        if (track === 'candidate') {
+          candidateStarted()
+          return new Promise<InsightNativeUpdateState>((resolve) => { finishCandidate = resolve })
+        }
+        return Promise.resolve({ phase: 'idle' as const })
+      },
+      async download(version: string) { return { phase: 'ready' as const, version } },
+      async install(version: string) { return { phase: 'installing' as const, version } },
+      dismissAvailable: () => ({ phase: 'idle' as const }),
+    }
+    const controller = createInsightUpdateController({
+      currentVersion: '1.0.10',
+      store: { enableCandidate: async () => {}, skippedVersion: async () => undefined, skip: async () => {} },
+      coordinator, resolved: track => release(track, 'optional', '1.0.9', track === 'candidate' ? '1.0.11-rc.1' : '1.0.11'),
+      confirmCandidate: async () => true, openFullInstaller: async () => {}, publish: () => {}, report: () => {},
+    })
+    const candidate = controller.checkCandidate()
+    await started
+    const automatic = controller.automaticCheck()
+    finishCandidate({ phase: 'available', version: '1.0.11-rc.1' })
+    await Promise.all([candidate, automatic])
+    expect(calls).toEqual(['candidate'])
+    expect(controller.snapshot).toMatchObject({ phase: 'available', track: 'candidate', version: '1.0.11-rc.1' })
+  })
+
   it('does not duplicate a candidate check when prerelease discovery overlaps an explicit check', async () => {
     let finishStable!: (state: InsightNativeUpdateState) => void
     const calls: string[] = []

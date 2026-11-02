@@ -81,6 +81,7 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
   let selected: ResolvedInsightUpdate | undefined
   let checkOperation: Promise<void> | undefined
   let queuedTrack: 'stable' | 'candidate' | undefined
+  let queuedCandidateManual = false
   let discoveryOperation: Promise<void> | undefined
   let actionOperation: Promise<void> | undefined
   let suppressAvailable = false
@@ -122,6 +123,7 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
   const check = (track: 'stable' | 'candidate', manual: boolean): Promise<void> => {
     assertLive()
     const active = checkOperation
+    if (!manual && track === 'stable' && queuedTrack === 'candidate' && queuedCandidateManual) return active ?? Promise.resolve()
     if (active === undefined && (current.phase === 'available' || current.phase === 'downloading' || current.phase === 'verifying' || current.phase === 'ready' || current.phase === 'installing')) return Promise.resolve()
     const run = async (): Promise<void> => {
       selectedTrack = track
@@ -152,9 +154,9 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
         suppressAvailable = false
       }
     }
-    if (active === undefined) return startCheck(track, run())
+    if (active === undefined) return startCheck(track, manual, run())
     if (queuedTrack === track) return active
-    return startCheck(track, active.then(async () => {
+    return startCheck(track, manual, active.then(async () => {
       assertLive()
       if (track === 'candidate' && current.required) throw new Error('A required stable update must be installed before checking candidates.')
       if (current.phase === 'available') {
@@ -167,12 +169,14 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
     }))
   }
 
-  const startCheck = (track: 'stable' | 'candidate', next: Promise<void>): Promise<void> => {
+  const startCheck = (track: 'stable' | 'candidate', manual: boolean, next: Promise<void>): Promise<void> => {
     queuedTrack = track
+    queuedCandidateManual = track === 'candidate' && manual
     const tracked = next.finally(() => {
       if (checkOperation === tracked) {
         checkOperation = undefined
         queuedTrack = undefined
+        queuedCandidateManual = false
       }
     })
     checkOperation = tracked

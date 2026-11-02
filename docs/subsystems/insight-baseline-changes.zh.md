@@ -35,7 +35,7 @@
 | `packages/client/ui-chat/src/client/{contract/slots.ts,chat/MessageItem.tsx,chat/register-node-renderers.ts,index.ts}`、局部测试及生成的 Client 目录 | 提供完整的 session-scoped `conversation.chat.user.message` Factory，供原生及 Canvas user/steering 行复用；既有来源装饰 chain 由 Factory 拥有 | 复用原生正文及消息操作，保持 steering、pending/echo 和记录数据语义；上游消息渲染变化后重跑真实注册的 Canvas 历史回归 |
 | `packages/llm/llm-pi-ai/src/index.ts` 与 `tests/adapter.spec.ts` | 公开托管网关构建所需的既有 `resolveProfiles`、`credentialStoreFrom` 与 `authContextFrom` helper | 用户明确授权的增量导出；保留上游实现，基线提供这些导出后移除本地差异 |
 | `pnpm-workspace.yaml`、`pnpm-lock.yaml` | 在根依赖锁和构建策略下解析 iframe 及其保留的 Motion 依赖边 | iframe 有其他明确受支持的构建拥有者后再调整 |
-| `tsconfig.base.json`、`tsconfig.host.json`、`tsconfig.client.json` | 将保留的外部插件名（包括 Integration 登录与更新 Client 入口）解析到源码，并显式编译各面 | 这些标识仍不属于生成的 DSH alias 时保留 |
+| `tsconfig.base.json`、`tsconfig.host.json`、`tsconfig.client.json`、`apps/web/tsconfig.json` | 将保留的插件名与 Integration Client 入口解析到源码，显式编译各面；Canvas 记录会话 Web 测试只归属 Host 程序 | 这些标识仍不属于生成的 DSH alias 时保留 |
 | `scripts/check-workspace-constraints.ts` 及测试 | 强制精确私有标识、根版本、发布元数据和唯一拥有者 | 仅在上游提供同等严格产品输入规则后替换 |
 | `scripts/package-dependency-policy.ts` 及其测试 | 精确分类 Host 值导出、保留工具共享 peer，并拒绝未审查的导出 | 保留共享服务 peer，不扩大为整包安全声明 |
 | `scripts/npm-baseline-packages.ts` 及测试 | 从公开 npm 基线精确排除私有输入 | 发现方式变化时仍需保留发布拒绝 |
