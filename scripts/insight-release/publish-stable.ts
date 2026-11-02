@@ -73,20 +73,101 @@ export interface PublishedInsightStable {
   readonly version: string
 }
 
-interface LocalArtifact {
+/** One verified local artifact with its V2 published name and role. */
+export interface InsightV2LocalArtifact {
   readonly asset: InsightDesktopBuildAsset
   readonly path: string
   readonly name: string
   readonly kind: InsightUpdateArtifact['kind']
 }
 
-interface SignedTarget {
+/** Signed V2 target data reused by Candidate publication and Stable promotion. */
+export interface PreparedInsightV2Target {
   readonly id: InsightUpdateTarget
   readonly manifest: InsightTargetManifest
   readonly bytes: Uint8Array
   readonly signature: Uint8Array
   readonly hash: string
-  readonly artifacts: readonly LocalArtifact[]
+  readonly artifacts: readonly InsightV2LocalArtifact[]
+}
+
+/** Inputs needed to derive one signed V2 target from a verified build. */
+export interface PrepareInsightV2TargetInput {
+  /** Collected build directory for the target. */
+  readonly directory: string
+  /** Canonical final application version. */
+  readonly version: string
+  /** Source revision that produced the build. */
+  readonly sourceCommit: string
+  /** Build target represented by the directory. */
+  readonly target: InsightDesktopBuildTarget
+  /** Data compatibility embedded in the target manifest. */
+  readonly compatibility: InsightReleaseCompatibility
+  /** Matching signing key used for the target manifest. */
+  readonly signingKey: KeyObject
+  /** Public key used to verify the completed target manifest. */
+  readonly publicKeyPem: string
+}
+
+/**
+ * Derive the V2 target bytes shared by Candidate final publication and Stable promotion.
+ * @param input - A verified final build and the signing identity for its V2 target manifest.
+ * @returns The signed target manifest and immutable artifact records.
+ */
+export async function prepareInsightV2Target(input: PrepareInsightV2TargetInput): Promise<PreparedInsightV2Target> {
+  const build = await verifyInsightDesktopBuildManifest({
+    artifactDirectory: input.directory,
+    manifestFilename: `insight-build-${input.target}.json`,
+    expected: { version: input.version, sourceCommit: input.sourceCommit, target: input.target },
+    purpose: 'publish',
+  })
+  const artifacts = selectArtifacts(input.directory, build.assets, input.version, input.target)
+  const metadata = exactlyOneArtifact(artifacts, artifact => artifact.kind === 'updater-metadata', 'updater metadata')
+  const payload = exactlyOneArtifact(
+    artifacts,
+    artifact => artifact.kind === (input.target === 'win32-x64' ? 'nsis' : 'zip'),
+    'update payload',
+  )
+  if (metadata.asset.size > MAX_METADATA_BYTES) throw new Error('Insight updater metadata exceeds the size limit.')
+  verifyUpdaterMetadata(await readFile(metadata.path), input.version, payload.asset)
+  const manifest: InsightTargetManifest = {
+    schema: 'insight-desktop-target/v2',
+    version: input.version,
+    target: targetFields(input.target),
+    shellCommit: input.sourceCommit,
+    coreRuntime: { tag: build.runtimeVersion, commit: input.sourceCommit },
+    compatibility: input.compatibility,
+    artifacts: artifacts.map(artifact => artifactRecord(artifact, input.target)),
+  }
+  const bytes = canonicalJson(manifest)
+  const hash = sha512(bytes)
+  const signature = new Uint8Array(sign(null, bytes, input.signingKey))
+  const verified = verifyInsightTargetManifest({
+    bytes, signature, publicKeyPem: input.publicKeyPem, expectedHash: hash,
+    expectedTarget: input.target, expectedVersion: input.version, schema: 'v2',
+  })
+  return { id: input.target, manifest: verified, bytes, signature, hash, artifacts }
+}
+
+/**
+ * List the immutable V2 target objects below a caller-selected release prefix.
+ * @param target - Signed target data prepared from one verified build.
+ * @param prefix - Target object prefix ending with `/`.
+ * @returns Immutable files, manifest, and signature with their exact bytes and hashes.
+ */
+export function insightV2TargetObjects(target: PreparedInsightV2Target, prefix: string): readonly PublishImmutableObject[] {
+  const id = targetId(target.manifest.target)
+  if (id !== target.id) throw new Error('Verified target manifest changed target identity.')
+  return [
+    ...target.artifacts.map(artifact => ({
+      key: `${prefix}${artifact.name}`,
+      size: artifact.asset.size,
+      sha512: artifact.asset.sha512,
+      source: { path: artifact.path },
+    })),
+    { key: `${prefix}${TARGET_MANIFEST_NAME}`, size: target.bytes.byteLength, sha512: target.hash, source: { bytes: target.bytes } },
+    { key: `${prefix}${TARGET_MANIFEST_SIGNATURE_NAME}`, size: target.signature.byteLength, sha512: sha512(target.signature), source: { bytes: target.signature } },
+  ]
 }
 
 /**
@@ -97,45 +178,18 @@ interface SignedTarget {
 export async function publishInsightStable(input: PublishInsightStableInput): Promise<PublishedInsightStable> {
   requireFinalVersion(input.version)
   const signingKey = signingKeyFor(input.privateKeyPem, input.publicKeyPem)
-  const targets: SignedTarget[] = []
+  const targets: PreparedInsightV2Target[] = []
   let runtimeVersion: string | undefined
   for (const target of INSIGHT_UPDATE_TARGETS) {
     const directory = input.directories[target]
     if (typeof directory !== 'string' || directory === '') throw new Error(`Stable publication is missing ${target}.`)
-    const build = await verifyInsightDesktopBuildManifest({
-      artifactDirectory: directory,
-      manifestFilename: `insight-build-${target}.json`,
-      expected: { version: input.version, sourceCommit: input.sourceCommit, target },
-      purpose: 'publish',
+    const signed = await prepareInsightV2Target({
+      directory, version: input.version, sourceCommit: input.sourceCommit, target,
+      compatibility: input.compatibility, signingKey, publicKeyPem: input.publicKeyPem,
     })
-    if (runtimeVersion === undefined) runtimeVersion = build.runtimeVersion
-    else if (runtimeVersion !== build.runtimeVersion) throw new Error('Stable target builds do not share one runtime version.')
-    const artifacts = selectArtifacts(directory, build.assets, input.version, target)
-    const metadata = exactlyOneArtifact(artifacts, artifact => artifact.kind === 'updater-metadata', 'updater metadata')
-    const payload = exactlyOneArtifact(
-      artifacts,
-      artifact => artifact.kind === (target === 'win32-x64' ? 'nsis' : 'zip'),
-      'update payload',
-    )
-    if (metadata.asset.size > MAX_METADATA_BYTES) throw new Error('Insight updater metadata exceeds the size limit.')
-    verifyUpdaterMetadata(await readFile(metadata.path), input.version, payload.asset)
-    const manifest: InsightTargetManifest = {
-      schema: 'insight-desktop-target/v2',
-      version: input.version,
-      target: targetFields(target),
-      shellCommit: input.sourceCommit,
-      coreRuntime: { tag: build.runtimeVersion, commit: input.sourceCommit },
-      compatibility: input.compatibility,
-      artifacts: artifacts.map(artifact => artifactRecord(artifact, target)),
-    }
-    const bytes = canonicalJson(manifest)
-    const hash = sha512(bytes)
-    const signature = new Uint8Array(sign(null, bytes, signingKey))
-    const verified = verifyInsightTargetManifest({
-      bytes, signature, publicKeyPem: input.publicKeyPem, expectedHash: hash,
-      expectedTarget: target, expectedVersion: input.version, schema: 'v2',
-    })
-    targets.push({ id: target, manifest: verified, bytes, signature, hash, artifacts })
+    if (runtimeVersion === undefined) runtimeVersion = signed.manifest.coreRuntime.tag
+    else if (runtimeVersion !== signed.manifest.coreRuntime.tag) throw new Error('Stable target builds do not share one runtime version.')
+    targets.push(signed)
   }
   if (runtimeVersion === undefined) throw new Error('Stable publication requires every target.')
 
@@ -161,7 +215,7 @@ export async function publishInsightStable(input: PublishInsightStableInput): Pr
   if (current !== undefined && current.etag === '') throw new Error('Stable pointer has no usable ETag.')
   const currentRollout = current === undefined
     ? undefined
-    : verifyInsightRollout(current.bytes, input.publicKeyPem, 'stable').rollout
+    : verifyInsightRollout(current.bytes, input.publicKeyPem, { track: 'stable', protocol: 'v2' }).rollout
   if (currentRollout !== undefined) {
     if (semver.gt(currentRollout.version, input.version)) throw new Error('Stable publication would move the pointer backwards.')
     if (currentRollout.version === input.version && currentRollout.referencedSha512 !== indexHash) {
@@ -172,23 +226,11 @@ export async function publishInsightStable(input: PublishInsightStableInput): Pr
   const pointerBytes = sameVersion && current !== undefined
     ? current.bytes
     : signedStablePointer(input, indexHash, signingKey)
-  verifyInsightRollout(pointerBytes, input.publicKeyPem, 'stable')
+  verifyInsightRollout(pointerBytes, input.publicKeyPem, { track: 'stable', protocol: 'v2' })
 
   const immutable: PublishImmutableObject[] = []
   for (const target of targets) {
-    const id = targetId(target.manifest.target)
-    if (id !== target.id) throw new Error('Verified target manifest changed target identity.')
-    const targetPrefix = `${releasePrefix}targets/${id}/`
-    immutable.push(...target.artifacts.map(artifact => ({
-      key: `${targetPrefix}${artifact.name}`,
-      size: artifact.asset.size,
-      sha512: artifact.asset.sha512,
-      source: { path: artifact.path },
-    })))
-    immutable.push(
-      { key: `${targetPrefix}${TARGET_MANIFEST_NAME}`, size: target.bytes.byteLength, sha512: target.hash, source: { bytes: target.bytes } },
-      { key: `${targetPrefix}${TARGET_MANIFEST_SIGNATURE_NAME}`, size: target.signature.byteLength, sha512: sha512(target.signature), source: { bytes: target.signature } },
-    )
+    immutable.push(...insightV2TargetObjects(target, `${releasePrefix}targets/${target.id}/`))
   }
   immutable.push(
     { key: indexKey, size: indexBytes.byteLength, sha512: indexHash, source: { bytes: indexBytes } },
@@ -249,7 +291,7 @@ function signedStablePointer(input: PublishInsightStableInput, indexHash: string
   })
 }
 
-function artifactRecord(artifact: LocalArtifact, target: InsightUpdateTarget): InsightUpdateArtifact {
+function artifactRecord(artifact: InsightV2LocalArtifact, target: InsightUpdateTarget): InsightUpdateArtifact {
   return {
     ...targetFields(target), kind: artifact.kind, name: artifact.name,
     size: artifact.asset.size, sha512: artifact.asset.sha512,
@@ -261,7 +303,7 @@ function selectArtifacts(
   assets: readonly InsightDesktopBuildAsset[],
   version: string,
   target: InsightDesktopBuildTarget,
-): readonly LocalArtifact[] {
+): readonly InsightV2LocalArtifact[] {
   const { metadata: localMetadata, payload, blockmap } = selectUpdateAssets(assets, version, target)
   const metadataName = target === 'win32-x64' ? 'latest.yml' : 'latest-mac.yml'
   const records: Array<{ asset: InsightDesktopBuildAsset; name: string; kind: InsightUpdateArtifact['kind'] }> = target === 'win32-x64'
@@ -288,12 +330,12 @@ function macInstaller(
 }
 
 function exactlyOneArtifact(
-  artifacts: readonly LocalArtifact[],
-  predicate: (artifact: LocalArtifact) => boolean,
+  artifacts: readonly InsightV2LocalArtifact[],
+  predicate: (artifact: InsightV2LocalArtifact) => boolean,
   label: string,
-): LocalArtifact {
+): InsightV2LocalArtifact {
   const found = artifacts.filter(predicate)
   const [artifact] = found
-  if (found.length !== 1 || artifact === undefined) throw new Error(`Stable build must contain exactly one ${label}.`)
+  if (found.length !== 1 || artifact === undefined) throw new Error(`V2 build must contain exactly one ${label}.`)
   return artifact
 }

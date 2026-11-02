@@ -15,6 +15,7 @@ import {
   type InsightTargetManifest,
   type InsightUpdateArtifact,
   type InsightUpdatePolicy,
+  type InsightRolloutProtocol,
   type InsightUpdateTarget,
   type InsightUpdateTrack,
 } from './contract.ts'
@@ -78,28 +79,28 @@ export async function resolveInsightUpdate(input: ResolveInsightUpdateInput): Pr
   const fetchImplementation = input.fetch ?? globalThis.fetch
   if (typeof fetchImplementation !== 'function') throw new Error('No fetch implementation is available for update discovery.')
   const request = createRequest(fetchImplementation, input.signal)
-  const pointerUrl = targetUrl(origin, input.track === 'stable'
-    ? 'desktop/stable/current.json'
-    : `desktop/candidate-v3/${target}/current.json`)
-  const pointerBytes = await request(pointerUrl, 'Update pointer')
-  const verified = verifyInsightRollout(pointerBytes, input.publicKeyPem, input.track)
-  if (input.track === 'candidate' && verified.rollout.target !== target) throw new Error('Candidate update pointer targets a different platform.')
+  const selected = input.track === 'stable'
+    ? await resolveStableRollout({ request, origin, publicKeyPem: input.publicKeyPem })
+    : await resolveCandidateRollout({ request, origin, target, publicKeyPem: input.publicKeyPem })
+  const { protocol, pointerBytes, verified } = selected
   await input.acceptRollout?.({ track: input.track, version: verified.rollout.version, state: verified.rollout.state,
     fingerprint: sha512(pointerBytes), ...(input.track === 'candidate' ? { target } : {}) })
   if (verified.rollout.state === 'rejected') throw new Error('Candidate update has been withdrawn.')
 
   const version = verified.rollout.version
-  const targetBase = targetUrl(origin, input.track === 'stable'
-    ? `desktop/releases/v${version}/targets/${target}/`
-    : `desktop/native/releases/v${version}/targets/${target}/`)
+  const targetBase = targetUrl(origin, protocol === 'v3'
+    ? `desktop/native/releases/v${version}/targets/${target}/`
+    : `desktop/releases/v${version}/targets/${target}/`)
   const manifest = input.track === 'stable'
     ? await resolveStableManifest({
       request, origin, target, version, hash: verified.rollout.referencedSha512, publicKeyPem: input.publicKeyPem,
     })
-    : await resolveTargetManifest({ request, targetBase, target, version, hash: verified.rollout.referencedSha512, publicKeyPem: input.publicKeyPem, schema: 'v3' })
+    : await resolveTargetManifest({
+      request, targetBase, target, version, hash: verified.rollout.referencedSha512, publicKeyPem: input.publicKeyPem, schema: protocol,
+    })
   const metadataAsset = requiredArtifact(manifest, 'updater-metadata')
   const payloadAsset = requiredArtifact(manifest, target.startsWith('darwin-') ? 'zip' : 'nsis')
-  if (input.track === 'candidate' && metadataAsset.name !== candidateMetadataFilename(version, target)) {
+  if (protocol === 'v3' && metadataAsset.name !== candidateMetadataFilename(version, target)) {
     throw new Error('Candidate target manifest updater metadata name is not version-target derived.')
   }
   const metadataBytes = await request(assetUrl(targetBase, metadataAsset.name), 'Updater metadata')
@@ -117,6 +118,61 @@ export async function resolveInsightUpdate(input: ResolveInsightUpdateInput): Pr
     metadata,
     identityFingerprint: verified.fingerprint,
   }
+}
+
+async function resolveStableRollout(input: {
+  readonly request: MetadataRequest
+  readonly origin: URL
+  readonly publicKeyPem: string
+}): Promise<ResolvedRollout> {
+  const pointerBytes = await input.request(targetUrl(input.origin, 'desktop/stable/current.json'), 'Stable update pointer')
+  return {
+    protocol: 'v2',
+    pointerBytes,
+    verified: verifyInsightRollout(pointerBytes, input.publicKeyPem, { track: 'stable', protocol: 'v2' }),
+  }
+}
+
+async function resolveCandidateRollout(input: {
+  readonly request: MetadataRequest
+  readonly origin: URL
+  readonly target: InsightUpdateTarget
+  readonly publicKeyPem: string
+}): Promise<ResolvedRollout> {
+  const optional = createOptionalRequest(input.request)
+  const candidates = await Promise.all([
+    resolveCandidatePointer({ optional, url: targetUrl(input.origin, `desktop/candidate-v2/${input.target}/current.json`), protocol: 'v2', target: input.target, publicKeyPem: input.publicKeyPem }),
+    resolveCandidatePointer({ optional, url: targetUrl(input.origin, `desktop/candidate-v3/${input.target}/current.json`), protocol: 'v3', target: input.target, publicKeyPem: input.publicKeyPem }),
+  ])
+  const available = candidates.filter((candidate): candidate is ResolvedRollout => candidate !== undefined)
+  if (available.length === 0) throw new Error('No candidate update pointer is available for this platform.')
+  available.sort((left, right) => semver.rcompare(left.verified.rollout.version, right.verified.rollout.version))
+  const [selected, next] = available
+  if (selected === undefined) throw new Error('No candidate update pointer is available for this platform.')
+  if (next !== undefined && selected.verified.rollout.version === next.verified.rollout.version) {
+    throw new Error('Candidate update pointers use the same version across protocols.')
+  }
+  return selected
+}
+
+async function resolveCandidatePointer(input: {
+  readonly optional: OptionalMetadataRequest
+  readonly url: URL
+  readonly protocol: InsightRolloutProtocol
+  readonly target: InsightUpdateTarget
+  readonly publicKeyPem: string
+}): Promise<ResolvedRollout | undefined> {
+  const pointerBytes = await input.optional(input.url, 'Candidate update pointer')
+  if (pointerBytes === undefined) return undefined
+  const verified = verifyInsightRollout(pointerBytes, input.publicKeyPem, { track: 'candidate', protocol: input.protocol })
+  if (verified.rollout.target !== input.target) throw new Error('Candidate update pointer targets a different platform.')
+  return { protocol: input.protocol, pointerBytes, verified }
+}
+
+interface ResolvedRollout {
+  readonly protocol: InsightRolloutProtocol
+  readonly pointerBytes: Uint8Array
+  readonly verified: ReturnType<typeof verifyInsightRollout>
 }
 
 async function resolveStableManifest(input: {
@@ -170,6 +226,7 @@ async function resolveTargetManifest(input: {
 }
 
 type MetadataRequest = (url: URL, label: string) => Promise<Uint8Array>
+type OptionalMetadataRequest = (url: URL, label: string) => Promise<Uint8Array | undefined>
 
 function createRequest(fetchImplementation: typeof globalThis.fetch, inheritedSignal: AbortSignal | undefined): MetadataRequest {
   return async (url, label) => {
@@ -182,8 +239,28 @@ function createRequest(fetchImplementation: typeof globalThis.fetch, inheritedSi
     } catch (error: unknown) {
       throw new Error(`${label} request failed: ${error instanceof Error ? error.message : String(error)}`)
     }
-    if (response.url !== url.href || response.redirected || !response.ok) throw new Error(`${label} response is not a trusted successful same-origin response.`)
+    if (response.url !== url.href || response.redirected) throw new Error(`${label} response is not a trusted successful same-origin response.`)
+    if (response.status === 404) throw new MissingUpdateDocumentError(label)
+    if (!response.ok) throw new Error(`${label} response is not a trusted successful same-origin response.`)
     return readBounded(response, label, signal)
+  }
+}
+
+/** Exact same-origin 404 for an optional update document. */
+class MissingUpdateDocumentError extends Error {
+  constructor(label: string) {
+    super(`${label} is not available.`)
+  }
+}
+
+function createOptionalRequest(request: MetadataRequest): OptionalMetadataRequest {
+  return async (url, label) => {
+    try {
+      return await request(url, label)
+    } catch (error) {
+      if (error instanceof MissingUpdateDocumentError) return undefined
+      throw error
+    }
   }
 }
 

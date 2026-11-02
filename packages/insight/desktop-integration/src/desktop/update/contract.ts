@@ -13,6 +13,9 @@ export type InsightUpdateTarget = typeof INSIGHT_UPDATE_TARGETS[number]
 /** Update channel selected by the caller. */
 export type InsightUpdateTrack = 'stable' | 'candidate'
 
+/** Signed rollout protocol generation. */
+export type InsightRolloutProtocol = 'v2' | 'v3'
+
 /** Authenticated update policy. */
 export interface InsightUpdatePolicy {
   readonly mode: 'optional' | 'required'
@@ -130,23 +133,28 @@ export function sha512(bytes: Uint8Array): string {
  * Verify a signed v2 or v3 rollout envelope.
  * @param bytes - Exact rollout envelope bytes.
  * @param publicKeyPem - Ed25519 public key used to verify the envelope payload.
- * @param expectedTrack - Update channel and matching protocol generation.
+ * @param expected - Update channel and rollout protocol expected at this URL.
  * @returns Authenticated rollout and its stable identity fingerprint.
  */
-export function verifyInsightRollout(bytes: Uint8Array, publicKeyPem: string, expectedTrack: InsightUpdateTrack): VerifiedInsightRollout {
+export function verifyInsightRollout(
+  bytes: Uint8Array,
+  publicKeyPem: string,
+  expected: { readonly track: InsightUpdateTrack; readonly protocol: InsightRolloutProtocol },
+): VerifiedInsightRollout {
+  if (expected.protocol === 'v3' && expected.track === 'stable') {
+    throw new Error('V3 rollout pointers are only supported for candidate updates.')
+  }
   const envelope = parseCanonicalJson(bytes, envelopeSchema, 'Update rollout envelope')
-  const expectedSchema = expectedTrack === 'stable'
-    ? 'insight-desktop-rollout-envelope/v2'
-    : 'insight-desktop-rollout-envelope/v3'
+  const expectedSchema = `insight-desktop-rollout-envelope/${expected.protocol}`
   if (envelope.schema !== expectedSchema) throw new Error('Update pointer uses the wrong protocol schema.')
   const payloadBytes = decodeCanonicalBase64(envelope.payloadBase64, 'Update rollout payload')
   const signature = decodeCanonicalBase64(envelope.signatureBase64, 'Update rollout signature')
   const key = createPublicKey(publicKeyPem)
   if (!verify(null, payloadBytes, key, signature)) throw new Error('Update rollout signature is invalid.')
-  const rollout = expectedTrack === 'stable'
+  const rollout = expected.protocol === 'v2'
     ? parseCanonicalJson(payloadBytes, v2RolloutSchema, 'Update rollout payload')
     : parseCanonicalJson(payloadBytes, v3RolloutSchema, 'Update rollout payload')
-  validateRollout(rollout, expectedTrack)
+  validateRollout(rollout, expected)
   return {
     rollout,
     fingerprint: createHash('sha256').update(key.export({ format: 'der', type: 'spki' })).digest('hex'),
@@ -258,12 +266,15 @@ export function targetId(target: InsightTargetManifest['target']): InsightUpdate
   throw new Error('Target manifest has an unsupported platform or architecture.')
 }
 
-function validateRollout(rollout: InsightRollout, expectedTrack: InsightUpdateTrack): void {
-  if (rollout.track !== expectedTrack) throw new Error('Update pointer track does not match the requested track.')
-  assertVersion(rollout.version, expectedTrack === 'stable' ? 'final' : 'candidate')
+function validateRollout(
+  rollout: InsightRollout,
+  expected: { readonly track: InsightUpdateTrack; readonly protocol: InsightRolloutProtocol },
+): void {
+  if (rollout.track !== expected.track) throw new Error('Update pointer track does not match the requested track.')
+  assertVersion(rollout.version, expected.protocol === 'v2' ? 'final' : 'candidate')
   assertVersion(rollout.policy.minimumSupportedVersion, 'any')
   if (semver.gt(rollout.policy.minimumSupportedVersion, rollout.version)) throw new Error('Update policy minimum version exceeds the release version.')
-  if (expectedTrack === 'stable') {
+  if (expected.track === 'stable') {
     if (rollout.target !== undefined || rollout.state !== 'active') throw new Error('Stable update pointers must be active and target-neutral.')
   } else if (rollout.target === undefined || rollout.policy.mode !== 'optional') {
     throw new Error('Candidate update pointers must select one target and be optional.')
@@ -300,7 +311,7 @@ function sameCompatibility(left: InsightTargetManifest['compatibility'], right: 
 function assertVersion(version: string, kind: 'final' | 'candidate' | 'any'): void {
   const parsed = semver.parse(version)
   if (semver.valid(version) !== version || parsed === null || parsed.build.length !== 0 || parsed.major !== 1) throw new Error('Update version must be canonical 1.x semver without build metadata.')
-  if (kind === 'final' && parsed.prerelease.length !== 0) throw new Error('V2 stable updates must use final versions.')
+  if (kind === 'final' && parsed.prerelease.length !== 0) throw new Error('V2 updates must use final versions.')
   if (kind === 'candidate' && parsed.prerelease.length === 0) throw new Error('V3 candidate updates must use prerelease versions.')
 }
 

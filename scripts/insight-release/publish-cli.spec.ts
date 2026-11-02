@@ -21,21 +21,22 @@ function requestUrl(input: RequestInfo | URL): string {
   return input instanceof URL ? input.href : input.url
 }
 
-async function fixture() {
+async function fixture(releaseVersion = version) {
   const root = await mkdtemp(join(tmpdir(), 'insight-stage-two-'))
   onTestFinished(() => rm(root, { recursive: true, force: true }))
   const original = join(root, 'original')
   await mkdir(original)
   await writeFile(join(original, 'payload.bin'), 'trusted payload')
+  const artifactName = `insight-package-${target}-${releaseVersion}`
   const manifest = await createInsightDesktopBuildManifest({
-    artifactDirectory: original, manifestFilename, version, runtimeVersion: '0.2.2-alpha.2', sourceCommit,
+    artifactDirectory: original, manifestFilename, version: releaseVersion, runtimeVersion: '0.2.2-alpha.2', sourceCommit,
     target, qualification: 'distribution', assetFilenames: ['payload.bin'],
   })
   await writeInsightDesktopBuildManifest(original, manifestFilename, manifest)
   const manifestBytes = await readFile(join(original, manifestFilename))
   const buildRunRecord = Buffer.from(`${JSON.stringify({
     schema: 'insight-build-run/v1', repositoryId: 1_429_559_776, workflowPath: '.github/workflows/insight-package.yml',
-    workflowRunId: 41, workflowRunAttempt: 2, headSha: sourceCommit, version, qualification: 'distribution',
+    workflowRunId: 41, workflowRunAttempt: 2, headSha: sourceCommit, version: releaseVersion, qualification: 'distribution',
     targets: [{ target, artifactName, manifestFilename, manifestSha512: hash(manifestBytes) }],
   })}\n`)
   const releaseFiles = new Map<string, Uint8Array>([
@@ -49,10 +50,10 @@ async function fixture() {
   const artifactBytes = Buffer.from('zip placeholder')
   const fetch = vi.fn(async (input: RequestInfo | URL) => {
     const url = requestUrl(input)
-    if (url.endsWith(`/releases/tags/insight-v${version}`)) {
-      return Response.json({ tag_name: `insight-v${version}`, draft: false, assets })
+    if (url.endsWith(`/releases/tags/insight-v${releaseVersion}`)) {
+      return Response.json({ tag_name: `insight-v${releaseVersion}`, draft: false, assets })
     }
-    if (url.endsWith(`/git/ref/tags/insight-v${version}`)) return Response.json({ object: { type: 'commit', sha: sourceCommit } })
+    if (url.endsWith(`/git/ref/tags/insight-v${releaseVersion}`)) return Response.json({ object: { type: 'commit', sha: sourceCommit } })
     if (url.endsWith('/actions/runs/41')) return Response.json({ id: 41, run_attempt: 2, event: 'workflow_dispatch', head_branch: 'insight',
       head_sha: sourceCommit, status: 'completed', conclusion: 'success', path: '.github/workflows/insight-package.yml@refs/heads/insight',
       repository: { id: 1_429_559_776, full_name: 'Overu/deepseek-harness' } })
@@ -69,7 +70,7 @@ async function fixture() {
     }
     return new Response('missing', { status: 404 })
   })
-  return { root, original, buildRunRecord, releaseFiles, assets, fetch }
+  return { root, original, buildRunRecord, releaseFiles, assets, fetch, manifestFilename }
 }
 
 const transport = {} as InsightOssTransport
@@ -104,6 +105,35 @@ it('binds the tag, successful source run, original artifact, Release bytes, and 
   expect(published).toHaveLength(1)
   expect(published[0]).toMatchObject({ version, sourceCommit, target,
     compatibility: { profileSchema: 1, accountStorageSchema: 1, readsDataSchema: { minimum: 1, maximum: 2 }, writesDataSchema: 2 } })
+})
+
+it('uses the selected target rather than prerelease syntax to route final Candidate publication', async () => {
+  const finalVersion = '1.0.10'
+  const f = await fixture(finalVersion)
+  const published: Parameters<typeof publishInsightCandidate>[0][] = []
+  await publishVerifiedInsightRelease({
+    version: finalVersion, sourceCommit, candidateTarget: target, githubToken: 'token', privateKeyPem: 'private', publicKeyPem: 'public',
+    temporaryDirectory: f.root, transport, fetch: f.fetch,
+    extractArtifact: async (_archive, destination) => {
+      await copyFile(join(f.original, 'payload.bin'), join(destination, 'payload.bin'))
+      await copyFile(join(f.original, f.manifestFilename), join(destination, f.manifestFilename))
+    },
+    publishCandidate: async (input) => {
+      published.push(input)
+      return { manifestKey: 'manifest', pointerKey: 'pointer', version: finalVersion }
+    },
+  })
+  expect(published).toHaveLength(1)
+  expect(published[0]).toMatchObject({ version: finalVersion, target })
+})
+
+it('rejects a prerelease Stable request before reading GitHub', async () => {
+  const fetch = vi.fn()
+  await expect(publishVerifiedInsightRelease({
+    version, sourceCommit, githubToken: 'token', privateKeyPem: 'private', publicKeyPem: 'public',
+    temporaryDirectory: '/tmp/unused', transport, fetch,
+  })).rejects.toThrow(/Stable publication requires a canonical final/u)
+  expect(fetch).not.toHaveBeenCalled()
 })
 
 it('refuses a draft Release before inspecting or publishing its artifacts', async () => {

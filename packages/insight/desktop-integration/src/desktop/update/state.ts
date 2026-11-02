@@ -87,11 +87,17 @@ export class InsightUpdateStateStore {
     const key = pointerKey(rollout.track, rollout.target)
     await this.write(this.historyPath, async () => {
       const history = await this.readHistory()
-      const previous = history.pointers[key]
+      const canonical = history.pointers[key]
+      const previous = rollout.track === 'candidate'
+        ? candidateHistory(history, rollout.target)
+        : canonical
       if (previous !== undefined && semver.gt(previous.version, rollout.version)) {
         throw new Error('更新投放版本低于此设备已验证的版本，已拒绝可能的回放。')
       }
       if (previous?.version === rollout.version) {
+        if (previous.state === 'rejected' && rollout.state === 'active') {
+          throw new Error('已撤回的更新版本不能重新激活。')
+        }
         if (previous.state === 'active' && rollout.state === 'rejected') {
           return { schema: 1, pointers: { ...history.pointers, [key]: {
             version: rollout.version, envelopeSha512: rollout.fingerprint, state: rollout.state,
@@ -100,10 +106,13 @@ export class InsightUpdateStateStore {
         if (previous.envelopeSha512 !== rollout.fingerprint) {
           throw new Error('同一更新版本的投放内容发生变化，已拒绝不一致的指针。')
         }
-        if (previous.state === 'rejected' && rollout.state === 'active') {
-          throw new Error('已撤回的更新版本不能重新激活。')
+        if (previous.state === rollout.state) {
+          if (canonical?.version === rollout.version
+            && canonical.state === rollout.state && canonical.envelopeSha512 === rollout.fingerprint) return history
+          return { schema: 1, pointers: { ...history.pointers, [key]: {
+            version: rollout.version, envelopeSha512: rollout.fingerprint, state: rollout.state,
+          } } }
         }
-        if (previous.state === rollout.state) return history
       }
       return { schema: 1, pointers: { ...history.pointers, [key]: {
         version: rollout.version, envelopeSha512: rollout.fingerprint, state: rollout.state,
@@ -138,7 +147,22 @@ function pointerKey(track: InsightAcceptedRollout['track'], target: string | und
     return 'stable'
   }
   if (target === undefined || target === '') throw new Error('Candidate 投放记录必须指定目标。')
-  return `candidate-v3/${target}`
+  return `candidate/${target}`
+}
+
+function candidateHistory(history: History, target: string | undefined): History['pointers'][string] | undefined {
+  if (target === undefined || target === '') throw new Error('Candidate 投放记录必须指定目标。')
+  const canonical = history.pointers[`candidate/${target}`]
+  const alias = history.pointers[`candidate-v3/${target}`]
+  if (canonical === undefined) return alias
+  if (alias === undefined) return canonical
+  const order = semver.compare(canonical.version, alias.version)
+  if (order !== 0) return order > 0 ? canonical : alias
+  if (canonical.state !== alias.state) return canonical.state === 'rejected' ? canonical : alias
+  if (canonical.envelopeSha512 !== alias.envelopeSha512) {
+    throw new Error('同一更新版本的投放内容发生变化，已拒绝不一致的指针。')
+  }
+  return canonical
 }
 
 function parseDocument(raw: string, label: string): unknown {

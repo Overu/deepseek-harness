@@ -30,6 +30,7 @@ import {
   verifyUpdaterMetadata,
   type PublishImmutableObject,
 } from './publish-common.ts'
+import { insightV2TargetObjects, prepareInsightV2Target } from './publish-stable.ts'
 
 const CANDIDATE_MINIMUM_VERSION = '1.0.9'
 const TARGET_MANIFEST_NAME = 'insight-target.json'
@@ -77,7 +78,7 @@ export type InsightReleaseCompatibility = InsightTargetManifest['compatibility']
 export interface PublishInsightCandidateInput {
   /** Directory produced by the collection stage. */
   readonly directory: string
-  /** Canonical 1.x prerelease version. */
+  /** Canonical 1.x version; final versions use V2 and prereleases use V3. */
   readonly version: string
   /** Complete source revision that produced the build. */
   readonly sourceCommit: string
@@ -114,7 +115,8 @@ export interface PublishedInsightCandidate {
  * @returns Immutable manifest and mutable pointer keys after a byte-identical pointer readback.
  */
 export async function publishInsightCandidate(input: PublishInsightCandidateInput): Promise<PublishedInsightCandidate> {
-  requireCandidateVersion(input.version)
+  const protocol = candidateProtocol(input.version)
+  if (protocol === 'v2') return publishInsightV2Candidate(input)
   const signingKey = signingKeyFor(input.privateKeyPem, input.publicKeyPem)
   const manifestFilename = `insight-build-${input.target}.json`
   const build = await verifyInsightDesktopBuildManifest({
@@ -152,27 +154,14 @@ export async function publishInsightCandidate(input: PublishInsightCandidateInpu
   const releasePrefix = `desktop/native/releases/v${input.version}/targets/${input.target}/`
   const manifestKey = `${releasePrefix}${TARGET_MANIFEST_NAME}`
   const pointerKey = `desktop/candidate-v3/${input.target}/current.json`
-  const current = await input.transport.getMetadata(pointerKey)
-  if (current !== undefined && current.etag === '') throw new Error('Candidate pointer has no usable ETag.')
-  const currentRollout = current === undefined
-    ? undefined
-    : verifyInsightRollout(current.bytes, input.publicKeyPem, 'candidate').rollout
-  if (currentRollout !== undefined) {
-    if (currentRollout.target !== input.target) throw new Error('Existing candidate pointer targets a different platform.')
-    if (semver.gt(currentRollout.version, input.version)) throw new Error('Candidate publication would move the pointer backwards.')
-    if (currentRollout.version === input.version && currentRollout.referencedSha512 !== manifestHash) {
-      throw new Error('An existing candidate version refers to different target manifest bytes.')
-    }
-    if (currentRollout.version === input.version && currentRollout.state !== 'active') {
-      throw new Error('A withdrawn candidate version must not be republished.')
-    }
-  }
+  const { current, floor } = await candidatePointers(input, 'v3')
+  assertCandidatePointer(input, floor, manifestHash)
 
-  const sameVersion = currentRollout?.version === input.version
+  const sameVersion = floor.current?.version === input.version
   const pointerBytes = sameVersion && current !== undefined
     ? current.bytes
-    : signedCandidatePointer(input, manifestHash, signingKey)
-  verifyInsightRollout(pointerBytes, input.publicKeyPem, 'candidate')
+    : signedCandidatePointer(input, manifestHash, signingKey, 'v3')
+  verifyInsightRollout(pointerBytes, input.publicKeyPem, { track: 'candidate', protocol: 'v3' })
 
   const immutable: PublishImmutableObject[] = [
     ...selected.ordered.map(entry => ({
@@ -191,24 +180,7 @@ export async function publishInsightCandidate(input: PublishInsightCandidateInpu
   ]
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'insight-release-publish-'))
   try {
-    for (const [index, object] of immutable.entries()) {
-      if (!await remoteMatches(input.transport, object, join(temporaryDirectory, `existing-${String(index)}`), 'release')) {
-        const snapshot = join(temporaryDirectory, `upload-${String(index)}`)
-        try {
-          await input.transport.putImmutable(
-            object.key,
-            await immutableUploadSource(object, snapshot, 'release'),
-          )
-        } finally {
-          await rm(snapshot, { force: true })
-        }
-      }
-    }
-    for (const [index, object] of immutable.entries()) {
-      if (!await remoteMatches(input.transport, object, join(temporaryDirectory, `verified-${String(index)}`), 'release')) {
-        throw new Error(`Immutable release object is missing after upload: ${object.key}`)
-      }
-    }
+    await publishImmutableObjects(input.transport, immutable, temporaryDirectory)
 
     await publishPointer(input.transport, pointerKey, pointerBytes, current, sameVersion, 'Candidate')
     return { manifestKey, pointerKey, version: input.version }
@@ -217,20 +189,25 @@ export async function publishInsightCandidate(input: PublishInsightCandidateInpu
   }
 }
 
-function requireCandidateVersion(version: string): void {
+function candidateProtocol(version: string): 'v2' | 'v3' {
   const parsed = semver.parse(version)
-  if (semver.valid(version) !== version || parsed === null || parsed.major !== 1 ||
-    parsed.build.length !== 0 || parsed.prerelease.length === 0) {
-    throw new Error('Insight candidate publication requires a canonical 1.x prerelease version without build metadata.')
+  if (semver.valid(version) !== version || parsed === null || parsed.major !== 1 || parsed.build.length !== 0) {
+    throw new Error('Insight candidate publication requires a canonical 1.x version without build metadata.')
   }
+  return parsed.prerelease.length === 0 ? 'v2' : 'v3'
 }
 
-function signedCandidatePointer(input: PublishInsightCandidateInput, manifestHash: string, signingKey: KeyObject): Uint8Array {
+function signedCandidatePointer(
+  input: PublishInsightCandidateInput,
+  manifestHash: string,
+  signingKey: KeyObject,
+  protocol: 'v2' | 'v3',
+): Uint8Array {
   const milliseconds = (input.now ?? Date.now)()
   if (!Number.isFinite(milliseconds)) throw new Error('Candidate publication clock returned an invalid timestamp.')
   const publishedAt = new Date(milliseconds).toISOString()
   const payload = canonicalJson({
-    schema: 'insight-desktop-rollout/v3',
+    schema: protocol === 'v2' ? 'insight-desktop-rollout/v2' : 'insight-desktop-rollout/v3',
     state: 'active',
     track: 'candidate',
     version: input.version,
@@ -240,10 +217,105 @@ function signedCandidatePointer(input: PublishInsightCandidateInput, manifestHas
     publishedAt,
   })
   return canonicalJson({
-    schema: 'insight-desktop-rollout-envelope/v3',
+    schema: protocol === 'v2' ? 'insight-desktop-rollout-envelope/v2' : 'insight-desktop-rollout-envelope/v3',
     payloadBase64: Buffer.from(payload).toString('base64'),
     signatureBase64: sign(null, payload, signingKey).toString('base64'),
   })
+}
+
+async function publishInsightV2Candidate(input: PublishInsightCandidateInput): Promise<PublishedInsightCandidate> {
+  const signingKey = signingKeyFor(input.privateKeyPem, input.publicKeyPem)
+  const target = await prepareInsightV2Target({
+    directory: input.directory, version: input.version, sourceCommit: input.sourceCommit, target: input.target,
+    compatibility: input.compatibility, signingKey, publicKeyPem: input.publicKeyPem,
+  })
+  const releasePrefix = `desktop/releases/v${input.version}/targets/${input.target}/`
+  const manifestKey = `${releasePrefix}insight-target.json`
+  const pointerKey = `desktop/candidate-v2/${input.target}/current.json`
+  const { current, floor } = await candidatePointers(input, 'v2')
+  assertCandidatePointer(input, floor, target.hash)
+  const sameVersion = floor.current?.version === input.version
+  const pointerBytes = sameVersion && current !== undefined
+    ? current.bytes
+    : signedCandidatePointer(input, target.hash, signingKey, 'v2')
+  verifyInsightRollout(pointerBytes, input.publicKeyPem, { track: 'candidate', protocol: 'v2' })
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'insight-release-publish-'))
+  try {
+    await publishImmutableObjects(input.transport, insightV2TargetObjects(target, releasePrefix), temporaryDirectory)
+    await publishPointer(input.transport, pointerKey, pointerBytes, current, sameVersion, 'Candidate')
+    return { manifestKey, pointerKey, version: input.version }
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true })
+  }
+}
+
+type CandidatePointer = ReturnType<typeof verifyInsightRollout>['rollout']
+
+async function candidatePointers(input: PublishInsightCandidateInput, protocol: 'v2' | 'v3'): Promise<{
+  readonly current: InsightRemoteMetadata | undefined
+  readonly floor: { readonly current: CandidatePointer | undefined; readonly all: readonly CandidatePointer[] }
+}> {
+  const keys = (['v2', 'v3'] as const).map(candidateProtocol => ({
+    protocol: candidateProtocol,
+    key: `desktop/candidate-${candidateProtocol}/${input.target}/current.json`,
+  }))
+  const results = await Promise.all(keys.map(async (entry) => {
+    const current = await input.transport.getMetadata(entry.key)
+    if (current !== undefined && current.etag === '') throw new Error('Candidate pointer has no usable ETag.')
+    const rollout = current === undefined
+      ? undefined
+      : verifyInsightRollout(current.bytes, input.publicKeyPem, { track: 'candidate', protocol: entry.protocol }).rollout
+    if (rollout !== undefined && rollout.target !== input.target) throw new Error('Existing candidate pointer targets a different platform.')
+    return { ...entry, current, rollout }
+  }))
+  const active = results.find(entry => entry.protocol === protocol)
+  if (active === undefined) throw new Error('Candidate protocol selection is invalid.')
+  return {
+    current: active.current,
+    floor: {
+      current: active.rollout,
+      all: results.flatMap(result => result.rollout === undefined ? [] : [result.rollout]),
+    },
+  }
+}
+
+function assertCandidatePointer(
+  input: PublishInsightCandidateInput,
+  pointers: { readonly current: CandidatePointer | undefined; readonly all: readonly CandidatePointer[] },
+  manifestHash: string,
+): void {
+  if (pointers.all.some(current => semver.gt(current.version, input.version))) {
+    throw new Error('Candidate publication would move the pointer backwards.')
+  }
+  const current = pointers.current
+  if (current?.version === input.version && current.referencedSha512 !== manifestHash) {
+    throw new Error('An existing candidate version refers to different target manifest bytes.')
+  }
+  if (current?.version === input.version && current.state !== 'active') {
+    throw new Error('A withdrawn candidate version must not be republished.')
+  }
+}
+
+async function publishImmutableObjects(
+  transport: PublishInsightTransport,
+  immutable: readonly PublishImmutableObject[],
+  temporaryDirectory: string,
+): Promise<void> {
+  for (const [index, object] of immutable.entries()) {
+    if (!await remoteMatches(transport, object, join(temporaryDirectory, `existing-${String(index)}`), 'release')) {
+      const snapshot = join(temporaryDirectory, `upload-${String(index)}`)
+      try {
+        await transport.putImmutable(object.key, await immutableUploadSource(object, snapshot, 'release'))
+      } finally {
+        await rm(snapshot, { force: true })
+      }
+    }
+  }
+  for (const [index, object] of immutable.entries()) {
+    if (!await remoteMatches(transport, object, join(temporaryDirectory, `verified-${String(index)}`), 'release')) {
+      throw new Error(`Immutable release object is missing after upload: ${object.key}`)
+    }
+  }
 }
 
 function artifactRecord(

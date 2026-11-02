@@ -93,15 +93,15 @@ The inventory Remote is generated from the decorated `InsightSkillInventory` ser
 <a id="desktop-updates"></a>
 ## Desktop updates
 
-Insight uses product version `1.0.9` as its migration baseline; the first candidate version is `1.0.10-rc.1`. Product versions remain independent from the embedded DSH runtime version. Stable V2 rollout documents accept final versions and retain compatibility with the released Shell reader. Candidate V3 documents accept prerelease versions for new clients because the released Shell V2 reader rejects rc versions.
+Insight uses product version `1.0.9` as its migration baseline. Product versions remain independent from the embedded DSH runtime version. Candidate and Stable are channels: both accept final versions through the Shell-compatible V2 format; Candidate additionally accepts prerelease versions through V3. The released Shell reader rejects rc versions.
 
-The packaged application contains a fixed HTTPS distribution origin and an Ed25519 public key. Stable discovery verifies one signed index containing all three targets. Candidate discovery verifies one target-specific manifest. Both paths bind updater metadata to one payload filename, byte size, and SHA-512 digest before the native coordinator checks or downloads it. The first native delivery disables differential download so blockmap naming cannot redirect the authenticated full payload.
+The packaged application contains a fixed HTTPS distribution origin and an Ed25519 public key. Stable discovery verifies one signed index containing all three targets. Candidate discovery authenticates both V2 and V3 target pointers, selects the highest version, and verifies its target-specific manifest. Only HTTP 404 means a pointer is absent; an invalid pointer or a withdrawn highest version cannot trigger fallback to an older release. Both paths bind updater metadata to one payload filename, byte size, and SHA-512 digest before the native coordinator checks or downloads it. The first native delivery disables differential download so blockmap naming cannot redirect the authenticated full payload.
 
 Regular checks prefer a stable release. A prerelease application checks candidates only after the stable check reports no update; stable applications do not check candidates automatically. The five-click candidate action stores the user's opt-in after native confirmation but performs only that one manual check. A skipped optional version is suppressed during later automatic checks. A required stable release prevents candidate checks. Installation reuses DSH task inspection, shutdown, and restart coordination rather than a second product updater.
 
 Unpackaged source development does not check, download, or install client updates. Opening its update entry shows a native information prompt directing developers to an installed release; packaged applications retain update-source validation.
 
-Rollout history, candidate opt-in, and skipped-version choices are installation-level Desktop state. They are available before account login and do not belong to an account Home or Session history.
+Rollout history, candidate opt-in, and skipped-version choices are installation-level Desktop state. Candidate protocols share the `candidate/<target>` history; the earlier `candidate-v3/<target>` history remains a read-only compatibility input. They are available before account login and do not belong to an account Home or Session history.
 
 Release construction and OSS publication are separate operations documented by the [Insight release scripts](../../../scripts/insight-release/README.md). The package does not read publishing credentials, Apple signing material, or the update signing private key.
 

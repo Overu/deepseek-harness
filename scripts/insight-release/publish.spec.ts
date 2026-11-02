@@ -125,22 +125,24 @@ async function fixture(options: {
   readonly metadataVersion?: string
   readonly payload?: Uint8Array
   readonly target?: 'darwin-arm64' | 'win32-x64'
+  readonly version?: string
 } = {}): Promise<{ input: PublishInsightCandidateInput; transport: FakeTransport; signing: ReturnType<typeof keys> }> {
   const directory = await mkdtemp(join(tmpdir(), 'insight-publish-spec-'))
   roots.push(directory)
   const transport = options.transport ?? new FakeTransport()
   const signing = options.signing ?? keys()
   const target = options.target ?? 'darwin-arm64'
+  const version = options.version ?? VERSION
   const windows = target === 'win32-x64'
-  const payloadName = `insight-${VERSION}-${windows ? 'win-x64.exe' : 'mac-arm64.zip'}`
+  const payloadName = `insight-${version}-${windows ? 'win-x64.exe' : 'mac-arm64.zip'}`
   const payload = options.payload ?? Buffer.from('signed mac zip')
-  const metadataName = `insight-${VERSION}-${target}.yml`
+  const metadataName = `insight-${version}-${target}.yml`
   const files = new Map<string, Uint8Array>([
-    ...(windows ? [] : [[`insight-${VERSION}-mac-arm64.dmg`, Buffer.from('signed mac dmg')] as const]),
+    ...(windows ? [] : [[`insight-${version}-mac-arm64.dmg`, Buffer.from('signed mac dmg')] as const]),
     [payloadName, payload],
     [`${payloadName}.blockmap`, Buffer.from('signed blockmap')],
     [metadataName, Buffer.from(JSON.stringify({
-      version: options.metadataVersion ?? VERSION,
+      version: options.metadataVersion ?? version,
       files: [{ url: payloadName, sha512: sha512(payload), size: payload.byteLength }],
       path: payloadName,
       sha512: sha512(payload),
@@ -152,7 +154,7 @@ async function fixture(options: {
   const manifest = await createInsightDesktopBuildManifest({
     artifactDirectory: directory,
     manifestFilename,
-    version: VERSION,
+    version,
     runtimeVersion: '0.2.2-alpha.2',
     sourceCommit: COMMIT,
     target,
@@ -165,7 +167,7 @@ async function fixture(options: {
     signing,
     input: {
       directory,
-      version: VERSION,
+      version,
       sourceCommit: COMMIT,
       target,
       compatibility: COMPATIBILITY,
@@ -193,7 +195,7 @@ describe('Insight candidate publisher', () => {
     expect(f.transport.pointerWrites).toEqual([result.pointerKey])
     const pointer = f.transport.objects.get(result.pointerKey)
     expect(pointer).toBeDefined()
-    expect(verifyInsightRollout(pointer!.bytes, f.signing.publicKeyPem, 'candidate').rollout).toMatchObject({
+    expect(verifyInsightRollout(pointer!.bytes, f.signing.publicKeyPem, { track: 'candidate', protocol: 'v3' }).rollout).toMatchObject({
       version: VERSION,
       target: 'darwin-arm64',
       publishedAt: '2026-10-30T12:00:00.000Z',
@@ -205,8 +207,37 @@ describe('Insight candidate publisher', () => {
     expect(repeated).toEqual(result)
     expect(f.transport.immutableWrites).toHaveLength(immutableWrites)
     expect(f.transport.pointerWrites).toHaveLength(pointerWrites)
-    expect(verifyInsightRollout(f.transport.objects.get(result.pointerKey)!.bytes, f.signing.publicKeyPem, 'candidate').rollout.publishedAt)
+    expect(verifyInsightRollout(f.transport.objects.get(result.pointerKey)!.bytes, f.signing.publicKeyPem, { track: 'candidate', protocol: 'v3' }).rollout.publishedAt)
       .toBe('2026-10-30T12:00:00.000Z')
+  })
+
+  it('publishes a final Candidate through V2 without touching Stable objects', async () => {
+    const version = '1.0.10'
+    const f = await fixture({ version })
+    const result = await publishInsightCandidate(f.input)
+    expect(result).toEqual({
+      manifestKey: `desktop/releases/v${version}/targets/darwin-arm64/insight-target.json`,
+      pointerKey: 'desktop/candidate-v2/darwin-arm64/current.json',
+      version,
+    })
+    expect(f.transport.pointerWrites).toEqual([result.pointerKey])
+    expect([...f.transport.objects.keys()].some(key => (
+      key === 'desktop/stable/current.json' || key === `desktop/releases/v${version}/insight-release.json`
+    ))).toBe(false)
+    expect(verifyInsightRollout(
+      f.transport.objects.get(result.pointerKey)!.bytes,
+      f.signing.publicKeyPem,
+      { track: 'candidate', protocol: 'v2' },
+    ).rollout).toMatchObject({ version, target: 'darwin-arm64' })
+  })
+
+  it('does not let a prerelease Candidate roll back a final Candidate pointer', async () => {
+    const transport = new FakeTransport()
+    const signing = keys()
+    const final = await fixture({ transport, signing, version: '1.0.10' })
+    await publishInsightCandidate(final.input)
+    const prerelease = await fixture({ transport, signing })
+    await expect(publishInsightCandidate(prerelease.input)).rejects.toThrow(/move the pointer backwards/u)
   })
 
   it('publishes the exact Windows NSIS, blockmap, and metadata roles', async () => {

@@ -13,10 +13,17 @@ const targets = ['darwin-arm64', 'darwin-x64', 'win32-x64'] as const
 interface Fixture {
   readonly publicKeyPem: string
   readonly responses: Map<string, Uint8Array>
+  readonly sign: (value: object) => Uint8Array
 }
 
 /** Construct signed canonical release records without contacting a distribution service. */
-function fixture(track: 'stable' | 'candidate', version: string, metadataPayloadName?: string, writesDataSchema?: Partial<Record<typeof targets[number], number>>): Fixture {
+function fixture(
+  track: 'stable' | 'candidate',
+  version: string,
+  metadataPayloadName?: string,
+  writesDataSchema?: Partial<Record<typeof targets[number], number>>,
+  protocol: 'v2' | 'v3' = track === 'stable' ? 'v2' : 'v3',
+): Fixture {
   const keys = generateKeyPairSync('ed25519')
   const publicKeyPem = keys.publicKey.export({ type: 'spki', format: 'pem' }).toString()
   const responses = new Map<string, Uint8Array>()
@@ -24,7 +31,7 @@ function fixture(track: 'stable' | 'candidate', version: string, metadataPayload
   const manifest = (target: typeof targets[number]) => {
     const [platform, arch] = target.split('-') as ['darwin' | 'win32', 'arm64' | 'x64']
     const payload = platform === 'darwin' ? `Insight-${version}-${arch}.zip` : `Insight-Setup-${version}.exe`
-    const metadata = track === 'candidate'
+    const metadata = protocol === 'v3'
       ? `insight-${version}-${target}.yml`
       : platform === 'darwin' ? 'latest-mac.yml' : 'latest.yml'
     const artifacts = [
@@ -39,12 +46,12 @@ function fixture(track: 'stable' | 'candidate', version: string, metadataPayload
     if (metadataAsset === undefined) throw new Error('Missing metadata fixture.')
     metadataAsset.size = metadataBytes.length
     metadataAsset.sha512 = hash(metadataBytes)
-    return { schema: `insight-desktop-target/v${track === 'stable' ? '2' : '3'}`, version, target: { platform, arch }, shellCommit: COMMIT, coreRuntime: { tag: '1.0.9', commit: COMMIT }, compatibility: { profileSchema: 1, accountStorageSchema: 1, readsDataSchema: { minimum: 1, maximum: 1 }, writesDataSchema: writesDataSchema?.[target] ?? 1 }, artifacts, metadata, metadataBytes }
+    return { schema: `insight-desktop-target/${protocol}`, version, target: { platform, arch }, shellCommit: COMMIT, coreRuntime: { tag: '1.0.9', commit: COMMIT }, compatibility: { profileSchema: 1, accountStorageSchema: 1, readsDataSchema: { minimum: 1, maximum: 1 }, writesDataSchema: writesDataSchema?.[target] ?? 1 }, artifacts, metadata, metadataBytes }
   }
   const manifests = new Map(targets.map(target => [target, manifest(target)]))
-  const base = (target: string) => track === 'stable'
-    ? `${ORIGIN}/desktop/releases/v${version}/targets/${target}/`
-    : `${ORIGIN}/desktop/native/releases/v${version}/targets/${target}/`
+  const base = (target: string) => protocol === 'v3'
+    ? `${ORIGIN}/desktop/native/releases/v${version}/targets/${target}/`
+    : `${ORIGIN}/desktop/releases/v${version}/targets/${target}/`
   for (const [target, document] of manifests) {
     const { metadata, metadataBytes, ...signedManifest } = document
     const bytes = json(signedManifest)
@@ -74,18 +81,50 @@ function fixture(track: 'stable' | 'candidate', version: string, metadataPayload
     void metadataBytes
     reference = hash(json(signedManifest))
   }
-  const rollout = { schema: `insight-desktop-rollout/v${track === 'stable' ? '2' : '3'}`, state: 'active', track, version, ...(track === 'candidate' ? { target: 'darwin-arm64' } : {}), referencedSha512: reference, policy: { mode: 'optional', minimumSupportedVersion: '1.0.9' }, publishedAt: '2026-10-30T00:00:00.000Z' }
+  const rollout = { schema: `insight-desktop-rollout/${protocol}`, state: 'active', track, version, ...(track === 'candidate' ? { target: 'darwin-arm64' } : {}), referencedSha512: reference, policy: { mode: 'optional', minimumSupportedVersion: '1.0.9' }, publishedAt: '2026-10-30T00:00:00.000Z' }
   const rolloutBytes = json(rollout)
-  const envelope = { schema: `insight-desktop-rollout-envelope/v${track === 'stable' ? '2' : '3'}`, payloadBase64: Buffer.from(rolloutBytes).toString('base64'), signatureBase64: Buffer.from(sign(null, rolloutBytes, keys.privateKey)).toString('base64') }
-  const pointer = track === 'stable' ? `${ORIGIN}/desktop/stable/current.json` : `${ORIGIN}/desktop/candidate-v3/darwin-arm64/current.json`
+  const envelope = { schema: `insight-desktop-rollout-envelope/${protocol}`, payloadBase64: Buffer.from(rolloutBytes).toString('base64'), signatureBase64: Buffer.from(sign(null, rolloutBytes, keys.privateKey)).toString('base64') }
+  const pointer = track === 'stable' ? `${ORIGIN}/desktop/stable/current.json` : `${ORIGIN}/desktop/candidate-${protocol}/darwin-arm64/current.json`
   responses.set(pointer, json(envelope))
-  return { publicKeyPem, responses }
+  return { publicKeyPem, responses, sign: signBytes }
+}
+
+/** Add a V3 candidate pointer and its selected target documents using the fixture's signer. */
+function addV3Candidate(data: Fixture, version: string, state: 'active' | 'rejected' = 'active'): void {
+  const target = 'darwin-arm64'
+  const payload = `Insight-${version}-arm64.zip`
+  const metadataName = `insight-${version}-${target}.yml`
+  const metadataBytes = Buffer.from(`version: ${version}\nfiles:\n  - url: ${payload}\n    sha512: ${hash('payload')}\n    size: 3\npath: ${payload}\nsha512: ${hash('payload')}\n`)
+  const manifest = {
+    schema: 'insight-desktop-target/v3', version, target: { platform: 'darwin', arch: 'arm64' }, shellCommit: COMMIT,
+    coreRuntime: { tag: '1.0.9', commit: COMMIT }, compatibility: { profileSchema: 1, accountStorageSchema: 1, readsDataSchema: { minimum: 1, maximum: 1 }, writesDataSchema: 1 },
+    artifacts: [
+      { platform: 'darwin', arch: 'arm64', kind: 'dmg', name: `Insight-${version}-arm64.dmg`, size: 2, sha512: hash('dmg') },
+      { platform: 'darwin', arch: 'arm64', kind: 'zip', name: payload, size: 3, sha512: hash('payload') },
+      { platform: 'darwin', arch: 'arm64', kind: 'blockmap', name: `${payload}.blockmap`, size: 4, sha512: hash('blockmap') },
+      { platform: 'darwin', arch: 'arm64', kind: 'updater-metadata', name: metadataName, size: metadataBytes.length, sha512: hash(metadataBytes) },
+    ],
+  }
+  const base = `${ORIGIN}/desktop/native/releases/v${version}/targets/${target}/`
+  const manifestBytes = json(manifest)
+  data.responses.set(`${base}insight-target.json`, manifestBytes)
+  data.responses.set(`${base}insight-target.json.sig`, data.sign(manifest))
+  data.responses.set(`${base}${metadataName}`, metadataBytes)
+  const rollout = {
+    schema: 'insight-desktop-rollout/v3', state, track: 'candidate', version, target,
+    referencedSha512: hash(manifestBytes), policy: { mode: 'optional', minimumSupportedVersion: '1.0.9' }, publishedAt: '2026-10-30T00:00:00.000Z',
+  }
+  const rolloutBytes = json(rollout)
+  data.responses.set(`${ORIGIN}/desktop/candidate-v3/${target}/current.json`, json({
+    schema: 'insight-desktop-rollout-envelope/v3', payloadBase64: Buffer.from(rolloutBytes).toString('base64'), signatureBase64: Buffer.from(data.sign(rollout)).toString('base64'),
+  }))
 }
 
 /** Return a same-origin, non-redirecting mock response or a deterministic 404. */
-function fetchFor(responses: ReadonlyMap<string, Uint8Array>): typeof fetch {
+function fetchFor(responses: ReadonlyMap<string, Uint8Array>, observed?: string[]): typeof fetch {
   const request: typeof fetch = async (input) => {
     const url = input instanceof URL ? input.href : typeof input === 'string' ? input : input.url
+    observed?.push(url)
     const body = responses.get(url)
     const response = new Response(body === undefined ? undefined : new Uint8Array(body).buffer, { status: body === undefined ? 404 : 200 })
     Object.defineProperty(response, 'url', { value: url })
@@ -117,13 +156,74 @@ describe('Insight trusted update source', () => {
     await expect(resolveInsightUpdate({ track: 'stable', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch: fetchFor(data.responses) })).rejects.toThrow('do not share one identity')
   })
 
-  it('resolves a signed V3 rc candidate and rejects its use as V2 stable', async () => {
+  it('resolves signed V2 final and V3 rc candidates at their protocol-specific paths', async () => {
+    const finalCandidate = fixture('candidate', '1.0.10', undefined, undefined, 'v2')
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: finalCandidate.publicKeyPem, fetch: fetchFor(finalCandidate.responses) })).resolves.toMatchObject({
+      version: '1.0.10', metadataAsset: { name: 'latest-mac.yml' }, payloadAsset: { kind: 'zip' },
+    })
     const data = fixture('candidate', '1.0.10-rc.1')
     await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch: fetchFor(data.responses) })).resolves.toMatchObject({
       version: '1.0.10-rc.1', metadataAsset: { name: 'insight-1.0.10-rc.1-darwin-arm64.yml' },
     })
     const stable = fixture('stable', '1.0.10-rc.1')
     await expect(resolveInsightUpdate({ track: 'stable', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: stable.publicKeyPem, fetch: fetchFor(stable.responses) })).rejects.toThrow('final versions')
+  })
+
+  it('reads both candidate protocols and selects the greatest authenticated version', async () => {
+    const data = fixture('candidate', '1.0.10', undefined, undefined, 'v2')
+    addV3Candidate(data, '1.0.11-rc.1')
+    const observed: string[] = []
+    const fetch = fetchFor(data.responses, observed)
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch })).resolves.toMatchObject({ version: '1.0.11-rc.1' })
+    expect(observed).toContain(`${ORIGIN}/desktop/candidate-v2/darwin-arm64/current.json`)
+    expect(observed).toContain(`${ORIGIN}/desktop/candidate-v3/darwin-arm64/current.json`)
+  })
+
+  it('does not fall back when the greatest candidate is withdrawn and records only that pointer', async () => {
+    const data = fixture('candidate', '1.0.10', undefined, undefined, 'v2')
+    addV3Candidate(data, '1.0.11-rc.1', 'rejected')
+    const accepted: string[] = []
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch: fetchFor(data.responses),
+      acceptRollout: (observation) => { accepted.push(observation.version); return Promise.resolve() },
+    })).rejects.toThrow('withdrawn')
+    expect(accepted).toEqual(['1.0.11-rc.1'])
+  })
+
+  it('stops before target documents when persisting the selected candidate fails', async () => {
+    const data = fixture('candidate', '1.0.10', undefined, undefined, 'v2')
+    const observed: string[] = []
+    const fetch = fetchFor(data.responses, observed)
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch,
+      acceptRollout: () => Promise.reject(new Error('history write failed')),
+    })).rejects.toThrow('history write failed')
+    expect(observed.some(url => url.includes('insight-target.json'))).toBe(false)
+  })
+
+  it('fails closed when either candidate pointer returns a non-404 response', async () => {
+    const data = fixture('candidate', '1.0.10', undefined, undefined, 'v2')
+    const fetch = async (input: URL | RequestInfo): Promise<Response> => {
+      const url = input instanceof URL ? input.href : typeof input === 'string' ? input : input.url
+      const body = data.responses.get(url)
+      const response = new Response(body === undefined ? undefined : new Uint8Array(body).buffer, { status: url.includes('/candidate-v3/') ? 403 : body === undefined ? 404 : 200 })
+      Object.defineProperty(response, 'url', { value: url })
+      return response
+    }
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch })).rejects.toThrow('trusted successful')
+  })
+
+  it('fails closed when either candidate pointer request fails', async () => {
+    const data = fixture('candidate', '1.0.10', undefined, undefined, 'v2')
+    const fetch = async (input: URL | RequestInfo): Promise<Response> => {
+      const url = input instanceof URL ? input.href : typeof input === 'string' ? input : input.url
+      if (url.includes('/candidate-v3/')) throw new Error('network unavailable')
+      const body = data.responses.get(url)
+      const response = new Response(body === undefined ? undefined : new Uint8Array(body).buffer, {
+        status: body === undefined ? 404 : 200,
+      })
+      Object.defineProperty(response, 'url', { value: url })
+      return response
+    }
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch })).rejects.toThrow('network unavailable')
   })
 
   it('rejects tampered signatures, metadata, and target-local asset substitution', async () => {

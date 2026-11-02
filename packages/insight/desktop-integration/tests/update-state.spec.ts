@@ -41,12 +41,50 @@ describe('InsightUpdateStateStore', () => {
     await expect(store.acceptRollout({ track: 'stable', version: '1.0.9', state: 'active', fingerprint })).rejects.toThrow('回放')
   })
 
-  it('uses candidate-v3 keys without rewriting the legacy candidate key', async () => {
+  it('writes the legacy candidate key used by the Shell', async () => {
     const { updates, store } = await fixture()
     await store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.10-rc.1', state: 'active', fingerprint })
     const history = JSON.parse(await readFile(join(updates, 'rollout-history.json'), 'utf8')) as { pointers: Record<string, unknown> }
-    expect(history.pointers).toHaveProperty('candidate-v3/darwin-arm64')
-    expect(history.pointers).not.toHaveProperty('candidate/darwin-arm64')
+    expect(history.pointers).toHaveProperty('candidate/darwin-arm64')
+    expect(history.pointers).not.toHaveProperty('candidate-v3/darwin-arm64')
+  })
+
+  it('uses the newer candidate-v3 history alias to prevent replay, then preserves it', async () => {
+    const { updates, store } = await fixture()
+    await mkdir(updates, { recursive: true })
+    const history = join(updates, 'rollout-history.json')
+    await writeFile(history, JSON.stringify({ schema: 1, pointers: {
+      'candidate-v3/darwin-arm64': { version: '1.0.10-rc.2', envelopeSha512: fingerprint, state: 'active' },
+    } }))
+    await expect(store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.10-rc.1', state: 'active', fingerprint })).rejects.toThrow('回放')
+    await store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.10-rc.2', state: 'active', fingerprint })
+    const next = JSON.parse(await readFile(history, 'utf8')) as { pointers: Record<string, unknown> }
+    expect(next.pointers).toHaveProperty('candidate/darwin-arm64')
+    expect(next.pointers).toHaveProperty('candidate-v3/darwin-arm64')
+  })
+
+  it('advances the legacy key when its alias has a later accepted candidate', async () => {
+    const { updates, store } = await fixture()
+    await mkdir(updates, { recursive: true })
+    const history = join(updates, 'rollout-history.json')
+    await writeFile(history, JSON.stringify({ schema: 1, pointers: {
+      'candidate/darwin-arm64': { version: '1.0.10-rc.1', envelopeSha512: fingerprint, state: 'active' },
+      'candidate-v3/darwin-arm64': { version: '1.0.10-rc.2', envelopeSha512: otherFingerprint, state: 'active' },
+    } }))
+    await store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.10-rc.2', state: 'active', fingerprint: otherFingerprint })
+    const next = JSON.parse(await readFile(history, 'utf8')) as { pointers: Record<string, { version: string }> }
+    expect(next.pointers['candidate/darwin-arm64']?.version).toBe('1.0.10-rc.2')
+    expect(next.pointers['candidate-v3/darwin-arm64']?.version).toBe('1.0.10-rc.2')
+  })
+
+  it('keeps a withdrawn candidate in either history key authoritative', async () => {
+    const { updates, store } = await fixture()
+    await mkdir(updates, { recursive: true })
+    await writeFile(join(updates, 'rollout-history.json'), JSON.stringify({ schema: 1, pointers: {
+      'candidate/darwin-arm64': { version: '1.0.10-rc.1', envelopeSha512: otherFingerprint, state: 'rejected' },
+      'candidate-v3/darwin-arm64': { version: '1.0.10-rc.1', envelopeSha512: fingerprint, state: 'active' },
+    } }))
+    await expect(store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.10-rc.1', state: 'active', fingerprint })).rejects.toThrow('重新激活')
   })
 
   it('allows a verified withdrawal but never reactivates it or replaces its fingerprint', async () => {
@@ -65,7 +103,7 @@ describe('InsightUpdateStateStore', () => {
       store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.10-rc.1', state: 'active', fingerprint }),
     ])
     const history = JSON.parse(await readFile(join(updates, 'rollout-history.json'), 'utf8')) as { pointers: Record<string, unknown> }
-    expect(Object.keys(history.pointers).sort()).toEqual(['candidate-v3/darwin-arm64', 'stable'])
+    expect(Object.keys(history.pointers).sort()).toEqual(['candidate/darwin-arm64', 'stable'])
   })
 
   it('rejects damaged history without deleting or replacing it', async () => {

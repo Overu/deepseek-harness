@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-These scripts build a verifiable handoff between DSH desktop packaging, an immutable GitHub Release, and the existing Insight OSS/CDN. They keep product version `1.0.9` as the migration baseline and accept `1.0.10-rc.1` as the first candidate version. Packaging and publication are separate operations: publication consumes only bytes and the source record from a completed package workflow and never rebuilds or re-signs them.
+These scripts build a verifiable handoff between DSH desktop packaging, an immutable GitHub Release, and the existing Insight OSS/CDN. They keep product version `1.0.9` as the migration baseline. Candidate and Stable are publication channels; Candidate accepts final and prerelease versions. Packaging and publication are separate operations: publication consumes only bytes and the source record from a completed package workflow and never rebuilds or re-signs them.
 
 ## Table of Contents
 
@@ -22,7 +22,7 @@ These scripts build a verifiable handoff between DSH desktop packaging, an immut
 
 The package workflow pins one `insight` branch commit, builds selected platform packages with DSH, collects target-unique attachments, and records the build run and asset hashes in a source record attachment. The record binds the repository, workflow path, trusted ref, event, head commit, run id, targets, and manifest hashes. It then creates the immutable `insight-v<version>` GitHub Release. The publish workflow downloads the Release and the original workflow artifacts, verifies both against that source record, signs update documents, writes immutable OSS objects, verifies their remote bytes, and conditionally changes the channel pointer last.
 
-The application product version and embedded DSH runtime version remain separate. A candidate version is a canonical 1.x prerelease. A stable version is a canonical final 1.x release and requires all three targets: `darwin-arm64`, `darwin-x64`, and `win32-x64`.
+The application product version and embedded DSH runtime version remain separate. Candidate accepts canonical final or prerelease 1.x versions. Stable accepts final versions and requires all three targets: `darwin-arm64`, `darwin-x64`, and `win32-x64`. A final version tested through Candidate can be promoted to Stable using the same GitHub Release, application bytes, and signed target manifests.
 
 -----
 
@@ -48,7 +48,7 @@ The source record does not bind GitHub's rerun-attempt counter. A legacy record 
 
 Only the final publish step receives `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`. The OSS client accepts only the approved GitHub workflow OIDC identity and requests short-lived STS credentials from the existing Insight backend. It does not use a long-lived OSS access key.
 
-Candidate publication selects one target from a prerelease GitHub Release. Stable publication accepts no target input and requires all three verified distribution targets with the same version, source commit, and DSH runtime version.
+The publish workflow target input selects the channel: a platform target publishes Candidate; `stable` publishes Stable for all three targets. Candidate accepts final or prerelease versions. Stable requires a final version and three verified distribution targets with the same version, source commit, and DSH runtime version.
 
 Stage two rejects a draft Release before it reads or publishes attachments. Its lightweight runtime does not rebuild, package, notarize, or install the application.
 
@@ -57,13 +57,17 @@ Stage two rejects a draft Release before it reads or publishes attachments. Its 
 <a id="signed-update-formats"></a>
 ## Signed update formats
 
+Candidate V2 publishes final versions through `desktop/candidate-v2/<target>/current.json`. It shares signed target manifests and application objects under `desktop/releases/v<version>/targets/<target>/` with Stable V2, including the legacy `latest-mac.yml` and `latest.yml` names. Candidate publication does not write a Stable pointer or release index.
+
 Candidate V3 uses `desktop/candidate-v3/<target>/current.json` and target-local immutable objects under `desktop/native/releases/v<version>/targets/<target>/`. It accepts rc versions for new clients. The released Shell V2 reader rejects prerelease versions, so candidate V3 does not claim to update an old Shell directly to `1.0.10-rc.1`.
 
-Stable V2 uses `desktop/stable/current.json`, one signed release index, and all three signed target manifests under `desktop/releases/v<version>/`. It retains the `latest-mac.yml` and `latest.yml` asset names required by the old Shell-compatible stable reader. Stable publication accepts final versions only; the first old-client automatic upgrade target remains `1.0.10`, not the rc package.
+Stable V2 uses `desktop/stable/current.json`, one signed release index, and all three signed target manifests under `desktop/releases/v<version>/`. It retains the `latest-mac.yml` and `latest.yml` asset names required by the old Shell-compatible stable reader. Stable publication accepts final versions only; old Shell clients can discover final Candidate versions through their manual candidate check.
 
 Both formats bind the version, target, source commit, runtime version, compatibility fields, artifact name, byte size, and SHA-512. The channel pointer is an Ed25519-signed envelope that refers to the exact manifest or release-index bytes.
 
-The stable V2 index and target readers accept trailing whitespace for compatibility with the released Shell parser. Signatures still authenticate the complete original bytes, including that whitespace, so a publisher or CDN cannot change it after signing.
+New clients authenticate both Candidate pointers and select the highest version; only HTTP 404 means a pointer is absent. A rejected highest version remains withdrawn rather than falling back to an older active version. Both protocols share the Candidate version floor.
+
+The V2 index and target readers accept trailing whitespace for compatibility with the released Shell parser. Signatures still authenticate the complete original bytes, including that whitespace, so a publisher or CDN cannot change it after signing.
 
 -----
 

@@ -123,8 +123,8 @@ export async function publishVerifiedInsightRelease(input: PublishVerifiedInsigh
   if (semver.valid(input.version) !== input.version || parsed === null || parsed.major !== 1 || parsed.build.length !== 0) throw new Error('Insight publication requires a canonical 1.x version without build metadata.')
   commitSchema.parse(input.sourceCommit)
   if (input.githubToken === '' || input.privateKeyPem === '' || input.publicKeyPem === '') throw new Error('Insight publication credentials are missing.')
-  const candidate = parsed.prerelease.length > 0
-  if (candidate !== (input.candidateTarget !== undefined)) throw new Error('Candidate publication requires exactly one target; stable publication does not accept one.')
+  const candidate = input.candidateTarget !== undefined
+  if (!candidate && parsed.prerelease.length !== 0) throw new Error('Stable publication requires a canonical final 1.x version.')
   const api = githubApi(input.fetch ?? globalThis.fetch, input.githubToken)
   const tag = `insight-v${input.version}`
   const release = releaseSchema.parse(await api.json(`/releases/tags/${encodeURIComponent(tag)}`))
@@ -193,7 +193,6 @@ export async function publishVerifiedInsightRelease(input: PublishVerifiedInsigh
     if (releaseAssets.size !== expectedReleaseAssets.size || [...releaseAssets.keys()].some(name => !expectedReleaseAssets.has(name))) throw new Error('GitHub Release contains attachments outside its buildRunRecord manifests.')
     if (candidate) {
       const target = input.candidateTarget
-      if (target === undefined) throw new Error('Candidate publication requires one target.')
       const directory = directories.get(target)
       if (directory === undefined) throw new Error('Candidate target is absent from the verified Release.')
       await (input.publishCandidate ?? publishInsightCandidate)({

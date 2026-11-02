@@ -4,7 +4,7 @@
 
 ## 概述
 
-这些脚本在 DSH 桌面打包、不可变 GitHub Release 和既有 Insight OSS/CDN 之间建立可校验交接。它们以产品版本 `1.0.9` 作为迁移基线，并接受 `1.0.10-rc.1` 作为首个内测版本。打包和发布是相互独立的操作：发布只消费已完成打包工作流的字节与来源记录，绝不重新构建或签名。
+这些脚本在 DSH 桌面打包、不可变 GitHub Release 和既有 Insight OSS/CDN 之间建立可校验交接。它们以产品版本 `1.0.9` 作为迁移基线。Candidate 和 Stable 是发布渠道；Candidate 接受 final 和 prerelease 版本。打包和发布是相互独立的操作：发布只消费已完成打包工作流的字节与来源记录，绝不重新构建或签名。
 
 ## 目录
 
@@ -22,7 +22,7 @@
 
 打包工作流固定 `insight` 分支的一个提交，使用 DSH 构建选定平台包，收集目标唯一的附件，并在来源记录附件中记录构建运行和产物摘要。该记录绑定仓库、workflow path、可信 ref、事件、head 提交、run id、目标和 manifest 摘要；随后创建不可变的 `insight-v<version>` GitHub Release。发布工作流下载该 Release 和原始工作流产物，按来源记录校验两者，签名更新文档，写入 OSS 不可变对象，校验远端字节，最后才条件更新渠道指针。
 
-应用产品版本和内嵌 DSH 运行时版本保持独立。内测版本必须是规范的 1.x prerelease，正式版本必须是规范的 1.x final release，并且需要 `darwin-arm64`、`darwin-x64` 和 `win32-x64` 三个目标。
+应用产品版本和内嵌 DSH 运行时版本保持独立。Candidate 接受规范的 1.x final 或 prerelease 版本。Stable 接受 final 版本，并需要 `darwin-arm64`、`darwin-x64` 和 `win32-x64` 三个目标。经过 Candidate 验证的 final 版本可以使用相同 GitHub Release、应用字节和已签名目标 manifest 晋升 Stable。
 
 -----
 
@@ -48,7 +48,7 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 只有最终发布步骤接收 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。OSS 客户端只接受已批准的 GitHub 工作流 OIDC 身份，并向既有 Insight 后端申请短期 STS 凭据，不使用长期 OSS access key。
 
-内测发布从 prerelease GitHub Release 中选择一个目标。正式发布不接受目标输入，要求三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。
+发布工作流的 target 输入决定渠道：平台目标发布 Candidate；`stable` 为全部三个目标发布 Stable。Candidate 接受 final 或 prerelease 版本。Stable 要求 final 版本，且三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。
 
 第二阶段在读取或发布附件前拒绝 draft Release。其轻量运行时不会重新构建、打包、公证或安装应用。
 
@@ -57,13 +57,17 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 <a id="signed-update-formats"></a>
 ## 已签名更新格式
 
+内测 V2 通过 `desktop/candidate-v2/<target>/current.json` 发布 final 版本。它与正式 V2 共用 `desktop/releases/v<version>/targets/<target>/` 下的已签名目标 manifest 和应用对象，包括旧版的 `latest-mac.yml` 与 `latest.yml` 名称。内测发布不写入 Stable 指针或 release 索引。
+
 内测 V3 使用 `desktop/candidate-v3/<target>/current.json` 和 `desktop/native/releases/v<version>/targets/<target>/` 下的目标专属不可变对象，并为新客户端接受 rc 版本。已发布 Shell V2 读取器拒绝 prerelease，因此内测 V3 不承诺把旧 Shell 直接更新到 `1.0.10-rc.1`。
 
-正式 V2 使用 `desktop/stable/current.json`、一份已签名 release 索引和 `desktop/releases/v<version>/` 下全部三个已签名目标 manifest。它保留旧 Shell 兼容正式版读取器所需的 `latest-mac.yml` 和 `latest.yml` 产物名。正式发布只接受 final 版本；首个旧客户端自动升级目标仍是 `1.0.10`，不是 rc 包。
+正式 V2 使用 `desktop/stable/current.json`、一份已签名 release 索引和 `desktop/releases/v<version>/` 下全部三个已签名目标 manifest。它保留旧 Shell 兼容正式版读取器所需的 `latest-mac.yml` 和 `latest.yml` 产物名。正式发布只接受 final 版本；旧 Shell 客户端可以通过手动内测检查发现 final Candidate 版本。
 
 两种格式都绑定版本、目标、源码提交、运行时版本、兼容字段、产物名称、字节大小和 SHA-512。渠道指针是引用精确 manifest 或 release 索引字节的 Ed25519 签名 envelope。
 
-正式 V2 index 和目标读取器为兼容已发布 Shell 解析器而接受尾随空白。签名仍认证包含该空白的完整原始字节，因此发布器或 CDN 不能在签名后修改它。
+新客户端认证两个 Candidate 指针并选择最高版本；只有 HTTP 404 表示指针不存在。最高版本若已撤回，不会回退到较旧的 active 版本。两种协议共享 Candidate 版本下限。
+
+V2 index 和目标读取器为兼容已发布 Shell 解析器而接受尾随空白。签名仍认证包含该空白的完整原始字节，因此发布器或 CDN 不能在签名后修改它。
 
 -----
 

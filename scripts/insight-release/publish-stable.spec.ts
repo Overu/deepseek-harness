@@ -14,6 +14,7 @@ import {
   publishInsightStable,
   type PublishInsightStableInput,
 } from './publish-stable.ts'
+import { publishInsightCandidate } from './publish.ts'
 import type { PublishInsightTransport } from './publish.ts'
 
 const COMMIT = 'a'.repeat(40)
@@ -200,7 +201,7 @@ describe('Insight stable publisher', () => {
     expect(verifyInsightRollout(
       f.transport.objects.get(result.pointerKey)!.bytes,
       f.signing.publicKeyPem,
-      'stable',
+      { track: 'stable', protocol: 'v2' },
     ).rollout).toMatchObject({
       version: VERSION,
       publishedAt: '2026-10-30T12:00:00.000Z',
@@ -217,8 +218,29 @@ describe('Insight stable publisher', () => {
     expect(verifyInsightRollout(
       f.transport.objects.get(result.pointerKey)!.bytes,
       f.signing.publicKeyPem,
-      'stable',
+      { track: 'stable', protocol: 'v2' },
     ).rollout.publishedAt).toBe('2026-10-30T12:00:00.000Z')
+  })
+
+  it('promotes final Candidate target bytes without replacing them', async () => {
+    const f = await fixture()
+    for (const target of TARGETS) {
+      await publishInsightCandidate({
+        directory: f.input.directories[target], version: f.input.version, sourceCommit: f.input.sourceCommit, target,
+        compatibility: f.input.compatibility, privateKeyPem: f.input.privateKeyPem, publicKeyPem: f.input.publicKeyPem,
+        transport: f.transport, ...(f.input.now === undefined ? {} : { now: f.input.now }),
+      })
+    }
+    const targetPrefix = `desktop/releases/v${VERSION}/targets/`
+    const before = new Map([...f.transport.objects]
+      .filter(([key]) => key.startsWith(targetPrefix))
+      .map(([key, value]) => [key, new Uint8Array(value.bytes)]))
+    const writesBefore = f.transport.immutableWrites.length
+    await publishInsightStable(f.input)
+    expect(f.transport.immutableWrites).toHaveLength(writesBefore + 2)
+    for (const [key, bytes] of before) expect(f.transport.objects.get(key)?.bytes).toEqual(bytes)
+    expect(f.transport.objects.has(`desktop/releases/v${VERSION}/insight-release.json`)).toBe(true)
+    expect(f.transport.objects.has('desktop/stable/current.json')).toBe(true)
   })
 
   it.each([
