@@ -20,7 +20,7 @@
 <a id="release-flow"></a>
 ## 发布流程
 
-打包工作流固定 `insight` 分支的一个提交，使用 DSH 构建选定平台包，收集目标唯一的附件，并在来源记录附件中记录构建运行和产物摘要。该记录绑定仓库、workflow path、可信 ref、事件、head 提交、run id、目标和 manifest 摘要；随后创建不可变的 `insight-v<version>` GitHub Release。发布工作流下载该 Release 和原始工作流产物，按来源记录校验两者，签名更新文档，写入 OSS 不可变对象，校验远端字节，最后才条件更新渠道指针。
+打包工作流固定 `insight` 分支的一个提交，使用 DSH 构建选定平台包，收集目标唯一的附件，并在来源记录附件中记录构建运行和产物摘要。该记录绑定仓库、workflow path、可信 ref、事件、head 提交、run id、目标和 manifest 摘要；随后创建不可变的 `insight-v<version>` GitHub Release。发布工作流下载该 Release 和原始工作流产物，按来源记录校验两者，签名更新文档，写入 OSS 不可变对象并校验远端字节，随后由单一发布者在替换前核对指针，并在写入后回读。
 
 应用产品版本和内嵌 DSH 运行时版本保持独立。Candidate 接受规范的 1.x final 或 prerelease 版本。Stable 接受 final 版本，并需要 `darwin-arm64`、`darwin-x64` 和 `win32-x64` 三个目标。经过 Candidate 验证的 final 版本可以使用相同 GitHub Release、应用字节和已签名目标 manifest 晋升 Stable。
 
@@ -29,7 +29,7 @@
 <a id="package-workflow"></a>
 ## 打包工作流
 
-`.github/workflows/insight-package.yml` 是仅允许 `insight` 分支使用的手动工作流。它的三个目标 job 使用 DSH 桌面入口打包 macOS arm64、macOS x64 和 Windows x64。每个 job 执行对应平台既有的 DSH 打包命令，然后收集并上传所选目标。Windows 继续使用 DSH NSIS 路径；额外的 Insight 品牌改动需要另行授权。
+`.github/workflows/insight-package.yml` 是仅允许 `insight` 分支使用的手动工作流。它的三个目标 job 使用 DSH 桌面入口打包 macOS arm64、macOS x64 和 Windows x64。每个 job 执行对应平台既有的 DSH 打包命令，然后收集并上传所选目标。Windows 通过既有 DSH NSIS 路径使用 Insight 品牌。
 
 签名准备步骤接收 P12 密码和 Apple API 值，在 `RUNNER_TEMP` 下写入私有文件，只向后续步骤导出文件路径，并在 `always()` 清理步骤删除该私有目录。正常构建必须完成 DSH 签名、公证和打包检查，收集器之后才能记录 `distribution`。显式调试选项记录 `debug-signed`，只创建 draft 调试 Release，不能通过 OSS 发布器。
 
@@ -65,7 +65,7 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 两种格式都绑定版本、目标、源码提交、运行时版本、兼容字段、产物名称、字节大小和 SHA-512。渠道指针是引用精确 manifest 或 release 索引字节的 Ed25519 签名 envelope。
 
-新客户端认证两个 Candidate 指针并选择最高版本；只有 HTTP 404 表示指针不存在。最高版本若已撤回，不会回退到较旧的 active 版本。两种协议共享 Candidate 版本下限。
+当前源码客户端认证两个 Candidate 指针并选择最高版本；只有 HTTP 404 表示指针不存在。最高版本若已撤回，不会回退到较旧的 active 版本。两种协议共享 Candidate 版本下限。已发布的 `1.0.10` Candidate 包早于双协议读取器改动；其交付边界见 [Desktop Integration 限制](../../packages/insight/desktop-integration/README.zh.md#known-limitations-and-deferred-work)。
 
 V2 index 和目标读取器为兼容已发布 Shell 解析器而接受尾随空白。签名仍认证包含该空白的完整原始字节，因此发布器或 CDN 不能在签名后修改它。
 

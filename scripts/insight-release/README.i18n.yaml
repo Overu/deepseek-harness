@@ -12,17 +12,17 @@
   en: da93cb96173ecf53
   zh: 43b27e0ed5716bca
 /insight-desktop-release-pipeline/release-flow:
-  en: 72d12f71efc4d900
-  zh: 5725ed739d6013fa
+  en: 62333f94824ed435
+  zh: 35c4cfb928188830
 /insight-desktop-release-pipeline/package-workflow:
-  en: aa117e0ef91bd45e
-  zh: 56ad9706199243e1
+  en: 60149598f6a05d07
+  zh: 5ac4ad5ee64c9093
 /insight-desktop-release-pipeline/publish-workflow:
   en: 0b42ef9c05a82024
   zh: 1a678f1b2b9520e5
 /insight-desktop-release-pipeline/signed-update-formats:
-  en: c0a31d86d8a86d68
-  zh: 2584869de1eb11e3
+  en: 264c477e4f7e22a9
+  zh: d905a2b26dc23438
 /insight-desktop-release-pipeline/trust-and-failure-rules:
   en: 7cbf96cb761cd5f6
   zh: 48b23aa022064297

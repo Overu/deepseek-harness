@@ -57,7 +57,7 @@
 
 精确私有包清单位于 [insight-package-policy.ts](../../scripts/insight-package-policy.ts)。[Insight 产品集成](insight.zh.md) 说明运行时归属、源码快照与同步技能。[Desktop Integration 包](../../packages/insight/desktop-integration/README.zh.md) 负责认证与账号进程行为。每个固定业务包的 `upstream.json` 和 `patches/insight` 下可回放差异记录引入源码及本地适配。
 
-Desktop Integration 包也负责已签名更新发现、本地投放状态、内测确认和渲染器安全更新操作。Desktop Main 拥有唯一的 electron-updater 实例和原生窗口适配器。[Insight 发布脚本](../../scripts/insight-release/README.zh.md)负责产物 manifest、GitHub 来源验证、签名、OSS 条件写入以及相互独立的正式版和内测版发布格式。
+Desktop Integration 包也负责已签名更新发现、本地投放状态、内测确认和渲染器安全更新操作。Desktop Main 拥有唯一的 electron-updater 实例和原生窗口适配器。[Insight 发布脚本](../../scripts/insight-release/README.zh.md)负责产物 manifest、GitHub 来源验证、签名、单一发布者的写前核对与写后回读，以及相互独立的正式版和内测版发布格式。
 
 `bundled-skills` 保持来源仓库的内部结构。引入的标签生成器保留原有目录到客户端元数据流程；测试使用合成文件，不评价内置技能内容或业务结果。
 

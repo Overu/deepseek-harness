@@ -20,7 +20,7 @@ These scripts build a verifiable handoff between DSH desktop packaging, an immut
 <a id="release-flow"></a>
 ## Release flow
 
-The package workflow pins one `insight` branch commit, builds selected platform packages with DSH, collects target-unique attachments, and records the build run and asset hashes in a source record attachment. The record binds the repository, workflow path, trusted ref, event, head commit, run id, targets, and manifest hashes. It then creates the immutable `insight-v<version>` GitHub Release. The publish workflow downloads the Release and the original workflow artifacts, verifies both against that source record, signs update documents, writes immutable OSS objects, verifies their remote bytes, and conditionally changes the channel pointer last.
+The package workflow pins one `insight` branch commit, builds selected platform packages with DSH, collects target-unique attachments, and records the build run and asset hashes in a source record attachment. The record binds the repository, workflow path, trusted ref, event, head commit, run id, targets, and manifest hashes. It then creates the immutable `insight-v<version>` GitHub Release. The publish workflow downloads the Release and the original workflow artifacts, verifies both against that source record, signs update documents, writes immutable OSS objects, verifies their remote bytes, then has the single publisher reconcile the pointer before replacement and read it back after the write.
 
 The application product version and embedded DSH runtime version remain separate. Candidate accepts canonical final or prerelease 1.x versions. Stable accepts final versions and requires all three targets: `darwin-arm64`, `darwin-x64`, and `win32-x64`. A final version tested through Candidate can be promoted to Stable using the same GitHub Release, application bytes, and signed target manifests.
 
@@ -29,7 +29,7 @@ The application product version and embedded DSH runtime version remain separate
 <a id="package-workflow"></a>
 ## Package workflow
 
-`.github/workflows/insight-package.yml` is a manual workflow restricted to the `insight` branch. Its three target jobs package macOS arm64, macOS x64, and Windows x64 with the DSH desktop entry points. Each job runs the platform's existing DSH package command, then collects and uploads the selected target. Windows continues to use the DSH NSIS path; additional Insight branding changes require separate authorization.
+`.github/workflows/insight-package.yml` is a manual workflow restricted to the `insight` branch. Its three target jobs package macOS arm64, macOS x64, and Windows x64 with the DSH desktop entry points. Each job runs the platform's existing DSH package command, then collects and uploads the selected target. Windows uses the Insight brand through the existing DSH NSIS path.
 
 The signing setup step receives the P12 password and Apple API values, writes private files below `RUNNER_TEMP`, exports only their paths to later steps, and removes that private directory in an `always()` cleanup step. A normal build must complete DSH signing, notarization, and package checks before the collector records `distribution`. The explicit debug option records `debug-signed`, creates only a draft debug Release, and cannot pass the OSS publisher.
 
@@ -65,7 +65,7 @@ Stable V2 uses `desktop/stable/current.json`, one signed release index, and all 
 
 Both formats bind the version, target, source commit, runtime version, compatibility fields, artifact name, byte size, and SHA-512. The channel pointer is an Ed25519-signed envelope that refers to the exact manifest or release-index bytes.
 
-New clients authenticate both Candidate pointers and select the highest version; only HTTP 404 means a pointer is absent. A rejected highest version remains withdrawn rather than falling back to an older active version. Both protocols share the Candidate version floor.
+The current source client authenticates both Candidate pointers and selects the highest version; only HTTP 404 means a pointer is absent. A rejected highest version remains withdrawn rather than falling back to an older active version. Both protocols share the Candidate version floor. The released `1.0.10` Candidate package predates this dual-protocol reader change; see the [Desktop Integration limitations](../../packages/insight/desktop-integration/README.md#known-limitations-and-deferred-work) for its delivery boundary.
 
 The V2 index and target readers accept trailing whitespace for compatibility with the released Shell parser. Signatures still authenticate the complete original bytes, including that whitespace, so a publisher or CDN cannot change it after signing.
 
