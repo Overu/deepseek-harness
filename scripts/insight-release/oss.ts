@@ -46,7 +46,7 @@ interface OssClient {
     res: { status: number; headers: Record<string, string | undefined> }
   }>
   get(key: string, destination: string): Promise<{ res: { status: number; headers: Record<string, string | undefined> } }>
-  put(key: string, source: Uint8Array | string, options: { headers: Record<string, string> }): Promise<unknown>
+  put(key: string, source: Buffer | string, options: { headers: Record<string, string> }): Promise<unknown>
   multipartUpload(key: string, source: string, options: { headers: Record<string, string> }): Promise<unknown>
 }
 
@@ -110,8 +110,8 @@ export function createAliOssTransport(
   return {
     async getMetadata(key) { assertKey(key); try { const result = await (await client()).getStream(key); if (result.stream === undefined) throw new Error('OSS metadata response has no stream.'); const bytes = await bounded(result.stream); return { bytes, etag: etag(result.res.headers) } } catch (error) { if (status(error) === 404) return undefined; throw error } },
     async download(key, destination) { assertKey(key); try { const result = await (await client()).get(key, destination); const measurement = await hashFile(destination); return { ...measurement, etag: etag(result.res.headers) } } catch (error) { if (status(error) === 404) { await rm(destination, { force: true }); return undefined } throw new OssWriteOutcomeUnknownError(`OSS download failed for ${key}: ${String(error)}`) } },
-    async putImmutable(key, source) { assertKey(key); try { const c = await client(); const headers = { 'x-oss-forbid-overwrite': 'true', 'cache-control': IMMUTABLE_CACHE_CONTROL }; if ('path' in source) await c.multipartUpload(key, source.path, { headers }); else await c.put(key, source.bytes, { headers }) } catch (error) { throw new OssWriteOutcomeUnknownError(`OSS immutable write outcome is unknown for ${key}: ${String(error)}`) } },
-    async putPointer(key, bytes, options) { assertKey(key); const headers: Record<string, string> = { 'cache-control': POINTER_CACHE_CONTROL }; if (options.expectedEtag !== undefined) headers['If-Match'] = options.expectedEtag; if (options.ifAbsent === true) headers['If-None-Match'] = '*'; try { await (await client()).put(key, bytes, { headers }) } catch (error) { throw new OssWriteOutcomeUnknownError(`OSS pointer write outcome is unknown for ${key}: ${String(error)}`) } },
+    async putImmutable(key, source) { assertKey(key); try { const c = await client(); const headers = { 'x-oss-forbid-overwrite': 'true', 'cache-control': IMMUTABLE_CACHE_CONTROL }; if ('path' in source) await c.multipartUpload(key, source.path, { headers }); else await c.put(key, Buffer.from(source.bytes), { headers }) } catch (error) { throw new OssWriteOutcomeUnknownError(`OSS immutable write outcome is unknown for ${key}: ${String(error)}`) } },
+    async putPointer(key, bytes, options) { assertKey(key); const headers: Record<string, string> = { 'cache-control': POINTER_CACHE_CONTROL }; if (options.expectedEtag !== undefined) headers['If-Match'] = options.expectedEtag; if (options.ifAbsent === true) headers['If-None-Match'] = '*'; try { await (await client()).put(key, Buffer.from(bytes), { headers }) } catch (error) { throw new OssWriteOutcomeUnknownError(`OSS pointer write outcome is unknown for ${key}: ${String(error)}`) } },
   }
 }
 
