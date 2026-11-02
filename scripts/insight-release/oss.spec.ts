@@ -51,12 +51,13 @@ describe('Insight OSS transport', () => {
   })
 
   it('reports STS HTTP status without exposing response bytes', async () => {
-    const provider = createGithubStsProvider({ environment, fetch: async (url) => {
+    const provider = createGithubStsProvider({ environment, fetch: async (url, init) => {
       const href = url instanceof URL ? url.href : typeof url === 'string' ? url : url.url
+      expect(new Headers(init?.headers).get('accept')).toBe('application/json')
       if (href.startsWith('https://token.actions.githubusercontent.com/')) return Response.json({ value: 'oidc' })
-      return new Response('private backend detail', { status: 403 })
+      return Response.json({ detail: { code: 'REPOSITORY_NOT_ALLOWED', message: 'private backend detail' } }, { status: 403 })
     } })
-    await expect(provider()).rejects.toThrow('OSS STS request failed with HTTP 403.')
+    await expect(provider()).rejects.toThrow('OSS STS request failed with HTTP 403; code=REPOSITORY_NOT_ALLOWED.')
     await expect(provider()).rejects.not.toThrow('private backend detail')
   })
 

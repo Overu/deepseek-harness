@@ -67,9 +67,9 @@ export function createGithubStsProvider(
   const requestToken = required(environment.ACTIONS_ID_TOKEN_REQUEST_TOKEN, 'GitHub OIDC token')
   return async () => {
     const oidc = new URL(requestUrl); oidc.searchParams.set('audience', 'insight-harness-oss-upload')
-    const oidcValue = await json(fetchImplementation, oidc, { headers: { authorization: `Bearer ${requestToken}` } }, 'GitHub OIDC')
+    const oidcValue = await json(fetchImplementation, oidc, { headers: { authorization: `Bearer ${requestToken}`, accept: 'application/json' } }, 'GitHub OIDC')
     const token = required(object(oidcValue, 'GitHub OIDC').value, 'GitHub OIDC value')
-    const response = object(await json(fetchImplementation, new URL(GATEWAY), { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: '{}' }, 'OSS STS'), 'OSS STS')
+    const response = object(await json(fetchImplementation, new URL(GATEWAY), { method: 'POST', headers: { authorization: `Bearer ${token}`, accept: 'application/json', 'content-type': 'application/json' }, body: '{}' }, 'OSS STS'), 'OSS STS')
     if (response.code !== 'SUCCESS') throw new Error('OSS STS request was rejected.')
     const data = object(response.data, 'OSS STS data')
     const durationSeconds = data.durationSeconds
@@ -119,7 +119,18 @@ function assertKey(key: string): void { if (!/^desktop\/(?:[A-Za-z0-9._-]+\/)*[A
 function required(value: unknown, label: string): string { if (typeof value !== 'string' || value === '') throw new Error(`${label} is required.`); return value }
 function object(value: unknown, label: string): Record<string, unknown> { if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be an object.`); return Object.fromEntries(Object.entries(value)) }
 function https(value: string | undefined, label: string): URL { try { const url = new URL(required(value, label)); if (url.protocol !== 'https:' || url.username || url.password) throw new Error(); return url } catch { throw new Error(`${label} is invalid.`) } }
-async function json(fetchImplementation: typeof fetch, url: URL, init: RequestInit, label: string): Promise<unknown> { const response = await fetchImplementation(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(45_000) }); if (!response.ok) throw new Error(`${label} request failed with HTTP ${String(response.status)}.`); return response.json() }
+async function json(fetchImplementation: typeof fetch, url: URL, init: RequestInit, label: string): Promise<unknown> {
+  const response = await fetchImplementation(url, { ...init, redirect: 'error', signal: AbortSignal.timeout(45_000) })
+  if (!response.ok) {
+    // Non-JSON failures retain their HTTP status without exposing response bytes.
+    const value: unknown = await response.json().catch((error: unknown) => { void error; return undefined })
+    const detail = value !== null && typeof value === 'object' && 'detail' in value ? value.detail : value
+    const code = detail !== null && typeof detail === 'object' && 'code' in detail ? detail.code : undefined
+    const safeCode = typeof code === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,80}$/u.test(code) ? code : 'UNKNOWN_ERROR'
+    throw new Error(`${label} request failed with HTTP ${String(response.status)}; code=${safeCode}.`)
+  }
+  return response.json()
+}
 async function bounded(stream: AsyncIterable<Uint8Array>): Promise<Uint8Array> { const chunks: Uint8Array[] = []; let size = 0; for await (const chunk of stream) { size += chunk.byteLength; if (size > MAX_METADATA_BYTES) throw new Error('OSS metadata exceeds the size limit.'); chunks.push(chunk) } const bytes = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength } return bytes }
 async function hashFile(path: string): Promise<{ size: number; sha512: string }> { const metadata = await stat(path); const hash = createHash('sha512'); const input = createReadStream(path); input.on('data', chunk => hash.update(chunk)); await finished(input); return { size: metadata.size, sha512: hash.digest('base64') } }
 function etag(headers: Record<string, string | undefined>): string { const value = headers.etag ?? headers.ETag; if (typeof value !== 'string' || value === '') throw new Error('OSS response did not provide an ETag.'); return value }
