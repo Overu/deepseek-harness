@@ -31,6 +31,7 @@ import { ActivityPill, UsagePill } from '../src/client/chat/StatsPills.tsx'
 import { createFlowMotion, type InputFoldDriver } from '../src/client/chat/flow-motion.ts'
 import { CHAT_FLOW_INJECT, CHAT_NODE_INJECT } from '../src/client/apply.ts'
 import { UserContent } from '../src/client/chat/UserContent.tsx'
+import type {} from '../src/client/contract/slots.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-conversation/client' {
   interface ConversationTurnDataMap {
@@ -155,8 +156,11 @@ describe('Chat apply wiring', () => {
     const user = b.runtime.slots.entries('conversation.chat.node').find(entry => entry.options.key === 'user')
     const steering = b.runtime.slots.entries('conversation.chat.node').find(entry => entry.options.key === 'steering')
     const userContent = b.runtime.factoryOf('conversation.chat.user.content')
+    const userMessage = b.runtime.factoryOf('conversation.chat.user.message')
     expect(userContent).toMatchObject({ scope: 'session', locale: 'chat', component: UserContent })
     expect(userContent.children?.['conversation.chat.user.images']).toMatchObject({ kind: 'single', scope: 'session' })
+    expect(userMessage).toMatchObject({ scope: 'session', locale: 'chat' })
+    expect(userMessage.children?.['conversation.chat.user.before']).toMatchObject({ kind: 'chain', scope: 'session' })
     expect(assistant?.children?.['conversation.chat.message.images']).toMatchObject({ kind: 'single', scope: 'session' })
     expect(userContent.store).toBeUndefined()
     expect(userContent.inject).toBeUndefined()
@@ -166,7 +170,7 @@ describe('Chat apply wiring', () => {
     expect(view?.children?.['conversation.chat.user.images']).toBeUndefined()
     expect(flow?.children?.['conversation.chat.node']).toBeDefined()
     expect(flow?.children?.['conversation.chat.user.before']).toBeUndefined()
-    expect(user?.children?.['conversation.chat.user.before']).toMatchObject({ kind: 'chain', scope: 'session' })
+    expect(user?.children?.['conversation.chat.user.before']).toBeUndefined()
     expect(steering).toBeDefined()
     expect(steering?.children?.['conversation.chat.user.before']).toBeUndefined()
     expect(b.runtime.slots.spec('conversation.chat.user.before')).toMatchObject({ kind: 'chain', scope: 'session' })
@@ -183,6 +187,7 @@ describe('Chat apply wiring', () => {
     expect(b.runtime.slots.spec('conversation.chat.message.images')).toBeUndefined()
     expect(b.runtime.slots.spec('conversation.chat.user.images')).toBeUndefined()
     expect(() => b.runtime.factoryOf('conversation.chat.user.content')).toThrow('no definition')
+    expect(() => b.runtime.factoryOf('conversation.chat.user.message')).toThrow('no definition')
   })
 
   it('lets another registrant replace one composer stats pill by id', async () => {

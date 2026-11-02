@@ -1,0 +1,20 @@
+- banner:
+  - navigation "Session hierarchy": Canvas history
+  - button "More actions"
+  - button "Open right sidebar"
+  - tablist:
+    - tab "Chat" [selected]
+    - tab "Trajectory"
+  - button "More conversation views"
+- button "历史节点"
+- text: 请保留这个画布节点。 {{clock}}
+- button "Copy"
+- text: 损坏引用应保留原文。<node-refs version="1"> not json </node-refs> {{clock}}
+- button "Copy"
+- status: Completed
+- button "Completed in {{duration}}" [disabled]
+- textbox "Message or run a task, / commands, @ files or sessions"
+- button "Add files or run commands"
+- 'button "Access mode, current: Workspace Write"': Workspace Write
+- button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
+- button "Send message" [disabled]

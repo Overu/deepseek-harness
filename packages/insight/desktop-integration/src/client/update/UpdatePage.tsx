@@ -91,7 +91,7 @@ export function UpdatePage({ api, logoUrl }: UpdatePageProps) {
       <span />
       {state.phase === 'available' && !state.required && <button type="button" onClick={() =>{  execute(() => api.close()) }}>稍后提醒我</button>}
       {state.phase === 'idle' || state.phase === 'error' || state.phase === 'unsupported'
-        ? <button className={css.primary} type="button" onClick={() =>{  execute(() => api.checkStable()) }}>检查更新</button>
+        ? <button className={css.primary} type="button" onClick={() =>{  execute(() => api.checkForUpdates()) }}>检查更新</button>
         : state.phase === 'available'
           ? <button className={css.primary} type="button" onClick={() =>{  execute(() => api.download()) }}>下载更新</button>
           : state.phase === 'ready'

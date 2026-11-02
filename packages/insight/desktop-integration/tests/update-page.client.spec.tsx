@@ -10,7 +10,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 function api(state: InsightUpdateSnapshot) {
   const methods = {
     status: vi.fn(async () => state), subscribe: vi.fn(() => () => {}),
-    checkStable: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}),
+    checkForUpdates: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}),
     download: vi.fn(async () => {}), install: vi.fn(async () => {}), fullInstaller: vi.fn(async () => {}),
     skip: vi.fn(async () => {}), close: vi.fn(async () => {}),
   }
@@ -82,7 +82,7 @@ describe('UpdatePage', () => {
 
   it('keeps an action error inside the update window', async () => {
     const bridge = api(idle)
-    bridge.checkStable.mockRejectedValueOnce(new Error('offline'))
+    bridge.checkForUpdates.mockRejectedValueOnce(new Error('offline'))
     render(<UpdatePage api={bridge} logoUrl="brand.svg" />)
     fireEvent.click(screen.getByRole('button', { name: '检查更新' }))
     expect(await screen.findByText('操作未完成，请重试')).toBeTruthy()

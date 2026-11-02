@@ -142,11 +142,10 @@ Factory: conversation.content [ConversationContent]
 │     │  ├─ conversation.chat.text-interaction [list]
 │     │  └─ conversation.chat.flow [ChatFlow]
 │     │     └─ conversation.chat.node [ChatNodeSeat dispatch]
-│     │        ├─ key=user [UserMessageNodeView]
-│     │        │  ├─ conversation.chat.user.before [chain]
-│     │        │  └─ calls Factory: conversation.chat.user.content
-│     │        ├─ key=steering [UserMessageNodeView]
-│     │        │  └─ calls Factory: conversation.chat.user.content
+│     │        ├─ key=user [UserMessageFactoryNodeView]
+│     │        │  └─ calls Factory: conversation.chat.user.message
+│     │        ├─ key=steering [UserMessageFactoryNodeView]
+│     │        │  └─ calls Factory: conversation.chat.user.message
 │     │        ├─ key=assistant-step [AssistantNodeView / AssistantMarkdown]
 │     │        │  ├─ conversation.chat.message.images [MessageImages]
 │     │        │  └─ conversation.chat.reasoning.body [DefaultReasoningBody]
@@ -185,6 +184,10 @@ Factory: conversation.content [ConversationContent]
 │  └─ conversation.hero.workspace.directoryFlow
 ├─ conversation.hero.agentPreset
 └─ conversation.hero.options
+
+Factory: conversation.chat.user.message [UserMessageNodeView]
+├─ conversation.chat.user.before [chain; user rows only]
+└─ calls Factory: conversation.chat.user.content
 
 Factory: conversation.chat.user.content [UserContent]
 ├─ conversation.chat.user.images [MessageImages]

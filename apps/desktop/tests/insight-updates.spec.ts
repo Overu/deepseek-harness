@@ -13,14 +13,16 @@ const fixture = await vi.hoisted(async () => {
       state: DesktopUpdateState
       publish: (state: DesktopUpdateState) => DesktopUpdateState
       beforeRestart: () => Promise<boolean>
+      enabled: boolean
       disposed: boolean
       dispose: () => void
     }>,
   }
   const controller = {
     automaticCheck: vi.fn(async () => {}), updateState: vi.fn(), dispose: vi.fn(), snapshot: { phase: 'idle' },
-    checkStable: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}), download: vi.fn(async () => {}),
+    checkForUpdates: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}), download: vi.fn(async () => {}),
     install: vi.fn(async () => {}), fullInstaller: vi.fn(async () => {}), skip: vi.fn(async () => {}),
+    options: undefined as undefined | { coordinator: { check(track: 'stable' | 'candidate', manual: boolean): Promise<DesktopUpdateState> } },
   }
   const schedule = { instances: [] as Array<{ check: ReturnType<typeof vi.fn>; dispose: () => void }> }
   const window = { open: vi.fn(async () => {}), publish: vi.fn(), dispose: vi.fn() }
@@ -38,20 +40,27 @@ vi.mock('../src/update-coordinator.ts', () => ({
       state: DesktopUpdateState
       publish: (state: DesktopUpdateState) => DesktopUpdateState
       beforeRestart: () => Promise<boolean>
+      enabled: boolean
       disposed: boolean
       dispose: () => void
     }
     constructor(
       publish: (state: DesktopUpdateState) => DesktopUpdateState,
       beforeRestart: () => Promise<boolean>,
+      _updater: unknown,
+      enabled: () => boolean,
     ) {
       const dispose = vi.fn(() => { this.entry.disposed = true })
+      const updatesEnabled = enabled()
       this.entry = { state: { phase: 'idle' }, publish, beforeRestart, disposed: false,
-        dispose }
+        enabled: updatesEnabled, dispose }
       fixture.coordinator.instances.push(this.entry)
     }
     get state() { return this.entry.state }
-    async check() { return this.entry.state }
+    async check() {
+      if (!this.entry.enabled) throw new Error('desktop update: this application has no packaged update source')
+      return this.entry.state
+    }
     async download() { return this.entry.state }
     async install() { return this.entry.state }
     dispose() { this.entry.dispose() }
@@ -72,7 +81,10 @@ vi.mock('@insight-ai/desktop-integration/desktop', () => ({
   InsightUpdateStateStore: class { constructor(...args: unknown[]) { void args.length } async acceptRollout() { return true } },
   readInsightUpdateDistribution: vi.fn(async () => ({ origin: 'https://updates.example.com', publicKeyPem: 'fixture' })),
   resolveInsightUpdate: vi.fn(),
-  createInsightUpdateController: vi.fn(() => fixture.controller),
+  createInsightUpdateController: vi.fn((options: { coordinator: { check(track: 'stable' | 'candidate', manual: boolean): Promise<DesktopUpdateState> } }) => {
+    fixture.controller.options = options
+    return fixture.controller
+  }),
 }))
 
 const { createInsightDesktopUpdates } = await import('../src/insight-updates.ts')
@@ -81,20 +93,21 @@ beforeEach(() => {
   vi.stubGlobal('process', { ...process, platform: 'darwin', arch: 'arm64', resourcesPath: 'fixture-resources' })
   fixture.app.removeAllListeners()
   fixture.app.isPackaged = true
+  fixture.controller.options = undefined
   fixture.coordinator.instances.length = 0
   fixture.schedule.instances.length = 0
   fixture.dialog.showMessageBox.mockReset()
   fixture.dialog.showMessageBox.mockResolvedValue({ response: 1 })
   fixture.menu.setApplicationMenu.mockReset(); fixture.menu.buildFromTemplate.mockClear()
   for (const method of [fixture.controller.automaticCheck, fixture.controller.updateState, fixture.controller.dispose,
-    fixture.controller.checkStable, fixture.controller.checkCandidate, fixture.controller.download, fixture.controller.install,
+    fixture.controller.checkForUpdates, fixture.controller.checkCandidate, fixture.controller.download, fixture.controller.install,
     fixture.controller.fullInstaller, fixture.controller.skip]) method.mockReset()
   fixture.controller.automaticCheck.mockResolvedValue(undefined)
   fixture.window.open.mockReset(); fixture.window.open.mockResolvedValue(undefined)
   fixture.window.publish.mockReset(); fixture.window.dispose.mockReset()
 })
 
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 describe('Insight desktop updates', () => {
   it('creates one coordinator before login and reuses it through workspace binding', async () => {
@@ -144,6 +157,34 @@ describe('Insight desktop updates', () => {
     expect(fixture.controller.dispose).toHaveBeenCalledOnce()
     expect(fixture.schedule.instances[0]!.dispose).toHaveBeenCalledOnce()
     expect(fixture.window.dispose).toHaveBeenCalledOnce()
+  })
+
+  it.each([true, false])('skips automatic checks and reports update entry manual=%s as unavailable in development', async (manual) => {
+    fixture.app.isPackaged = false
+    vi.stubEnv('INSIGHT_DESKTOP_VERSION', '1.0.9')
+    const service = await createInsightDesktopUpdates()
+    expect(fixture.controller.automaticCheck).not.toHaveBeenCalled()
+    expect(fixture.schedule.instances[0]!.check).not.toHaveBeenCalled()
+
+    await service.open(manual)
+
+    expect(fixture.dialog.showMessageBox).toHaveBeenCalledExactlyOnceWith({
+      type: 'info', title: '检查更新', message: '开发模式不检查客户端更新。',
+      detail: '请使用已安装的发布版本检查更新。', buttons: ['知道了'], defaultId: 0, cancelId: 0,
+    })
+    expect(fixture.window.open).not.toHaveBeenCalled()
+    expect(fixture.controller.checkForUpdates).not.toHaveBeenCalled()
+    service.dispose()
+    expect(fixture.schedule.instances[0]!.dispose).toHaveBeenCalledOnce()
+  })
+
+  it('does not hide a packaged build without an update source', async () => {
+    const service = await createInsightDesktopUpdates()
+
+    await expect(fixture.controller.options!.coordinator.check('stable', true))
+      .rejects.toThrow('desktop update: this application has no packaged update source')
+
+    service.dispose()
   })
 
   it('does not publish a late coordinator update after disposal', async () => {

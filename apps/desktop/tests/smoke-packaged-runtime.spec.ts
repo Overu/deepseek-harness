@@ -9,7 +9,7 @@ describe('packaged runtime smoke paths', () => {
     ['mac-x64', '/artifacts', { DSH_DESKTOP_PRODUCT: 'insight', INSIGHT_DESKTOP_VERSION: '1.3.0' },
       join('/artifacts', 'mac', '因赛AI.app', 'Contents', 'MacOS', '因赛AI')],
     ['win-x64', '/artifacts', { DSH_DESKTOP_PRODUCT: 'insight', INSIGHT_DESKTOP_VERSION: '1.3.0' },
-      join('/artifacts', 'win-unpacked', '因赛AI.exe')],
+      join('/artifacts', 'win-unpacked', 'insight-desktop.exe')],
   ] as const)('selects the product executable for %s', (target, artifacts, environment, executable) => {
     const paths = resolvePackagedApplicationPaths(target, artifacts, environment)
 

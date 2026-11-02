@@ -51,11 +51,11 @@ export interface InsightUpdateController {
   readonly snapshot: InsightUpdateSnapshot
   /** Reflect a state emitted by the native coordinator. */
   updateState(state: InsightNativeUpdateState): void
-  /** Run an explicit stable check. */
-  checkStable(): Promise<void>
+  /** Discover the next update for this installed product version. */
+  checkForUpdates(): Promise<void>
   /** Confirm then run one explicit candidate check. */
   checkCandidate(): Promise<void>
-  /** Run a throttled automatic stable check. */
+  /** Run a throttled check for the next eligible product update. */
   automaticCheck(): Promise<void>
   /** Download the exact available version shown to the user. */
   download(): Promise<void>
@@ -80,6 +80,8 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
   let selectedTrack: 'stable' | 'candidate' = 'stable'
   let selected: ResolvedInsightUpdate | undefined
   let checkOperation: Promise<void> | undefined
+  let queuedTrack: 'stable' | 'candidate' | undefined
+  let discoveryOperation: Promise<void> | undefined
   let actionOperation: Promise<void> | undefined
   let suppressAvailable = false
   let current = snapshot(options.currentVersion, selectedTrack, options.coordinator.state, selected)
@@ -150,9 +152,9 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
         suppressAvailable = false
       }
     }
-    if (active === undefined) return startCheck(run())
-    if (selectedTrack === track) return active
-    return startCheck(active.then(async () => {
+    if (active === undefined) return startCheck(track, run())
+    if (queuedTrack === track) return active
+    return startCheck(track, active.then(async () => {
       assertLive()
       if (track === 'candidate' && current.required) throw new Error('A required stable update must be installed before checking candidates.')
       if (current.phase === 'available') {
@@ -165,9 +167,28 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
     }))
   }
 
-  const startCheck = (next: Promise<void>): Promise<void> => {
-    const tracked = next.finally(() => { if (checkOperation === tracked) checkOperation = undefined })
+  const startCheck = (track: 'stable' | 'candidate', next: Promise<void>): Promise<void> => {
+    queuedTrack = track
+    const tracked = next.finally(() => {
+      if (checkOperation === tracked) {
+        checkOperation = undefined
+        queuedTrack = undefined
+      }
+    })
     checkOperation = tracked
+    return tracked
+  }
+  const discover = (manual: boolean): Promise<void> => {
+    const active = discoveryOperation
+    if (active !== undefined) return active
+    const run = async (): Promise<void> => {
+      await check('stable', manual)
+      if (semver.prerelease(options.currentVersion) !== null && current.phase === 'idle') {
+        await check('candidate', manual)
+      }
+    }
+    const tracked = run().finally(() => { if (discoveryOperation === tracked) discoveryOperation = undefined })
+    discoveryOperation = tracked
     return tracked
   }
   const startAction = (next: () => Promise<void>): Promise<void> => {
@@ -186,7 +207,7 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
       if (recoverInstallationError(state)) return
       set(state)
     },
-    async checkStable(): Promise<void> { assertLive(); await check('stable', true) },
+    async checkForUpdates(): Promise<void> { assertLive(); await discover(true) },
     async checkCandidate(): Promise<void> {
       assertLive()
       await startAction(async () => {
@@ -203,7 +224,7 @@ export function createInsightUpdateController(options: InsightUpdateControllerOp
     },
     async automaticCheck(): Promise<void> {
       assertLive()
-      await check('stable', false)
+      await discover(false)
     },
     async download(): Promise<void> {
       assertLive()

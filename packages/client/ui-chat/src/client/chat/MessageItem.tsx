@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { PendingSubmission } from '@deepseek-ai/dsh-api-session-controller/client'
-import type { PropsRenderFactories, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
+import type { FactoryComponentPropsOf, PropsRenderFactories, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { UserTextFacts } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { JsonBlock, StateDot, TextShimmer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
@@ -322,24 +322,16 @@ export function PendingSubmissionBubble({ submission, loadImage, renderFactorySl
   )
 }
 
-/**
- * Official user and admitted-steering keyed Chat renderer.
- *
- * Renders the durable-message chain seat directly above the bubble. The seat is
- * declared by the `user` registration alone, so a steering row renders the same
- * bubble without asking for it.
- */
+/** Complete durable user or steering message row used by the public Factory. */
 export const UserMessageNodeView = memo(function UserMessageNodeView({
   node, renderFactorySlot, loadImage, renderSlotChain, t,
-}: ChatNodeViewProps<'user' | 'steering'> & {
-  /** Bound by the `user` keyed registration, the only entry that declares the seat. */
-  renderSlotChain: PropsRenderSlots<'conversation.chat.user.before'>['renderSlotChain']
-}) {
+}: Pick<FactoryComponentPropsOf<'conversation.chat.user.message'>,
+  'node' | 'loadImage' | 'renderFactorySlot' | 'renderSlotChain' | 't'>) {
   const data = node.data
   return (
     <UserStyleBubble
       node={node}
-      renderSlotChain={renderSlotChain}
+      renderSlotChain={node.kind === 'user' ? renderSlotChain : NO_MESSAGE_SOURCE}
       content={data.content}
       interactive
       renderFactorySlot={renderFactorySlot}
@@ -358,6 +350,11 @@ export const UserMessageNodeView = memo(function UserMessageNodeView({
       )}
     />
   )
+})
+
+/** Delegates registered durable user and steering rows to the reusable complete-row Factory. */
+export const UserMessageFactoryNodeView = memo(function UserMessageFactoryNodeView({ node, loadImage, renderFactorySlot }: ChatNodeViewProps<'user' | 'steering'>) {
+  return renderFactorySlot('conversation.chat.user.message', { node, loadImage })
 })
 
 /** Injected-context keyed Chat renderer. */

@@ -11,7 +11,7 @@ const fixture = vi.hoisted(() => {
     emit: (name: string, ...args: unknown[]) => { contentsEvents.get(name)?.(...args) } }
   const window = {
     webContents, isDestroyed: vi.fn(() => false), loadFile: vi.fn(async () => {}), show: vi.fn(), focus: vi.fn(),
-    close: vi.fn(), destroy: vi.fn(),
+    close: vi.fn(), destroy: vi.fn(), setMenu: vi.fn(),
     once: vi.fn((name: string, listener: (...args: unknown[]) => void) => { windowEvents.set(name, listener) }),
     emit: (name: string, ...args: unknown[]) => { windowEvents.get(name)?.(...args) },
   }
@@ -27,7 +27,7 @@ const fixture = vi.hoisted(() => {
 })
 vi.mock('electron', () => ({ BrowserWindow: fixture.BrowserWindow, app: fixture.app, ipcMain: fixture.ipcMain }))
 vi.mock('@insight-ai/desktop-integration/protocol', () => ({
-  INSIGHT_UPDATE_IPC: { status: 'status', changed: 'changed', checkStable: 'stable', checkCandidate: 'candidate', download: 'download', install: 'install', fullInstaller: 'full', skip: 'skip', close: 'close' },
+  INSIGHT_UPDATE_IPC: { status: 'status', changed: 'changed', checkForUpdates: 'check', checkCandidate: 'candidate', download: 'download', install: 'install', fullInstaller: 'full', skip: 'skip', close: 'close' },
 }))
 
 beforeEach(() => { fixture.handlers.clear(); vi.clearAllMocks(); fixture.window.isDestroyed.mockReturnValue(false); fixture.webContents.mainFrame.url = 'file:///app/renderer/insight-update.html' })
@@ -36,7 +36,7 @@ afterEach(() => { vi.resetModules() })
 function callbacks(): InsightUpdateWindowCallbacks {
   return {
     getState: vi.fn(() => ({ currentVersion: '1.0.9', phase: 'idle' as const, track: 'stable' as const, required: false, canDownloadFullInstaller: false })),
-    checkStable: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}), download: vi.fn(async () => {}),
+    checkForUpdates: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}), download: vi.fn(async () => {}),
     install: vi.fn(async () => {}), fullInstaller: vi.fn(async () => {}), skip: vi.fn(async () => {}),
   }
 }
@@ -57,11 +57,12 @@ it('binds only the exact update-window main frame and cleans handlers on close',
   expect(fixture.handlers.size).toBe(0)
 })
 
-it('uses default native chrome, denies navigation, and only closes the update window', async () => {
+it('uses default native chrome without an application menu, denies navigation, and only closes the update window', async () => {
   const { createInsightUpdateWindow } = await import('../src/insight-update-window.ts')
   const manager = createInsightUpdateWindow(callbacks())
   await manager.open()
   expect(fixture.browserCalls[0]![0]).not.toHaveProperty('titleBarStyle')
+  expect(fixture.window.setMenu).toHaveBeenCalledWith(null)
   expect(fixture.webContents.setWindowOpenHandler.mock.calls[0]![0]()).toEqual({ action: 'deny' })
   const navigation = { preventDefault: vi.fn() }
   fixture.webContents.emit('will-navigate', navigation)

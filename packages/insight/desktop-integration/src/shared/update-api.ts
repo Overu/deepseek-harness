@@ -16,7 +16,7 @@ export interface InsightUpdateSnapshot {
 export const INSIGHT_UPDATE_IPC = {
   status: 'insight:update:status',
   changed: 'insight:update:changed',
-  checkStable: 'insight:update:check-stable',
+  checkForUpdates: 'insight:update:check-for-updates',
   checkCandidate: 'insight:update:check-candidate',
   download: 'insight:update:download',
   install: 'insight:update:install',
@@ -29,7 +29,7 @@ export const INSIGHT_UPDATE_IPC = {
 export interface InsightUpdateApi {
   status(): Promise<InsightUpdateSnapshot>
   subscribe(listener: (snapshot: InsightUpdateSnapshot) => void): () => void
-  checkStable(): Promise<void>
+  checkForUpdates(): Promise<void>
   checkCandidate(): Promise<void>
   download(): Promise<void>
   install(): Promise<void>

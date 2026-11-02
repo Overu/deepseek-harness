@@ -11,7 +11,7 @@ const api: InsightUpdateApi = {
     ipcRenderer.on(INSIGHT_UPDATE_IPC.changed, receive)
     return () => { ipcRenderer.off(INSIGHT_UPDATE_IPC.changed, receive) }
   },
-  checkStable: () => ipcRenderer.invoke(INSIGHT_UPDATE_IPC.checkStable) as Promise<void>,
+  checkForUpdates: () => ipcRenderer.invoke(INSIGHT_UPDATE_IPC.checkForUpdates) as Promise<void>,
   checkCandidate: () => ipcRenderer.invoke(INSIGHT_UPDATE_IPC.checkCandidate) as Promise<void>,
   download: () => ipcRenderer.invoke(INSIGHT_UPDATE_IPC.download) as Promise<void>,
   install: () => ipcRenderer.invoke(INSIGHT_UPDATE_IPC.install) as Promise<void>,

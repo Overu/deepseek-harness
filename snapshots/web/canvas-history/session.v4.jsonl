@@ -1,0 +1,6 @@
+{"version":4,"isSeeded":false,"createdAt":0,"cwd":"{{cwd}}","delegationDepth":0,"type":"session","id":"{{session:1}}"}
+{"type":"turn/start","data":{"turn":1}}
+{"type":"user/message","data":{"content":[{"type":"text","text":"请保留这个画布节点。"},{"type":"text","text":"<node-refs version=\"1\">\n{\"version\":1,\"nodes\":[{\"canvasId\":\"2873\",\"nodeId\":\"node-1\",\"title\":\"历史节点\",\"type\":\"text\",\"data\":{\"value\":\"历史节点正文\"},\"products\":[{\"kind\":\"text\",\"value\":\"历史节点正文\"}]}]}\n</node-refs>"}],"source":{"kind":"user","rpcId":"{{rpc:1}}"},"role":"user","id":"{{message:1}}"},"surfaceOp":"append"}
+{"type":"user/message","data":{"content":[{"type":"text","text":"损坏引用应保留原文。"},{"type":"text","text":"<node-refs version=\"1\">\nnot json\n</node-refs>"}],"source":{"kind":"user","rpcId":"{{rpc:2}}"},"role":"user","id":"{{message:2}}"},"surfaceOp":"append"}
+{"type":"session/title","data":{"title":"Canvas history","messageSeqs":[1,2],"source":{"kind":"fallback"}}}
+{"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}}}

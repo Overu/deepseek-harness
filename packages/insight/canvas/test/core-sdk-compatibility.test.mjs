@@ -28,8 +28,8 @@ test('reference messages use the public content Factory with authorized images a
   } }
   sandbox.exports = sandbox.module.exports
   vm.runInNewContext(result.outputFiles[0].text, sandbox)
-  const native = [], factories = [], loadImage = () => {}
-  const View = sandbox.module.exports.createCanvasReferenceMessageView(props => { native.push(props); return null }, () => {})
+  const factories = [], loadImage = () => {}
+  const View = sandbox.module.exports.createCanvasReferenceMessageView(() => {})
   const text = { type: 'text', text: 'keep my message' }
   const image = { id: 'image-id', mediaType: 'image/png', bytes: 42 }
   const file = { id: 'file-id', name: 'notes.txt', bytes: 10 }
@@ -38,13 +38,16 @@ test('reference messages use the public content Factory with authorized images a
   const props = { node: { kind: 'user', data: { content: [text, { type: 'image', attachment: image }, { type: 'file', attachment: file }, unknown, refs] } }, loadImage,
     renderFactorySlot(name, input) { factories.push({ name, input }); return null } }
   View(props)
-  assert.equal(factories.length, 1)
+  assert.equal(factories.length, 2)
   assert.equal(factories[0].name, 'conversation.chat.user.content')
   assert.equal(factories[0].input.loadImage, loadImage)
   assert.deepEqual(JSON.parse(JSON.stringify(factories[0].input.content)), { text: '', extraBlocks: [], attachments: [{ type: 'image', image: { attachment: image } }, { type: 'file', file }] })
-  assert.deepEqual(Array.from(native[0].node.data.content), [text, unknown])
+  assert.equal(factories[1].name, 'conversation.chat.user.message')
+  assert.equal(factories[1].input.loadImage, loadImage)
+  assert.deepEqual(Array.from(factories[1].input.node.data.content), [text, unknown])
   assert.equal(props.node.data.content.length, 5)
   View({ ...props, node: { ...props.node, data: { content: [text] } } })
-  assert.equal(native[1].node.data.content[0], text)
-  assert.equal(factories.length, 1)
+  assert.equal(factories[2].name, 'conversation.chat.user.message')
+  assert.equal(factories[2].input.node.data.content[0], text)
+  assert.equal(factories.length, 3)
 })

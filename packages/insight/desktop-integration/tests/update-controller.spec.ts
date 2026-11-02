@@ -28,12 +28,13 @@ function release(
   track: 'stable' | 'candidate',
   mode: 'optional' | 'required' = 'optional',
   minimumSupportedVersion = '1.0.9',
+  version = track === 'stable' ? '1.0.10' : '1.0.10-rc.1',
 ): ResolvedInsightUpdate {
   return {
-    version: track === 'stable' ? '1.0.10' : '1.0.10-rc.1', sourceCommit: 'a'.repeat(40), track,
+    version, sourceCommit: 'a'.repeat(40), track,
     policy: { mode, minimumSupportedVersion }, releaseBaseUrl: new URL('https://updates.example.test/'),
     metadataAsset: { ...payload, kind: 'updater-metadata', name: 'latest-mac.yml' }, payloadAsset: payload, installerAsset: { ...payload, kind: 'dmg', name: 'update.dmg' },
-    metadata: { version: track === 'stable' ? '1.0.10' : '1.0.10-rc.1', files: [{ url: 'update.zip', sha512: payload.sha512, size: 1 }], path: 'update.zip', sha512: payload.sha512 },
+    metadata: { version, files: [{ url: 'update.zip', sha512: payload.sha512, size: 1 }], path: 'update.zip', sha512: payload.sha512 },
     identityFingerprint: 'b'.repeat(64),
   }
 }
@@ -41,6 +42,71 @@ function release(
 afterEach(async () => { await Promise.all(temporary.splice(0).map(directory => rm(directory, { recursive: true, force: true }))) })
 
 describe('Insight update controller', () => {
+  it('checks the candidate feed after a prerelease client finds no stable update', async () => {
+    const calls: Array<{ track: string; manual: boolean }> = []
+    const coordinator = {
+      state: { phase: 'idle' as const },
+      async check(track: 'stable' | 'candidate', manual: boolean) {
+        calls.push({ track, manual })
+        return track === 'stable' ? { phase: 'idle' as const } : { phase: 'available' as const, version: '1.0.10-rc.2' }
+      },
+      async download(version: string) { return { phase: 'ready' as const, version } },
+      async install(version: string) { return { phase: 'installing' as const, version } },
+      dismissAvailable: () => ({ phase: 'idle' as const }),
+    }
+    const controller = createInsightUpdateController({
+      currentVersion: '1.0.10-rc.1', store: await store(), coordinator,
+      resolved: track => track === 'candidate' ? release(track, 'optional', '1.0.9', '1.0.10-rc.2') : undefined,
+      confirmCandidate: async () => true, openFullInstaller: async () => {}, publish: () => {}, report: () => {},
+    })
+    await controller.automaticCheck()
+    expect(calls).toEqual([{ track: 'stable', manual: false }, { track: 'candidate', manual: false }])
+    expect(controller.snapshot).toMatchObject({ phase: 'available', track: 'candidate', version: '1.0.10-rc.2' })
+  })
+
+  it('prefers a stable release for a prerelease client and never checks candidates from a final client', async () => {
+    const calls: string[] = []
+    const coordinator = {
+      state: { phase: 'idle' as const },
+      async check(track: 'stable' | 'candidate') {
+        calls.push(track)
+        return track === 'stable' ? { phase: 'available' as const, version: '1.0.10' } : { phase: 'available' as const, version: '1.0.11-rc.1' }
+      },
+      async download(version: string) { return { phase: 'ready' as const, version } },
+      async install(version: string) { return { phase: 'installing' as const, version } },
+      dismissAvailable: () => ({ phase: 'idle' as const }),
+    }
+    const base = { store: await store(), coordinator, resolved: (track: 'stable' | 'candidate') => release(track),
+      confirmCandidate: async () => true, openFullInstaller: async () => {}, publish: () => {}, report: () => {} }
+    const prerelease = createInsightUpdateController({ ...base, currentVersion: '1.0.10-rc.1' })
+    await prerelease.automaticCheck()
+    expect(calls).toEqual(['stable'])
+    expect(prerelease.snapshot).toMatchObject({ phase: 'available', track: 'stable', version: '1.0.10' })
+    calls.length = 0
+    const final = createInsightUpdateController({ ...base, currentVersion: '1.0.9' })
+    await final.automaticCheck()
+    expect(calls).toEqual(['stable'])
+  })
+
+  it('does not hide a stable check failure behind a candidate check', async () => {
+    const calls: string[] = []
+    const controller = createInsightUpdateController({
+      currentVersion: '1.0.10-rc.1', store: await store(),
+      coordinator: {
+        state: { phase: 'idle' as const },
+        async check(track: 'stable' | 'candidate') { calls.push(track); return { phase: 'error' as const, message: 'network failure' } },
+        async download(version: string) { return { phase: 'ready' as const, version } },
+        async install(version: string) { return { phase: 'installing' as const, version } },
+        dismissAvailable: () => ({ phase: 'idle' as const }),
+      },
+      resolved: () => undefined, confirmCandidate: async () => true,
+      openFullInstaller: async () => {}, publish: () => {}, report: () => {},
+    })
+    await controller.checkForUpdates()
+    expect(calls).toEqual(['stable'])
+    expect(controller.snapshot.phase).toBe('error')
+  })
+
   it('checks only stable automatically and suppresses a skipped optional version', async () => {
     const state: InsightNativeUpdateState = { phase: 'idle' }
     const calls: Array<{ track: string; manual: boolean }> = []
@@ -112,11 +178,11 @@ describe('Insight update controller', () => {
       resolved: track => release(track, 'required', minimum), confirmCandidate: async () => true,
       openFullInstaller: async () => {}, publish: () => {}, report: () => {},
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     expect(controller.snapshot.required).toBe(false)
     await controller.skip('1.0.10')
     minimum = '1.0.10'
-    await controller.checkStable()
+    await controller.checkForUpdates()
     expect(controller.snapshot.required).toBe(true)
     await controller.checkCandidate()
     expect(calls).toEqual(['stable', 'stable'])
@@ -194,13 +260,42 @@ describe('Insight update controller', () => {
       coordinator, resolved: track => release(track), confirmCandidate: async () => true,
       openFullInstaller: async () => {}, publish: () => {}, report: () => {},
     })
-    const stable = controller.checkStable()
+    const stable = controller.checkForUpdates()
     const candidate = controller.checkCandidate()
     await Promise.resolve()
     finishStable({ phase: 'available', version: '1.0.10' })
     await Promise.all([stable, candidate])
     expect(calls).toEqual(['stable', 'candidate'])
     expect(controller.snapshot).toMatchObject({ track: 'candidate', version: '1.0.10-rc.1' })
+  })
+
+  it('does not duplicate a candidate check when prerelease discovery overlaps an explicit check', async () => {
+    let finishStable!: (state: InsightNativeUpdateState) => void
+    const calls: string[] = []
+    const coordinator = {
+      state: { phase: 'idle' as const },
+      check(track: 'stable' | 'candidate') {
+        calls.push(track)
+        if (track === 'stable') return new Promise<InsightNativeUpdateState>((resolve) => { finishStable = resolve })
+        return Promise.resolve({ phase: 'available' as const, version: '1.0.10-rc.2' })
+      },
+      async download(version: string) { return { phase: 'ready' as const, version } },
+      async install(version: string) { return { phase: 'installing' as const, version } },
+      dismissAvailable: () => ({ phase: 'idle' as const }),
+    }
+    const controller = createInsightUpdateController({
+      currentVersion: '1.0.10-rc.1',
+      store: { enableCandidate: async () => {}, skippedVersion: async () => undefined, skip: async () => {} },
+      coordinator, resolved: track => release(track, 'optional', '1.0.9', track === 'candidate' ? '1.0.10-rc.2' : '1.0.10'),
+      confirmCandidate: async () => true, openFullInstaller: async () => {}, publish: () => {}, report: () => {},
+    })
+    const automatic = controller.automaticCheck()
+    const explicit = controller.checkCandidate()
+    await Promise.resolve()
+    finishStable({ phase: 'idle' })
+    await Promise.all([automatic, explicit])
+    expect(calls).toEqual(['stable', 'candidate'])
+    expect(controller.snapshot).toMatchObject({ phase: 'available', track: 'candidate', version: '1.0.10-rc.2' })
   })
 
   it('binds skip, download, and full installer to the displayed verified version', async () => {
@@ -220,10 +315,10 @@ describe('Insight update controller', () => {
       openFullInstaller: async (value) => { opened.push(value) }, publish: () => {},
       report: (error) => { errors.push(error) },
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     await controller.skip('1.0.11')
     expect(errors).toHaveLength(1)
-    await controller.checkStable()
+    await controller.checkForUpdates()
     await controller.fullInstaller()
     expect(opened).toHaveLength(1)
     await controller.download()
@@ -252,7 +347,7 @@ describe('Insight update controller', () => {
       resolved: track => release(track), confirmCandidate: async () => true,
       openFullInstaller: async () => {}, publish: () => {}, report: () => {},
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     const skip = controller.skip('1.0.10')
     const download = controller.download()
     completeSkip()
@@ -284,7 +379,7 @@ describe('Insight update controller', () => {
       resolved: () => windows, confirmCandidate: async () => true,
       openFullInstaller: async () => { opened += 1 }, publish: () => {}, report: () => {},
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     await controller.fullInstaller()
     expect(opened).toBe(0)
   })
@@ -303,7 +398,7 @@ describe('Insight update controller', () => {
       resolved: track => release(track), confirmCandidate: async () => true,
       openFullInstaller: async () => {}, publish: () => {}, report: () => {},
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     expect(controller.snapshot).toMatchObject({ phase: 'unsupported', version: '1.0.10', canDownloadFullInstaller: false })
   })
 
@@ -323,7 +418,7 @@ describe('Insight update controller', () => {
       resolved: track => release(track), confirmCandidate: async () => true,
       openFullInstaller: async () => {}, publish: () => { published += 1 }, report: () => {},
     })
-    const checking = controller.checkStable()
+    const checking = controller.checkForUpdates()
     controller.dispose()
     resolveCheck({ phase: 'idle' })
     await checking
@@ -360,7 +455,7 @@ describe('Insight update controller', () => {
       resolved: track => release(track), confirmCandidate: async () => true,
       openFullInstaller: async () => {}, publish: () => {}, report: (error) => { rawErrors.push(error) },
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     await controller.download()
     expect(controller.snapshot).toMatchObject({ phase: 'available', version: '1.0.10', message: '下载未完成，请重试。' })
     await controller.download()
@@ -387,7 +482,7 @@ describe('Insight update controller', () => {
       resolved: track => release(track), confirmCandidate: async () => true,
       openFullInstaller: async () => {}, publish: () => {}, report: (error) => { reported.push(error) },
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     await controller.download()
     await controller.install()
     controller.updateState({
@@ -416,7 +511,7 @@ describe('Insight update controller', () => {
       openFullInstaller: async () => {}, publish: (state) => { published.push(state) },
       report: (error) => { reported.push(error) },
     })
-    await controller.checkStable()
+    await controller.checkForUpdates()
     expect(controller.snapshot).toMatchObject({ phase: 'error', message: '更新暂时未完成，请重试。' })
     expect(published.some(state => state.message?.includes('secret-value') === true)).toBe(false)
     expect(reported).toHaveLength(1)

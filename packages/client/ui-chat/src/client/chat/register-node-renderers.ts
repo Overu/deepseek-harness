@@ -7,7 +7,7 @@ import { AssistantNodeView } from './AssistantNodeView.tsx'
 import { CommandNodeView, ManualCompactionNodeView } from './CommandNodeView.tsx'
 import {
   CompactionNodeView, ContextMessageNodeView, RetryNodeView, TurnErrorNodeView,
-  TurnMaxTokensNodeView, UnknownNodeView, UserMessageNodeView,
+  TurnMaxTokensNodeView, UnknownNodeView, UserMessageFactoryNodeView, UserMessageNodeView,
 } from './MessageItem.tsx'
 import { DefaultReasoningBody, ReasoningContent } from './ReasoningContent.tsx'
 import { SystemPromptNodeView } from './SystemPromptRow.tsx'
@@ -33,19 +33,23 @@ export function registerChatNodeRenderers(
     scope: 'root',
     locale: NS,
   }, ReasoningContent))
+  ctx.effect(() => ctx.slots.registerFactory({
+    name: 'conversation.chat.user.message',
+    scope: 'session',
+    locale: NS,
+    children: { 'conversation.chat.user.before': { kind: 'chain', scope: 'session' } },
+  }, UserMessageNodeView))
   ctx.slots.inject('conversation.chat.reasoning.body', () => ctx.slots.register({
     name: 'conversation.chat.reasoning.body',
     priority: 100,
   }, DefaultReasoningBody))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
     name: 'conversation.chat.node', key: 'user', locale: NS,
-    children: { 'conversation.chat.user.before': { kind: 'chain', scope: 'session' } },
-  }, UserMessageNodeView))
-  // Steering rows share the renderer without owning the message-source seat.
+  }, UserMessageFactoryNodeView))
+  // The Factory suppresses the source-decoration chain for steering rows.
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
     name: 'conversation.chat.node', key: 'steering', locale: NS,
-    inject: () => ({ renderSlotChain: () => null }),
-  }, UserMessageNodeView))
+  }, UserMessageFactoryNodeView))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(
     { name: 'conversation.chat.node', key: 'context', locale: NS }, ContextMessageNodeView))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register(

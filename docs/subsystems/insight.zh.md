@@ -70,17 +70,17 @@ Source: [`packages/insight/desktop-integration/src/host/account-service.ts`](../
 
 `bundled-skills` 保持为外部同步的根目录，内部结构不变。运行时从该目录发现技能，并读取每个已安装技能说明旁可选的 `ui.json` 展示信息。Insight Desktop 传入 `DSH_BUNDLED_SKILL_DIR`，打包时将目录作为独立资源复制；[Desktop Host 环境](../../apps/desktop/README.zh.md#insight-bundled-skills) 负责说明开发和安装后的路径。技能内容、脚本和业务正确性由来源仓库负责，不属于本次迁移。
 
-Insight 构建目前排除 DSH 自动更新与强制更新流程。手动更新检查会报告暂时无法检查。当前集成不接入既有 OSS/CDN 发布通道、测试通道发现、签名或安装后更新验收；这些发布机制仍属于 P5 工作，而不是认证包能力。
+[Desktop Integration 包](../../packages/insight/desktop-integration/README.zh.md#desktop-updates) 在唯一 DSH updater 之上负责已签名正式版和内测版发现。GitHub 打包构建与 OSS 渠道发布保持为相互独立的操作。
 
 ## 源码开发
 
-在 macOS 上准备 Node 24.9 或更高版本及仓库固定版本的 pnpm 后，从仓库根目录运行官方源码启动器：
+准备 Node 24.9 或更高版本及仓库固定版本的 pnpm 后，从仓库根目录运行 Insight 源码启动器：
 
 ```sh
-DSH_DESKTOP_PRODUCT=insight INSIGHT_DESKTOP_VERSION=1.0.9-dev.0 pnpm run dev:desktop
+npm run dev:insight
 ```
 
-启动器先构建当前产物，再用与 Shell 兼容的开发 `userData` 位置启动 Insight，不会自动监听源码变化。重新构建修改的源码后，按需刷新页面或重启应用与 Host；`pnpm run start:desktop` 使用已有产物启动，不重新构建。两条命令均需保留 Insight 产品与版本变量。
+启动器选择 Insight，默认 `INSIGHT_DESKTOP_VERSION` 为 `1.0.10`；显式环境值可覆盖版本。它复用官方 Desktop 开发启动器，构建当前产物，并使用与 Shell 兼容的开发 `userData` 位置，不会自动监听源码变化。显式构建后，可用 `npm run dev:insight -- --skip-build` 启动已有产物；重新构建源码后按需刷新页面或重启应用与 Host。
 
 ## 开发备注
 

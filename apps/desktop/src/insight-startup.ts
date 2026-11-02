@@ -91,6 +91,7 @@ export async function prepareInsightDesktop(
   const options = welcomeWindowOptions(process.platform, resolveDesktopLocale('zh'))
   const window = new BrowserWindow({ ...options, width: 1024, height: 720, minWidth: 800, minHeight: 480,
     resizable: true, maximizable: true, fullscreenable: true, title: product.productName,
+    show: false,
     ...(process.platform === 'win32' ? { titleBarOverlay: { color: '#00000000', symbolColor: '#F4F6FF', height: 42 } } : {}),
     webPreferences: {
       ...options.webPreferences, preload: fileURLToPath(new URL('./preload-insight-login.cjs', import.meta.url)),
@@ -102,6 +103,7 @@ export async function prepareInsightDesktop(
   let closed = false
   const isClosed = (): boolean => closed
   let accepted = false
+  let loginVisible = false
   let closeAccount = (): void => {}
   let revision = 0
   let workspace: InsightLoginState['workspace'] = { kind: 'idle' }
@@ -119,6 +121,12 @@ export async function prepareInsightDesktop(
   }
   const handle = (channel: string, action: (...args: unknown[]) => unknown): void => {
     ipcMain.handle(channel, (event, ...args: unknown[]) => { assertSender(event); return action(...args) })
+  }
+  const revealLogin = (): void => {
+    if (closed || accepted || window.isDestroyed()) return
+    loginVisible = true
+    window.show()
+    window.focus()
   }
   handle(INSIGHT_DESKTOP_IPC.loginCurrent, current)
   handle(INSIGHT_DESKTOP_IPC.loginSendSmsCode, value => typeof value === 'string' && /^1\d{10}$/u.test(value)
@@ -139,11 +147,11 @@ export async function prepareInsightDesktop(
     const attempt = ++revision
     if (view.kind !== 'authenticated') return
     const account = manager.getAccount()
-    if (account === undefined) return
+    if (account === undefined) { revealLogin(); return }
     workspace = { kind: 'preparing' }; publish()
     void prepareInsightAccountHome({ insightRoot, environment: environment.name, userId: account.userId }).then((home) => {
       if (closed || attempt !== revision || manager.current().kind !== 'authenticated') return
-      if (home.kind === 'pre-release-data') { workspace = { kind: 'pre-release-data' }; publish(); return }
+      if (home.kind === 'pre-release-data') { workspace = { kind: 'pre-release-data' }; publish(); revealLogin(); return }
       let admissionClosed = false
       const isActive = (): boolean => !admissionClosed
       const expired = new Set<() => void>()
@@ -175,10 +183,14 @@ export async function prepareInsightDesktop(
         dismissLogin: () => { cleanupLogin() },
       })
     }).catch((_error: unknown) => {
-      if (!closed && attempt === revision) { workspace = { kind: 'failed', message: '无法安全准备账号数据，请退出后检查本机数据权限或重新登录' }; publish() }
+      if (!closed && attempt === revision) {
+        workspace = { kind: 'failed', message: '无法安全准备账号数据，请退出后检查本机数据权限或重新登录' }
+        publish()
+        revealLogin()
+      }
     })
   })
-  const activate = (): void => { if (!window.isDestroyed()) { window.show(); window.focus() } }
+  const activate = (): void => { if (loginVisible) revealLogin() }
   focus(activate)
   app.on('activate', activate)
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
@@ -203,7 +215,14 @@ export async function prepareInsightDesktop(
   })
   try {
     await window.loadFile(join(app.getAppPath(), 'renderer', 'insight-login.html'))
-    if (!isClosed()) { window.show(); void manager.restore().catch((_error: unknown) => { publish() }) }
+    if (!isClosed()) {
+      void manager.restore().then(() => {
+        if (!isClosed() && manager.current().kind !== 'authenticated') revealLogin()
+      }).catch((_error: unknown) => {
+        publish()
+        revealLogin()
+      })
+    }
     return await result
   } catch (error) {
     dispose()

@@ -1,0 +1,19 @@
+# Bilingual-pair consistency record for 2026-11-02-durable-user-message-factory.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-02-durable-user-message-factory.md
+/agent-note-reusable-durable-user-message-rows:
+  en: 8cc5999d0a4ca494
+  zh: b371467e7edb5fa6
+/agent-note-reusable-durable-user-message-rows/problem:
+  en: 4b52cd9faf80b059
+  zh: 94bf7242aac555a2
+/agent-note-reusable-durable-user-message-rows/decision:
+  en: dea42c308767848c
+  zh: e05df7279b3bf395
+/agent-note-reusable-durable-user-message-rows/alternatives-considered:
+  en: 86a88eb161bc67c0
+  zh: 9dc9279a94f9d881
+/agent-note-reusable-durable-user-message-rows/consequences:
+  en: 4b3529f7fa7adc8a
+  zh: edae4a81a963f5cb

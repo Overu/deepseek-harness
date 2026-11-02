@@ -1,0 +1,4 @@
+# Provides only the Desktop-owned account seam needed to activate the Canvas bundle in Web replay.
+- insert:
+    - id: fixture-canvas-history-account
+      name: '@fixture/canvas-history'

@@ -114,7 +114,7 @@ describe('Insight desktop login startup', () => {
   it('does not prepare an account Home before authentication', async () => {
     const { pending } = await begin()
     expect(BrowserWindow).toHaveBeenCalledWith(expect.objectContaining({
-      width: 1024, height: 720, minWidth: 800, minHeight: 480, resizable: true,
+      width: 1024, height: 720, minWidth: 800, minHeight: 480, resizable: true, show: false,
     }))
     expect(vi.mocked(BrowserWindow).mock.calls[0]?.[0]?.webPreferences).toMatchObject({
       sandbox: true, contextIsolation: true, nodeIntegration: false,
@@ -123,6 +123,82 @@ describe('Insight desktop login startup', () => {
     expect(fixture.window.webContents.send).not.toHaveBeenCalled()
     fixture.callbacks.get('closed')!()
     await expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)
+  })
+
+  it('keeps login hidden while restoring credentials, then reveals it when no session is restored', async () => {
+    let finishRestore!: () => void
+    fixture.manager.restore.mockImplementation(() => new Promise<void>((resolve) => { finishRestore = resolve }))
+    const pending = prepareInsightDesktop(product, '0.2.0', () => {})
+    await vi.waitFor(() => { expect(fixture.handlers.has(INSIGHT_DESKTOP_IPC.loginCurrent)).toBe(true) })
+    expect(fixture.window.show).not.toHaveBeenCalled()
+    fixture.appActivate()
+    expect(fixture.window.show).not.toHaveBeenCalled()
+    finishRestore()
+    await vi.waitFor(() => { expect(fixture.window.show).toHaveBeenCalledOnce() })
+    fixture.callbacks.get('closed')!()
+    await expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)
+  })
+
+  it('reveals the login page when credential restoration fails', async () => {
+    fixture.manager.restore.mockRejectedValueOnce(new Error('credential storage is unavailable'))
+    const { pending } = await begin()
+    await vi.waitFor(() => { expect(fixture.window.show).toHaveBeenCalledOnce() })
+    fixture.callbacks.get('closed')!()
+    await expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)
+  })
+
+  it('opens the workspace from a restored account without revealing the login window', async () => {
+    fixture.prepareHome.mockResolvedValue({ kind: 'ready', dshHome: '/native-home' })
+    fixture.manager.restore.mockImplementation(async () => {
+      fixture.manager.current.mockReturnValue({ kind: 'authenticated', account: fixture.account.summary })
+      fixture.manager.getAccount.mockReturnValue(fixture.account)
+      fixture.subscriptions[0]!({ kind: 'authenticated', account: fixture.account.summary })
+    })
+    const { pending } = await begin()
+    const context = await pending
+    expect(context.dshHome).toBe('/native-home')
+    expect(fixture.window.show).not.toHaveBeenCalled()
+    fixture.appActivate()
+    expect(fixture.window.show).not.toHaveBeenCalled()
+  })
+
+  it.each(['pre-release-data', 'failed'] as const)(
+    'reveals the existing login page when restored account Home preparation is %s',
+    async (kind) => {
+      fixture.prepareHome.mockImplementation(async () => {
+        if (kind === 'pre-release-data') return { kind }
+        throw new Error('cannot prepare home')
+      })
+      fixture.manager.restore.mockImplementation(async () => {
+        fixture.manager.current.mockReturnValue({ kind: 'authenticated', account: fixture.account.summary })
+        fixture.manager.getAccount.mockReturnValue(fixture.account)
+        fixture.subscriptions[0]!({ kind: 'authenticated', account: fixture.account.summary })
+      })
+      const { pending } = await begin()
+      await vi.waitFor(() => { expect(fixture.window.show).toHaveBeenCalledOnce() })
+      fixture.callbacks.get('closed')!()
+      await expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)
+    },
+  )
+
+  it('does not reveal the login window after closing during credential restoration', async () => {
+    let finishRestore!: () => void
+    fixture.manager.restore.mockImplementation(() => new Promise<void>((resolve) => { finishRestore = resolve }))
+    const pending = prepareInsightDesktop(product, '0.2.0', () => {})
+    await vi.waitFor(() => { expect(fixture.handlers.has(INSIGHT_DESKTOP_IPC.loginCurrent)).toBe(true) })
+    const unhandled = vi.fn()
+    process.once('unhandledRejection', unhandled)
+    try {
+      fixture.callbacks.get('closed')!()
+      await expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)
+      await new Promise<void>((resolve) => { setImmediate(resolve) })
+      expect(unhandled).not.toHaveBeenCalled()
+      finishRestore()
+      await Promise.resolve()
+      expect(fixture.window.show).not.toHaveBeenCalled()
+    } finally {
+      process.off('unhandledRejection', unhandled)
+    }
   })
 
   it('keeps the login window until the visible workspace accepts its fixed context', async () => {

@@ -8,6 +8,7 @@ export const INSIGHT_PACKAGING_PRODUCT = 'insight'
 export const INSIGHT_PACKAGING_APP_ID = 'com.insight-aigc.desktop'
 export const INSIGHT_PACKAGING_PRODUCT_NAME = '因赛AI'
 export const INSIGHT_PACKAGING_ARTIFACT_PREFIX = 'insight'
+export const INSIGHT_WINDOWS_EXECUTABLE_NAME = 'insight-desktop'
 export const INSIGHT_DESKTOP_VERSION_ENV = 'INSIGHT_DESKTOP_VERSION'
 export const INSIGHT_UPDATE_RESOURCE_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/update/', import.meta.url))
 

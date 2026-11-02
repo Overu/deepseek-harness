@@ -38,6 +38,8 @@ Host 拥有工具、本地路由、桥接所有权和结果持久化，Client �
 
 已认证的桥接请求在已有 Web 来源外接受精确的 `dsh-app://app` 来源，仍执行 Connection 认证和 Canvas 所有权检查。关闭时先停止接入、取消消费者并等待分发与结果写入，再等待 OSS 上传结束，最后关闭桥接和存储资源。停止本地跟踪不承诺取消已被云端接受的操作。
 
+历史 user 与 steering 消息沿用 `<node-refs version="1">` 协议渲染节点缩略图、预览与定位。Client 将剩余显示内容交给 Chat 的完整 `conversation.chat.user.message` Factory，保留原生消息操作及来源装饰，不改写记录内容。无效或未知标签仍按原文显示。
+
 </details>
 
 <a id="model-experience"></a>

@@ -8,6 +8,7 @@ import { resolveDesktopProduct } from '../src/product.ts'
 import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
+import { INSIGHT_WINDOWS_EXECUTABLE_NAME } from './insight-packaging.mjs'
 
 type DesktopBuildTarget = ReturnType<typeof resolveDesktopBuildTarget>
 
@@ -20,12 +21,13 @@ export function resolvePackagedApplicationPaths(
   const windows = target === 'win-x64'
   const product = resolveDesktopProduct({ isPackaged: false, environment })
   const productName = product.kind === 'insight' ? product.productName : 'DeepSeek Harness'
+  const windowsExecutableName = product.kind === 'insight' ? INSIGHT_WINDOWS_EXECUTABLE_NAME : productName
   const application = windows ? join(artifacts, 'win-unpacked')
     : join(artifacts, target === 'mac-arm64' ? 'mac-arm64' : 'mac', `${productName}.app`, 'Contents')
   return {
     application,
     resources: join(application, windows ? 'resources' : 'Resources'),
-    executable: windows ? join(application, `${productName}.exe`) : join(application, 'MacOS', productName),
+    executable: windows ? join(application, `${windowsExecutableName}.exe`) : join(application, 'MacOS', productName),
   }
 }
 

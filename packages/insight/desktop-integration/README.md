@@ -33,13 +33,13 @@ The Insight application adds `@insight-ai/desktop-integration` to its account pr
 
 ### What you get
 
-Before a Host exists, the native login window retains the Insight brand panel, interactive dot field, and SMS/password forms, with consent links, credential restoration, and account-scoped Home selection. Desktop Main keeps the credential in encrypted Electron storage for packaged builds and exposes only renderer-safe login state. Bundled service and privacy documents open inside the login window with fixed header and footer controls, a scrolling reading area, Escape dismissal, and focus restoration. Reading or closing a document does not accept it or submit authentication.
+Before a Host exists, the native login window retains the Insight brand panel, interactive dot field, and SMS/password forms, with consent links, credential restoration, and account-scoped Home selection. The window stays hidden while saved credentials are restored; successful authentication and Home preparation enter the workspace directly, while unavailable credentials or Home admission failures show the existing login or recovery surface. Desktop Main keeps the credential in encrypted Electron storage for packaged builds and exposes only renderer-safe login state. Bundled service and privacy documents open inside the login window with fixed header and footer controls, a scrolling reading area, Escape dismissal, and focus restoration. Reading or closing a document does not accept it or submit authentication.
 
 After the workspace opens, the bundle fills the sidebar and conversation hero brand occupants with Insight artwork, adds the avatar and account menu with handbook, settings, and sign-out actions to the sidebar footer, and mounts `ctx.insightAccount` in the Host. Trusted Host plugins can request the current access token through bounded, cancellable child-process IPC. The browser receives the display name, masked phone, avatar URL, product/runtime information, and sign-out operation; it never receives the access token.
 
 Settings opens only from the account menu. The `settings.launcher` occupant forwards requests to the existing settings shell without rendering a separate sidebar button.
 
-The native update window checks signed stable releases on request and through the existing background schedule. Clicking its Insight mark five times within three seconds opens a native risk confirmation and, after approval, performs one candidate check; candidate releases are never checked automatically. Discovery does not download, and download does not authorize installation.
+The native update window uses the same regular checks as the background schedule: stable applications check signed stable releases; prerelease applications also check candidates when no stable update is available. Clicking its Insight mark five times within three seconds opens a native risk confirmation and, after approval, performs one explicit candidate check. Discovery does not download, and download does not authorize installation.
 
 -----
 
@@ -97,7 +97,9 @@ Insight uses product version `1.0.9` as its migration baseline; the first candid
 
 The packaged application contains a fixed HTTPS distribution origin and an Ed25519 public key. Stable discovery verifies one signed index containing all three targets. Candidate discovery verifies one target-specific manifest. Both paths bind updater metadata to one payload filename, byte size, and SHA-512 digest before the native coordinator checks or downloads it. The first native delivery disables differential download so blockmap naming cannot redirect the authenticated full payload.
 
-Automatic checks use only the stable track. The five-click candidate action stores the user's opt-in after native confirmation but performs only that one manual check. A skipped optional version is suppressed during later automatic checks. A required stable release prevents candidate checks. Installation reuses DSH task inspection, shutdown, and restart coordination rather than a second product updater.
+Regular checks prefer a stable release. A prerelease application checks candidates only after the stable check reports no update; stable applications do not check candidates automatically. The five-click candidate action stores the user's opt-in after native confirmation but performs only that one manual check. A skipped optional version is suppressed during later automatic checks. A required stable release prevents candidate checks. Installation reuses DSH task inspection, shutdown, and restart coordination rather than a second product updater.
+
+Unpackaged source development does not check, download, or install client updates. Opening its update entry shows a native information prompt directing developers to an installed release; packaged applications retain update-source validation.
 
 Rollout history, candidate opt-in, and skipped-version choices are installation-level Desktop state. They are available before account login and do not belong to an account Home or Session history.
 

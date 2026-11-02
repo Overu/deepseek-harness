@@ -261,6 +261,11 @@ export interface UserContentInput extends Pick<ChatNodeOwnerProps, 'loadImage'>,
   readonly facts: Readonly<Partial<UserTextFacts>>
 }
 
+/** Full durable user or steering message row rendered through the Chat Factory. */
+export interface UserMessageInput extends Pick<ChatNodeOwnerProps, 'loadImage'> {
+  readonly node: ChatNode<'user' | 'steering'>
+}
+
 /** Shared presentation state for one Turn-process answer generation. */
 export interface TurnProcessOwnerProps {
   /** Process content eligible to share one Turn-level disclosure. */
@@ -397,6 +402,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface SlotFactoryMap {
+    /** Complete durable user or steering message row with its native chrome and source decoration. */
+    'conversation.chat.user.message': {
+      scope: 'session'
+      props: UserMessageInput
+      locale: 'chat'
+      children: { 'conversation.chat.user.before': { kind: 'chain'; scope: 'session' } }
+    }
     /** Prepared user text, attachments, and references inside a caller-owned message row. */
     'conversation.chat.user.content': {
       scope: 'session'
@@ -438,7 +450,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       inject: ChatNodeInjected
     }
     /**
-     * Message-source decoration owned and rendered by the user Node entry.
+     * Message-source decoration owned and rendered by the complete user-message Factory.
      * Selectors elect one component from the durable source and row kind.
      * No match renders no visible content; steering and pending rows do not
      * render this slot.

@@ -12,7 +12,7 @@
 | --- | --- | --- |
 | `apps/desktop-host/package.json`、`apps/desktop/package.json` | 让四个私有 Insight 包进入既有递归运行时与 Main 进程依赖闭包 | Insight 组件随桌面运行时交付期间保留 |
 | `apps/desktop/src/main.ts` 及其测试 | 在 `userData` 前选择产品，要求 Insight 登录先于 Host 启动，把一个账号 Home 与凭据回调绑定到 Host，暴露渲染器安全账号操作，应用品牌，并且只在账号关停后重启 | 保持 Insight 生命周期分支显式，同时让官方路径不变 |
-| `apps/desktop/src/product.ts`、`insight-startup.ts`、`insight-account-exit.ts`、`insight-native-brand.ts` 及其测试 | 在上游 Main 流程外负责经校验的产品/运行时标识、隔离认证、native Home 准入、有序账号拆除与产品原生标签 | 保持为产品模块，避免把 Insight 状态分散到通用 Desktop 服务中 |
+| `apps/desktop/src/product.ts`、`insight-startup.ts`、`insight-account-exit.ts`、`insight-native-brand.ts` 及其测试 | 在上游 Main 流程外负责经校验的产品/运行时标识、隔离认证、隐藏的已保存登录态恢复、native Home 准入、有序账号拆除与产品原生标签 | 保持为产品模块，避免把 Insight 状态分散到通用 Desktop 服务中 |
 | `apps/desktop/src/host-process.ts` 及其测试 | 只在当前 Host 子进程与 Desktop Main 之间承载有界、经校验且可取消的账号令牌请求 | 为每个 Host 消费方保留令牌隔离、当前子进程校验与拆除取消 |
 | `apps/desktop/src/preload-app.ts`、`preload-insight-login.ts`、`client/insight-login.tsx`、其测试与 `tsdown.config.ts` | 构建登录渲染器桥接，并且只向已认证顶层 Insight 工作区暴露账号摘要与退出；通过仓库源码 alias 解析渲染器工作区导入 | 让两个渲染器上下文都无法获得令牌或不受限 Main IPC，并使冷 Desktop 构建不依赖预构建工作区 `lib/` 输出 |
 | `apps/desktop/src/project-manager.ts`、`fatal-recovery.ts` 及其测试 | 在 profile 创建、已有 profile 准备和插件恢复时保留产品必需的四个 bundle；只在登录后安装账号范围恢复 | 绝不让认证前恢复打开官方 Home 或其他账号 Home |
@@ -22,15 +22,17 @@
 | `apps/desktop/tsconfig.host.json`、`tsconfig.client.json` | 从 Desktop 构建引用可移植 Integration Host 与 Client 编译面 | 保持 Electron 导入属于 Desktop 适配层，并显式区分可移植包编译面 |
 | `apps/desktop/src/insight-permissions.ts`、`main.ts`、`product.ts` 及其测试 | 执行已批准的 Insight 专属剪贴板、全屏及主 frame 音频权限矩阵；接入原生重启、日志、缩放和全屏菜单；在登录 shell 解析后传入固定必需 bundle 策略、随包 Node 路径及存在的内置技能目录 | 保留官方产品路径；每次同步基线复核两类权限回调、原生 frame 所有权、OS 音频授权、primary-runtime 布局和产品资源路径 |
 | `apps/desktop/src/update-coordinator.ts` 及其测试 | 允许可信 Main 进程调用方在既有检查锁内配置一个自定义提供方，将可用版本绑定到提供方和精确 updater 产物，在活动检查后串行执行不同的手动来源，并且只清除匹配且尚未使用的目标 | 保持官方无参数来源行为不变；保留单一协调器、独立下载与安装授权、陈旧确认拒绝、监听器清理，以及候选在清除或下载前的所有权 |
-| `apps/desktop/src/main.ts`、`insight-updates.ts`、`insight-update-provider.ts`、`insight-update-window.ts`、`preload-insight-update.ts`、Insight 更新渲染器、`tsdown.config.ts` 及其测试 | 在登录前创建 Insight 更新拥有者，将同一个协调器交接给已认证工作区，通过 electron-updater 公开 custom-provider API 适配已验证元数据，并构建隔离更新窗口与 preload | 保持后台只检查正式版、内测检查需经过原生风险确认、渲染器输入不含 URL 和可信身份，并且不改变官方 Desktop 更新路径 |
+| `apps/desktop/src/main.ts`、`insight-updates.ts`、`insight-update-provider.ts`、`insight-update-window.ts`、`preload-insight-update.ts`、Insight 更新渲染器、`tsdown.config.ts` 及其测试 | 在登录前创建 Insight 更新拥有者，将同一个协调器交接给已认证工作区，通过 electron-updater 公开 custom-provider API 适配已验证元数据，并构建隔离更新窗口与 preload | 正式版应用只检查正式版，预发布应用仅在没有正式版更新时继续检查内测版；保留显式内测操作的原生确认，移除更新子窗口菜单；渲染器输入不含 URL 和可信身份，官方 Desktop 更新路径不变 |
 | `apps/desktop/scripts/{desktop-package-environment,electron-builder-config}.mjs`、`package-macos.ts`、`package-target.ts`、`insight-packaging.mjs`、其声明及测试 | 在复用 DSH macOS 签名、公证、打包校验和目标编排时，选择 Insight 应用名称、产物前缀、产品版本、固定更新资源与 generic updater 配置 | 保持产品选择显式；绝不让 Insight 包满足官方发布器完成记录或改变官方 COS 与强更输入；Windows Authenticode 豁免只作用于 Insight 产品 |
 | `apps/desktop/scripts/electron-builder-config.mjs`、`apps/desktop/scripts/prepare-windows-installer.ps1`、`apps/desktop/installer/extract-report.h` 及其测试 | 只为 Insight 包传入专用安装器资源目录，在既有 NSIS 转义前把 locale 字符串中固定的 `DeepSeek Harness` 替换为已解析产品名；PowerShell 准备脚本接受该可选目录，并把产品名注入 `Compose` 报告首行 | 官方资源、locale 字符串和解压报告标题保持 DSH 默认值；不修改 locale helper API、应用 id、GUID、per-user 安装、许可文本、解压或安装逻辑、C++ 调用方或 DSH/NSIS 执行路径 |
+| `apps/desktop/scripts/electron-builder-config.mjs`、`smoke-packaged-runtime.ts`、`insight-packaging.mjs`、其声明与测试 | 为 Insight 选择 `win.executableName=insight-desktop`，runtime smoke 定位同一个 Windows 主程序；assisted NSIS 通过既有产品文件名机制推导新装默认目录 | 保留显示名称、macOS 应用名称、应用 id、GUID、既有安装目录发现和官方产品主程序，不增加安装路径覆盖逻辑 |
 | `apps/desktop/scripts/verify-macos-signature.mjs` 与 `apps/desktop/tests/macos-disk-image-signature.spec.ts` | 仅当同一个公证后 DMG 只读 `stapler validate` 失败同时包含 status 68、`NSURLErrorDomain`、精确 `Code=-1005` 和 `api.apple-cloudkit.com` 时重试；总计最多三次，间隔 2 秒和 5 秒 | 精确恢复默认作用于所有产品，但不重新签名、重新提交公证、staple、重试 App 验证或 `spctl`，不新增命令 timeout，也不放宽最终检查；耗尽后保留最后一次验证错误 |
 | `apps/desktop/package.json`、`pnpm-lock.yaml` | 将 `@electron/notarize` 从 `2.5.0` 升级到 `3.1.2`，使用包含 [PR 306](https://github.com/electron/notarize/pull/306) staple 重试修复的上游维护版本。上游流程只提交一次，对同一 artifact 先执行 staple，并为所有产品最多重试三次；不增加私有 hook，也不修改 notary executor | 持续覆盖自定义 notarytool path、单次提交、staple 最多四次、非 staple 失败行为、cleanup 与原验证顺序。保留既有签名、提交、完整 `codesign`、`stapler validate`、`spctl`、ZIP 与审计顺序；平台验证由打包工作流负责 |
 | `.github/workflows/insight-package.yml`、`.github/workflows/insight-publish.yml`、`scripts/insight-release/`、根发布工具依赖及锁文件 | 分离已签名 GitHub Release 构建与绑定来源的 OSS 发布；隔离发布器运行时依赖和私有签名材料；先发布不可变对象，再条件更新渠道指针 | 端到端绑定源码提交、仓库、工作流运行、目标、版本、摘要和签名身份；调试包不得发布，结果未知的写入必须先核对，不能覆盖重试 |
 | `packages/boot/plugin-manager/src/{index,types,tools,diagnostic,product-policy}.ts`、测试及包元数据 | 将默认空的必需 bundle 配置与可信产品策略合并，在执行端拒绝停用、移除、更新和替换，并检查安装别名与归档 | 保留执行端校验、manifest 事务恢复、有界归档解析及用户 registry；基线提供等价保护后才移除本地策略 |
 | `packages/client/ui-plugin-manager/src/client/{presentation,locales}.ts` 及组件测试 | 为产品必需组件解释已有只读状态 | 展示状态从 Host 策略派生，保留组件内部功能开关 |
 | `packages/client/ui-conversation/src/client/contract/input.ts`、`input/facade.ts`、`input/selected-skills.ts`、README 及强类型 Client 测试消费者 | 在实时编辑器文本上恢复已批准的 `toggleSkill`，派生 `selectedSkills`，不扫描引用、Quote 或命令内容 | 保留可见草稿语义、Session 所有权、忙碌/释放保护与局部编辑回归；同步基线后复核编辑器投影与动作签名 |
+| `packages/client/ui-chat/src/client/{contract/slots.ts,chat/MessageItem.tsx,chat/register-node-renderers.ts,index.ts}`、局部测试及生成的 Client 目录 | 提供完整的 session-scoped `conversation.chat.user.message` Factory，供原生及 Canvas user/steering 行复用；既有来源装饰 chain 由 Factory 拥有 | 复用原生正文及消息操作，保持 steering、pending/echo 和记录数据语义；上游消息渲染变化后重跑真实注册的 Canvas 历史回归 |
 | `packages/llm/llm-pi-ai/src/index.ts` 与 `tests/adapter.spec.ts` | 公开托管网关构建所需的既有 `resolveProfiles`、`credentialStoreFrom` 与 `authContextFrom` helper | 用户明确授权的增量导出；保留上游实现，基线提供这些导出后移除本地差异 |
 | `pnpm-workspace.yaml`、`pnpm-lock.yaml` | 在根依赖锁和构建策略下解析 iframe 及其保留的 Motion 依赖边 | iframe 有其他明确受支持的构建拥有者后再调整 |
 | `tsconfig.base.json`、`tsconfig.host.json`、`tsconfig.client.json` | 将保留的外部插件名（包括 Integration 登录与更新 Client 入口）解析到源码，并显式编译各面 | 这些标识仍不属于生成的 DSH alias 时保留 |
@@ -39,7 +41,7 @@
 | `scripts/npm-baseline-packages.ts` 及测试 | 从公开 npm 基线精确排除私有输入 | 发现方式变化时仍需保留发布拒绝 |
 | `scripts/product-package-policy.ts`、`scripts/verify-product-use.ts` 及测试 | 标明 Insight 必需组件，不挂载到官方默认 profile | 实际产品可达性覆盖该声明后才能移除 |
 | `.gitattributes` | 在 Git 暂存与检出时保留同步技能和两份上游 Canvas HTML 的原始字节 | 防止换行转换破坏源码回放 |
-| `package.json`、`.gitignore` | 提供技能标签生成和源码回放，保留公开画布路由配置并忽略生成物 | 客户端仍读取根同步目录标签时保留 |
+| `package.json`、`.gitignore` | 提供技能标签生成、源码回放和 `dev:insight` 快捷入口，保留公开画布路由配置并忽略生成物 | 客户端仍读取根同步目录标签时保留 |
 | `scripts/translation-pairing.ts` 及其测试、`docs/i18n/README.md` 及其配对 | 将外部同步的根技能目录排除于本地文档改写之外 | 该目录由来源仓库维护时保留 |
 | `scripts/rescope-vendor.ts` 及其测试 | 保留同步的根技能资产，并容纳增加后的文件清单 | 外部技能资产持续排除于本仓库改写之外 |
 | `scripts/verify-application-entrypoints.ts` | 按原有归属分类保留的 Memory 数据同步 worker 与技能辅助脚本 | 对应脚本退役时再移除分类 |

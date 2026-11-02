@@ -1,6 +1,6 @@
 diff --git a/README.i18n.yaml b/README.i18n.yaml
 new file mode 100644
-index 0000000..1df3b90
+index 0000000..14c8045
 --- /dev/null
 +++ b/README.i18n.yaml
 @@ -0,0 +1,43 @@
@@ -24,8 +24,8 @@ index 0000000..1df3b90
 +  en: ac58c6f6587f5e58
 +  zh: 88b84920b9ec2f69
 +/insight-ai-desktop-canvas-plugin/understand-the-implementation:
-+  en: 3f9ff893266cda21
-+  zh: 3e29faa066d489f6
++  en: cbb058874065e5c1
++  zh: dfd988da9f0883ca
 +/insight-ai-desktop-canvas-plugin/model-experience:
 +  en: 215e7ba838619b7b
 +  zh: a311da3843709f90
@@ -49,10 +49,10 @@ index 0000000..1df3b90
 +  zh: 9f56528562c7c914
 diff --git a/README.md b/README.md
 new file mode 100644
-index 0000000..4cb11f2
+index 0000000..ef576ca
 --- /dev/null
 +++ b/README.md
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,71 @@
 +---
 +description: "Canvas tools and its embedded business page for an Insight-authenticated desktop profile."
 +kind: "package-bundle"
@@ -93,6 +93,8 @@ index 0000000..4cb11f2
 +
 +Authenticated bridge requests admit the exact `dsh-app://app` origin alongside existing Web origins. Connection authentication and Canvas ownership checks still apply. Shutdown stops admission, cancels consumers, waits for dispatch and result writes, then drains OSS uploads before closing bridge and storage resources. Stopping local tracking does not promise cancellation of an accepted cloud operation.
 +
++Historical user and steering messages parse the existing `<node-refs version="1">` protocol for node thumbnails, previews, and navigation. The Client sends the remaining display content through Chat’s complete `conversation.chat.user.message` Factory, preserving native message actions and source decoration without rewriting recorded content. Invalid or unknown tags remain visible.
++
 +</details>
 +
 +<a id="model-experience"></a>
@@ -124,10 +126,10 @@ index 0000000..4cb11f2
 +None.
 diff --git a/README.zh.md b/README.zh.md
 new file mode 100644
-index 0000000..8f7128b
+index 0000000..8c7cf11
 --- /dev/null
 +++ b/README.zh.md
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,71 @@
 +---
 +description: "为已完成 Insight 桌面认证的 profile 提供画布工具和嵌入业务页面。"
 +kind: "package-bundle"
@@ -167,6 +169,8 @@ index 0000000..8f7128b
 +Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。Host 从 `ctx.insightAccount` 获取凭证，不再单独拥有 Desktop token IPC 客户端；Main 选择匹配的服务环境。
 +
 +已认证的桥接请求在已有 Web 来源外接受精确的 `dsh-app://app` 来源，仍执行 Connection 认证和 Canvas 所有权检查。关闭时先停止接入、取消消费者并等待分发与结果写入，再等待 OSS 上传结束，最后关闭桥接和存储资源。停止本地跟踪不承诺取消已被云端接受的操作。
++
++历史 user 与 steering 消息沿用 `<node-refs version="1">` 协议渲染节点缩略图、预览与定位。Client 将剩余显示内容交给 Chat 的完整 `conversation.chat.user.message` Factory，保留原生消息操作及来源装饰，不改写记录内容。无效或未知标签仍按原文显示。
 +
 +</details>
 +
@@ -20469,11 +20473,12 @@ index b463b8f..279de60 100644
      {state.error && <div role="status">{t(state.error)}</div>}
    </section>
 diff --git a/src/client/CanvasReferenceMessage.tsx b/src/client/CanvasReferenceMessage.tsx
-index cbc8597..334aaeb 100644
+index cbc8597..36a8c68 100644
 --- a/src/client/CanvasReferenceMessage.tsx
 +++ b/src/client/CanvasReferenceMessage.tsx
-@@ -1,29 +1,33 @@
- import { useRef, type ComponentType } from 'react'
+@@ -1,29 +1,32 @@
+-import { useRef, type ComponentType } from 'react'
++import { useRef } from 'react'
  import type { Context } from '@deepseek-ai/cordis'
  import type { ChatNodeViewProps, UserContentAttachment } from '@deepseek-ai/dsh-client-ui-chat/client'
 -import { splitNodeRefs } from '../shared/canvas-node-references'
@@ -20492,14 +20497,15 @@ index cbc8597..334aaeb 100644
    return (block.type === 'image' || block.type === 'file') && block.attachment !== undefined
  }
  
- /** Wrap the registered native renderer so attachments, copy and reference actions survive. */
+-/** Wrap the registered native renderer so attachments, copy and reference actions survive. */
 -export function createCanvasReferenceMessageView(NativeMessage: ComponentType<MessageProps>, openNode: (canvasId: string, nodeId: string) => void) {
-+export function createCanvasReferenceMessageView(NativeMessage: ComponentType<MessageProps>,
-+  openNode: (canvasId: string, nodeId: string) => void) {
++/** Render Canvas references beside the complete native message Factory. */
++export function createCanvasReferenceMessageView(openNode: (canvasId: string, nodeId: string) => void) {
    return function CanvasReferenceMessage(props: MessageProps) {
      const anchor = useRef<HTMLDivElement>(null)
      const { content, nodes } = splitNodeRefs(props.node.data.content)
-     if (!nodes.length) return <NativeMessage {...props} />
+-    if (!nodes.length) return <NativeMessage {...props} />
++    if (!nodes.length) return props.renderFactorySlot('conversation.chat.user.message', { node: props.node, loadImage: props.loadImage })
      // Only lift durable attachments recognized by the native renderer; leave other blocks in its care.
      const attachments = content.filter(isAttachment)
 -    const nativeProps = { ...props, node: { ...props.node, data: { ...props.node.data, content: content.filter(block => !isAttachment(block)) } } } as MessageProps
@@ -20512,7 +20518,7 @@ index cbc8597..334aaeb 100644
          {props.renderFactorySlot('conversation.chat.user.content', {
            content: { text: '', extraBlocks: [], attachments: attachments.map((block): UserContentAttachment => block.type === 'image'
              ? { type: 'image', image: { attachment: block.attachment } }
-@@ -35,7 +39,8 @@ export function createCanvasReferenceMessageView(NativeMessage: ComponentType<Me
+@@ -35,11 +38,12 @@ export function createCanvasReferenceMessageView(NativeMessage: ComponentType<Me
          {nodes.map((ref, index) => {
            const products = ref.products.filter(product => product.kind === 'text' || /^https?:\/\//i.test(product.value))
            return <HoverCard key={`${ref.canvasId}:${ref.nodeId}:${index}`} variant="preview" widthAnchorRef={anchor} openDelayMs={250}
@@ -20522,6 +20528,28 @@ index cbc8597..334aaeb 100644
              content={<ReferencePreview title={ref.title} products={products} />} />
          })}
        </div>
+-      <NativeMessage {...nativeProps} />
++      {props.renderFactorySlot('conversation.chat.user.message', { node: nativeProps.node, loadImage: props.loadImage })}
+     </div>
+   }
+ }
+@@ -47,14 +51,12 @@ export function createCanvasReferenceMessageView(NativeMessage: ComponentType<Me
+ export function registerCanvasReferenceMessageViews(ctx: Context): void {
+   ctx.effect(() => ctx.slots.inject('conversation.chat.node', function* () {
+     for (const key of ['user', 'steering'] as const) {
+-      const native = ctx.slots.entriesOfSlot('conversation.chat.node').find(entry => entry.options.key === key)
+-      if (!native) throw new Error(`Canvas references require the registered ${key} message renderer`)
+-      const View = createCanvasReferenceMessageView(native.component as ComponentType<MessageProps>, (canvasId, nodeId) => {
++      const View = createCanvasReferenceMessageView((canvasId, nodeId) => {
+         const id = parseCanvasId(canvasId)
+         if (id) ctx.sidebarRight.openResource(canvasAddress(id), { params: { nodeId } })
+       })
+       yield ctx.slots.register({ name: 'conversation.chat.node', key,
+-        priority: (native.options.priority ?? 0) - 1, locale: 'chat' }, View)
++        priority: -1, locale: 'chat' }, View)
+     }
+   }), 'desktop-canvas: reference message renderers')
+ }
 diff --git a/src/client/CanvasResults.tsx b/src/client/CanvasResults.tsx
 index 015308a..542e437 100644
 --- a/src/client/CanvasResults.tsx
@@ -29540,7 +29568,7 @@ index 4aff6c4..88eb74f 100644
    vm.runInNewContext(result.outputFiles[0].text, sandbox)
    sandbox.module.exports.apply({
 diff --git a/test/core-sdk-compatibility.test.mjs b/test/core-sdk-compatibility.test.mjs
-index 499763a..3c7aa30 100644
+index 499763a..e71126c 100644
 --- a/test/core-sdk-compatibility.test.mjs
 +++ b/test/core-sdk-compatibility.test.mjs
 @@ -5,10 +5,14 @@ import { readFile } from 'node:fs/promises'
@@ -29561,6 +29589,38 @@ index 499763a..3c7aa30 100644
    for (const [name, version] of Object.entries(manifest.peerDependencies)) assert.equal(manifest.devDependencies[name], version)
  })
  
+@@ -24,8 +28,8 @@ test('reference messages use the public content Factory with authorized images a
+   } }
+   sandbox.exports = sandbox.module.exports
+   vm.runInNewContext(result.outputFiles[0].text, sandbox)
+-  const native = [], factories = [], loadImage = () => {}
+-  const View = sandbox.module.exports.createCanvasReferenceMessageView(props => { native.push(props); return null }, () => {})
++  const factories = [], loadImage = () => {}
++  const View = sandbox.module.exports.createCanvasReferenceMessageView(() => {})
+   const text = { type: 'text', text: 'keep my message' }
+   const image = { id: 'image-id', mediaType: 'image/png', bytes: 42 }
+   const file = { id: 'file-id', name: 'notes.txt', bytes: 10 }
+@@ -34,13 +38,16 @@ test('reference messages use the public content Factory with authorized images a
+   const props = { node: { kind: 'user', data: { content: [text, { type: 'image', attachment: image }, { type: 'file', attachment: file }, unknown, refs] } }, loadImage,
+     renderFactorySlot(name, input) { factories.push({ name, input }); return null } }
+   View(props)
+-  assert.equal(factories.length, 1)
++  assert.equal(factories.length, 2)
+   assert.equal(factories[0].name, 'conversation.chat.user.content')
+   assert.equal(factories[0].input.loadImage, loadImage)
+   assert.deepEqual(JSON.parse(JSON.stringify(factories[0].input.content)), { text: '', extraBlocks: [], attachments: [{ type: 'image', image: { attachment: image } }, { type: 'file', file }] })
+-  assert.deepEqual(Array.from(native[0].node.data.content), [text, unknown])
++  assert.equal(factories[1].name, 'conversation.chat.user.message')
++  assert.equal(factories[1].input.loadImage, loadImage)
++  assert.deepEqual(Array.from(factories[1].input.node.data.content), [text, unknown])
+   assert.equal(props.node.data.content.length, 5)
+   View({ ...props, node: { ...props.node, data: { content: [text] } } })
+-  assert.equal(native[1].node.data.content[0], text)
+-  assert.equal(factories.length, 1)
++  assert.equal(factories[2].name, 'conversation.chat.user.message')
++  assert.equal(factories[2].input.node.data.content[0], text)
++  assert.equal(factories.length, 3)
+ })
 diff --git a/test/desktop-token.test.mjs b/test/desktop-token.test.mjs
 deleted file mode 100644
 index 418fd23..0000000
@@ -29818,6 +29878,190 @@ index aaec9d0..0000000
 -  const link = join(root, 'linked-profile'); await symlink(home, link)
 -  await assert.rejects(prepareVerificationHome(link, root), /real directory/)
 -})
+diff --git a/tests/history-references.client.spec.tsx b/tests/history-references.client.spec.tsx
+new file mode 100644
+index 0000000..bf42a02
+--- /dev/null
++++ b/tests/history-references.client.spec.tsx
+@@ -0,0 +1,178 @@
++// @vitest-environment jsdom
++/** Historical Canvas references rendered through the real Chat registrations. */
++import { useState, type ReactNode } from 'react'
++import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
++import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
++import { SessionId } from '@deepseek-ai/dsh-session/types'
++import { AttachmentId } from '@deepseek-ai/dsh-attachment'
++import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
++import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
++import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
++import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
++import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
++import type { PropsRenderFactories, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
++import type { ChatNodeViewProps, UserContentInput } from '@deepseek-ai/dsh-client-ui-chat/client'
++import { en, NS, zh } from '@deepseek-ai/dsh-client-ui-chat/src/client/locale.ts'
++import { CHAT_NODE_INJECT } from '@deepseek-ai/dsh-client-ui-chat/src/client/apply.ts'
++import { UserTextRegistry } from '@deepseek-ai/dsh-client-ui-conversation/src/client/conversation/user-text-registry.ts'
++import { UserText, PlainUserText } from '@deepseek-ai/dsh-client-ui-conversation/src/client/user-text/UserText.tsx'
++import { registerChatNodeRenderers } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/register-node-renderers.ts'
++import { apply as applyAttachment, inject as injectAttachment } from '@deepseek-ai/dsh-client-ui-attachment/client'
++import { en as conversationEn, zh as conversationZh } from '@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts'
++import { UserContent } from '@deepseek-ai/dsh-client-ui-chat/src/client/chat/UserContent.tsx'
++import { derivePresentationPolicy } from '@deepseek-ai/dsh-client-ui-chat/src/client/presentation-policy.ts'
++import { registerCanvasReferenceMessageViews } from '../src/client/CanvasReferenceMessage.tsx'
++import { serializeNodeRefs } from '../src/shared/canvas-node-references.ts'
++
++afterEach(cleanup)
++
++type Seats = PropsRenderSlots<'conversation.chat.node'> & PropsRenderFactories
++type Node = ChatNodeViewProps<'user' | 'steering'>['node']
++const source = { kind: 'user', principal: { kind: 'share-viewer', shareId: 'share', actor: { subjectId: 'viewer' } } }
++const tag = serializeNodeRefs([{ canvasId: '2873', nodeId: 'node1', title: '参考节点', type: 'text', data: { value: '预览内容' }, products: [{ kind: 'text', value: '预览内容' }] }])
++
++function message(content: Node['data']['content'], kind: 'user' | 'steering' = 'user'): Node {
++  return {
++    id: '7', key: 'fixture:7', kind, target: 'chat', anchorSeq: 7, location: { kind: 'session' }, visibility: 'visible',
++    data: { kind, seq: 7, time: 7_000, source, content, ...(kind === 'steering' ? { messageId: 'steering-7' } : {}) },
++  } as Node
++}
++
++async function bench(canvasFirst = false) {
++  const runtime = await SlotTestRuntime.create()
++  onTestFinished(() => runtime.dispose())
++  const locale = new LocaleRuntime(runtime.ctx)
++  runtime.ctx.provide('locale', locale)
++  locale.register('common', { en: commonEn, zh: commonZh })
++  locale.register(NS, { en, zh })
++  locale.register('conversation', { en: conversationEn, zh: conversationZh })
++  locale.setLocale('zh')
++  runtime.slots.installLocale(locale)
++  runtime.ctx.provide('fileDrag', {
++    actions: { prepare: async () => ({ start: () => true, release: () => {} }), reportFailure: () => {} }, read: () => undefined,
++  } satisfies import('@deepseek-ai/cordis').Context['fileDrag'])
++  const openResource = vi.fn()
++  runtime.ctx.provide('sidebarRight', { openResource } as never)
++  const earlyCanvas = canvasFirst ? await runtime.mount({ inject: ['slots'], apply: registerCanvasReferenceMessageViews }) : undefined
++  const captured: { seats?: Seats; update?: (content: ReactNode) => void } = {}
++  await runtime.root.declare({ 'conversation.chat.node': { kind: 'keyed', scope: 'session', inject: CHAT_NODE_INJECT } }, function TestRoot(props) {
++    const [content, update] = useState<ReactNode>(null)
++    captured.seats = props
++    captured.update = update
++    return content
++  })
++  await runtime.mount({ inject: ['slots'], apply: (ctx) => {
++    registerChatNodeRenderers(ctx, createSnapshotStore('detailed'), derivePresentationPolicy(
++      createSnapshotStore('detailed'), createSnapshotStore('completion'), createSnapshotStore('all'),
++    ))
++    ctx.slots.registerFactory({ name: 'conversation.chat.user.content', scope: 'session', locale: NS,
++      children: { 'conversation.chat.user.images': { kind: 'single', scope: 'session' } },
++    }, UserContent)
++    const userText = new UserTextRegistry(ctx)
++    ctx.slots.registerFactory({ name: 'conversation.user.text', scope: 'session',
++      children: { 'conversation.user.text.node': { kind: 'keyed', scope: 'session', inline: true } },
++      inject: () => ({
++        hooks: { userTextRevision: { getSnapshot: () => userText.getSnapshot(), subscribe: listener => userText.subscribe(listener) } },
++        createUserTextEvaluator: () => userText.createEvaluator(),
++        reportTransformFailure: (error: unknown): never => { throw error },
++      }),
++    }, UserText)
++    ctx.slots.register({ name: 'conversation.user.text.node', key: 'text' }, PlainUserText)
++    ctx.slots.inject('conversation.chat.user.before', () => ctx.slots.register({
++      name: 'conversation.chat.user.before', select: ({ source: value }) => value === source ? true : null,
++    }, function Source() { return <span data-test-origin>来自会话分享</span> }))
++  } })
++  await runtime.mount({ inject: injectAttachment, apply: applyAttachment })
++  const canvas = earlyCanvas ?? await runtime.mount({ inject: ['slots'], apply: registerCanvasReferenceMessageViews })
++  await runtime.sessions.add({ id: 'canvas-history' })
++  const session = runtime.sessions.retainFor(runtime.ctx, SessionId('canvas-history'))
++  const view = runtime.renderRoot()
++  const { seats, update } = captured
++  if (seats === undefined || update === undefined) throw new Error('History fixture did not mount')
++  const { SessionProvider } = seats
++  const loadImage = vi.fn<UserContentInput['loadImage']>(async () => 'blob:history-image')
++  const show = (node: Node): void => { act(() => { update(<SessionProvider session={session}>
++    {node.kind === 'user'
++      ? seats.renderSlot('conversation.chat.node', { node, loadImage, openFile: vi.fn(), inspectCall: undefined, forkAt: vi.fn(), fileMentions: () => undefined }, { entryKey: 'user', hookContext: { turnData: undefined, disclosureReset: createSnapshotStore(0), useGroupAction: () => ({ current: null }) } })
++      : seats.renderSlot('conversation.chat.node', { node, loadImage, openFile: vi.fn(), inspectCall: undefined, forkAt: vi.fn(), fileMentions: () => undefined }, { entryKey: 'steering', hookContext: { turnData: undefined, disclosureReset: createSnapshotStore(0), useGroupAction: () => ({ current: null }) } })}
++  </SessionProvider>) }) }
++  return { view, show, canvas, runtime, openResource, loadImage }
++}
++
++it.each([false, true])('restores previews, navigation and copy without rewriting history (Canvas first: %s)', async (canvasFirst) => {
++  const b = await bench(canvasFirst)
++  const node = message([{ type: 'text', text: '历史正文' }, { type: 'text', text: tag }])
++  const original = JSON.stringify(node)
++  const writeText = vi.fn(async () => {})
++  const originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
++  Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
++  onTestFinished(() => {
++    if (originalClipboard === undefined) Reflect.deleteProperty(navigator, 'clipboard')
++    else Object.defineProperty(navigator, 'clipboard', originalClipboard)
++  })
++  b.show(node)
++  expect(b.view.container.querySelector('[data-canvas-reference-message]')).not.toBeNull()
++  expect(b.view.container.textContent).not.toContain('<node-refs')
++  expect(b.view.getByText('来自会话分享')).toBeTruthy()
++  expect(b.view.getAllByRole('button', { name: '复制' })).toHaveLength(1)
++  fireEvent.click(b.view.getByRole('button', { name: '复制' }))
++  await waitFor(() => { expect(writeText).toHaveBeenCalledWith('历史正文') })
++  const reference = b.view.getByRole('button', { name: '参考节点' })
++  fireEvent.pointerEnter(reference)
++  await waitFor(() => { expect(b.view.getByText('预览内容')).toBeTruthy() })
++  fireEvent.click(reference)
++  expect(b.openResource).toHaveBeenCalledWith(expect.any(String), { params: { nodeId: 'node1' } })
++  expect(JSON.stringify(node)).toBe(original)
++  expect({ body: b.view.getByText('历史正文').textContent, reference: reference.getAttribute('aria-label'), source: b.view.getByText('来自会话分享').textContent }).toMatchInlineSnapshot(`
++    {
++      "body": "历史正文",
++      "reference": "参考节点",
++      "source": "来自会话分享",
++    }
++  `)
++})
++
++it('keeps steering references and file attachments without adding user-source decoration', async () => {
++  const b = await bench()
++  b.show(message([{ type: 'text', text: '追问正文' }, { type: 'file', attachment: {
++    attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`), name: 'history.txt', bytes: 10,
++  } }, { type: 'text', text: tag }], 'steering'))
++  expect(b.view.getByRole('button', { name: '参考节点' })).toBeTruthy()
++  expect(b.view.getAllByText('history.txt')).toHaveLength(1)
++  expect(b.view.queryByText('来自会话分享')).toBeNull()
++  expect(b.view.getAllByRole('button', { name: '复制' })).toHaveLength(1)
++  expect(b.view.container.textContent).not.toContain('<node-refs')
++})
++
++it('loads historical images once through the authorized loader beside references', async () => {
++  const b = await bench()
++  const image = { attachmentId: AttachmentId(`sha256:${'b'.repeat(64)}`), mediaType: 'image/png' as const, bytes: 68, width: 32, height: 32, name: 'history.png' }
++  b.show(message([{ type: 'image', attachment: image }, { type: 'text', text: tag }]))
++  await waitFor(() => { expect(b.loadImage).toHaveBeenCalledExactlyOnceWith(image) })
++  expect(b.view.container.querySelectorAll('img[src="blob:history-image"]')).toHaveLength(1)
++  expect(b.view.getAllByRole('button', { name: '参考节点' })).toHaveLength(1)
++})
++
++it('leaves plain messages and unknown or damaged reference tags visible', async () => {
++  const b = await bench()
++  for (const text of ['普通正文', '<node-refs version="2">unknown</node-refs>', '<node-refs version="1">broken</node-refs>']) {
++    b.show(message([{ type: 'text', text }]))
++    expect(b.view.getByText(text)).toBeTruthy()
++    expect(b.view.container.querySelector('[data-canvas-reference-message]')).toBeNull()
++    expect(b.view.getByText('来自会话分享')).toBeTruthy()
++  }
++})
++
++it('restores the native row when Canvas is disposed and remounts cleanly', async () => {
++  const b = await bench()
++  const node = message([{ type: 'text', text: tag }])
++  b.show(node)
++  expect(b.view.getByRole('button', { name: '参考节点' })).toBeTruthy()
++  await act(async () => { await b.canvas.dispose() })
++  expect(b.view.container.querySelector('[data-canvas-reference-message]')).toBeNull()
++  expect(b.view.container.textContent).toContain('<node-refs')
++  const canvas = await b.runtime.mount({ inject: ['slots'], apply: registerCanvasReferenceMessageViews })
++  b.show(node)
++  expect(b.view.getAllByRole('button', { name: '参考节点' })).toHaveLength(1)
++  await act(async () => { await canvas.dispose() })
++})
 diff --git a/tsconfig.client.json b/tsconfig.client.json
 new file mode 100644
 index 0000000..dd9846d

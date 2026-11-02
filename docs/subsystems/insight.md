@@ -70,17 +70,17 @@ Each fixed business package records its upstream repository, commit, and version
 
 `bundled-skills` remains an externally synchronized root directory with its original internal structure. The runtime discovers skills from this directory and reads optional `ui.json` presentation beside each installed instruction. Insight Desktop supplies `DSH_BUNDLED_SKILL_DIR`, and its packaging copies the directory as an independent resource; the [Desktop Host environment](../../apps/desktop/README.md#insight-bundled-skills) owns the development and installed paths. Skill content, scripts, and business correctness belong to the source repository, not this migration.
 
-The Insight build currently excludes DSH automatic and mandatory update flows. Manual update checks report that checking is unavailable. The current integration does not connect the existing OSS/CDN release channel, test-channel discovery, signing, or installed-update qualification; those release mechanics remain P5 work rather than a capability of the authentication package.
+The [Desktop Integration package](../../packages/insight/desktop-integration/README.md#desktop-updates) owns signed stable and candidate discovery above the single DSH updater. GitHub package construction and OSS channel publication remain separate operations.
 
 ## Source development
 
-On macOS, with Node 24.9 or newer and the repository-pinned pnpm available, run the official source launcher from the repository root:
+With Node 24.9 or newer and the repository-pinned pnpm available, run the Insight source launcher from the repository root:
 
 ```sh
-DSH_DESKTOP_PRODUCT=insight INSIGHT_DESKTOP_VERSION=1.0.9-dev.0 pnpm run dev:desktop
+npm run dev:insight
 ```
 
-The launcher builds the current artifacts and then starts Insight with the Shell-compatible development `userData` location. It does not watch source changes automatically. After rebuilding changed source, use Reload Page or Restart App and Host as appropriate; `pnpm run start:desktop` launches existing artifacts without rebuilding. Keep the Insight product and version variables on both commands.
+The launcher selects Insight and defaults `INSIGHT_DESKTOP_VERSION` to `1.0.10`; an explicit environment value overrides that version. It reuses the official Desktop development launcher, builds current artifacts, and uses the Shell-compatible development `userData` location. It does not watch source changes automatically. After an explicit build, `npm run dev:insight -- --skip-build` launches existing artifacts; use Reload Page or Restart App and Host after rebuilding source.
 
 ## Dev Note
 

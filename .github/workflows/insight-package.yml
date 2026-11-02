@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Insight version to package; the first upgrade candidate is 1.0.10-rc.1
+        description: Insight product version to package
         type: string
-        default: 1.0.10-rc.1
+        default: 1.0.10
         required: true
       target:
         description: Native target to package

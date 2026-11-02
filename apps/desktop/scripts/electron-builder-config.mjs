@@ -37,6 +37,7 @@ import {
 import {
   INSIGHT_PACKAGING_PRODUCT,
   INSIGHT_UPDATE_RESOURCE_ROOT,
+  INSIGHT_WINDOWS_EXECUTABLE_NAME,
   resolveInsightPackaging,
 } from './insight-packaging.mjs'
 
@@ -279,7 +280,7 @@ export function createElectronBuilderConfig(
     win: {
       icon: insight === undefined ? fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)) : join(INSIGHT_BRANDING_ROOT, 'icon.ico'),
       forceCodeSigning: !unsigned && insight === undefined,
-      ...(insight === undefined ? {} : { verifyUpdateCodeSignature: false }),
+      ...(insight === undefined ? {} : { verifyUpdateCodeSignature: false, executableName: INSIGHT_WINDOWS_EXECUTABLE_NAME }),
       signtoolOptions: {
         sign: windowsSigner,
         publisherName: windowsSigner === undefined ? undefined : resolveWindowsUpdatePublisher(env.DSH_DESKTOP_WINDOWS_CER_FILE),

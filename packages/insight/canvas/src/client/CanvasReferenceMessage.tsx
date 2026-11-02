@@ -1,4 +1,4 @@
-import { useRef, type ComponentType } from 'react'
+import { useRef } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ChatNodeViewProps, UserContentAttachment } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { splitNodeRefs } from '../shared/canvas-node-references.ts'
@@ -14,13 +14,12 @@ function isAttachment(block: MessageBlock): block is Extract<MessageBlock, { typ
   return (block.type === 'image' || block.type === 'file') && block.attachment !== undefined
 }
 
-/** Wrap the registered native renderer so attachments, copy and reference actions survive. */
-export function createCanvasReferenceMessageView(NativeMessage: ComponentType<MessageProps>,
-  openNode: (canvasId: string, nodeId: string) => void) {
+/** Render Canvas references beside the complete native message Factory. */
+export function createCanvasReferenceMessageView(openNode: (canvasId: string, nodeId: string) => void) {
   return function CanvasReferenceMessage(props: MessageProps) {
     const anchor = useRef<HTMLDivElement>(null)
     const { content, nodes } = splitNodeRefs(props.node.data.content)
-    if (!nodes.length) return <NativeMessage {...props} />
+    if (!nodes.length) return props.renderFactorySlot('conversation.chat.user.message', { node: props.node, loadImage: props.loadImage })
     // Only lift durable attachments recognized by the native renderer; leave other blocks in its care.
     const attachments = content.filter(isAttachment)
     const nativeProps = { ...props, node: { ...props.node, data: { ...props.node.data,
@@ -44,7 +43,7 @@ export function createCanvasReferenceMessageView(NativeMessage: ComponentType<Me
             content={<ReferencePreview title={ref.title} products={products} />} />
         })}
       </div>
-      <NativeMessage {...nativeProps} />
+      {props.renderFactorySlot('conversation.chat.user.message', { node: nativeProps.node, loadImage: props.loadImage })}
     </div>
   }
 }
@@ -52,14 +51,12 @@ export function createCanvasReferenceMessageView(NativeMessage: ComponentType<Me
 export function registerCanvasReferenceMessageViews(ctx: Context): void {
   ctx.effect(() => ctx.slots.inject('conversation.chat.node', function* () {
     for (const key of ['user', 'steering'] as const) {
-      const native = ctx.slots.entriesOfSlot('conversation.chat.node').find(entry => entry.options.key === key)
-      if (!native) throw new Error(`Canvas references require the registered ${key} message renderer`)
-      const View = createCanvasReferenceMessageView(native.component as ComponentType<MessageProps>, (canvasId, nodeId) => {
+      const View = createCanvasReferenceMessageView((canvasId, nodeId) => {
         const id = parseCanvasId(canvasId)
         if (id) ctx.sidebarRight.openResource(canvasAddress(id), { params: { nodeId } })
       })
       yield ctx.slots.register({ name: 'conversation.chat.node', key,
-        priority: (native.options.priority ?? 0) - 1, locale: 'chat' }, View)
+        priority: -1, locale: 'chat' }, View)
     }
   }), 'desktop-canvas: reference message renderers')
 }

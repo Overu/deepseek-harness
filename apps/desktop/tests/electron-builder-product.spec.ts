@@ -53,6 +53,7 @@ describe('Insight electron-builder product', () => {
 
     expect(config.files).not.toEqual(expect.arrayContaining(['lib/preload-insight-login.cjs', 'lib/insight-login/**/*']))
     expect(config.protocols).toEqual([{ name: 'DeepSeek Harness', schemes: ['dsh'] }])
+    expect(config.win.executableName).toBeUndefined()
     expect(config.mac.extendInfo.NSMicrophoneUsageDescription)
       .toBe('DeepSeek Harness uses your microphone to transcribe speech into message drafts.')
     expect(config.extraResources.some(resource => resource.to === 'bundled-skills')).toBe(false)
@@ -126,7 +127,11 @@ describe('Insight electron-builder product', () => {
     expect(windows.publish).toEqual([expect.objectContaining({
       channel: 'nightly', url: 'https://updates.insight-aigc.com/desktop/native/releases/v1.3.0-beta.2/targets/win32-x64/',
     })])
-    expect(windows.win).toMatchObject({ forceCodeSigning: false, verifyUpdateCodeSignature: false })
+    expect(windows.win).toMatchObject({ forceCodeSigning: false, verifyUpdateCodeSignature: false, executableName: 'insight-desktop' })
+    expect(windows.productName).toBe('因赛AI')
+    expect(windows.appId).toBe('com.insight-aigc.desktop')
+    expect(windows).not.toHaveProperty('executableName')
+    expect(windows.mac).not.toHaveProperty('executableName')
     expect(windows.win.signtoolOptions.sign).toBeUndefined()
   })
 

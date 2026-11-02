@@ -8,7 +8,7 @@ import { INSIGHT_UPDATE_IPC, type InsightUpdateSnapshot } from '@insight-ai/desk
 /** Main-owned update operations; policy and all URLs remain outside this native surface. */
 export interface InsightUpdateWindowCallbacks {
   getState(): InsightUpdateSnapshot
-  checkStable(): Promise<void>
+  checkForUpdates(): Promise<void>
   checkCandidate(): Promise<void>
   download(): Promise<void>
   install(): Promise<void>
@@ -25,7 +25,7 @@ export interface InsightUpdateWindow {
 }
 
 const channels = [
-  INSIGHT_UPDATE_IPC.status, INSIGHT_UPDATE_IPC.checkStable, INSIGHT_UPDATE_IPC.checkCandidate,
+  INSIGHT_UPDATE_IPC.status, INSIGHT_UPDATE_IPC.checkForUpdates, INSIGHT_UPDATE_IPC.checkCandidate,
   INSIGHT_UPDATE_IPC.download, INSIGHT_UPDATE_IPC.install, INSIGHT_UPDATE_IPC.fullInstaller,
   INSIGHT_UPDATE_IPC.skip, INSIGHT_UPDATE_IPC.close,
 ] as const
@@ -59,7 +59,7 @@ export function createInsightUpdateWindow(callbacks: InsightUpdateWindowCallback
     if (window === undefined) throw new Error('Insight update window is unavailable')
     active = true
     ipcMain.handle(INSIGHT_UPDATE_IPC.status, (event) => { assertSender(event); return callbacks.getState() })
-    ipcMain.handle(INSIGHT_UPDATE_IPC.checkStable, async (event) => { assertSender(event); await callbacks.checkStable() })
+    ipcMain.handle(INSIGHT_UPDATE_IPC.checkForUpdates, async (event) => { assertSender(event); await callbacks.checkForUpdates() })
     ipcMain.handle(INSIGHT_UPDATE_IPC.checkCandidate, async (event) => { assertSender(event); await callbacks.checkCandidate() })
     ipcMain.handle(INSIGHT_UPDATE_IPC.download, async (event) => { assertSender(event); await callbacks.download() })
     ipcMain.handle(INSIGHT_UPDATE_IPC.install, async (event) => { assertSender(event); await callbacks.install() })
@@ -77,6 +77,7 @@ export function createInsightUpdateWindow(callbacks: InsightUpdateWindowCallback
         preload: join(import.meta.dirname, 'preload-insight-update.cjs'), nodeIntegration: false, contextIsolation: true,
         sandbox: true, webSecurity: true,
       } })
+    next.setMenu(null)
     window = next
     bind()
     next.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))

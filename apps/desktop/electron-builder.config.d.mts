@@ -47,6 +47,7 @@ export interface DesktopElectronBuilderConfig {
   }
   readonly win: {
     readonly icon?: string
+    readonly executableName?: 'insight-desktop'
     readonly forceCodeSigning: boolean
     readonly signtoolOptions: {
       readonly publisherName: string | undefined

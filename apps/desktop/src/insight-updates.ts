@@ -19,9 +19,9 @@ import { DesktopUpdateSchedule, resolveDesktopUpdateScheduleConfig } from './upd
 /** Process-owned updates survive the transition from the login window to the workspace. */
 export interface InsightDesktopUpdates {
   readonly coordinator: DesktopUpdateCoordinator
-  /** Open update status, optionally beginning a user-requested stable check. */
+  /** Open update status, optionally beginning a user-requested check. */
   open(manual?: boolean): Promise<void>
-  /** Poll only the stable channel through the shared completion-based schedule. */
+  /** Poll the next eligible channel through the shared completion-based schedule. */
   automaticCheck(): void
   /** Close the never-started-Host installation path before workspace startup begins. */
   beginWorkspace(): void
@@ -96,7 +96,7 @@ export async function createInsightDesktopUpdates(): Promise<InsightDesktopUpdat
     },
     resolved: track => releases.get(track),
     confirmCandidate: async () => (await dialog.showMessageBox({ type: 'warning', title: '检查内测版本',
-      message: '内测版本可能不稳定，是否继续检查？', detail: '仅检查一次内测版本。后台仍只检查正式版；安装前请备份重要数据。',
+      message: '内测版本可能不稳定，是否继续检查？', detail: '本次仅检查一次内测版本，安装前请备份重要数据。',
       buttons: ['继续检查', '取消'], defaultId: 1, cancelId: 1 })).response === 0,
     openFullInstaller: async (release) => {
       await shell.openExternal(new URL(encodeURIComponent(release.installerAsset.name), release.releaseBaseUrl).href)
@@ -104,7 +104,7 @@ export async function createInsightDesktopUpdates(): Promise<InsightDesktopUpdat
     publish: (state) =>{  window.publish(state) }, report: (error) => { console.error('Insight update failed', error) },
   })
   const window = createInsightUpdateWindow({ getState: () => controller.snapshot,
-    checkStable: () => controller.checkStable(), checkCandidate: () => controller.checkCandidate(),
+    checkForUpdates: () => controller.checkForUpdates(), checkCandidate: () => controller.checkCandidate(),
     download: () => controller.download(), install: () => controller.install(), fullInstaller: () => controller.fullInstaller(),
     skip: version => controller.skip(version),
   })
@@ -113,10 +113,16 @@ export async function createInsightDesktopUpdates(): Promise<InsightDesktopUpdat
   }, config)
   const open = async (manual = false): Promise<void> => {
     if (isDisposed()) throw new Error('Insight updates are disposed')
+    if (!app.isPackaged) {
+      await dialog.showMessageBox({ type: 'info', title: '检查更新', message: '开发模式不检查客户端更新。',
+        detail: '请使用已安装的发布版本检查更新。', buttons: ['知道了'], defaultId: 0, cancelId: 0 })
+      return
+    }
     await window.open()
-    if (manual) await controller.checkStable()
+    if (manual) await controller.checkForUpdates()
   }
   const automaticCheck = (): void => {
+    if (!app.isPackaged) return
     if (!isDisposed()) void schedule.check().catch((error: unknown) => { console.error('Insight automatic update check failed', error) })
   }
   const dispose = (): void => {
