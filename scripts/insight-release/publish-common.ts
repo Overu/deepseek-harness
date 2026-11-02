@@ -137,8 +137,11 @@ export async function immutableUploadSource(
 }
 
 /**
- * Conditionally switch one mutable pointer and require byte-identical readback.
- * @param transport - Conditional remote object transport.
+ * Detect a changed mutable pointer immediately before one replacement and require byte-identical readback.
+ *
+ * OSS does not provide a replacement precondition. Safe use therefore requires one publisher per pointer;
+ * this product serializes publications by target in GitHub Actions.
+ * @param transport - Remote object transport.
  * @param key - Mutable pointer key.
  * @param bytes - Complete signed pointer bytes.
  * @param current - Initially observed pointer bytes and ETag, when present.
@@ -155,11 +158,14 @@ export async function publishPointer(
   label: 'Candidate' | 'Stable',
 ): Promise<void> {
   if (!sameVersion) {
-    await transport.putPointer(
-      key,
-      bytes,
-      current === undefined ? { ifAbsent: true } : { expectedEtag: current.etag },
-    )
+    const beforeWrite = await transport.getMetadata(key)
+    if (current === undefined) {
+      if (beforeWrite !== undefined) throw new Error(`${label} pointer appeared before replacement.`)
+    } else if (beforeWrite === undefined || beforeWrite.etag !== current.etag
+      || !Buffer.from(beforeWrite.bytes).equals(Buffer.from(current.bytes))) {
+      throw new Error(`${label} pointer changed before replacement.`)
+    }
+    await transport.putPointer(key, bytes, current === undefined ? { ifAbsent: true } : {})
   }
   const readback = await transport.getMetadata(key)
   if (readback === undefined || !Buffer.from(readback.bytes).equals(Buffer.from(bytes))) {

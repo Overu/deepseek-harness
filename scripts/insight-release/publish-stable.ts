@@ -57,7 +57,7 @@ export interface PublishInsightStableInput {
   readonly privateKeyPem: string
   /** Pinned matching Ed25519 public key in PEM form. */
   readonly publicKeyPem: string
-  /** OSS transport used for immutable objects and pointer CAS. */
+  /** OSS transport used for immutable objects and pointer replacement. */
   readonly transport: PublishInsightTransport
   /** Clock used only when advancing to a new stable version. */
   readonly now?: () => number

@@ -26,7 +26,7 @@ describe('Insight OSS transport', () => {
     await expect(transport.putPointer('desktop/candidate-v3/a/current.json', new Uint8Array([1]), { ifAbsent: true })).rejects.toBeInstanceOf(OssWriteOutcomeUnknownError)
   })
 
-  it('adapts byte uploads to SDK buffers while preserving immutable and conditional headers', async () => {
+  it('adapts SDK byte uploads and uses supported overwrite protection', async () => {
     const puts: Array<{ key: string; bytes: number[]; headers: Record<string, string> }> = []
     const multipart: Array<{ key: string; headers: Record<string, string> }> = []
     const transport = createAliOssTransport({
@@ -44,13 +44,13 @@ describe('Insight OSS transport', () => {
 
     await transport.putImmutable('desktop/releases/v1.0.10/target.json', { bytes: new Uint8Array([1]) })
     await transport.putImmutable('desktop/releases/v1.0.10/installer.exe', { path: '/staged/installer.exe' })
-    await transport.putPointer('desktop/candidate-v3/win32-x64/current.json', new Uint8Array([2]), { expectedEtag: 'prior' })
+    await transport.putPointer('desktop/candidate-v3/win32-x64/current.json', new Uint8Array([2]), {})
     await transport.putPointer('desktop/candidate-v3/win32-x64/current.json', new Uint8Array([3]), { ifAbsent: true })
 
     expect(puts[0]).toEqual({ key: 'desktop/releases/v1.0.10/target.json', bytes: [1], headers: { 'x-oss-forbid-overwrite': 'true', 'cache-control': 'public,max-age=31536000,immutable' } })
     expect(multipart[0]).toEqual({ key: 'desktop/releases/v1.0.10/installer.exe', headers: { 'x-oss-forbid-overwrite': 'true', 'cache-control': 'public,max-age=31536000,immutable' } })
-    expect(puts[1]).toEqual({ key: 'desktop/candidate-v3/win32-x64/current.json', bytes: [2], headers: { 'cache-control': 'public,max-age=60,must-revalidate', 'If-Match': 'prior' } })
-    expect(puts[2]).toEqual({ key: 'desktop/candidate-v3/win32-x64/current.json', bytes: [3], headers: { 'cache-control': 'public,max-age=60,must-revalidate', 'If-None-Match': '*' } })
+    expect(puts[1]).toEqual({ key: 'desktop/candidate-v3/win32-x64/current.json', bytes: [2], headers: { 'cache-control': 'public,max-age=60,must-revalidate' } })
+    expect(puts[2]).toEqual({ key: 'desktop/candidate-v3/win32-x64/current.json', bytes: [3], headers: { 'cache-control': 'public,max-age=60,must-revalidate', 'x-oss-forbid-overwrite': 'true' } })
   })
 
   it('reports STS HTTP status without exposing response bytes', async () => {

@@ -41,7 +41,7 @@ const MAX_METADATA_BYTES = 4 * 1024 * 1024
 export interface InsightRemoteMetadata {
   /** Complete object bytes. */
   readonly bytes: Uint8Array
-  /** Opaque object revision used for compare-and-swap. */
+  /** Opaque object revision used to detect a changed pointer before replacement. */
   readonly etag: string
 }
 
@@ -63,11 +63,11 @@ export interface PublishInsightTransport {
   download(key: string, destination: string): Promise<InsightRemoteDownload | undefined>
   /** Create one immutable object without replacing an existing key. */
   putImmutable(key: string, source: { readonly bytes: Uint8Array } | { readonly path: string }): Promise<void>
-  /** Replace the mutable pointer only when the supplied compare-and-swap condition holds. */
+  /** Create a missing pointer or replace an existing pointer once after publisher-side change detection. */
   putPointer(
     key: string,
     bytes: Uint8Array,
-    condition: { readonly expectedEtag: string } | { readonly ifAbsent: true },
+    options: { readonly ifAbsent?: true },
   ): Promise<void>
 }
 
@@ -110,7 +110,7 @@ export interface PublishedInsightCandidate {
  * Publish one independently signed candidate target, switching its pointer only after remote verification.
  *
  * Immutable uploads left by a failed attempt are retained and verified on retry. A failed or unknown
- * conditional write is never retried inside this operation.
+ * pointer replacement is never retried inside this operation.
  * @param input - Verified local build identity, signing keys, compatibility, and OSS transport.
  * @returns Immutable manifest and mutable pointer keys after a byte-identical pointer readback.
  */

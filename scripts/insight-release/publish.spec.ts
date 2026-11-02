@@ -79,14 +79,14 @@ class FakeTransport implements PublishInsightTransport {
   async putPointer(
     key: string,
     bytes: Uint8Array,
-    condition: { readonly expectedEtag: string } | { readonly ifAbsent: true },
+    options: { readonly ifAbsent?: true },
   ) {
     this.calls++
     this.pointerWrites.push(key)
-    if (this.failPointer) throw new Error('injected CAS outcome unknown')
+    if (this.failPointer) throw new Error('injected pointer replacement outcome unknown')
     const current = this.objects.get(key)
-    if ('ifAbsent' in condition ? current !== undefined : current?.etag !== condition.expectedEtag) {
-      throw new Error('conditional write failed')
+    if (options.ifAbsent === true && current !== undefined) {
+      throw new Error('pointer creation failed')
     }
     this.objects.set(key, { bytes: new Uint8Array(bytes), etag: this.nextEtag() })
   }
@@ -311,7 +311,7 @@ describe('Insight candidate publisher', () => {
     expect(transport.pointerWrites).toHaveLength(1)
   })
 
-  it('does not report success when the pointer CAS outcome is unknown', async () => {
+  it('does not report success when the pointer replacement outcome is unknown', async () => {
     const f = await fixture()
     f.transport.failPointer = true
     await expect(publishInsightCandidate(f.input)).rejects.toThrow(/outcome unknown/u)
@@ -319,7 +319,7 @@ describe('Insight candidate publisher', () => {
     expect(f.transport.objects.has('desktop/candidate-v3/darwin-arm64/current.json')).toBe(false)
   })
 
-  it('does not report success when pointer readback differs after CAS', async () => {
+  it('does not report success when pointer readback differs after replacement', async () => {
     const f = await fixture()
     f.transport.corruptPointerReadback = true
     await expect(publishInsightCandidate(f.input)).rejects.toThrow(/readback/u)
