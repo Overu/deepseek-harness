@@ -32,7 +32,7 @@
 
 ## 本地开发
 
-在仓库根目录运行 `npm run dev:insight`。启动器选择 Insight 产品，并默认将开发产品版本设为 1.0.10。它复用 Desktop 开发启动器，并使用与 Shell 兼容的 Insight 开发 userData 位置。
+在仓库根目录运行 `npm run dev:insight`。启动器选择 Insight 产品，并默认将开发产品版本设为 1.0.11-rc.1。它复用 Desktop 开发启动器，并使用与 Shell 兼容的 Insight 开发 userData 位置。
 
 开发登录流程不持久化凭据。已打包应用在隐藏窗口恢复并校验保存的凭据；有效账号和账号 Home 会打开工作区，无效凭据、离线请求或 Home 保护失败会显示登录或恢复页面。不要因为本地存在 token 文件而跳过服务端校验。
 

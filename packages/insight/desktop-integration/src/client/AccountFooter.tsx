@@ -1,6 +1,6 @@
 /** Compact authenticated-account entry for the DSH sidebar footer. */
 import { useState } from 'react'
-import { IconUserOutlineRegular, Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { InsightAccountSnapshot } from './account-source.ts'
 import css from './AccountFooter.module.css'
@@ -35,7 +35,9 @@ export function InsightAccountFooter({ wide, signOut, openSettings, useAccount }
   const control = (
     <button type="button" className={css.trigger} aria-haspopup="menu" aria-expanded={open}
       aria-label={label} onClick={() => { setOpen(value => !value) }}>
-      {summary.avatarUrl ? <img className={css.avatar} src={summary.avatarUrl} alt="" /> : <IconUserOutlineRegular size={wide ? 16 : 18} />}
+      <span className={css.avatar} data-insight-account-avatar aria-hidden="true">
+        {summary.avatarUrl ? <img src={summary.avatarUrl} alt="" /> : summary.displayName.trim().slice(0, 1) || '因'}
+      </span>
       {wide && <span className={css.detail}><span>{label}</span><small>{signOutFailed ? '退出失败，请重试' : failed ? '账号信息暂不可用' : summary.maskedPhone}</small></span>}
     </button>
   )

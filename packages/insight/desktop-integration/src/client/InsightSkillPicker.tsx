@@ -1,6 +1,6 @@
 /** Categorized, explicit-draft skill picker for the Insight composition. */
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { IconCheckOutlineRegular, IconChevronDownOutlineRegular, IconSparkleRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCheckOutlineRegular, IconChevronDownOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { InsightSkillInventorySnapshot } from '../shared/skill-inventory.ts'
@@ -171,7 +171,9 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
       }
       setFailure(undefined)
     }}>
-    <IconSparkleRegular size={14} />
+    <span className={css.skillIcon} aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path
+      d="M8 1.5 9.8 6.2 14.5 8 9.8 9.8 8 14.5 6.2 9.8 1.5 8 6.2 6.2Z"
+      stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg></span>
     <span>{selected.size > 0 ? `已选技能 ${String(selected.size)}` : '专家技能'}</span>
     <IconChevronDownOutlineRegular size={14} className={css.chevron} />
   </button>

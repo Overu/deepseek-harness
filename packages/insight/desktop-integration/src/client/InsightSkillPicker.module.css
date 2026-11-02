@@ -16,6 +16,7 @@
 }
 .trigger:disabled { cursor: default; }
 .trigger:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); }
+.skillIcon { display: inline-flex; flex: none; }
 .chevron { flex: none; }
 .trigger[aria-expanded='true'] .chevron { transform: rotate(180deg); }
 .menu {

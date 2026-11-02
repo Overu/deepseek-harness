@@ -28,7 +28,7 @@ The migration evidence is retained under [Insight history](history/shell/analysi
 
 ## Developing locally
 
-Run `npm run dev:insight` from the repository root. The launcher selects the Insight product and defaults the development product version to 1.0.10. It reuses the Desktop development launcher and uses the Shell-compatible Insight development user-data location.
+Run `npm run dev:insight` from the repository root. The launcher selects the Insight product and defaults the development product version to 1.0.11-rc.1. It reuses the Desktop development launcher and uses the Shell-compatible Insight development user-data location.
 
 The development login flow does not persist credentials. The packaged application restores and validates saved credentials in a hidden window; a valid account and account Home open the workspace, while an invalid credential, offline request, or Home protection failure shows the login or recovery page. Do not treat a local token file as authorization to skip server validation.
 

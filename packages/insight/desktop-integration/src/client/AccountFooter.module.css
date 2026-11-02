@@ -27,7 +27,22 @@
 .trigger:focus-visible { outline: 2px solid var(--dsw-alias-focus-ring); outline-offset: 2px; }
 
 .root[data-wide='false'] { justify-content: center; padding: 4px; }
-.avatar { width: 18px; height: 18px; flex: none; border-radius: 50%; object-fit: cover; }
+.root[data-wide='false'] .trigger { flex: none; width: 36px; height: 36px; justify-content: center; padding: 2px; }
+.avatar {
+  display: grid;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  overflow: hidden;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--dsw-static-deepseek-500);
+  color: var(--dsw-static-neutral-00);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.avatar > img { width: 100%; height: 100%; object-fit: cover; }
 .detail { min-width: 0; display: grid; flex: 1; gap: 1px; font-size: 13px; line-height: 16px; }
 .detail > span, .detail > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .detail > span { color: var(--dsw-alias-label-primary); font-weight: 500; }

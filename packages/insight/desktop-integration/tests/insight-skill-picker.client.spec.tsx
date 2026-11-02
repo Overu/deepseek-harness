@@ -54,6 +54,14 @@ function props(input: PickerProps['useInput'] = inputHook(), actions = inputActi
 }
 
 describe('InsightSkillPicker', () => {
+  it('uses the Shell outlined four-point star in the trigger', () => {
+    render(<InsightSkillPicker {...props()} />)
+    const star = screen.getByRole('button', { name: '技能' }).querySelector('svg path')
+    expect(star?.getAttribute('d')).toBe('M8 1.5 9.8 6.2 14.5 8 9.8 9.8 8 14.5 6.2 9.8 1.5 8 6.2 6.2Z')
+    expect(star?.getAttribute('stroke')).toBe('currentColor')
+    expect(star?.getAttribute('stroke-width')).toBe('1.3')
+  })
+
   it('uses the Shell source groups and installed display labels while toggling the native invocation name', async () => {
     const toggleSkill = vi.fn()
     render(<InsightSkillPicker {...props(inputHook(), inputActions(toggleSkill), async () => ({ complete: true, entries: [

@@ -37,6 +37,8 @@ Before a Host exists, the native login window retains the Insight brand panel, i
 
 After the workspace opens, the bundle fills the sidebar and conversation hero brand occupants with Insight artwork, adds the avatar and account menu with handbook, settings, and sign-out actions to the sidebar footer, and mounts `ctx.insightAccount` in the Host. Trusted Host plugins can request the current access token through bounded, cancellable child-process IPC. The browser receives the display name, masked phone, avatar URL, product/runtime information, and sign-out operation; it never receives the access token.
 
+The expert-skill control uses the Shell four-point outline mark. Account entries keep a provided avatar image; otherwise they show the first trimmed display-name character on a blue badge, falling back to “因”. The collapsed sidebar keeps the same account menu.
+
 Settings opens only from the account menu. The `settings.launcher` occupant forwards requests to the existing settings shell without rendering a separate sidebar button.
 
 The native update window uses the same regular checks as the background schedule: stable applications check signed stable releases; prerelease applications also check candidates when no stable update is available. Clicking its Insight mark five times within three seconds opens a native risk confirmation and, after approval, performs one explicit candidate check. Discovery does not download, and download does not authorize installation.

@@ -16,6 +16,21 @@ const snapshot = {
 const standardProps = {} as GlobalStandardProps
 
 describe('InsightAccountFooter', () => {
+  it('uses the display-name initial or Insight fallback when no avatar is available', () => {
+    const view = render(<InsightAccountFooter {...standardProps} wide signOut={vi.fn(async () => {})} openSettings={() => {}}
+      useAccount={selector => selector(snapshot)} />)
+    expect(view.container.querySelector('[data-insight-account-avatar]')?.textContent).toBe('测')
+    view.rerender(<InsightAccountFooter {...standardProps} wide signOut={vi.fn(async () => {})} openSettings={() => {}}
+      useAccount={selector => selector({ ...snapshot, summary: { ...snapshot.summary, displayName: '  ' } })} />)
+    expect(view.container.querySelector('[data-insight-account-avatar]')?.textContent).toBe('因')
+  })
+
+  it('preserves a supplied avatar image', () => {
+    const view = render(<InsightAccountFooter {...standardProps} wide signOut={vi.fn(async () => {})} openSettings={() => {}}
+      useAccount={selector => selector({ ...snapshot, summary: { ...snapshot.summary, avatarUrl: 'https://example.test/avatar.png' } })} />)
+    expect(view.container.querySelector('[data-insight-account-avatar] img')?.getAttribute('src')).toBe('https://example.test/avatar.png')
+  })
+
   it('opens product settings from the account menu', () => {
     const openSettings = vi.fn()
     render(<InsightAccountFooter {...standardProps} wide signOut={vi.fn(async () => {})} openSettings={openSettings}
