@@ -56,6 +56,7 @@ jobs:
         run: node scripts/insight-release/runtime/prepare-runtime.mjs
       - name: Publish verified GitHub Release bytes to OSS
         env:
+          TSX_TSCONFIG_PATH: ${{ steps.runtime.outputs.tsconfig }}
           GITHUB_TOKEN: ${{ github.token }}
           INSIGHT_RELEASE_VERSION: ${{ inputs.version }}
           INSIGHT_SOURCE_COMMIT: ${{ inputs.source_commit }}

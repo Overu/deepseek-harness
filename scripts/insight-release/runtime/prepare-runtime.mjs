@@ -13,6 +13,8 @@ const integration = join(import.meta.dirname, 'node_modules', '@insight-ai', 'de
 await mkdir(integration, { recursive: true })
 await writeFile(join(integration, 'package.json'), `${JSON.stringify({ name: '@insight-ai/desktop-integration', private: true, type: 'module', exports: { './desktop': './desktop.ts' } })}\n`)
 await writeFile(join(integration, 'desktop.ts'), "export * from '../../../contract.ts'\n")
+const tsconfig = join(work, 'tsconfig.json')
+await writeFile(tsconfig, `${JSON.stringify({ compilerOptions: { module: 'NodeNext', moduleResolution: 'NodeNext' } })}\n`)
 const output = process.env.GITHUB_OUTPUT
 if (output === undefined || output === '') throw new Error('Insight release runtime requires GITHUB_OUTPUT')
-await writeFile(output, `entry=${join(work, 'publish-cli.ts')}\nloader=${join(import.meta.dirname, 'node_modules/tsx/dist/loader.mjs')}\npublic_key=${join(import.meta.dirname, 'update-signing-public.pem')}\n`, { flag: 'a' })
+await writeFile(output, `tsconfig=${tsconfig}\nentry=${join(work, 'publish-cli.ts')}\nloader=${join(import.meta.dirname, 'node_modules/tsx/dist/loader.mjs')}\npublic_key=${join(import.meta.dirname, 'update-signing-public.pem')}\n`, { flag: 'a' })
