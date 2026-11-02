@@ -1,0 +1,33 @@
+{
+  "before": {
+    "phase": "before",
+    "remoteFetchBlockedByCsp": true,
+    "popupAttempts": 1,
+    "downloadAttempts": 0,
+    "fixtureOnly": true
+  },
+  "after": {
+    "phase": "after",
+    "localReads": {
+      "blob": "local",
+      "data": "local"
+    },
+    "nativeDownloadCount": 3,
+    "popupAttempts": 0,
+    "imageBytesMatch": true,
+    "videoBytesMatch": true,
+    "zipFiles": [
+      "耳机.png",
+      "耳机_1.png"
+    ],
+    "zipBytesMatch": true,
+    "failedResourceDidNotDownload": true,
+    "remoteCredentialsAbsent": true,
+    "cspBlockedFetches": 0,
+    "fixtureOnly": true
+  },
+  "usesRealAccount": false,
+  "usesPaidGeneration": false,
+  "downloadSavePath": "disposable fixture directory",
+  "transport": "actual UI functions + actual page CSP + actual Host route; injected authorized canvas and local upstream"
+}

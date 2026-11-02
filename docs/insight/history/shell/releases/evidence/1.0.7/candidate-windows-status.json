@@ -1,0 +1,18 @@
+{
+  "checkedAt": "2026-10-16T10:02:19.678Z",
+  "id": 38883254912,
+  "attempt": 1,
+  "url": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/38883254912",
+  "headSha": "4c13969622237ccec798d9de0ddea3c154699806",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 116916449646,
+      "name": "publish-candidate v1.0.7 win32-x64",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    }
+  ]
+}

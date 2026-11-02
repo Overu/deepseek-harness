@@ -1,0 +1,25 @@
+{
+  "baseline": [
+    "legacy/src/components/canvasFlow/components/nodeControl/ProductList.tsx(52,101): error TS2345: Argument of type 'MouseEvent<Element, MouseEvent> | undefined' is not assignable to parameter of type 'MouseEvent<Element, MouseEvent>'.",
+    "legacy/src/components/canvasFlow/components/promptControl/CombinedParamSelection.tsx(74,111): error TS2345: Argument of type 'CombinedOption[]' is not assignable to parameter of type 'Choice[]'.",
+    "legacy/src/components/canvasFlow/components/promptControl/CombinedParamSelection.tsx(79,9): error TS2345: Argument of type '{ key: string; label: string; option: CombinedOption[]; }[]' is not assignable to parameter of type 'SelectParam[]'.",
+    "legacy/src/components/canvasFlow/components/promptControl/CombinedParamSelection.tsx(155,93): error TS2345: Argument of type 'CombinedOption[]' is not assignable to parameter of type 'Choice[]'.",
+    "legacy/src/components/canvasFlow/components/uploadControl/HistoryUpload.tsx(149,26): error TS2322: Type 'AssetItem' is not assignable to type 'Pick<AssetItem, \"source\" | \"type\" | \"label\" | \"duration\" | \"sourceType\" | \"fileFormat\">'.",
+    "legacy/src/components/community/coverCrop/coverCropMedia.ts(102,18): error TS2367: This comparison appears to be unintentional because the types '10' and '1' have no overlap.",
+    "legacy/src/routes/editor/core/ExtensionEngine.ts(431,19): error TS2531: Object is possibly 'null'.",
+    "legacy/src/routes/editor/core/ExtensionEngine.ts(433,20): error TS2531: Object is possibly 'null'.",
+    "legacy/src/routes/editor/core/ExtensionEngine.ts(434,20): error TS2531: Object is possibly 'null'."
+  ],
+  "current": [
+    "legacy/src/components/canvasFlow/components/nodeControl/ProductList.tsx(52,101): error TS2345: Argument of type 'MouseEvent<Element, MouseEvent> | undefined' is not assignable to parameter of type 'MouseEvent<Element, MouseEvent>'.",
+    "legacy/src/components/canvasFlow/components/promptControl/CombinedParamSelection.tsx(74,111): error TS2345: Argument of type 'CombinedOption[]' is not assignable to parameter of type 'Choice[]'.",
+    "legacy/src/components/canvasFlow/components/promptControl/CombinedParamSelection.tsx(79,9): error TS2345: Argument of type '{ key: string; label: string; option: CombinedOption[]; }[]' is not assignable to parameter of type 'SelectParam[]'.",
+    "legacy/src/components/canvasFlow/components/promptControl/CombinedParamSelection.tsx(155,93): error TS2345: Argument of type 'CombinedOption[]' is not assignable to parameter of type 'Choice[]'.",
+    "legacy/src/components/canvasFlow/components/uploadControl/HistoryUpload.tsx(149,26): error TS2322: Type 'AssetItem' is not assignable to type 'Pick<AssetItem, \"source\" | \"type\" | \"label\" | \"duration\" | \"sourceType\" | \"fileFormat\">'.",
+    "legacy/src/components/community/coverCrop/coverCropMedia.ts(102,18): error TS2367: This comparison appears to be unintentional because the types '10' and '1' have no overlap.",
+    "legacy/src/routes/editor/core/ExtensionEngine.ts(431,19): error TS2531: Object is possibly 'null'.",
+    "legacy/src/routes/editor/core/ExtensionEngine.ts(433,20): error TS2531: Object is possibly 'null'.",
+    "legacy/src/routes/editor/core/ExtensionEngine.ts(434,20): error TS2531: Object is possibly 'null'."
+  ],
+  "identical": true
+}

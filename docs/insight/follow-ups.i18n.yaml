@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for follow-ups.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/insight/follow-ups.md
+/insight-follow-ups:
+  en: abbcdd7ae768dc3e
+  zh: 4b0977c7f421d344
+/insight-follow-ups/summary:
+  en: 5a6f9221e3bc6b1f
+  zh: 6a4ec2c2940b5e04
+/insight-follow-ups/navigation:
+  en: 9ebf635bf79faef1
+  zh: d0a315ccb615cf24
+/insight-follow-ups/next-client-release:
+  en: fc9b7e3a1aab9ee4
+  zh: 66883357fa1ffbaf
+/insight-follow-ups/plugin-installation-policy:
+  en: 84abf19aeab9bff7
+  zh: f0adcaf729dc3de9
+/insight-follow-ups/user-and-platform-feedback:
+  en: 6c46ee31fbc21668
+  zh: f680b31d34df6027
+/insight-follow-ups/historical-checks:
+  en: 449d812e49cd16d0
+  zh: d4485896a0962aec
+/insight-follow-ups/deferred-product-choices:
+  en: 0c832422574a42f7
+  zh: 583304e9ea174d23
+/insight-follow-ups/excluded-scope:
+  en: de2e52ff7c6a8266
+  zh: 9f1457554e0150a5
+/insight-follow-ups/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

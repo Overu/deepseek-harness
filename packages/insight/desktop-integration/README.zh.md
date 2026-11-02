@@ -108,8 +108,8 @@ GitHub Release 构建和 OSS 发布是相互独立的操作，详见 [Insight �
 <a id="further-exploration"></a>
 ## 进一步探索
 
-- [Insight 子系统](../../../docs/subsystems/insight.zh.md) — 产品标识、启动顺序、账号存储、进程数据流和阶段边界。
-- [Insight 基线集成记录](../../../docs/subsystems/insight-baseline-changes.zh.md) — 私有发行版修改的官方 DSH 文件。
+- [Insight 架构](../../../docs/insight/architecture.zh.md) — 产品标识、启动顺序、账号存储、进程数据流和阶段边界。
+- [Insight 基线集成记录](../../../docs/insight/baseline-changes.zh.md) — 私有发行版修改的官方 DSH 文件。
 - [Insight 包索引](../README.zh.md) — 相邻私有产品组件及其激活状态。
 - [Desktop 应用架构](../../../docs/architecture.zh.md) — 上游 Desktop profile、Host 与 Client 组合。
 

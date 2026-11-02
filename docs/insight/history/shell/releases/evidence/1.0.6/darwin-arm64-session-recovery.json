@@ -1,0 +1,174 @@
+{
+  "schema": "insight-session-recovery-proof/v1",
+  "checkedAt": "2026-10-09T06:24:12.484Z",
+  "candidate": {
+    "schemaVersion": 1,
+    "core": {
+      "repository": "Boxser567/insight-harness-core",
+      "version": "0.2.1-alpha.1",
+      "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+    },
+    "entry": "node_modules/@deepseek-ai/dsh/lib/bin.js",
+    "node": {
+      "version": "24.9.0"
+    },
+    "pnpm": {
+      "version": "11.7.0"
+    },
+    "target": {
+      "platform": "darwin",
+      "arch": "arm64"
+    }
+  },
+  "recovery": {
+    "schemaVersion": 1,
+    "core": {
+      "repository": "Boxser567/insight-harness-core",
+      "version": "0.2.1-alpha.1",
+      "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+    },
+    "entry": "node_modules/@deepseek-ai/dsh/lib/bin.js",
+    "node": {
+      "version": "24.9.0"
+    },
+    "pnpm": {
+      "version": "11.7.0"
+    },
+    "target": {
+      "platform": "darwin",
+      "arch": "arm64"
+    }
+  },
+  "previous": {
+    "schemaVersion": 1,
+    "core": {
+      "repository": "Boxser567/insight-harness-core",
+      "version": "0.1.6-alpha.2",
+      "commit": "5f668026071a5c2f2a0796aff1900be62b0aebe4"
+    },
+    "entry": "node_modules/@deepseek-ai/dsh/lib/bin.js",
+    "node": {
+      "version": "24.9.0"
+    },
+    "pnpm": {
+      "version": "11.7.0"
+    },
+    "target": {
+      "platform": "darwin",
+      "arch": "arm64"
+    }
+  },
+  "preservedHistoricalFiles": {
+    "migrated-recovery/session.v3.jsonl.zstd": "a866951595f0ca9dfdcbb19b7d73ead7eb838036a0e0a399f615f7c3de019996",
+    "failed-tool-recovery/session.v3.jsonl.zstd": "ef41d9bd1393837fa728785cb300d0ce3dd3bcc0f11f8ae4aad2fc23b5461cad"
+  },
+  "phases": [
+    {
+      "phase": "previous",
+      "writer": 3,
+      "sessions": [
+        {
+          "id": "migrated-recovery",
+          "events": 9,
+          "toolResults": 1,
+          "developerMessages": 0,
+          "turns": 1
+        },
+        {
+          "id": "failed-tool-recovery",
+          "events": 8,
+          "toolResults": 0,
+          "developerMessages": 0,
+          "turns": 1
+        }
+      ]
+    },
+    {
+      "phase": "candidate",
+      "writer": 4,
+      "sessions": [
+        {
+          "id": "migrated-recovery",
+          "events": 19,
+          "toolResults": 2,
+          "developerMessages": 1,
+          "turns": 2
+        },
+        {
+          "id": "failed-tool-recovery",
+          "events": 20,
+          "toolResults": 3,
+          "developerMessages": 1,
+          "turns": 2
+        },
+        {
+          "id": "native-recovery",
+          "events": 10,
+          "toolResults": 1,
+          "developerMessages": 1,
+          "turns": 1
+        }
+      ]
+    },
+    {
+      "phase": "recovery",
+      "writer": 4,
+      "sessions": [
+        {
+          "id": "migrated-recovery",
+          "events": 25,
+          "toolResults": 2,
+          "developerMessages": 1,
+          "turns": 3
+        },
+        {
+          "id": "failed-tool-recovery",
+          "events": 26,
+          "toolResults": 3,
+          "developerMessages": 1,
+          "turns": 3
+        },
+        {
+          "id": "native-recovery",
+          "events": 16,
+          "toolResults": 1,
+          "developerMessages": 1,
+          "turns": 2
+        }
+      ]
+    },
+    {
+      "phase": "verify",
+      "writer": 4,
+      "sessions": [
+        {
+          "id": "migrated-recovery",
+          "events": 25,
+          "toolResults": 2,
+          "developerMessages": 1,
+          "turns": 3
+        },
+        {
+          "id": "failed-tool-recovery",
+          "events": 26,
+          "toolResults": 3,
+          "developerMessages": 1,
+          "turns": 3
+        },
+        {
+          "id": "native-recovery",
+          "events": 16,
+          "toolResults": 1,
+          "developerMessages": 1,
+          "turns": 2
+        }
+      ]
+    }
+  ],
+  "desktopVersion": "1.0.6",
+  "target": "darwin-arm64",
+  "appId": "com.insight-aigc.desktop",
+  "runtimeTag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+  "archiveSha256": "8a329e66bd8e77f2197698d2dc6e401bf30cd14c42a6d540e439f80feacc181f",
+  "packagedStartup": "passed"
+}

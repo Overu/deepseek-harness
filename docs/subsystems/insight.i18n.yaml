@@ -2,27 +2,6 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/insight.md
-/insight-desktop-product-integration:
-  en: f0b728ec6e782084
-  zh: cafe3fd42d47f979
-/insight-desktop-product-integration/summary:
-  en: ed08abc38d81e307
-  zh: 0bc72ddb56bf9090
-/insight-desktop-product-integration/product-and-runtime-identity:
-  en: a5fc4cb1d3e3596f
-  zh: 8d25cb8077b0a1ee
-/insight-desktop-product-integration/startup-and-account-ownership:
-  en: 236c873c72c11436
-  zh: 49e07963b7e5e527
-/insight-desktop-product-integration/process-data-flow:
-  en: b6ddde9f5f3e7b1e
-  zh: 895bb38ee6ee0300
-/insight-desktop-product-integration/source-and-release-ownership:
-  en: 9de7faf5a6345043
-  zh: 8b3ead510ac6f6c0
-/insight-desktop-product-integration/source-development:
-  en: 56f214b35fb90209
-  zh: 5026a6b40a071c3d
-/insight-desktop-product-integration/dev-note:
-  en: b75c8458928b72b9
-  zh: 003ba4e17b4b5269
+/insight-account-service-api:
+  en: 9aa5300f375072fa
+  zh: 27593736a18bfd2e

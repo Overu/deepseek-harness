@@ -1,0 +1,107 @@
+{
+  "tagName": "v1.0.9",
+  "isDraft": false,
+  "isPrerelease": false,
+  "targetCommitish": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+  "url": "https://github.com/Boxser567/insight-desktop-shell/releases/tag/v1.0.9",
+  "publishedAt": "2026-10-27T13:15:54Z",
+  "isLatest": true,
+  "candidateAssetDigestsUnchanged": true,
+  "assets": [
+    {
+      "name": "darwin-arm64--insight-1.0.9-mac-arm64.dmg",
+      "size": 358327937,
+      "digest": "sha256:b32ff8722f8d6dcc0366c81c9f6e4eff9275a7ef23c6a7cb1478c2daeb1b67e8"
+    },
+    {
+      "name": "darwin-arm64--insight-1.0.9-mac-arm64.zip",
+      "size": 421882888,
+      "digest": "sha256:e29f7b636646472140a45e5e9b4e74753e676bdb7c1c6bb0e08ac5874d23af77"
+    },
+    {
+      "name": "darwin-arm64--insight-1.0.9-mac-arm64.zip.blockmap",
+      "size": 433670,
+      "digest": "sha256:27293a48f699fae4c420d8adf84f9f7a4be70b04334a4a83f0596f5d22cea89a"
+    },
+    {
+      "name": "darwin-arm64--insight-target.json",
+      "size": 1580,
+      "digest": "sha256:0d1be341afeca185818136aea9fe413e62735ff299f2281bc3b4e49f9e783617"
+    },
+    {
+      "name": "darwin-arm64--insight-target.json.sig",
+      "size": 64,
+      "digest": "sha256:185d5ba1063a65da5944d16485733d312a136439dfe6340c409b4fa32409ab12"
+    },
+    {
+      "name": "darwin-arm64--latest-mac.yml",
+      "size": 384,
+      "digest": "sha256:0ca1057ebaa977c8bad053aa9587ee41ce34a9c836abec62200ebd0b20b421a5"
+    },
+    {
+      "name": "darwin-x64--insight-1.0.9-mac-x64.dmg",
+      "size": 369304865,
+      "digest": "sha256:1d77f89e29a61f331186bbe7fc64cd91073f44994088fc1bf6032aaf2f918ce6"
+    },
+    {
+      "name": "darwin-x64--insight-1.0.9-mac-x64.zip",
+      "size": 434837710,
+      "digest": "sha256:9d4ee8516083dbbfc981420e851549cf0e18268cad37bb20d13e1a4d872ae7c3"
+    },
+    {
+      "name": "darwin-x64--insight-1.0.9-mac-x64.zip.blockmap",
+      "size": 446883,
+      "digest": "sha256:82190ef5b9dd58589abd2faeaa2c69089852033029a5581d899b7dfbffd20ffb"
+    },
+    {
+      "name": "darwin-x64--insight-target.json",
+      "size": 1564,
+      "digest": "sha256:036dc33f2f2f569145c14046ecc28fb43a1caebf957eb44c1e9a6feba179c9eb"
+    },
+    {
+      "name": "darwin-x64--insight-target.json.sig",
+      "size": 64,
+      "digest": "sha256:fc4a6f7f2bc19a6946f03c64b20e3f55b5acc70e8e50fa0a44aefd511f0f6b2e"
+    },
+    {
+      "name": "darwin-x64--latest-mac.yml",
+      "size": 380,
+      "digest": "sha256:1eb4deca81b704183651c58f7dc1ce705408c816a088e11acbaefe838acc2789"
+    },
+    {
+      "name": "insight-release.json",
+      "size": 746,
+      "digest": "sha256:a5f401a2d1c9919be32a66ddffacb36bb5047bd42f1d55d28aa5b3d901176941"
+    },
+    {
+      "name": "insight-release.json.sig",
+      "size": 64,
+      "digest": "sha256:ced8347214865ccb0077e5824cf778d97e2f1f9edac6ffbfb56280e05f6f3db1"
+    },
+    {
+      "name": "win32-x64--insight-1.0.9-windows-x64-setup.exe",
+      "size": 336049614,
+      "digest": "sha256:0fe088bc3d542133e736cb541f59c9429f3dc5cbf095e11409353078dce2aee8"
+    },
+    {
+      "name": "win32-x64--insight-1.0.9-windows-x64-setup.exe.blockmap",
+      "size": 321352,
+      "digest": "sha256:0d54a48b3bb468571e510d28fd60658e8f143198ec1d3a9d2be90165b0c165d0"
+    },
+    {
+      "name": "win32-x64--insight-target.json",
+      "size": 1319,
+      "digest": "sha256:872d92363dace400275b6c0e0c9bd747fba15b7864c0ededfeff6ea580fb0c33"
+    },
+    {
+      "name": "win32-x64--insight-target.json.sig",
+      "size": 64,
+      "digest": "sha256:1397a682b88f31088ccb2053d07c9778c2457e48ae0e80f2d1e68740ef8431e0"
+    },
+    {
+      "name": "win32-x64--latest.yml",
+      "size": 371,
+      "digest": "sha256:1aed72b104914cf122af0a89af2b425f90ac4d81eb263890fc7b229fecd66f78"
+    }
+  ]
+}

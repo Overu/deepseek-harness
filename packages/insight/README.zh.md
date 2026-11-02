@@ -34,9 +34,11 @@ kind: "package-group"
 <a id="related-documentation"></a>
 ## 相关文档
 
-- [Insight 子系统](../../docs/subsystems/insight.zh.md) — 产品归属与源码同步
-- [基线集成记录](../../docs/subsystems/insight-baseline-changes.zh.md) — 既有官方文件变化
+- [Insight 架构](../../docs/insight/architecture.zh.md) — 产品归属与源码同步
+- [基线集成记录](../../docs/insight/baseline-changes.zh.md) — 既有官方文件变化
 - [应用架构](../../docs/architecture.zh.md) — profile 和 bundle 组合
+
+- [生成账号 API](../../docs/subsystems/insight.zh.md) — 由生成器维护的服务参考
 
 <a id="dev-note"></a>
 ## 开发备注

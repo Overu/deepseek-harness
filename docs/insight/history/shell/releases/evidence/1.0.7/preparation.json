@@ -1,0 +1,253 @@
+{
+  "recordedAt": "2026-10-16T08:01:33.050Z",
+  "version": "1.0.7",
+  "status": "dev_basic_acceptance_reported_candidate_build_authorized",
+  "branch": "codex/candidate-1.0.7",
+  "stable": {
+    "tag": "v1.0.6",
+    "commit": "29718822b36a232eeabe202b77fed6ae44256338",
+    "isAncestor": true
+  },
+  "base": {
+    "commit": "6e5df8bea03bc07ff2d9350805f6ac2586389103",
+    "fetchedOriginMain": "6e5df8bea03bc07ff2d9350805f6ac2586389103",
+    "remoteApiMain": "6e5df8bea03bc07ff2d9350805f6ac2586389103"
+  },
+  "runtime": {
+    "schemaVersion": 1,
+    "releaseTag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+    "targets": {
+      "darwin-arm64": {
+        "url": "https://github.com/Boxser567/insight-harness-core/releases/download/insight-runtime-v0.2.1-alpha.1-insight.3/insight-harness-runtime-0.2.1-alpha.1-darwin-arm64.tar.gz",
+        "sha256": "8a329e66bd8e77f2197698d2dc6e401bf30cd14c42a6d540e439f80feacc181f",
+        "core": {
+          "repository": "Boxser567/insight-harness-core",
+          "version": "0.2.1-alpha.1",
+          "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+        },
+        "node": {
+          "version": "24.9.0"
+        },
+        "pnpm": {
+          "version": "11.7.0"
+        }
+      },
+      "darwin-x64": {
+        "url": "https://github.com/Boxser567/insight-harness-core/releases/download/insight-runtime-v0.2.1-alpha.1-insight.3/insight-harness-runtime-0.2.1-alpha.1-darwin-x64.tar.gz",
+        "sha256": "e7141e4544a77c60c4da18e5845419b8d6cc5d44183c9d5165952e4582fb7a7f",
+        "core": {
+          "repository": "Boxser567/insight-harness-core",
+          "version": "0.2.1-alpha.1",
+          "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+        },
+        "node": {
+          "version": "24.9.0"
+        },
+        "pnpm": {
+          "version": "11.7.0"
+        }
+      },
+      "win32-x64": {
+        "url": "https://github.com/Boxser567/insight-harness-core/releases/download/insight-runtime-v0.2.1-alpha.1-insight.3/insight-harness-runtime-0.2.1-alpha.1-win32-x64.tar.gz",
+        "sha256": "7096eab89671916cd68313d9c0c4f3293660c6b9a5be8f41762e9cefa04d2f1a",
+        "core": {
+          "repository": "Boxser567/insight-harness-core",
+          "version": "0.2.1-alpha.1",
+          "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+        },
+        "node": {
+          "version": "24.9.0"
+        },
+        "pnpm": {
+          "version": "11.7.0"
+        }
+      }
+    }
+  },
+  "protectedPathsChangedSinceStable": [],
+  "shippingCodeDiffSinceStable": [
+    "1\t1\tbuild/update-release-policy.json",
+    "1\t1\tbundled-skills/media-generator/SKILL.md",
+    "2\t2\tpackage-lock.json",
+    "2\t2\tpackage.json",
+    "8\t17\tsrc/main/auth/auth-api-client.ts"
+  ],
+  "localTrackingRefs": [
+    {
+      "ref": "origin/codex/candidate-1.0.5",
+      "commit": "3c595f96b91bf67f900e9144ba1056a86aa4c72c",
+      "behindMain": 15,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/candidate-1.0.5-release-record",
+      "commit": "b1f8bc3a33a8a2005c105b0252cdfab35281ced9",
+      "behindMain": 13,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/candidate-recovery-chain",
+      "commit": "2288e031d7991680087099ecb80c27cfeb3ac003",
+      "behindMain": 23,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/fix-local-plugin-upgrade-source",
+      "commit": "bf837f76331a6518813d0bb8254aff0a3d05e52a",
+      "behindMain": 11,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/fix-v2-draft-release-lookup",
+      "commit": "2f0617a6bbc4145945db63760a74357b81d7838e",
+      "behindMain": 57,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/fix-v2-recovery-cdn-timeout",
+      "commit": "ac27748b5020e91d3271a7a5da255b1d784f0cb7",
+      "behindMain": 55,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/internal-release-v1.0.4",
+      "commit": "37d7a64f5e9f87a0772c80b996c7069ebee2f0d7",
+      "behindMain": 25,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/rc21-skill-picker-macos-polish",
+      "commit": "3fb4cca4818807a1bc503fa5dc24036e02f632a2",
+      "behindMain": 61,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/recovery-baseline-acceptance",
+      "commit": "324998c598489e7df30855499584c60d24660b27",
+      "behindMain": 17,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/release-1-0-0",
+      "commit": "969f9dec4b7b1317284f3e10584ca9496ff85bad",
+      "behindMain": 59,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/codex/release-v1.0.0-rc.18",
+      "commit": "6135f980b7534c2fca761e028973657983cdaa1c",
+      "behindMain": 81,
+      "aheadMain": 1
+    },
+    {
+      "ref": "origin/codex/skill-capability-audit",
+      "commit": "5fa32fdf9fc1edfcd07a826f79fa31af9938c9cd",
+      "behindMain": 43,
+      "aheadMain": 1
+    },
+    {
+      "ref": "origin/codex/windows-recovery-runner",
+      "commit": "ce815056220b70938996c3a52fa6688e47043499",
+      "behindMain": 20,
+      "aheadMain": 0
+    },
+    {
+      "ref": "origin/dzm/task/skill-display",
+      "commit": "8206c8e267602dc6eae3444e5764bdc4e1a49545",
+      "behindMain": 142,
+      "aheadMain": 1
+    },
+    {
+      "ref": "origin/dzm/task/skill-proxy",
+      "commit": "3c2588fcdf473a3a2b6e2d4395498ed4c4ecb4b0",
+      "behindMain": 175,
+      "aheadMain": 1
+    },
+    {
+      "ref": "origin/feature/workflow-op",
+      "commit": "77fb977d686ae09e6a48834e1a55c049f56ba737",
+      "behindMain": 6,
+      "aheadMain": 5
+    },
+    {
+      "ref": "origin/main",
+      "commit": "6e5df8bea03bc07ff2d9350805f6ac2586389103",
+      "behindMain": 0,
+      "aheadMain": 0
+    }
+  ],
+  "excludedPullRequest": {
+    "number": 26,
+    "head": "feature/workflow-op",
+    "remoteApiHead": "31e5ac5719a324af2da40fb6116ad6d15811aee5",
+    "reason": "Explicitly excluded by the operator for 1.0.7"
+  },
+  "historicalSkillAuditPatch": "- 5fa32fdf9fc1edfcd07a826f79fa31af9938c9cd",
+  "checks": {
+    "node": "24.9.0",
+    "tests": {
+      "filesPassed": 131,
+      "passed": 968,
+      "skipped": 2,
+      "failed": 0,
+      "skipReason": "Two previous-Runtime migration/compatibility cases require INSIGHT_PREVIOUS_CORE_RUNTIME; installer CI prepares it"
+    },
+    "typecheck": "passed",
+    "buildPrepared": "passed",
+    "releaseWorkflowContracts": "4 passed",
+    "releasePreflight": "passed; 1.0.7; production; same three-platform Runtime",
+    "diffCheck": "passed",
+    "localVitest": "4.1.11",
+    "lockedVitest": "4.1.10",
+    "exactLockedDependencyValidation": "passed remote Desktop CI with npm ci; see source-ci.json",
+    "aboutPreload": "passed",
+    "preloadRelativeChunks": "none"
+  },
+  "operatorConfirmations": {
+    "whitelistBackendInProduction": true,
+    "devCanvasStartupRecoveredAfterReinstall": true,
+    "excludeWorkflowOpPr26": true,
+    "whitelistManualAcceptance": "Operator reports local dev basic acceptance and requests the next step; per-case evidence not supplied",
+    "candidateBuildAndPublicationAuthorized": true,
+    "stablePromotionAuthorized": false
+  },
+  "boundaries": {
+    "coreAndPluginSourcesChanged": false,
+    "runtimeLockChanged": false,
+    "appIdentityAndDataDirectoryChanged": false,
+    "branchesDeleted": false,
+    "existingTagsMoved": false,
+    "installersBuilt": false,
+    "candidatePublished": false,
+    "stablePromoted": false,
+    "immutableReleaseTagCreated": false,
+    "mergedIntoMain": false
+  },
+  "liveStable": {
+    "checkedAt": "2026-10-16T08:02:39.471Z",
+    "signatureValid": true,
+    "payload": {
+      "schema": "insight-desktop-rollout/v2",
+      "state": "active",
+      "track": "stable",
+      "version": "1.0.6",
+      "referencedSha512": "sw3pZg4uhSYNdqu9RW5RGxpSxRUvzHPVOnJeQ/iDgirG7yySkqXifInosbMQfrQhC1UBWNP+CiH2dwmd2RZDpQ==",
+      "policy": {
+        "mode": "optional",
+        "minimumSupportedVersion": "1.0.0-rc.1"
+      },
+      "publishedAt": "2026-10-09T08:50:55.382Z"
+    }
+  },
+  "review": {
+    "scope": "Shell auth header, tests, release metadata and records",
+    "openBlockers": 0
+  },
+  "remoteSourceCi": {
+    "headSha": "ee413f56e11a4005bcbf4d0025d092c7c17b819e",
+    "runId": 38871735293,
+    "url": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/38871735293",
+    "conclusion": "success",
+    "evidence": "source-ci.json"
+  }
+}

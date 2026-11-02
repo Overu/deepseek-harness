@@ -71,7 +71,67 @@ describe('unique object-name prefix search', () => {
   })
 })
 
+describe('imported Insight history', () => {
+  const path = 'docs/insight/history/shell/report.md'
+  const text = 'Recorded acceptance result.\n'
+  const record = { target: path, importedBytes: Buffer.byteLength(text), importedSha256: createHash('sha256').update(text).digest('hex') }
+
+  it('accepts the exact imported file set and bytes', (test) => {
+    const fixture = repository(test)
+    fixture.write(path, text)
+    fixture.write('docs/insight/history/import-manifest.json', JSON.stringify({ schema: 1, files: [record] }))
+    expect(scanRepositoryReferences(fixture.root)).toEqual([])
+  })
+
+  it('ignores untracked metadata ignored by Git', (test) => {
+    const fixture = repository(test)
+    fixture.write('.gitignore', '.DS_Store\n')
+    fixture.write(path, text)
+    fixture.write('docs/insight/history/shell/.DS_Store', 'Finder metadata.\n')
+    fixture.write('docs/insight/history/import-manifest.json', JSON.stringify({ schema: 1, files: [record] }))
+    expect(scanRepositoryReferences(fixture.root)).toEqual([])
+  })
+
+  // Creating file symlinks requires additional privileges on Windows.
+  it.skipIf(process.platform === 'win32')('rejects symbolic-link imported evidence', (test) => {
+    const fixture = repository(test)
+    fixture.write(path, text)
+    unlinkSync(join(fixture.root, path))
+    symlinkSync(join(fixture.root, 'tracked.md'), join(fixture.root, path))
+    fixture.write('docs/insight/history/import-manifest.json', JSON.stringify({ schema: 1, files: [record] }))
+    expect(() => scanRepositoryReferences(fixture.root)).toThrow('Insight history:')
+  })
+
+  it.for(['modified', 'missing', 'extra', 'traversal', 'duplicate', 'schema', 'byte-count'] as const)('rejects %s imported history', (mode, test) => {
+    const fixture = repository(test)
+    fixture.write(path, text)
+    const manifest = { schema: 1, files: [{ ...record }] }
+    if (mode === 'modified') fixture.write(path, 'Another recorded result.\n')
+    if (mode === 'missing') unlinkSync(join(fixture.root, path))
+    if (mode === 'extra') fixture.write('docs/insight/history/shell/extra.md', 'Unregistered report.\n')
+    if (mode === 'traversal') manifest.files = [{ ...record, target: 'docs/insight/history/shell/../outside.md' }]
+    if (mode === 'duplicate') manifest.files.push({ ...record })
+    if (mode === 'schema') manifest.schema = 2
+    if (mode === 'byte-count') manifest.files = [{ ...record, importedBytes: record.importedBytes + 1 }]
+    fixture.write('docs/insight/history/import-manifest.json', JSON.stringify(manifest))
+    expect(() => scanRepositoryReferences(fixture.root)).toThrow('Insight history:')
+  })
+})
+
 describe('maintained repository reference policy', () => {
+  it('retains commit references only in frozen Insight history while checking organization URLs', () => {
+    const commit = 'a'.repeat(40)
+    const commits = new Set([commit])
+    expect(findRepositoryReferences('docs/insight/history/report.md', commit, commits)).toEqual([])
+    expect(findRepositoryReferences('docs/insight/history/manifest.json', commit, commits)).toEqual([])
+    for (const file of ['docs/insight/history-copy/report.md', 'docs/insight/baseline-changes.md', 'scripts/example.ts']) {
+      expect(findRepositoryReferences(file, commit, commits)).toEqual([{ file, line: 1, kind: 'commit-hash' }])
+    }
+    expect(findRepositoryReferences('docs/insight/history/report.md', organizationUrl, commits)).toEqual([
+      { file: 'docs/insight/history/report.md', line: 1, kind: 'organization-url' },
+    ])
+  })
+
   it('permits only the independent kit repository and its source URLs', () => {
     for (const suffix of ['', '.git', '/tree/main/packages/entry']) {
       expect(findRepositoryReferences('package.json', `${organizationUrl}/libreoffice-kit${suffix}`, new Set())).toEqual([])

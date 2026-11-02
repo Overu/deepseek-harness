@@ -26,6 +26,13 @@ function scan(file: string, source: string) {
 }
 
 describe('historical package references', () => {
+  it('retains old package paths only inside the sealed Shell snapshot', () => {
+    expect(scan('docs/insight/history/shell/report.md', removedReference)).toEqual([])
+    for (const file of ['docs/insight/history/shell-copy/report.md', 'docs/insight/baseline-changes.md']) {
+      expect(scan(file, removedReference)).toEqual([{ file, line: 1, ref: removedReference }])
+    }
+  })
+
   it.each(['v0.md', 'v3.md', 'v10.zh.md'])('preserves checked historical source paths in %s', (name) => {
     const file = `docs/persistence-changes/historical-formats/${name}`
     for (const newline of ['\n', '\r\n']) {

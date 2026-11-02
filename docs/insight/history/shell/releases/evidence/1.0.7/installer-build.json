@@ -1,0 +1,46 @@
+{
+  "checkedAt": "2026-10-16T09:05:30.719Z",
+  "id": 38873222346,
+  "attempt": 2,
+  "url": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/38873222346",
+  "headSha": "4c13969622237ccec798d9de0ddea3c154699806",
+  "status": "completed",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 116889114070,
+      "name": "Build macOS Intel target",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 116889116193,
+      "name": "Pin release source and Draft",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 116889164313,
+      "name": "Build macOS Apple Silicon target",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 116889167833,
+      "name": "Build Windows x64 target",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    },
+    {
+      "id": 116896627484,
+      "name": "Sign target manifest and append immutable Draft assets",
+      "status": "completed",
+      "conclusion": "success",
+      "failedSteps": []
+    }
+  ]
+}

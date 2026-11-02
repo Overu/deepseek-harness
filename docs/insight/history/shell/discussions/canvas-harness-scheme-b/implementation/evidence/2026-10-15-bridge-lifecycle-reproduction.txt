@@ -1,0 +1,46 @@
+✔ route rejects authentication before reading request body or registry (0.499375ms)
+✔ real local HTTP route freezes origin/key, serves one SSE stream, and bounds JSON (31.515291ms)
+✔ SSE backpressure drains buffered commands in order and overflow settles a dispatched write as unknown (2.120833ms)
+✖ Host plugin teardown closes existing command streams and leaves sent writes unknown (1.19425ms)
+✔ Client installs one lazy handle and loads the fixed same-origin service URL once (1.107667ms)
+✔ disposal before any request does not import or create a runtime (0.339167ms)
+✔ a late import after Client disposal cannot create or install a runtime (0.147583ms)
+✔ module loading failure stays observable and never silently retries (0.12125ms)
+✔ duplicate installation cannot overwrite another owner; stale cleanup cannot remove a replacement (0.092ms)
+✔ a malformed module is rejected instead of exposing a partial or fake ready service (0.491875ms)
+✔ reinstalling in the same window uses a fresh ESM URL while keeping the fixed service path (0.144083ms)
+✖ partial view registration failure rolls back the loaded service immediately (0.523459ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 10
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 212.60125
+
+✖ failing tests:
+
+test at test/bridge-route.test.mjs:49:1
+✖ Host plugin teardown closes existing command streams and leaves sent writes unknown (1.19425ms)
+  TypeError: handler.close is not a function
+      at TestContext.<anonymous> (/Users/boxser.shi/Documents/harness/desktop-canvas-plugin/test/bridge-route.test.mjs:67:11)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at test/canvas-service-loader.test.mjs:75:1
+✖ partial view registration failure rolls back the loaded service immediately (0.523459ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///Users/boxser.shi/Documents/harness/desktop-canvas-plugin/test/canvas-service-loader.test.mjs:84:10)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for operations.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/insight/operations.md
+/insight-desktop-operations:
+  en: 9cca0b6c84a1693a
+  zh: 25d3b0d610def125
+/insight-desktop-operations/summary:
+  en: 5aeec6cc098dc610
+  zh: e62fe9e2b3593ecc
+/insight-desktop-operations/contents:
+  en: 26e0502fe8a6f795
+  zh: db250f0da11ecea6
+/insight-desktop-operations/current-delivery-state:
+  en: 6d9264e0573b73da
+  zh: 7cd47236e927f326
+/insight-desktop-operations/developing-locally:
+  en: 09b3522c5ee3e979
+  zh: be06cd6800444112
+/insight-desktop-operations/building-github-release-artifacts:
+  en: c7382e8b00a91406
+  zh: 935d9ffaa71f16fe
+/insight-desktop-operations/publishing-a-verified-release:
+  en: 99514d7756c19ea3
+  zh: 0dd1e04daa086f5c
+/insight-desktop-operations/signing-and-notarization:
+  en: 6512ee6bc62c705c
+  zh: d61d5e395d40b373
+/insight-desktop-operations/known-failure-recovery:
+  en: be744b895610b064
+  zh: b6f057a72aa6f1cf
+/insight-desktop-operations/limits-and-follow-up:
+  en: 1ddc44563d178ceb
+  zh: 1e69614c01a4d12b
+/insight-desktop-operations/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

@@ -110,8 +110,8 @@ Release construction and OSS publication are separate operations documented by t
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Insight subsystem](../../../docs/subsystems/insight.md) — product identity, startup ordering, account storage, process data flow, and stage boundaries.
-- [Insight baseline integration record](../../../docs/subsystems/insight-baseline-changes.md) — official DSH files changed for the private distribution.
+- [Insight architecture](../../../docs/insight/architecture.md) — product identity, startup ordering, account storage, process data flow, and stage boundaries.
+- [Insight baseline integration record](../../../docs/insight/baseline-changes.md) — official DSH files changed for the private distribution.
 - [Insight package map](../README.md) — adjacent private product components and their activation status.
 - [Desktop application architecture](../../../docs/architecture.md) — upstream Desktop profile, Host, and Client composition.
 

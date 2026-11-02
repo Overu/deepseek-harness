@@ -1,0 +1,19 @@
+{
+  "previousAlpha17Sha256": "460b79b30168fb993b212b9bdd8d897186990604e47c13b86b65e3dc3a494ed5",
+  "archive": "/Users/boxser.shi/Documents/harness/desktop-canvas-plugin/insight-ai-desktop-canvas-plugin-0.3.0-alpha.18.tgz",
+  "version": "0.3.0-alpha.18",
+  "size": 14602852,
+  "files": 58,
+  "mismatches": [],
+  "forbidden": [],
+  "sha256": "4f67168247f8500acfae169e196f0d8b478392a3fcc01063b7cd33fc3aae9f9c",
+  "previousAlpha16Sha256": "bb941e0b2fe24478e782c0e7caf66c68e9a86bc1296bd34a16e2a59adb12e124",
+  "client": {
+    "squareGallery": true,
+    "testInputRemoved": true,
+    "sessionBridgeRetained": true,
+    "titleRead": true
+  },
+  "coreChanges": 0,
+  "backendChanges": 0
+}

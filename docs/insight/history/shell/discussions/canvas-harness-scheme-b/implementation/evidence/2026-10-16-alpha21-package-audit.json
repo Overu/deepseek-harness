@@ -1,0 +1,12 @@
+{
+  "version": "0.3.0-alpha.21",
+  "baseCommit": "9f6299269d99ed63f7fd0ea4be28c930dc3937e6",
+  "archive": "/Users/boxser.shi/Documents/harness/desktop-canvas-plugin/insight-ai-desktop-canvas-plugin-0.3.0-alpha.21.tgz",
+  "bytes": 14620390,
+  "files": 64,
+  "sha256": "1a8dc651e03740b3d6683de13d2868636a949424a24f82a34e7cfc9192d023c5",
+  "sourceBytesMatch": true,
+  "whitelistPass": true,
+  "guidanceFiles": 6,
+  "alpha20Unchanged": true
+}

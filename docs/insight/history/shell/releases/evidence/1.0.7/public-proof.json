@@ -1,0 +1,57 @@
+{
+  "checkedAt": "2026-10-16T10:02:35.559Z",
+  "version": "1.0.7",
+  "stableUnchanged": true,
+  "stableVersion": "1.0.6",
+  "candidateTargets": [
+    {
+      "target": "darwin-arm64",
+      "manifestSha512": "EVWa0C/YXnVcnceaJxjFckzA9UURu07CS0hyuSnQEFlUdxSn+N0diZSBl2hejPTERswrLBfg2+Xg0KAP7cCElw==",
+      "signatureValid": true,
+      "installer": {
+        "platform": "darwin",
+        "arch": "arm64",
+        "kind": "dmg",
+        "name": "insight-1.0.7-mac-arm64.dmg",
+        "size": 280305575,
+        "sha512": "U2TO1vgEHk/qRa4z6hdD6muaIzU2OpKMUJd38TcPNMv5GUcW7Q17UUWgRTKdWu/NteTUx69EaCdykJ4iV3gW0Q==",
+        "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.7/targets/darwin-arm64/insight-1.0.7-mac-arm64.dmg"
+      },
+      "headStatus": 200,
+      "rangeStatus": 206
+    },
+    {
+      "target": "darwin-x64",
+      "manifestSha512": "rS8TwERKbwP2ONlpuPJR0PgkabX+SsFwJYnHY4m0bNcGYkkpQ8oLfZaVkhCZg+KsiYmGM7fKqy1EodaywlZt+A==",
+      "signatureValid": true,
+      "installer": {
+        "platform": "darwin",
+        "arch": "x64",
+        "kind": "dmg",
+        "name": "insight-1.0.7-mac-x64.dmg",
+        "size": 290929258,
+        "sha512": "abu8f/D6+D3YBqNy3n9J7tguoRjGI7bjFDcTYMp3pPDSYbBPrz7hHMyvQPKHaaxF1LQmdCA7VueVaSrNHUUTGg==",
+        "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.7/targets/darwin-x64/insight-1.0.7-mac-x64.dmg"
+      },
+      "headStatus": 200,
+      "rangeStatus": 206
+    },
+    {
+      "target": "win32-x64",
+      "manifestSha512": "npKDjFtRg+mLBNzHdn9+5JlVYS/Utd9VteMc/SRsSgL2XbPPl6qrS02rs90MGpxkAS5OMrWhQ2YbuoukGlS+Pw==",
+      "signatureValid": true,
+      "installer": {
+        "platform": "win32",
+        "arch": "x64",
+        "kind": "nsis",
+        "name": "insight-1.0.7-windows-x64-setup.exe",
+        "size": 278943031,
+        "sha512": "umodF4UCjCMjChpKN7GSm8idR7udG7banDWRQQ1JUWUnYXeQLHYIZ+224Q7RyJGnmvwcJevqIJ+9EujBJABaUg==",
+        "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.7/targets/win32-x64/insight-1.0.7-windows-x64-setup.exe"
+      },
+      "headStatus": 200,
+      "rangeStatus": 206
+    }
+  ],
+  "limitations": "No manual GUI installation or recovery is claimed; independent complete CDN artifact verification is recorded in cdn-content-proof.json."
+}

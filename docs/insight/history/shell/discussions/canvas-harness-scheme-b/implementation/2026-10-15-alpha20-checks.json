@@ -1,0 +1,94 @@
+{
+  "version": "0.3.0-alpha.20",
+  "date": "2026-10-15",
+  "status": "fixed_and_ready_for_original_session_retest",
+  "rootCause": "system DNS returned Fake-IP 198.18.0.119; alpha.19 public-address guard rejected the image before upload",
+  "actualEvidence": {
+    "installedVersionAtFailure": "0.3.0-alpha.19",
+    "canvasId": "103334",
+    "generatedImageDiscovered": true,
+    "assetImportEffect": "none",
+    "successResponse": [
+      {
+        "tool": "bash(media-generator) -> job_output",
+        "businessResponse": {
+          "code": 0,
+          "message": "",
+          "status": "success",
+          "data": {
+            "image_list": [
+              "https://media.example/generated.jpg"
+            ]
+          }
+        },
+        "terminalFooter": "[status: completed, exit code: 0]",
+        "redaction": "URLs replaced; no raw identity or signatures retained"
+      }
+    ],
+    "systemDnsAddress": "198.18.0.119",
+    "originalHttpStatus": 200,
+    "originalImage": {
+      "actualOriginalImageRead": "passed",
+      "bytes": 135059,
+      "mediaType": "image/jpeg",
+      "identicalToPreviouslyDownloadedOriginal": true,
+      "modelCalls": 0,
+      "uploads": 0,
+      "canvasWrites": 0
+    }
+  },
+  "fix": {
+    "fakeIpRangeStillBlocked": true,
+    "fallbackTrigger": "domain with exclusively 198.18.0.0/15 system answers",
+    "resolver": "https://cloudflare-dns.com/dns-query",
+    "bootstrap": "1.1.1.1",
+    "tlsValidation": true,
+    "resolverReceives": "hostname and A/AAAA query type only",
+    "dnsTimeoutMs": 8000,
+    "downloadTotalTimeoutMs": 30000,
+    "dnsMaxBytes": 32768,
+    "addressGuardReapplied": true,
+    "literalOrMixedPrivateAnswersRejected": true,
+    "fullSignedUrlInErrors": false,
+    "centralRecoveryGuideUpdated": true
+  },
+  "tests": {
+    "pluginPassed": 295,
+    "failed": 0,
+    "fakeIpAndDnsTestsPassed": 20,
+    "pluginTypes": "passed",
+    "unusedLocalsAndParameters": "passed",
+    "actualRuntimePublicSdkTypes": "passed",
+    "nativeBusinessSourcesChanged": false,
+    "native330Tests": "previous alpha.19 passed baseline; not rerun because no native code or test changes in this fix",
+    "realOriginalImageRead": "passed without overrides after final review",
+    "packagedIsolatedInstallEightToolsSkillAndRemoval": "passed"
+  },
+  "package": {
+    "archive": "/Users/boxser.shi/Documents/harness/desktop-canvas-plugin/insight-ai-desktop-canvas-plugin-0.3.0-alpha.20.tgz",
+    "version": "0.3.0-alpha.20",
+    "files": 64,
+    "size": 14612169,
+    "sha256": "36eb1af34162b373372ee9e754b1ddb4760667af9ffae62fa26fc0980de2563b",
+    "mismatches": [],
+    "forbidden": [],
+    "alpha19Unchanged": true
+  },
+  "review": {
+    "independentDnsAndAttachmentReview": true,
+    "truncatedDnsAndUnrelatedAnswerGuardAdded": true,
+    "regressionFailsBeforeAndPassesAfter": true,
+    "blockingFindings": 0
+  },
+  "boundaries": {
+    "coreChanges": 0,
+    "backendChanges": 0,
+    "tools": 8,
+    "realGenerationCalls": 0,
+    "realUploads": 0,
+    "realCanvasWrites": 0,
+    "installedIntoActualClient": false,
+    "realAccountImportAndPosterGenerationPendingUserRetest": true,
+    "pushed": false
+  }
+}

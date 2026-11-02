@@ -1,0 +1,79 @@
+{
+  "recordedAt": "2026-10-16T08:10:59.710Z",
+  "pullRequest": {
+    "number": 27,
+    "url": "https://github.com/Boxser567/insight-desktop-shell/pull/27",
+    "draft": true
+  },
+  "run": {
+    "id": 38871735293,
+    "url": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/38871735293",
+    "name": "Desktop CI",
+    "event": "pull_request",
+    "headSha": "ee413f56e11a4005bcbf4d0025d092c7c17b819e",
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "jobs": [
+    {
+      "id": 116877169132,
+      "name": "Verify desktop source and release contracts",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-10-16T08:08:46Z",
+      "completedAt": "2026-10-16T08:09:44Z",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm ci",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm run prepare:core-runtime",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm run typecheck",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm test",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build desktop bundles",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify release workflow contracts",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ]
+    }
+  ],
+  "scope": "Source and release-contract CI; not installer builds or manual whitelist acceptance",
+  "provenance": "GitHub Actions REST run and jobs responses"
+}

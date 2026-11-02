@@ -1,7 +1,8 @@
-/** Reject maintained references to repository commits and the disallowed organization URL. */
+/** Reject maintained commit references and the disallowed organization URL; frozen Insight history retains commit evidence. */
 
 import { execFileSync } from 'node:child_process'
-import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { canonicalReferenceText } from './verify-public-repository-links.ts'
@@ -49,11 +50,47 @@ export function findRepositoryReferences(
     if (organizationUrl.test(canonicalReferenceText(line).replace(kitRepositoryUrl, ''))) {
       references.push({ file, line: index + 1, kind: 'organization-url' })
     }
-    if ([...line.matchAll(commitCandidate)].some(match => commits.has(match[0].toLowerCase()))) {
+    if (!file.startsWith('docs/insight/history/')
+      && [...line.matchAll(commitCandidate)].some(match => commits.has(match[0].toLowerCase()))) {
       references.push({ file, line: index + 1, kind: 'commit-hash' })
     }
   }
   return references
+}
+
+/** Check the imported Shell snapshot before exempting its recorded commit evidence. */
+function verifyInsightHistory(repoRoot: string): void {
+  const prefix = 'docs/insight/history/shell/'
+  const directory = resolve(repoRoot, prefix)
+  const manifestPath = resolve(repoRoot, 'docs/insight/history/import-manifest.json')
+  if (!existsSync(directory) && !existsSync(manifestPath)) return
+  const invalid: (detail: string) => never = (detail) => { throw new Error(`Insight history: ${detail}`) }
+  const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
+  let manifest: unknown
+  try { manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) }
+  catch { invalid('the import manifest is missing or unreadable') }
+  if (!object(manifest) || manifest.schema !== 1 || !Array.isArray(manifest.files)) invalid('invalid import manifest')
+  const entries: readonly unknown[] = manifest.files
+  const expected = new Map<string, { bytes: number; digest: string }>()
+  for (const entry of entries) {
+    if (!object(entry) || typeof entry.target !== 'string' || !entry.target.startsWith(prefix)
+      || entry.target.includes('\\') || entry.target.split('/').some(part => part === '' || part === '.' || part === '..')
+      || typeof entry.importedBytes !== 'number' || !Number.isSafeInteger(entry.importedBytes) || entry.importedBytes < 0
+      || typeof entry.importedSha256 !== 'string' || !/^[a-f0-9]{64}$/u.test(entry.importedSha256)
+      || expected.has(entry.target)) invalid('invalid or duplicate imported target')
+    expected.set(entry.target, { bytes: entry.importedBytes, digest: entry.importedSha256 })
+  }
+  const actual = new Set(execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z', '--', prefix], {
+    cwd: repoRoot, encoding: 'utf8', maxBuffer: gitOutputLimit,
+  }).split('\0').filter(file => file !== ''))
+  if (actual.size !== expected.size || [...actual].some(file => !expected.has(file))) invalid('missing or extra imported files')
+  for (const [file, record] of expected) {
+    if (lstatSync(resolve(repoRoot, file)).isFile() !== true) invalid('imported evidence must contain only regular files')
+    const content = readFileSync(resolve(repoRoot, file))
+    if (content.byteLength !== record.bytes || createHash('sha256').update(content).digest('hex') !== record.digest) {
+      invalid(`imported bytes changed: ${file}`)
+    }
+  }
 }
 
 function readMaintainedFiles(repoRoot: string): Map<string, string> {
@@ -132,11 +169,12 @@ export function repositoryCommits(repoRoot: string, sources: Iterable<string>): 
 }
 
 /**
- * Scan tracked and nonignored new files using only the local Git object database.
+ * Verify the imported history bytes, then scan tracked and nonignored new files using the local Git object database.
  * @param repoRoot - Working tree whose files and Git objects are inspected.
  * @returns Prohibited references outside vendor and frozen Agent Notes; absent shallow-history objects cannot match.
  */
 export function scanRepositoryReferences(repoRoot: string): RepositoryReference[] {
+  verifyInsightHistory(repoRoot)
   const sources = readMaintainedFiles(repoRoot)
   const commits = repositoryCommits(repoRoot, sources.values())
   return [...sources].flatMap(([file, source]) => findRepositoryReferences(file, source, commits))

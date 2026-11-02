@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "action": "publish-candidate",
+  "version": "1.0.7",
+  "target": "darwin-x64",
+  "pointerBefore": {
+    "schema": "insight-desktop-rollout/v2",
+    "state": "active",
+    "track": "candidate",
+    "version": "1.0.6",
+    "target": "darwin-x64",
+    "referencedSha512": "Wp5JkbCdCzQpEs27hCksHZJ7GqK9K006i1zTmJUP3IZWg0Q+VYf/QSFjq6QqlgxQRlYOYgKy2pAdbvYcDAFRKQ==",
+    "policy": {
+      "mode": "optional",
+      "minimumSupportedVersion": "1.0.0-rc.1"
+    },
+    "publishedAt": "2026-10-09T08:03:16.763Z"
+  },
+  "pointerAfter": {
+    "schema": "insight-desktop-rollout/v2",
+    "state": "active",
+    "track": "candidate",
+    "version": "1.0.7",
+    "target": "darwin-x64",
+    "referencedSha512": "rS8TwERKbwP2ONlpuPJR0PgkabX+SsFwJYnHY4m0bNcGYkkpQ8oLfZaVkhCZg+KsiYmGM7fKqy1EodaywlZt+A==",
+    "policy": {
+      "mode": "optional",
+      "minimumSupportedVersion": "1.0.0-rc.1"
+    },
+    "publishedAt": "2026-10-16T09:55:16.476Z"
+  },
+  "alreadyPublished": false,
+  "completedAt": "2026-10-16T09:55:21.080Z"
+}

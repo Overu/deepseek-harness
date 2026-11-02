@@ -1,0 +1,102 @@
+{
+  "version": "1.0.9",
+  "verifiedAt": "2026-10-27T12:21:27.656Z",
+  "buildRun": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/40489173705",
+  "publishRun": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/40498480341",
+  "targets": [
+    {
+      "target": "darwin-arm64",
+      "version": "1.0.9",
+      "state": "active",
+      "signatureValid": true,
+      "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+      "coreRuntime": {
+        "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+        "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+      },
+      "manifestSha512": "l3+llRrkEZWFMfzSkhY+6UJV7fl72u6BJkhkNWy1BcqoPucaZIOuWr/yHwa/3jERHth1V0fMqXRkUfU2RAczhQ==",
+      "pointerSha512": "YZ/C80DZgypDie464IBeRRzLiDM6rYBXCu8AXgEIyuwRB6fBfjnionwkUTfyDEnpNNfD6lLoM54P1Ci03jVHdQ==",
+      "publishedAt": "2026-10-27T12:10:35.242Z",
+      "pointerUrl": "https://updates.insight-aigc.com/desktop/candidate-v2/darwin-arm64/current.json",
+      "pointerHeaders": {
+        "cache-control": "public,max-age=60,must-revalidate",
+        "content-length": "628",
+        "last-modified": "Tue, 27 Oct 2026 12:10:38 GMT",
+        "x-swift-cachetime": "60"
+      },
+      "draftBytesMatch": true,
+      "installer": {
+        "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.9/targets/darwin-arm64/insight-1.0.9-mac-arm64.dmg",
+        "size": 358327937,
+        "headStatus": 200,
+        "rangeStatus": 206,
+        "contentRange": "bytes 0-0/358327937"
+      }
+    },
+    {
+      "target": "darwin-x64",
+      "version": "1.0.9",
+      "state": "active",
+      "signatureValid": true,
+      "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+      "coreRuntime": {
+        "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+        "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+      },
+      "manifestSha512": "f+ZLAtCo7PVCz570oh809WANBiWh6Q9zfwsHkVqSEjD8GCCvB8J7MWiRG5stXJS5hvyyTjX0O+fuV0Sq3U3t0A==",
+      "pointerSha512": "zvhJvf54qMjOxHj0Xlg2C6D6sDBwdw45TVdRdxiuL9C3Y1mA8T/N92t9uJ8XRnrTSxOE7Twct7V02+h9Kw7LNw==",
+      "publishedAt": "2026-10-27T12:15:42.837Z",
+      "pointerUrl": "https://updates.insight-aigc.com/desktop/candidate-v2/darwin-x64/current.json",
+      "pointerHeaders": {
+        "cache-control": "public,max-age=60,must-revalidate",
+        "content-length": "624",
+        "last-modified": "Tue, 27 Oct 2026 12:15:43 GMT",
+        "x-swift-cachetime": "60"
+      },
+      "draftBytesMatch": true,
+      "installer": {
+        "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.9/targets/darwin-x64/insight-1.0.9-mac-x64.dmg",
+        "size": 369304865,
+        "headStatus": 200,
+        "rangeStatus": 206,
+        "contentRange": "bytes 0-0/369304865"
+      }
+    },
+    {
+      "target": "win32-x64",
+      "version": "1.0.9",
+      "state": "active",
+      "signatureValid": true,
+      "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+      "coreRuntime": {
+        "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+        "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+      },
+      "manifestSha512": "hXp+aY6GOjIqp+SLjgSjCxci/NTQn+P4YCSODL/Agd42dDwdv9Y85QSE0w74gdVqig37OFDlBkbxQdKrf/59mg==",
+      "pointerSha512": "ZTz45ahUVJ+q4W0R2Ho3dz6cDRrTZSRQTHQfg47j4T26IHVXnbBI040L5JdKcBzAJTYrsnhQ76aWi+azGABIfw==",
+      "publishedAt": "2026-10-27T12:19:57.928Z",
+      "pointerUrl": "https://updates.insight-aigc.com/desktop/candidate-v2/win32-x64/current.json",
+      "pointerHeaders": {
+        "cache-control": "public,max-age=60,must-revalidate",
+        "content-length": "624",
+        "last-modified": "Tue, 27 Oct 2026 12:19:58 GMT",
+        "x-swift-cachetime": "60"
+      },
+      "draftBytesMatch": true,
+      "installer": {
+        "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.9/targets/win32-x64/insight-1.0.9-windows-x64-setup.exe",
+        "size": 336049614,
+        "headStatus": 200,
+        "rangeStatus": 206,
+        "contentRange": "bytes 0-0/336049614"
+      }
+    }
+  ],
+  "stable": {
+    "version": "1.0.6",
+    "signatureValid": true,
+    "envelopeUnchanged": true,
+    "sha512": "q69IYWrcO/l8T3Br7oXjguHx6I3IXpYkgKn6xTioEGmPZoE0eRyG+hf1imu5A2k2p11Fx56DqNtRVfL7ghzCcw=="
+  },
+  "manualInstallationAcceptance": "not-performed"
+}

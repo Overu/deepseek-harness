@@ -1,0 +1,111 @@
+{
+  "checkedAt": "2026-10-09T08:17:19.762Z",
+  "sourceTag": "v1.0.3",
+  "identicalUpdateCodeInTags": [
+    "v1.0.0",
+    "v1.0.1",
+    "v1.0.2",
+    "v1.0.4",
+    "v1.0.5"
+  ],
+  "results": [
+    {
+      "target": "darwin-arm64",
+      "oldClientVersions": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4",
+        "1.0.5"
+      ],
+      "candidateVersion": "1.0.6",
+      "recoveryBaseline": "1.0.4",
+      "signatureAndMetadata": "passed",
+      "recoveryCompatibility": "passed",
+      "downloads": [
+        {
+          "kind": "zip",
+          "name": "insight-1.0.6-mac-arm64.zip",
+          "size": 329932251,
+          "sha512": "gZucequZjZJ0VpzSKWD1L7WMyPagh9DQ+5TpAjRr2gUH9zoMU4tf520/z4zQ/6BGo51SaohHg9KnFOywgyS/Uw==",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-1.0.6-mac-arm64.zip",
+          "head": "passed",
+          "range": "passed"
+        },
+        {
+          "kind": "dmg",
+          "name": "insight-1.0.6-mac-arm64.dmg",
+          "size": 280304697,
+          "sha512": "8TZIn0iLYCYLm9dqONZ+rh1BfdXa6s9C6ihb9A6vl5c56YngGvz50GXuzjwm0J8/RdH6Kvmd3F7vpu5DAhnaIQ==",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-1.0.6-mac-arm64.dmg",
+          "head": "passed",
+          "range": "passed"
+        }
+      ]
+    },
+    {
+      "target": "darwin-x64",
+      "oldClientVersions": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4",
+        "1.0.5"
+      ],
+      "candidateVersion": "1.0.6",
+      "recoveryBaseline": "1.0.4",
+      "signatureAndMetadata": "passed",
+      "recoveryCompatibility": "passed",
+      "downloads": [
+        {
+          "kind": "zip",
+          "name": "insight-1.0.6-mac-x64.zip",
+          "size": 341753250,
+          "sha512": "xKpQi6lt8S18TI5pN6G6l66fcJDhp84EQMxWAmRdN+f/DiU6gyGTf0iiu6UjeXo78gM+fyQ/dosTPLb34W5odw==",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-1.0.6-mac-x64.zip",
+          "head": "passed",
+          "range": "passed"
+        },
+        {
+          "kind": "dmg",
+          "name": "insight-1.0.6-mac-x64.dmg",
+          "size": 290928251,
+          "sha512": "/6duBRfOBfxnHenMb1zUPYPQUxitA6QcMBEx8iyDBR+EVlYIH7seHSNi3EXXevMSLsf2wH8AZ9kLtdelXuWs7A==",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-1.0.6-mac-x64.dmg",
+          "head": "passed",
+          "range": "passed"
+        }
+      ]
+    },
+    {
+      "target": "win32-x64",
+      "oldClientVersions": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4",
+        "1.0.5"
+      ],
+      "candidateVersion": "1.0.6",
+      "recoveryBaseline": "1.0.4",
+      "signatureAndMetadata": "passed",
+      "recoveryCompatibility": "passed",
+      "downloads": [
+        {
+          "kind": "nsis",
+          "name": "insight-1.0.6-windows-x64-setup.exe",
+          "size": 278943045,
+          "sha512": "oN4WfpYjJvBLqmP23/UtI84GJ2TYhNxKD0Zk2JEDQf/zHnGhDzTE0SkXivGwX3OaRjVUdgAT1fCntaA+H3/jSw==",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/insight-1.0.6-windows-x64-setup.exe",
+          "head": "passed",
+          "range": "passed"
+        }
+      ]
+    }
+  ],
+  "ok": true,
+  "scope": "Frozen old update source, signed live CDN discovery, installer HEAD/Range. Native package installation/startup checks are recorded separately; no existing user application or account data changed."
+}

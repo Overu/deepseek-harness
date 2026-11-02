@@ -1,0 +1,194 @@
+{
+  "checkedAt": "2026-10-16T09:07:04.095Z",
+  "release": {
+    "id": 414711788,
+    "tag": "v1.0.7",
+    "draft": true,
+    "assets": 17
+  },
+  "checks": {
+    "targetSignatures": true,
+    "sourceIdentity": true,
+    "runtimeIdentity": true,
+    "compatibilityUnchanged": true,
+    "completeAssetNamesAndSizes": true,
+    "largeAssetContent": "Complete artifact bytes were verified by the build workflow; guarded publishing repeats verification before rollout. This local check covers signatures and asset names/sizes without another full download."
+  },
+  "targets": [
+    {
+      "target": "darwin-arm64",
+      "manifestSha512": "EVWa0C/YXnVcnceaJxjFckzA9UURu07CS0hyuSnQEFlUdxSn+N0diZSBl2hejPTERswrLBfg2+Xg0KAP7cCElw==",
+      "signatureValid": true,
+      "manifest": {
+        "schema": "insight-desktop-target/v2",
+        "version": "1.0.7",
+        "target": {
+          "platform": "darwin",
+          "arch": "arm64"
+        },
+        "shellCommit": "4c13969622237ccec798d9de0ddea3c154699806",
+        "coreRuntime": {
+          "tag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+          "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+        },
+        "compatibility": {
+          "profileSchema": 1,
+          "accountStorageSchema": 1,
+          "readsDataSchema": {
+            "minimum": 1,
+            "maximum": 2
+          },
+          "writesDataSchema": 2
+        },
+        "artifacts": [
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "blockmap",
+            "name": "insight-1.0.7-mac-arm64.zip.blockmap",
+            "size": 342727,
+            "sha512": "I/NNAiM+FV4/HzXUnX3eEDq3O9aKHdJoTBv9B89fKwB91I6jP8K5yB39RkG/jaZcGi/Xgb9tIE2W4viSGolYfg=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "dmg",
+            "name": "insight-1.0.7-mac-arm64.dmg",
+            "size": 280305575,
+            "sha512": "U2TO1vgEHk/qRa4z6hdD6muaIzU2OpKMUJd38TcPNMv5GUcW7Q17UUWgRTKdWu/NteTUx69EaCdykJ4iV3gW0Q=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "updater-metadata",
+            "name": "latest-mac.yml",
+            "size": 384,
+            "sha512": "tJi6DpfBfBdYiGdoiMC/WwVdBzrgs6IqbiDzKgIUE8zhuBsqgq1lSqu7SMsqvJ7b0lhhta7CNlAERsqtK194HA=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "zip",
+            "name": "insight-1.0.7-mac-arm64.zip",
+            "size": 329932332,
+            "sha512": "CTnHhGt90KiEY9CzGttOn/WL3YF0ECBjFgwBxhDxHDHrDpgb2rAQzBFM35shMKhja+dGGcuNdliB2I8qpPqkZQ=="
+          }
+        ]
+      }
+    },
+    {
+      "target": "darwin-x64",
+      "manifestSha512": "rS8TwERKbwP2ONlpuPJR0PgkabX+SsFwJYnHY4m0bNcGYkkpQ8oLfZaVkhCZg+KsiYmGM7fKqy1EodaywlZt+A==",
+      "signatureValid": true,
+      "manifest": {
+        "schema": "insight-desktop-target/v2",
+        "version": "1.0.7",
+        "target": {
+          "platform": "darwin",
+          "arch": "x64"
+        },
+        "shellCommit": "4c13969622237ccec798d9de0ddea3c154699806",
+        "coreRuntime": {
+          "tag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+          "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+        },
+        "compatibility": {
+          "profileSchema": 1,
+          "accountStorageSchema": 1,
+          "readsDataSchema": {
+            "minimum": 1,
+            "maximum": 2
+          },
+          "writesDataSchema": 2
+        },
+        "artifacts": [
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "blockmap",
+            "name": "insight-1.0.7-mac-x64.zip.blockmap",
+            "size": 354187,
+            "sha512": "qAi9JpnzLYhftIHU7BmdD/ghW83qTEWlsT/J3WRbwxu2Sryey1F77HPlxCYoKnWxX672z9wK8B8F+xNfQjr4lg=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "dmg",
+            "name": "insight-1.0.7-mac-x64.dmg",
+            "size": 290929258,
+            "sha512": "abu8f/D6+D3YBqNy3n9J7tguoRjGI7bjFDcTYMp3pPDSYbBPrz7hHMyvQPKHaaxF1LQmdCA7VueVaSrNHUUTGg=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "updater-metadata",
+            "name": "latest-mac.yml",
+            "size": 380,
+            "sha512": "ww4rhgHb7WSVT8rty0Dysh0jGg+KorSV/reO+7DUceEaR33dvRcLQw7FMOEgLk+/fqr+joafhBg8xDDvm0u/rw=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "zip",
+            "name": "insight-1.0.7-mac-x64.zip",
+            "size": 341753426,
+            "sha512": "yQZbSJEAEXddVZrcZpa6pXm3XdeMEvGzku14WKR2ePFv4BZA1ZQEklgK7qSACQhiEx7AObheaYClgIqNUNJkFg=="
+          }
+        ]
+      }
+    },
+    {
+      "target": "win32-x64",
+      "manifestSha512": "npKDjFtRg+mLBNzHdn9+5JlVYS/Utd9VteMc/SRsSgL2XbPPl6qrS02rs90MGpxkAS5OMrWhQ2YbuoukGlS+Pw==",
+      "signatureValid": true,
+      "manifest": {
+        "schema": "insight-desktop-target/v2",
+        "version": "1.0.7",
+        "target": {
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "shellCommit": "4c13969622237ccec798d9de0ddea3c154699806",
+        "coreRuntime": {
+          "tag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+          "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+        },
+        "compatibility": {
+          "profileSchema": 1,
+          "accountStorageSchema": 1,
+          "readsDataSchema": {
+            "minimum": 1,
+            "maximum": 2
+          },
+          "writesDataSchema": 2
+        },
+        "artifacts": [
+          {
+            "platform": "win32",
+            "arch": "x64",
+            "kind": "blockmap",
+            "name": "insight-1.0.7-windows-x64-setup.exe.blockmap",
+            "size": 284487,
+            "sha512": "CcOhd9SHB91Tr6NGxrwfjw3DX1XYPl4WVZ3Xyy3yJXB/B+rkmWty4/NwSRgSVh9brdFI3amW5eWdfzk/Oo3ULQ=="
+          },
+          {
+            "platform": "win32",
+            "arch": "x64",
+            "kind": "nsis",
+            "name": "insight-1.0.7-windows-x64-setup.exe",
+            "size": 278943031,
+            "sha512": "umodF4UCjCMjChpKN7GSm8idR7udG7banDWRQQ1JUWUnYXeQLHYIZ+224Q7RyJGnmvwcJevqIJ+9EujBJABaUg=="
+          },
+          {
+            "platform": "win32",
+            "arch": "x64",
+            "kind": "updater-metadata",
+            "name": "latest.yml",
+            "size": 371,
+            "sha512": "Ai/6adrOA/GMx/0O7HXGoBfgcHIM5d186KegUvcfneFJl6SWL5sPtaoub5GUgTkCfhNKNuv74FuVmbBTrIidcg=="
+          }
+        ]
+      }
+    }
+  ]
+}

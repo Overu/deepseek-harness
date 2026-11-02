@@ -7,6 +7,13 @@ import { findConcreteTermViolations, readTrackedSource } from './verify-concrete
 const blockedTerm = 'prove' + 'nance'
 
 describe('concrete terminology policy', () => {
+  it('retains historical field names only inside the sealed Shell snapshot', () => {
+    expect(findConcreteTermViolations('docs/insight/history/shell/evidence.json', blockedTerm)).toEqual([])
+    for (const file of ['docs/insight/history/shell-copy/evidence.json', 'docs/insight/baseline-changes.md']) {
+      expect(findConcreteTermViolations(file, blockedTerm)).toEqual([{ file, line: 1 }])
+    }
+  })
+
   it('rejects case variants in paths, prose, and identifiers', () => {
     expect(findConcreteTermViolations(`docs/${blockedTerm}-notes.md`, [
       'origin metadata',

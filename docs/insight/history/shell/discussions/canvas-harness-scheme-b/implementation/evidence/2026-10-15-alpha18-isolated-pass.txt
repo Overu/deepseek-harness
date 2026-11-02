@@ -1,0 +1,6 @@
+PASS: actual Core Jobs producer/wait/controller and User Questions services are available
+PASS: actual Core catalog contains seven compatible canvas tools plus canvas_run and packaged OSS dependency
+PASS: actual Core private Domain persistence/reopen, real Session root/history, protected source query/SSE and foreign-root refusal; no model invocation
+PASS: packaged Host v4 bridge authentication, registration, SSE handshake, session sync and detach; no business command
+PASS: isolated install, protected page and model params route, two canvas IDs, service manifest/chunks and packaged Vite assets and desktop-login gate
+PASS: isolated plugin removal

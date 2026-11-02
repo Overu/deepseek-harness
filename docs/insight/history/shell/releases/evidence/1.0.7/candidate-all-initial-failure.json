@@ -1,0 +1,9 @@
+{
+  "runId": 38878298033,
+  "jobId": 116898582989,
+  "failure": "CDN did not converge to the verified bytes: desktop/releases/v1.0.6/targets/darwin-x64/insight-1.0.6-mac-x64.dmg",
+  "phase": "Stable recovery installer verification before Intel Candidate commit",
+  "causeDetails": "Underlying transport versus content mismatch is not reported by the guarded verifier; independent recovery installer checks and a guarded single-target retry are required",
+  "sourceChanged": false,
+  "stablePromotionAttempted": false
+}

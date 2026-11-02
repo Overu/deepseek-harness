@@ -20,6 +20,7 @@ export interface ConcreteTermViolation {
 
 function isExcluded(file: string): boolean {
   return excludedPrefixes.some(prefix => file.startsWith(prefix))
+    || file.startsWith('docs/insight/history/shell/')
     // Release snapshots retain the identifiers present in their pinned source;
     // historical-format pairing records key sections by those identifiers' headings.
     || /^docs\/persistence-changes\/releases\/dsh-v\d+\.\d+\.\d+-(?:alpha|rc)\.\d+\.schema\.json$/u.test(file)

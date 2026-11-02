@@ -1,0 +1,48 @@
+{
+  "schema": "insight-desktop-target/v2",
+  "version": "1.0.9",
+  "target": {
+    "platform": "win32",
+    "arch": "x64"
+  },
+  "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+  "coreRuntime": {
+    "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+    "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+  },
+  "compatibility": {
+    "profileSchema": 1,
+    "accountStorageSchema": 1,
+    "readsDataSchema": {
+      "minimum": 1,
+      "maximum": 2
+    },
+    "writesDataSchema": 2
+  },
+  "artifacts": [
+    {
+      "platform": "win32",
+      "arch": "x64",
+      "kind": "blockmap",
+      "name": "insight-1.0.9-windows-x64-setup.exe.blockmap",
+      "size": 321352,
+      "sha512": "Vj8b92EuEqDrRg89bbvwBYX+coJMGgg96o0pq/ZOUpvRhYoLT2t/2tZ4VKPvIh1x2b2RbPjNOpUeRf0H52LQTQ=="
+    },
+    {
+      "platform": "win32",
+      "arch": "x64",
+      "kind": "nsis",
+      "name": "insight-1.0.9-windows-x64-setup.exe",
+      "size": 336049614,
+      "sha512": "sddhJbdX28oDZ7w4eON7tsJLDTMy8/S1a+/X/TdspxRGlpBNTmeJ++mWKlCaUiRtxjCO2u8DgGeXnXWSe6j/DQ=="
+    },
+    {
+      "platform": "win32",
+      "arch": "x64",
+      "kind": "updater-metadata",
+      "name": "latest.yml",
+      "size": 371,
+      "sha512": "aat1PAf7+4PrawcgkDf9Z2OPLW2jphhTfgiLX99yopMSMFjgHy/4uNh4JBfEX6jGreRkRkxfl7WGnZkGVtDgOA=="
+    }
+  ]
+}

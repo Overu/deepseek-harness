@@ -1,0 +1,10 @@
+{
+  "runId": 38873222346,
+  "jobId": 116882729478,
+  "jobUrl": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/38873222346/job/116882729478",
+  "step": "Build signed Intel package",
+  "observedAt": "2026-10-16T08:35:32Z",
+  "failure": "Apple CloudKit ticket lookup lost its network connection (NSURLErrorDomain -1005); application staple failed with Error 68",
+  "sourceChanged": false,
+  "remediation": "Retry only failed job and its dependent publish job on the same frozen v1.0.7 source"
+}

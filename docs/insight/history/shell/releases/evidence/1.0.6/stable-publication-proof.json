@@ -1,0 +1,69 @@
+{
+  "version": "1.0.6",
+  "ok": true,
+  "verifiedAt": "2026-10-09T08:55:44.001520+00:00",
+  "userAcceptance": "用户明确确认已手动验收完成 1.0.6 Candidate，并授权转正；不将三平台 CI 验证标记为三平台人工验收。",
+  "command": "promote-stable-all",
+  "run": {
+    "id": 37907418690,
+    "html_url": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/37907418690",
+    "created_at": "2026-10-09T08:50:10Z",
+    "updated_at": "2026-10-09T08:51:10Z",
+    "conclusion": "success",
+    "head_sha": "29718822b36a232eeabe202b77fed6ae44256338"
+  },
+  "publisherDurationSeconds": 60,
+  "stableBefore": {
+    "schema": "insight-desktop-rollout/v2",
+    "state": "active",
+    "track": "stable",
+    "version": "1.0.4",
+    "referencedSha512": "rub5qrkyHy6qnaX83xfAcElaWhkzqxJWZQmWNbE8FIP4x3RnQaUlj+8VOxBYvX5qGJSyl4HdpGCeii+HFxfi3Q==",
+    "policy": {
+      "mode": "optional",
+      "minimumSupportedVersion": "1.0.0-rc.1"
+    },
+    "publishedAt": "2026-10-08T17:19:28.569Z"
+  },
+  "stableAfter": {
+    "schema": "insight-desktop-rollout/v2",
+    "state": "active",
+    "track": "stable",
+    "version": "1.0.6",
+    "referencedSha512": "sw3pZg4uhSYNdqu9RW5RGxpSxRUvzHPVOnJeQ/iDgirG7yySkqXifInosbMQfrQhC1UBWNP+CiH2dwmd2RZDpQ==",
+    "policy": {
+      "mode": "optional",
+      "minimumSupportedVersion": "1.0.0-rc.1"
+    },
+    "publishedAt": "2026-10-09T08:50:55.382Z"
+  },
+  "githubRelease": {
+    "id": 407577205,
+    "tag_name": "v1.0.6",
+    "html_url": "https://github.com/Boxser567/insight-desktop-shell/releases/tag/v1.0.6",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-10-09T08:51:02Z"
+  },
+  "publicLatestVerifiedWithoutAuthentication": true,
+  "original17AssetsUnchanged": true,
+  "additionalAssets": [
+    "insight-release.json",
+    "insight-release.json.sig"
+  ],
+  "shellCommit": "29718822b36a232eeabe202b77fed6ae44256338",
+  "coreRuntime": {
+    "tag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+    "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+  },
+  "candidateManifestBytesUnchanged": true,
+  "oldClientProtocolProof": "stable-detection-proof.json",
+  "publisherProof": "stable-publisher-report.json",
+  "signedEnvelope": "stable-current-1.0.6.json",
+  "signedReleaseIndex": "stable-release-index.json",
+  "nativeStartupRecoveryAndMacSigningProof": "build-acceptance-proof.json",
+  "sameVersionCandidateBehavior": "update-manager.ts reads its Candidate installation marker; equal-version Stable clears the marker, displays promoted-from-candidate and does not start downloading.",
+  "knownPluginCompatibility": "Desktop canvas 0.3.0-alpha.7 requires a separate plugin update to 0.3.0-alpha.8; client update does not auto-upgrade third-party plugins.",
+  "readmeAndUserBusinessDocsModified": false,
+  "installedApplicationAndAccountDataModified": false
+}

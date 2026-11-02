@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for architecture.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/insight/architecture.md
+/insight-desktop-architecture:
+  en: 1bf5eedadb939b8c
+  zh: 22d470776c4e0ab1
+/insight-desktop-architecture/summary:
+  en: ed08abc38d81e307
+  zh: 0bc72ddb56bf9090
+/insight-desktop-architecture/product-and-runtime-identity:
+  en: a5fc4cb1d3e3596f
+  zh: 8d25cb8077b0a1ee
+/insight-desktop-architecture/startup-and-account-ownership:
+  en: 236c873c72c11436
+  zh: 49e07963b7e5e527
+/insight-desktop-architecture/process-data-flow:
+  en: b6ddde9f5f3e7b1e
+  zh: 895bb38ee6ee0300
+/insight-desktop-architecture/source-and-release-ownership:
+  en: 9de7faf5a6345043
+  zh: 8b3ead510ac6f6c0
+/insight-desktop-architecture/related-documentation:
+  en: e7ca800b3d66d964
+  zh: 859ecf517b8c606e
+/insight-desktop-architecture/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

@@ -1,0 +1,90 @@
+{
+  "version": "0.3.0-alpha.22",
+  "branch": "codex/canvas-batch-integration",
+  "status": "DONE_WITH_CONCERNS",
+  "rootTests": {
+    "passed": 336,
+    "failed": 0,
+    "skipped": 0
+  },
+  "nativeTests": {
+    "files": 27,
+    "passed": 348,
+    "failed": 0
+  },
+  "targeted": {
+    "httpDownloadTests": 14,
+    "uiDownloadTests": 8,
+    "redBeforeFix": {
+      "uiFailed": 5,
+      "uiWebPassed": 1,
+      "cspFailed": 1,
+      "storyboardDenied": true
+    }
+  },
+  "types": {
+    "plugin": true,
+    "actualCoreSdk": true,
+    "noUnused": true,
+    "webBaselineCount": 9,
+    "webCurrentCount": 9,
+    "webIdentical": true
+  },
+  "electron": {
+    "phase": "after",
+    "localReads": {
+      "blob": "local",
+      "data": "local"
+    },
+    "nativeDownloadCount": 3,
+    "popupAttempts": 0,
+    "imageBytesMatch": true,
+    "videoBytesMatch": true,
+    "zipFiles": [
+      "耳机.png",
+      "耳机_1.png"
+    ],
+    "zipBytesMatch": true,
+    "failedResourceDidNotDownload": true,
+    "remoteCredentialsAbsent": true,
+    "cspBlockedFetches": 0,
+    "fixtureOnly": true
+  },
+  "actualPackageIsolated": {
+    "installedAndRemoved": true,
+    "downloadAuthAndInvalidSourceRefusal": true,
+    "eightToolsAndGuidance": true,
+    "sourcePersistenceAndBridge": true,
+    "realAccount": false
+  },
+  "artifact": {
+    "version": "0.3.0-alpha.22",
+    "archive": "/Users/boxser.shi/Documents/harness/desktop-canvas-plugin/insight-ai-desktop-canvas-plugin-0.3.0-alpha.22.tgz",
+    "bytes": 14624079,
+    "files": 64,
+    "sha256": "ed3762bafec4b049683898b2aa1c7ff4d9863b83ce2a50af5a9278ec184697b0",
+    "sourceBytesMatch": true,
+    "whitelistPass": true,
+    "downloadRouteBundled": true,
+    "alpha21Unchanged": true,
+    "alpha20Unchanged": true
+  },
+  "review": {
+    "openBlockers": 0,
+    "fixed": [
+      "persisted storyboard media source authorization",
+      "local Blob/Data reads under CSP"
+    ]
+  },
+  "boundaries": {
+    "onlyPersistedCanvasResources": true,
+    "assetLibraryNotAddedToCanvas": false,
+    "arbitraryUrlProxy": false,
+    "coreChanged": false,
+    "shellSourceChanged": false,
+    "backendChanged": false,
+    "clientInstalled": false,
+    "realAccountTested": false,
+    "committedOrPushed": false
+  }
+}

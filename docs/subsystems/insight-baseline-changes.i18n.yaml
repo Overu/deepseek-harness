@@ -2,24 +2,6 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/insight-baseline-changes.md
-/insight-baseline-integration-record:
-  en: bacb14217c8e36d9
-  zh: dfc676127ce20852
-/insight-baseline-integration-record/scope:
-  en: db77ce56edef5d80
-  zh: aaeb6e50bdf9aecc
-/insight-baseline-integration-record/existing-file-changes:
-  en: ed7ebec8b92d23c0
-  zh: b5adc9fad3f5db81
-/insight-baseline-integration-record/new-integration-owners:
-  en: b10cf7f84373fa83
-  zh: aec1750da36572c3
-/insight-baseline-integration-record/baseline-synchronization:
-  en: 2f348ddb4c3e030d
-  zh: dcaa1808b387d93f
-/insight-baseline-integration-record/host-value-dependency-classification:
-  en: 7b51f3f26755e589
-  zh: 9d1d9eb81fd5d242
-/insight-baseline-integration-record/dev-note:
-  en: b75c8458928b72b9
-  zh: 003ba4e17b4b5269
+/insight-baseline-record-entry:
+  en: cf071a11bc6d0aec
+  zh: 28adbfe44fd05ac6

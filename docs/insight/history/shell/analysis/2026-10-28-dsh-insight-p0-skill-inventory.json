@@ -1,0 +1,1892 @@
+{
+  "schemaVersion": 1,
+  "status": "P0 static source inventory; not runtime acceptance",
+  "date": "2026-10-28",
+  "timezone": "Asia/Shanghai",
+  "repository": "insight-desktop-shell",
+  "sourceCommit": "d70ba7d25e4c82d34b8931e47895b87ea69aead3",
+  "root": "bundled-skills",
+  "treeHashAlgorithm": "sha256(UTF8(JSON compact array of [relative path,file sha256], sorted by path; ensure_ascii=false))",
+  "excluded": [
+    ".git",
+    "node_modules",
+    "__pycache__",
+    ".DS_Store",
+    "*.pyc"
+  ],
+  "skills": [
+    {
+      "inventoryId": "S01",
+      "directory": "activity-search",
+      "invocationName": "activity-search",
+      "displayName": "线下活动查询",
+      "shortDescription": "按需检索相关线下活动的案例，每个案例结果包括场地、装置、互动玩法与原文链接等。",
+      "entrySha256": "f1dd847a74fbe6689f5333ffcbd59c9912a316b3eb6f2facd69bcbb96a2b1a2f",
+      "treeSha256": "c0cdbd47b205b925dedbe9866eced5af31ee484325c4fc3d04d52e5325c3da8b",
+      "fileCount": 7,
+      "bytes": 75743,
+      "scriptCount": 4,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 9129,
+          "sha256": "f1dd847a74fbe6689f5333ffcbd59c9912a316b3eb6f2facd69bcbb96a2b1a2f"
+        },
+        {
+          "path": "references/api-notes.md",
+          "bytes": 5227,
+          "sha256": "eb7fc7d940c2ca9dba5c7693cba52c599132f248427e334bf7582bf6bfcda85f"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "scripts/ragflow_retrieval.py",
+          "bytes": 40549,
+          "sha256": "78be796731c694ae517a035ceadedaea2f94307b00a15501ddd38ee930abfa56"
+        },
+        {
+          "path": "tests/test_render.py",
+          "bytes": 10686,
+          "sha256": "e57366d53eda53841ac03e4d502cb363189fcc7346f990d9ebac7e683e343c51"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 185,
+          "sha256": "9d5d16fc8e0f6f18c9278a50761245e42cedd4f9c00bbafd59309fec2e1dd0ca"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S02",
+      "directory": "brand-campaign-monitoring",
+      "invocationName": "brand-campaign-monitoring",
+      "displayName": "品牌活动监测",
+      "shortDescription": "跟踪品牌传播与社媒舆情，识别风险并提供优化建议。",
+      "entrySha256": "c3c8febbfb9b302dd79abc32cf105b43f7033dd2b80abf3bff5c1047bbd87721",
+      "treeSha256": "332357c771acb13b4101cc8d9944072f803ae6a90663695efc8944534d6ca466",
+      "fileCount": 15,
+      "bytes": 65202,
+      "scriptCount": 4,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 10568,
+          "sha256": "c3c8febbfb9b302dd79abc32cf105b43f7033dd2b80abf3bff5c1047bbd87721"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "bytes": 308,
+          "sha256": "5a9c84f1695b41f9486191d34da7fb32039e8736e5f0b1ed5296950234f6fd22"
+        },
+        {
+          "path": "references/data-contract.md",
+          "bytes": 6930,
+          "sha256": "247102bd0d3327163776adaff5f2c5aae15c02161db7481398658d585e54fd74"
+        },
+        {
+          "path": "references/final-extra-probes.json",
+          "bytes": 646,
+          "sha256": "281cf25f96066cd6e46316384ce43631124f50708af0095e637cb128cba1f95e"
+        },
+        {
+          "path": "references/live-chain-probes.json",
+          "bytes": 7011,
+          "sha256": "750b5044e2bf2949c1a8c5e322182ead00ca685e23486f05761307f09f82689d"
+        },
+        {
+          "path": "references/live-fallback-probes.json",
+          "bytes": 2925,
+          "sha256": "ad4ab4d34f40bb08900f20360048bdb59a456dffd1dd691ceb606e2e8490283c"
+        },
+        {
+          "path": "references/monitoring-playbook.md",
+          "bytes": 4862,
+          "sha256": "f33327d320b782cf7f0ef2438bca386ebc6ff670539af43b625a238d35f9b389"
+        },
+        {
+          "path": "references/platform-capability-matrix.md",
+          "bytes": 5857,
+          "sha256": "59d2d587c5e5f5faac1f8bd8d6d9b349a2556e3bf5dc033959b688b4e9bfcb5b"
+        },
+        {
+          "path": "references/threads-chain-probes.json",
+          "bytes": 302,
+          "sha256": "ecc976c810f6fc3cee96a95ea6b08dd172f13b462791d3069677d56a555e59dd"
+        },
+        {
+          "path": "references/threads-content-probes.json",
+          "bytes": 320,
+          "sha256": "f73d95ace325758e63ab40f1f9ef5b7ff31681250aa0b666bbdfe1c1f00ab443"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "scripts/tikhub_probe.py",
+          "bytes": 13094,
+          "sha256": "ab7435346abd7d6dc3fcce73beee813036b887a25f4bfc02803ec2fd235b47d5"
+        },
+        {
+          "path": "tests/test_probe.py",
+          "bytes": 2272,
+          "sha256": "58a103075f3dacfe3e7e7295d834a9b90eb795fc62f3bdd1a87af058af858555"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 140,
+          "sha256": "c62d6e746c02034f5f58793573a250d2845b736e4f46e586c288c53509a855f8"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S03",
+      "directory": "canvas-workflow-builder",
+      "invocationName": "canvas-workflow-builder",
+      "displayName": "画布工作流智能构建",
+      "shortDescription": "将用户需求拆解为可执行的画布工作流，自动完成节点参数、连线、布局等配置。",
+      "entrySha256": "4566a5fe0a57e36afabd150406f4c01e10919d3fdbfbbe572d11fb02447d7c3a",
+      "treeSha256": "b34f681458e806a9fb50e3a080aafbe05916f7152ef8103e9e8a74de3173ffb5",
+      "fileCount": 39,
+      "bytes": 524540,
+      "scriptCount": 13,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 35234,
+          "sha256": "4566a5fe0a57e36afabd150406f4c01e10919d3fdbfbbe572d11fb02447d7c3a"
+        },
+        {
+          "path": "examples/README.md",
+          "bytes": 2961,
+          "sha256": "a1802c1524e0f1fb7ad0c106edc2b55dc8647240d173715abcee895befb2e060"
+        },
+        {
+          "path": "examples/canvas-graph.sample.json",
+          "bytes": 2386,
+          "sha256": "582c1bbceeb8d63cb82c4f2df19115dcd17e5222f8ac6f390483f679230d86e9"
+        },
+        {
+          "path": "examples/canvas-nodes.sample.json",
+          "bytes": 2263,
+          "sha256": "790b21712aaa9e93f0a08fb619a087758917d39f02fb458f2fbb30b0650af117"
+        },
+        {
+          "path": "examples/e2e-log.md",
+          "bytes": 15191,
+          "sha256": "f9b7beb47ed98dff58c1999296efe35218a72ea013c71c53bf8f451d0e3205d9"
+        },
+        {
+          "path": "examples/ecommerce-poster-fanout.plan.json",
+          "bytes": 7113,
+          "sha256": "791cc61daf33aba49814c9f6646f4ee8574b32668bacb7e6aa1f5462d1e30f26"
+        },
+        {
+          "path": "examples/ecommerce-poster.plan.json",
+          "bytes": 6172,
+          "sha256": "822f7752ab367d53378e4f184a207b600ca889ef48c523716114e95112cbed94"
+        },
+        {
+          "path": "examples/multi-platform-poster.plan.json",
+          "bytes": 6406,
+          "sha256": "b2c571d826ed39415463b2b37037dadbf5256eea01107278e00f96ccbaaef500"
+        },
+        {
+          "path": "examples/product-video.plan.json",
+          "bytes": 4451,
+          "sha256": "381b72746123759a51ac9d239fd3c14e41ac721b0dfcba6893ccc39381484ad3"
+        },
+        {
+          "path": "examples/tts-voiceover.plan.json",
+          "bytes": 1524,
+          "sha256": "d12f3e1d93a8c566a893515aff0c512522a941d9da31b78bbfb79c6e53f5fc0b"
+        },
+        {
+          "path": "examples/variant-suite.plan.json",
+          "bytes": 8455,
+          "sha256": "3a685fe1a2bfd778108383d94b00c0f1296a9b1aa1640788e1e80740dbf7f169"
+        },
+        {
+          "path": "references/archetypes.md",
+          "bytes": 44469,
+          "sha256": "0e26fdc042e51ec3aa0517a9a4b8408b448bb7e06e53b4dc483abd53645f8ea9"
+        },
+        {
+          "path": "references/connection-recovery.md",
+          "bytes": 7409,
+          "sha256": "6e17e2daafdba7435c40d336ecb47c8bc7e10bb843d6eb22cb62f64be7c39ef4"
+        },
+        {
+          "path": "references/connection-rules.md",
+          "bytes": 15579,
+          "sha256": "e8f04d8cd8d938e29cb3feba7d89c772af18c79501eaa865a4685ec0f2504a50"
+        },
+        {
+          "path": "references/ecommerce-patterns.md",
+          "bytes": 22897,
+          "sha256": "d746df173db893e90458527f8f48a9e45a451d6effa18b6380da3efe2fe21883"
+        },
+        {
+          "path": "references/graph-dsl.md",
+          "bytes": 20125,
+          "sha256": "42f09e4e5bc954a416b3cf2216b63d28b97303c5d29643690609af2ea2ecdf23"
+        },
+        {
+          "path": "references/media-intake.md",
+          "bytes": 7588,
+          "sha256": "d657077011cb0bef4ff07d6c1f4bf12618ec0694672731de50453c936915327e"
+        },
+        {
+          "path": "references/model-matrix.md",
+          "bytes": 58338,
+          "sha256": "0276b2b3ebc94cb01dd348c0f80e87b89e3974a3832c85a8e260c07f6e3b4710"
+        },
+        {
+          "path": "references/models-and-params.md",
+          "bytes": 24573,
+          "sha256": "88484dcded0963d96aa00391daa3ebbee040571b6b15fe9cca16007f561bfeee"
+        },
+        {
+          "path": "references/prompt-craft.md",
+          "bytes": 23907,
+          "sha256": "f4c1a3a41681c536bc5d212caa1cc14b24d0b9f5f9afdc352e703b58fcdf76c6"
+        },
+        {
+          "path": "references/qa-checklist.md",
+          "bytes": 11116,
+          "sha256": "5b7bec74641a451f8a30b874c893947894a268d8b162683d91cb5d811b6e1b01"
+        },
+        {
+          "path": "references/requirement-intake.md",
+          "bytes": 6816,
+          "sha256": "918d5f2438e3d8ddd7bf69301eb7842cc58cee916963b36be3ce1cad94e300b9"
+        },
+        {
+          "path": "references/text-node-prompting.md",
+          "bytes": 23633,
+          "sha256": "ca1c00681979ff73c5813f74ae6217a1480be4264f8a275dc819ef21536a5c57"
+        },
+        {
+          "path": "references/tool-contract.md",
+          "bytes": 24529,
+          "sha256": "002f19573be49524297d4750efece9978161221278c28e4e083eba62316a71c3"
+        },
+        {
+          "path": "scripts/check_complete.py",
+          "bytes": 9884,
+          "sha256": "93591bea3fe16b3890daf8edf9b05d469000e12ed1166b1ab55a87e6cec490c6"
+        },
+        {
+          "path": "scripts/export_share.py",
+          "bytes": 10500,
+          "sha256": "58d413926844b5065bf200383cdee36686179f3da44bb024a09f0accbdb8a7c7"
+        },
+        {
+          "path": "scripts/gen_model_matrix.py",
+          "bytes": 6095,
+          "sha256": "b5aa707a801423886ad27b094cd7b81f7a2d1dbab813caeb4764d0ffffc99e7b"
+        },
+        {
+          "path": "scripts/layout_plan.py",
+          "bytes": 14309,
+          "sha256": "c648bea6d60bd92b3d95af5a5ea62b475d71f6c39c01ece06912f6c960d09b67"
+        },
+        {
+          "path": "scripts/plan.schema.json",
+          "bytes": 11487,
+          "sha256": "831d71c15d21f472a5722b5013e646c036eebd4c4e7d34042b35c041f52c686c"
+        },
+        {
+          "path": "scripts/render_plan.py",
+          "bytes": 10541,
+          "sha256": "75247b79f11325538add6ec2723dcdfa98ba2e39f7ed229808c58e5d3a32a60c"
+        },
+        {
+          "path": "scripts/validate_plan.py",
+          "bytes": 29603,
+          "sha256": "7a11b509d31776f99e9b4bba428b000438c4160d2c5eb2e9e4c3ac1a96efb7ec"
+        },
+        {
+          "path": "scripts/verify_canvas.py",
+          "bytes": 6495,
+          "sha256": "8feafb426d6c34f6903ce36143f356f0c8f31304417f4441fc73bebf94b2df62"
+        },
+        {
+          "path": "tests/test_check_complete.py",
+          "bytes": 6077,
+          "sha256": "66375f81fc50e166fbe132081131de2fcf05bf18f6f280376ac0f434ca6e7b4c"
+        },
+        {
+          "path": "tests/test_export_share.py",
+          "bytes": 2114,
+          "sha256": "d4ba64e0c0c498069ec1fba96c14a45169eacd21b985d8a080e7b74fc7f7b157"
+        },
+        {
+          "path": "tests/test_layout_lanes.py",
+          "bytes": 5808,
+          "sha256": "0ae4de1d8acce4b8f4bf3e9ab779a15b243d983ab987bbca073e6a5ab1d89902"
+        },
+        {
+          "path": "tests/test_layout_plan.py",
+          "bytes": 5078,
+          "sha256": "9130cf8b428a8db2bb0b059bca4fd8588d8b769edabf1e982debb2b355b9001f"
+        },
+        {
+          "path": "tests/test_validate_plan.py",
+          "bytes": 19636,
+          "sha256": "b608e8721070a0a877f345f0b0c19dabad733f053811c13ca09f3050b635a4fb"
+        },
+        {
+          "path": "tests/test_verify_canvas.py",
+          "bytes": 3593,
+          "sha256": "6189491903acf2ffbc671426dc4fc61a8108834e95a2e7f2f8ae87cadc704b43"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 185,
+          "sha256": "79044fb7c742553746f4ecd29e25729afaf94e3297c83adee2e67288faf4e91d"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S04",
+      "directory": "category-competitor-insight",
+      "invocationName": "category-competitor-insight",
+      "displayName": "品类与竞品洞察",
+      "shortDescription": "分析品类机会、竞品内容和用户需求，支持营销决策。",
+      "entrySha256": "2ce37535ca012450a7909ac5e872a508273dbf42a7e1448eb13f3ea61f3f70ed",
+      "treeSha256": "765aaa48830fa31d7d0eedb66ec50c83e249b9dab6940c70bd70905ad44451d1",
+      "fileCount": 15,
+      "bytes": 88229,
+      "scriptCount": 8,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 13264,
+          "sha256": "2ce37535ca012450a7909ac5e872a508273dbf42a7e1448eb13f3ea61f3f70ed"
+        },
+        {
+          "path": "references/data-contract.md",
+          "bytes": 7399,
+          "sha256": "baa7d6d585ea64c9d4d2a9dcf3783646b031dadd86ab0d5a981187d69f1d7458"
+        },
+        {
+          "path": "references/opportunity-card.md",
+          "bytes": 2100,
+          "sha256": "5ed610ff0454ac5cfcd599393ca7bd5791376292893becbab7ff2800c073305d"
+        },
+        {
+          "path": "references/platform-routing.md",
+          "bytes": 9155,
+          "sha256": "d4545327b9221fed270d86390f4946fa9d69e9f02cb2a6fe83ec050f69e68307"
+        },
+        {
+          "path": "references/report-template.md",
+          "bytes": 5028,
+          "sha256": "508bdffbd23ed5523029841bc2ea9f934cdab58340a9af514d8af9c49b5edcba"
+        },
+        {
+          "path": "references/tikhub-endpoints.json",
+          "bytes": 3126,
+          "sha256": "86ded4dbf3550a6eba3babc88ed9831d749135d5a4f2f431bb72b65377df9984"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "scripts/tikhub_guard.py",
+          "bytes": 4017,
+          "sha256": "7c98b75eb9acbabaa661178630e33358b9311795b246e8ad4357bceeaef08e0e"
+        },
+        {
+          "path": "scripts/tikhub_readonly.py",
+          "bytes": 4492,
+          "sha256": "f9181b2a5f68c5cf9e9b8e749fbbac97120e74aedbc63585ad81a232cb11617b"
+        },
+        {
+          "path": "scripts/validate_business_report.py",
+          "bytes": 7449,
+          "sha256": "fb44c8fe3b17ab7798b84c157ac910f48f1d038dbd0d714aba56c994e47d7e74"
+        },
+        {
+          "path": "scripts/validate_insight_output.py",
+          "bytes": 3712,
+          "sha256": "d2dc2d759ee928c6663b24bc871b2bc0a2c9aaf76e2cf154348199ec2db1bf81"
+        },
+        {
+          "path": "tests/test_business_report.py",
+          "bytes": 10142,
+          "sha256": "7699bd913b767f85c14684f4f071dfa12e723e59d02504cd4de11a07c4979877"
+        },
+        {
+          "path": "tests/test_skill_hardening.py",
+          "bytes": 8235,
+          "sha256": "8c5f25c35a0a8a079334ce04a2d770683f14ba96840a199c78b5fe8b3deaf359"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 143,
+          "sha256": "7c8b9a615b1c661938e9e4b52d2d375b4f0606055e84acf3b5df05e85d96447f"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S05",
+      "directory": "creative-generation-evaluation",
+      "invocationName": "creative-generation-evaluation",
+      "displayName": "创意发想",
+      "shortDescription": "根据brief或需求，输出若干个创意参考。",
+      "entrySha256": "d719ecab335d75c00dcad283007611dd57181499274b42db1e81a37c1c613119",
+      "treeSha256": "b3f3a619c0702582ce94b2a9ebb8c0a86dc414e37bc86cf88d71b19e8d8b174d",
+      "fileCount": 7,
+      "bytes": 71656,
+      "scriptCount": 0,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "README.md",
+          "bytes": 2203,
+          "sha256": "0166901e3bfde2244e69f541051329cbdad51895595d755eee49b952bd761d36"
+        },
+        {
+          "path": "SKILL.md",
+          "bytes": 43674,
+          "sha256": "d719ecab335d75c00dcad283007611dd57181499274b42db1e81a37c1c613119"
+        },
+        {
+          "path": "case-learning-summary.md",
+          "bytes": 13952,
+          "sha256": "7007ab00c064181031e4d566d0247eaad94af3758a0046b28fc8bc115071da37"
+        },
+        {
+          "path": "references/03_Creative_Generation_Skill.md",
+          "bytes": 4168,
+          "sha256": "9b930258f4cbda40ba4a8f458d42cc84e22a889fdd0026f7b0d81c53ce58691c"
+        },
+        {
+          "path": "references/04_Creative_Evaluation_Skill.md",
+          "bytes": 3745,
+          "sha256": "d5577a77fea1fcbc87e13c84efbe727aa78dc99c2e2a36cf3cc1387f4e367f49"
+        },
+        {
+          "path": "references/05_Non_Typical_Combination_Skill.md",
+          "bytes": 3799,
+          "sha256": "5945180b0868070b4993269af7957aa5d3bcd9632f9bfd87d15d0e13b076cdb5"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 115,
+          "sha256": "d2d7d09c50a9a4ad2e20745e4e6510aef4ae6ef7bb547c0ff88c711f5bbcf4e1"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S06",
+      "directory": "creator-due-diligence",
+      "invocationName": "creator-due-diligence",
+      "displayName": "达人深度背调与品牌合作风险",
+      "shortDescription": "盘点达人跨平台公开账号，采样历史内容与用户反馈，核查竞品合作和公开争议",
+      "entrySha256": "8bd3dc9a5c312b1ce03417e1d04fc9370db34fa0a9ea18efa9d482b72322f3c5",
+      "treeSha256": "9dcf3967281e3fe1f2302d5478876b6f11558795317962f9f9e4902b3606dbb6",
+      "fileCount": 14,
+      "bytes": 217585,
+      "scriptCount": 5,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 9340,
+          "sha256": "8bd3dc9a5c312b1ce03417e1d04fc9370db34fa0a9ea18efa9d482b72322f3c5"
+        },
+        {
+          "path": "agents/openai.yaml",
+          "bytes": 465,
+          "sha256": "79f03ae4f03a18dec02847b61c3fc9d63d9c5eb94bd1ea3eb4c365a2b140d3c9"
+        },
+        {
+          "path": "references/collector-usage.md",
+          "bytes": 11401,
+          "sha256": "a520dcad7736fe64f126a86639c9b4a6c26298c3bbf39d60264f9d50a06f4403"
+        },
+        {
+          "path": "references/cross-platform-sampling.md",
+          "bytes": 7692,
+          "sha256": "fb57036ecbe01744a15a424548997fcd684d16844ce3116833206265ad6dbfd5"
+        },
+        {
+          "path": "references/investigation-method.md",
+          "bytes": 11388,
+          "sha256": "23470ada18d14d4a91080a049c3ac72624844153c483b1e56908dde1ade8f048"
+        },
+        {
+          "path": "references/public-endpoints.json",
+          "bytes": 71251,
+          "sha256": "fde37f9f2a3634812afe57e1888174e6da5487e5b86a2b9cae76821dff0b9d01"
+        },
+        {
+          "path": "references/report-contract.md",
+          "bytes": 15318,
+          "sha256": "c14f450fd0b34bb82dd70cd7d1c77aab1e111f3b8021e5ccbe64966c19815513"
+        },
+        {
+          "path": "references/tikhub-routing.md",
+          "bytes": 15729,
+          "sha256": "c37187a1fad46bf31cbdb6aa095b91e0db5eb55b246111b6473a95778b36f133"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "scripts/test_ledger_lock.py",
+          "bytes": 8124,
+          "sha256": "96d90ff856846943294c5785e1bbfc7251f7ac20e4228b6a686ac55d9a26e3e5"
+        },
+        {
+          "path": "scripts/test_tikhub_public.py",
+          "bytes": 32324,
+          "sha256": "c7d6a5dfd4a5e821ba1cb16455b3c3c866a6df8ca858bce6b029fe4ba00b0d5e"
+        },
+        {
+          "path": "scripts/tikhub_public.py",
+          "bytes": 24392,
+          "sha256": "71c53b00628b4ab8f92b531e8b24d1331d81f4d68401726e170ecf7bb7b0b331"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 194,
+          "sha256": "07cd5b2ce2cee210577e80eb58881c01414d8d54525285a28755f1f2f63f1595"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S07",
+      "directory": "creator-recommendation",
+      "invocationName": "creator-recommendation",
+      "displayName": "达人推荐",
+      "shortDescription": "发现并筛选合适达人，规划预算内的投放组合。",
+      "entrySha256": "71a4802489ef249b88a82817bf5f71d07ce7d37efe73fd5c7fb617b4b15e6cdc",
+      "treeSha256": "1c654cbd0cbff7e979f922b75a4f311e68dab09b0433614e4300c14b4478098a",
+      "fileCount": 17,
+      "bytes": 157020,
+      "scriptCount": 7,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 21491,
+          "sha256": "71a4802489ef249b88a82817bf5f71d07ce7d37efe73fd5c7fb617b4b15e6cdc"
+        },
+        {
+          "path": "references/api-execution.md",
+          "bytes": 4495,
+          "sha256": "0858337ae9268360c5added025e2d43b752039fae63d92429f06a3790d67535e"
+        },
+        {
+          "path": "references/creator-platform-routing.md",
+          "bytes": 15283,
+          "sha256": "9e7a458097a7a3cad1045f2fef1447db9f288842e135abb76990d1665f86267b"
+        },
+        {
+          "path": "references/data-contract.md",
+          "bytes": 13221,
+          "sha256": "8c6b33b4c70568496e5e32ebb63b71969366d0b4f38885e397aa5c706e4e1aac"
+        },
+        {
+          "path": "references/handoff-contracts.md",
+          "bytes": 5172,
+          "sha256": "d864bc842f878e0a48ce687b0db7e7e10d5f105a6b819249918a5adfe093623f"
+        },
+        {
+          "path": "references/portfolio-planning.md",
+          "bytes": 5060,
+          "sha256": "20d03e16db6e0280f37315de457ca2f44bd0fc77da1e89725f9f10197cf4e675"
+        },
+        {
+          "path": "references/report-template.md",
+          "bytes": 5706,
+          "sha256": "b7bd99eecc2373becb6eb9cf93792b56995fa2d0eabdc111cbb3d12c2beedc00"
+        },
+        {
+          "path": "references/scoring.md",
+          "bytes": 10252,
+          "sha256": "26fb28618887d64c7b08e0c25de781fdd44a10a5fbe3f96029fbc1c5924c4326"
+        },
+        {
+          "path": "references/tikhub-endpoints.json",
+          "bytes": 20068,
+          "sha256": "335fdc1baf239a8eef27cd03d0f1ba389aa318936979ec09d18df4bbbcc465ec"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "scripts/tikhub_guard.py",
+          "bytes": 3707,
+          "sha256": "549b076abae9068ca4288302e15d0050fc5110a95b597c914a438d431241155c"
+        },
+        {
+          "path": "scripts/tikhub_readonly.py",
+          "bytes": 9937,
+          "sha256": "38231f46da1c7badeb2c50ea1c1784efb3bcb345b6fe1379f1de28e8615e6333"
+        },
+        {
+          "path": "scripts/validate_creator_output.py",
+          "bytes": 9504,
+          "sha256": "0da6745142ffdc6c7a14b438be5f5f3f5bb77012861c2b9021af57a18b9aa982"
+        },
+        {
+          "path": "tests/test_api_reliability.py",
+          "bytes": 9106,
+          "sha256": "661e8d911930c2b636f97d15e9e27d57bfa0aa28e289338a647c5e821c321edb"
+        },
+        {
+          "path": "tests/test_skill_hardening.py",
+          "bytes": 13926,
+          "sha256": "6c564221ffd7e1c89c94ac417be16135af2be5cb291aa7017a9c5c18fa237c40"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 125,
+          "sha256": "74fe72dbd6c40fc6fa262f022ccb8030ebd69b5704240e1942f55774fb78ea69"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S08",
+      "directory": "human-needs-insight",
+      "invocationName": "human-needs-insight",
+      "displayName": "人性需求洞察",
+      "shortDescription": "从客户需求中提炼消费者洞察与创意方向。",
+      "entrySha256": "70931a12b5ec604fc918b9e615f5d276ad33a9d3afec8306f4136018efdce296",
+      "treeSha256": "78f2a5cb6c48c7a2fd3bcfecd02944d7de01d072fb44d9ec68179ffc160bcfc5",
+      "fileCount": 22,
+      "bytes": 186357,
+      "scriptCount": 12,
+      "nodeManifests": [
+        {
+          "path": "package.json",
+          "dependencies": {}
+        }
+      ],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "CHANGELOG.md",
+          "bytes": 6060,
+          "sha256": "a648ea17a15d53f79c5ebf4afd0b29a9e7a072c75aff549e951ba84c089c38b1"
+        },
+        {
+          "path": "README.md",
+          "bytes": 6408,
+          "sha256": "3f5a8bd899dc0e208a64ee0ec2c9197877e1f4a8fa7849478b4773af8a5bc263"
+        },
+        {
+          "path": "SKILL.md",
+          "bytes": 83755,
+          "sha256": "70931a12b5ec604fc918b9e615f5d276ad33a9d3afec8306f4136018efdce296"
+        },
+        {
+          "path": "USAGE.md",
+          "bytes": 5977,
+          "sha256": "e7851de0ce0112f5f7d51cc881abf13b0f85e048ed11a047126df16ddde161f1"
+        },
+        {
+          "path": "analyze-annotations.js",
+          "bytes": 3038,
+          "sha256": "ef366b78ca8b9189ded65b2c11c5106f2b11641d097718f672e6c6bb870875e0"
+        },
+        {
+          "path": "annotation-template.md",
+          "bytes": 11186,
+          "sha256": "55a8a7390f45e50338c038b1d87750150aeb393d998840abbc68f4aa65934f74"
+        },
+        {
+          "path": "case-library.md",
+          "bytes": 9252,
+          "sha256": "abc75698b98a6ab8cf6a420102deb2f1a98400f1fd836f28ff300f233d537c4d"
+        },
+        {
+          "path": "debug-extract.js",
+          "bytes": 738,
+          "sha256": "fc239fb1eca3c6a5afab5ccf13e6654ed6de0535f11a9dc11cb29b425427abce"
+        },
+        {
+          "path": "debug-match.js",
+          "bytes": 1450,
+          "sha256": "a07e7d0b1f1e9087f2d453c304a0ba07a04fbba7bb8ebee301ff51a666b3d146"
+        },
+        {
+          "path": "debug-signals.js",
+          "bytes": 1113,
+          "sha256": "bd297e97f39017452cd5f8ee3ce7ad4dd39193ea3279b720a7c7e3d13baa0bd6"
+        },
+        {
+          "path": "final-test.js",
+          "bytes": 3968,
+          "sha256": "b256d4b96c671ade11f0ea5bafe6b045e0779e75eebeb8c16f104595a7c3b60a"
+        },
+        {
+          "path": "index.js",
+          "bytes": 29856,
+          "sha256": "e503a1bfa77bf743703adc7ecdc36b63a1f2e3514b4b52a8ee3e85b35b89e0d1"
+        },
+        {
+          "path": "load-annotations.ps1",
+          "bytes": 2213,
+          "sha256": "13c26dfab92e6ce7a630488a062144aeb511b833def22865f5c84c301652d489"
+        },
+        {
+          "path": "package-lock.json",
+          "bytes": 280,
+          "sha256": "897717f79f0494f46f59fa1c34906ea3ed2c3291d7ef390bdca367fbfc746343"
+        },
+        {
+          "path": "package.json",
+          "bytes": 427,
+          "sha256": "23eb12c57bbf09adcd042f5d0e5a2d328bab784736c2b7850b92df97ee12eaf5"
+        },
+        {
+          "path": "quick-test.js",
+          "bytes": 3886,
+          "sha256": "d2c8e9b5ff8acfa9afc0aa7551fe712494ec41d032aa6eaf534a5e7e8d9fd4ee"
+        },
+        {
+          "path": "simple-test.js",
+          "bytes": 2106,
+          "sha256": "0d073a5f41cd72384445576b5027464ab2fdec320f3c617ff5b8eba8115eb1d2"
+        },
+        {
+          "path": "test-v3.js",
+          "bytes": 3395,
+          "sha256": "ae495954d450a4a22d6d6525777308ef76b754447058badff47a2a9829c04845"
+        },
+        {
+          "path": "test-v31.js",
+          "bytes": 3820,
+          "sha256": "594b318fd6b56cd955918415b0471155752cfc4cecb27169fcaba0c8c8aaacb6"
+        },
+        {
+          "path": "test.js",
+          "bytes": 4648,
+          "sha256": "e815076e81e391c4c75a648137f2a0ee15df13d3c30351452c224076e3eb0993"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 125,
+          "sha256": "69678e7b74b6362cfa00e1a26d7f5e23a5e44b5d994b484f31c13f8b08a31739"
+        },
+        {
+          "path": "validate.js",
+          "bytes": 2656,
+          "sha256": "03a9ae946de70ef9b56fc42c7f9d8e67a37a638743c58c41f8c5861e1916d543"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S09",
+      "directory": "influencer-integration",
+      "invocationName": "influencer-integration",
+      "displayName": "达人整合营销",
+      "shortDescription": "制定多平台达人投放、传播与效果评估方案。",
+      "entrySha256": "b9d1ffe5b952e3462c74f36639707677eb9464600577432d1a98e2c35162e238",
+      "treeSha256": "3ee9beabe104366e2678fc2c51ede909f014880ea248fbb2c6fd07f4e9454fd3",
+      "fileCount": 5,
+      "bytes": 86459,
+      "scriptCount": 0,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "README.md",
+          "bytes": 1687,
+          "sha256": "2399425f8233fc5f3cf17ab95edac3f2114ab78052dc96656332e66f628697cf"
+        },
+        {
+          "path": "SKILL.md",
+          "bytes": 82869,
+          "sha256": "b9d1ffe5b952e3462c74f36639707677eb9464600577432d1a98e2c35162e238"
+        },
+        {
+          "path": "references/platform-benchmarks.md",
+          "bytes": 695,
+          "sha256": "de6c91ee6a32955c55760e67e8c53937512277973752d33284e66518c9ee1508"
+        },
+        {
+          "path": "scripts/seeding-template.md",
+          "bytes": 1080,
+          "sha256": "06c773903c2d9ceb39922bce66f70bbbed77117c5d92fc5f6f4ed1bcd61201ab"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 128,
+          "sha256": "ba35eab84e928eec9956342c56c5f5ec66795ee336d9be95173b1efc4104be6b"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S10",
+      "directory": "influencer-seeding",
+      "invocationName": "influencer-seeding",
+      "displayName": "达人种草策划",
+      "shortDescription": "策划达人种草内容、投放矩阵与传播节奏。",
+      "entrySha256": "cca96f6629a84f6d68fd4c7f85f30504c3d0b1261f0c341a33bf1b7680d0c860",
+      "treeSha256": "5625a86ce244f685293ee560c86c9ef309815aa5309826d583552fc60b2c5980",
+      "fileCount": 22,
+      "bytes": 171917,
+      "scriptCount": 4,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "README.md",
+          "bytes": 1705,
+          "sha256": "ff56f7de65576b9527028ba385b68bdb54827734b2cb569f698988684b4e58b4"
+        },
+        {
+          "path": "SKILL.md",
+          "bytes": 22033,
+          "sha256": "cca96f6629a84f6d68fd4c7f85f30504c3d0b1261f0c341a33bf1b7680d0c860"
+        },
+        {
+          "path": "references/case-library.md",
+          "bytes": 5249,
+          "sha256": "889de43de43a43af9ebe44231087d3499452d2a0b1e7dfca7b88e3633c15ad59"
+        },
+        {
+          "path": "references/changelog.md",
+          "bytes": 4757,
+          "sha256": "122f2adecc932d5eeb5ada502a7a8140a6889a8e947c431b666d0918564e7af1"
+        },
+        {
+          "path": "references/creative-taxonomy.json",
+          "bytes": 20828,
+          "sha256": "32ff39b225bc38c5fd10627258913cbcd76b26482e9c7d49f9a398fddee22948"
+        },
+        {
+          "path": "references/creative-taxonomy.md",
+          "bytes": 9520,
+          "sha256": "23d33aa25ae4410ab031c98009e0b0ed9b2720636fe967e5c3c71706dc76ad9d"
+        },
+        {
+          "path": "references/creator-and-testing.md",
+          "bytes": 4446,
+          "sha256": "adc75e1d278451557db392612650926ee596fd4ab05afbf669a8deceed9051fb"
+        },
+        {
+          "path": "references/daren-creative-adaptation.md",
+          "bytes": 5253,
+          "sha256": "ee144cdfda898b330f0127d0c63c41c39e1b1d0b03d659d803f0ae9f4a87fb8f"
+        },
+        {
+          "path": "references/data-sourcing.md",
+          "bytes": 7207,
+          "sha256": "ff8ea6e502f13aa454d17f8787a1d89b98931804aee2842d71b53c08fbf97ed8"
+        },
+        {
+          "path": "references/dsh-rules.md",
+          "bytes": 10147,
+          "sha256": "e7eec43703ff54bdeb5631cc2616c84e95a8fd80b103c11db6ce32fe396f9995"
+        },
+        {
+          "path": "references/human-needs.json",
+          "bytes": 4689,
+          "sha256": "33d4d52c6b1d307d33a3636fa417089d022d36925c89c69c27b06c459024dd69"
+        },
+        {
+          "path": "references/output-contract.md",
+          "bytes": 3230,
+          "sha256": "9ed70e27bd697fce6bd94dbc086fab0e6de4a8d03bec3efb118ad86e4469a720"
+        },
+        {
+          "path": "references/platform-benchmarks.md",
+          "bytes": 5312,
+          "sha256": "332cdb3e5ba6a963ed2b8ca3836bb4b8e0f362da4207990245948927c5253e20"
+        },
+        {
+          "path": "references/script-contract.md",
+          "bytes": 2886,
+          "sha256": "b307b94c9ce36a88e73de89adf7a3c957bb5c7da1dc1d02484a817c51acd094d"
+        },
+        {
+          "path": "references/shared-methodology.md",
+          "bytes": 13170,
+          "sha256": "865a244054600fc029da42712e22097dd763299f40ad74d65d04df5ec4c9614b"
+        },
+        {
+          "path": "references/taxonomy-provenance.json",
+          "bytes": 607,
+          "sha256": "53d498041d1ddbc697ee87bbae7c2f6eeacd05bda858041f362359c1f41efdbb"
+        },
+        {
+          "path": "references/tikhub-endpoints.json",
+          "bytes": 26173,
+          "sha256": "d5b1a8bc3e5aabb702ef69aa9cae855a7aff3aaecc09e43a717314cbcb699326"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "scripts/seeding_math.py",
+          "bytes": 5297,
+          "sha256": "4ba98a561d52bb879fb195a3abb966f2b20982eeb855e7724741285f54aa3639"
+        },
+        {
+          "path": "scripts/tikhub_readonly.py",
+          "bytes": 9316,
+          "sha256": "476f6770dc81e8a88f00d5e7e0d49f81992e8d1220fc199ded1ab2fc3b47d118"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 125,
+          "sha256": "f0befee9beb98179597773b4c06b853cd12e13d3fcc26f35637c1a4336d1dd6f"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S11",
+      "directory": "inspiration-api",
+      "invocationName": "inspiration-api",
+      "displayName": "营销灵感库",
+      "shortDescription": "检索营销案例、查看案例详情与相关标签。",
+      "entrySha256": "cfcf6ba6bf3d75240724e44c6fe80fbc64364f593bd33fa820716fb5b8f55d44",
+      "treeSha256": "7e3551240a7b59bce0b64bd39834807535cb13854f7a3d5396bbc7cc4adabe08",
+      "fileCount": 28,
+      "bytes": 142770,
+      "scriptCount": 16,
+      "nodeManifests": [
+        {
+          "path": "package.json",
+          "dependencies": {
+            "axios": "^1.13.6"
+          }
+        }
+      ],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "CASE_RETRIEVAL_CHECKLIST.md",
+          "bytes": 3706,
+          "sha256": "933b1481e562c8780206a1ebbdc3bab9197b8fd6f2d61ffb4abe3ccf7ae2145c"
+        },
+        {
+          "path": "CHANGELOG-v3.md",
+          "bytes": 6050,
+          "sha256": "3ac0170422f9e04ba02b7cfc875ac8d98a911086518307d5acb824a21e0cf5d7"
+        },
+        {
+          "path": "CHANGELOG.md",
+          "bytes": 4447,
+          "sha256": "25d0d68bd5b1515e61fc05608d7f3a95d75975911366d23eaadb15c2fc7956f7"
+        },
+        {
+          "path": "README.md",
+          "bytes": 2929,
+          "sha256": "32721bbbcae09e7d047f090991d44bf685c7f1171339c8680be03150f7013c38"
+        },
+        {
+          "path": "SKILL.md",
+          "bytes": 34449,
+          "sha256": "cfcf6ba6bf3d75240724e44c6fe80fbc64364f593bd33fa820716fb5b8f55d44"
+        },
+        {
+          "path": "UPDATE_SUMMARY.md",
+          "bytes": 9856,
+          "sha256": "cb8b933d2d82eb8b5ae9907123d2f6d4af737c87def1090ef2842cefab3eb573"
+        },
+        {
+          "path": "api-client.js",
+          "bytes": 12525,
+          "sha256": "d9f48e9db02fa6466df022fd68a2ead3ffd1f5348d4c7aae8326d263158cb3b4"
+        },
+        {
+          "path": "browser-extract.json",
+          "bytes": 384,
+          "sha256": "18b58da343c653ae4a86789d6f49254357a2b041ee117818719a734a9cd1a6a5"
+        },
+        {
+          "path": "cases-data.json",
+          "bytes": 151,
+          "sha256": "fde8b38e88cc0ddcf937d008514b53269fdf6f7147af6bebd5fcae68ba7a3f1c"
+        },
+        {
+          "path": "data-parser.js",
+          "bytes": 5373,
+          "sha256": "72183a289277bd0b6a39b97e810244cfb9883e92a751a31c8d1895613f20fd2c"
+        },
+        {
+          "path": "extracted-cases.json",
+          "bytes": 203,
+          "sha256": "d4f588c1e5f4a109354ccc0f02aa010dd52416622eca5d3d9beb823bddad1e2f"
+        },
+        {
+          "path": "index.js",
+          "bytes": 4276,
+          "sha256": "c06d6c57a13490d29cf0a4aabf669607818908c5eadedcc54a0d9459592f13dc"
+        },
+        {
+          "path": "package-lock.json",
+          "bytes": 10260,
+          "sha256": "44f6cb6801c08ee0d4f31fb248af9eb0e3c92164f2fb13eabb40828aa4e9e5fc"
+        },
+        {
+          "path": "package.json",
+          "bytes": 408,
+          "sha256": "07919f1601db262be6f78c68c612e1a8b96862c8bf43b932f2cf4b13bcd55aea"
+        },
+        {
+          "path": "scripts/analyze-noodle.js",
+          "bytes": 2845,
+          "sha256": "f3dff085bf8bfc372b17c4fc1c0e962d8459c065fb392763ce9e4255416fb446"
+        },
+        {
+          "path": "scripts/api-demo.js",
+          "bytes": 6614,
+          "sha256": "c3eb02fe81fc5ba12f94a4373f0d765619fa59cbc63958c63ca7dbc87d9388be"
+        },
+        {
+          "path": "scripts/browser-extract.js",
+          "bytes": 3659,
+          "sha256": "9bdca732054c2f5bf2ef69ec9429d9a93679fd55f875a8e6c7b02cf7d062476d"
+        },
+        {
+          "path": "scripts/demo.js",
+          "bytes": 1729,
+          "sha256": "e43559beeeb864fec5a920dd54cafca02e5913a11393382e7d8705b28f645542"
+        },
+        {
+          "path": "scripts/examples.js",
+          "bytes": 3748,
+          "sha256": "2e4c5b9c52dc2672549936848d289fc894bdb0c40e776363fdfd7f77f2a66b6c"
+        },
+        {
+          "path": "scripts/extract-from-js.js",
+          "bytes": 3484,
+          "sha256": "de990620f5d78d4e61d7a2fc4f81909f77a8fd9203ea9fef29bd73c7a5fdfb48"
+        },
+        {
+          "path": "scripts/full-extract.js",
+          "bytes": 4253,
+          "sha256": "251cc07345dab98add7969cb3f91d9b3e87ec34c26ebe240835c115f8e07f287"
+        },
+        {
+          "path": "scripts/quick-start.js",
+          "bytes": 2188,
+          "sha256": "be260d5174d9507d85b485991b398f76549cc95575aac18df08fae05f1793e56"
+        },
+        {
+          "path": "scripts/show-cases.js",
+          "bytes": 3662,
+          "sha256": "cb91327f758655be00de134ff3b83a735741cc560059e35f6f0e847ac7cfaf67"
+        },
+        {
+          "path": "scripts/test-api.js",
+          "bytes": 3359,
+          "sha256": "39a99d0049b88a5c928c8e3d9d5bd4e5b3a3a73aa6e1d6bb456e9db059f27f9a"
+        },
+        {
+          "path": "scripts/test-intent.js",
+          "bytes": 2848,
+          "sha256": "5fb6914a44d87e25f1e2a18c618ba00e35aee9a5d6eaf028b1b5a0a74278b1c5"
+        },
+        {
+          "path": "scripts/verify-search.js",
+          "bytes": 2899,
+          "sha256": "f74e6674d5e859d45835a5b685b1fd98b45d460df62a6804db85c6a780c09ff2"
+        },
+        {
+          "path": "static-data.js",
+          "bytes": 6343,
+          "sha256": "dacc956cf0c1adca98b2a56768ab041a81c18536e17123927a1b922abc88c456"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 122,
+          "sha256": "eb164152ea55c5b23337a483888dcc4f6a5d13c940e900a5560075b66bf9ffac"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S12",
+      "directory": "marketing-integrated",
+      "invocationName": "marketing-integrated",
+      "displayName": "整合营销策划",
+      "shortDescription": "制定品牌战略及线上线下全渠道营销方案。",
+      "entrySha256": "8dfe5e484d717e30646ee82b7e5b990a6e663d3ebcedae786cc7e7e2836c864e",
+      "treeSha256": "8ed45c4b7e8dbc2798b0e7ec0732d8f275cfe8756b8a9d04943af9a04dd34151",
+      "fileCount": 4,
+      "bytes": 84554,
+      "scriptCount": 0,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "README.md",
+          "bytes": 10172,
+          "sha256": "83c46a192435f484a5add6011568b19bc05a365e1ece89e0b408e0f218eac068"
+        },
+        {
+          "path": "SKILL.md",
+          "bytes": 61645,
+          "sha256": "8dfe5e484d717e30646ee82b7e5b990a6e663d3ebcedae786cc7e7e2836c864e"
+        },
+        {
+          "path": "example-output.md",
+          "bytes": 12612,
+          "sha256": "4bb3f79ed24a62912baff2d09367a91d61836d276cda666528129efdf67a69dd"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 125,
+          "sha256": "0e7e1dd43eb3defa610d5d76387e07e5158e06c62d8631f225076de8a83032e3"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S13",
+      "directory": "media-generator",
+      "invocationName": "media-generator",
+      "displayName": "多媒体创作",
+      "shortDescription": "生成或编辑图片、视频、音频，解析多媒体内容。",
+      "entrySha256": "d901a87837895ae6cc218ce3ba97debdeb45e0c77dfa8c8e1f1c1fe5474d08e7",
+      "treeSha256": "179518b8ca3902b3f3d2767b71007ea2169c22fb0c4641c62db6f80ad651400d",
+      "fileCount": 9,
+      "bytes": 50309,
+      "scriptCount": 5,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "MODEL_NAME_MAPPING.md",
+          "bytes": 6500,
+          "sha256": "48f910f2c27070a5c29e6b9116883d6fb1f927911e8c5bc1fb0aa4248ba9e2fd"
+        },
+        {
+          "path": "MODEL_PARAMS.md",
+          "bytes": 9199,
+          "sha256": "29f3a0c2eebb788270f442bee400ba1c0b19bd4d70b771373bc2a613f460befe"
+        },
+        {
+          "path": "SKILL.md",
+          "bytes": 10400,
+          "sha256": "d901a87837895ae6cc218ce3ba97debdeb45e0c77dfa8c8e1f1c1fe5474d08e7"
+        },
+        {
+          "path": "generate.py",
+          "bytes": 13621,
+          "sha256": "5bb4bf0b15b120545d92f1d0890d2ebe8b738d37178667ad5ebb76ab5a02f076"
+        },
+        {
+          "path": "run.sh",
+          "bytes": 271,
+          "sha256": "d7a93e75974486015b4aab936b07edc2f95738e431f4f20c729928ade2257d4f"
+        },
+        {
+          "path": "scripts/auth_signer.py",
+          "bytes": 220,
+          "sha256": "18663c430258c9a86457022a4f3b75647293d1f072a9364fd6614a39365c5574"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 131,
+          "sha256": "3c7402b35d8d35bbabc6f32d6052a7e750c3a6592feb373428fbf3ac36f14303"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S14",
+      "directory": "ppt-maker-new",
+      "invocationName": "ppt-maker-new-new",
+      "displayName": "PPT 制作",
+      "shortDescription": "根据主题、素材或已有演示文稿制作和修改 PPT。",
+      "entrySha256": "fe17e1ca43d2da7e6db0292383fc38854884aca6a3675a30236b55c52d5b1309",
+      "treeSha256": "eaa363fd543361694278280665b0229bfff83411b13128eac881e5c5e764a47e",
+      "fileCount": 116,
+      "bytes": 2321860,
+      "scriptCount": 58,
+      "nodeManifests": [],
+      "pythonRequirements": [
+        {
+          "path": "requirements.txt",
+          "requirements": [
+            "python-pptx>=1.0.2,<2",
+            "Pillow>=10,<13",
+            "lxml>=5,<7",
+            "fonttools>=4.50,<5",
+            "psutil>=5.9.8,<8; sys_platform == \"win32\""
+          ]
+        }
+      ],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 16861,
+          "sha256": "fe17e1ca43d2da7e6db0292383fc38854884aca6a3675a30236b55c52d5b1309"
+        },
+        {
+          "path": "VERSION",
+          "bytes": 11,
+          "sha256": "54c6f8f148e5adc85eee792f3ed522a31f844249c175804c24513c57663fc51f"
+        },
+        {
+          "path": "contracts/generation_version.txt",
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Arrows__arrow-left.svg.png",
+          "bytes": 607,
+          "sha256": "90298957edeaad1f62f72dfdbe29863d5c89bd02fb7c66f2449d57fbdfb07e55"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Arrows__arrow-right.svg.png",
+          "bytes": 589,
+          "sha256": "d2af8a3b10e822c3d0e1c11f9e33488676e5d267581e1e572f972508ff4f0ecb"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Arrows__down.svg.png",
+          "bytes": 597,
+          "sha256": "8eaa52aea159f7d06f798842e2bf74bc89678bf181a2542b23429c686d674d0c"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Arrows__up.svg.png",
+          "bytes": 594,
+          "sha256": "0ed1d66784477620c1b27977cb293afe86f1317cacf438a1f20842ae4a02cab5"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Base__aiming.svg.png",
+          "bytes": 2649,
+          "sha256": "eb52481d32a79b80d4f0b48f8c4a8882a1a4aa56d7da8afe8a7f0b70463e4b12"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Base__home.svg.png",
+          "bytes": 806,
+          "sha256": "83d6492121edda0a7736fe9cd524372477cab8117fe47f25ddba9afffd3068af"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Base__search.svg.png",
+          "bytes": 1599,
+          "sha256": "24d89a6ab07a0d905048fec4a2e50986e8200a1c1ad9505d118d201870fa9769"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Base__setting.svg.png",
+          "bytes": 1498,
+          "sha256": "386d9a2096797eb60b803bd17204b95eda4180690bdf4627230608111ceda4f3"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Character__check-one.svg.png",
+          "bytes": 1646,
+          "sha256": "8b577fc684bf93bfe8e5c1c3bbb2227b0ccb1462529b7478ce826d969a8d5a8a"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Character__close-one.svg.png",
+          "bytes": 1643,
+          "sha256": "2eaff861d85daf928aeb516acc0b4aa81c93242074e5337987168d41252fefb8"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Charts__chart-line.svg.png",
+          "bytes": 1841,
+          "sha256": "8b4f74e5f2d2a38590cc73ab1052ad8f6048b2bc65e0219ccba0b87081c8cb46"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Charts__chart-pie.svg.png",
+          "bytes": 1861,
+          "sha256": "ec70c107b2001799ff637107f90279581eb2f2c83f7a39b2052045a7cf3e3997"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Charts__chart-proportion.svg.png",
+          "bytes": 2410,
+          "sha256": "b12779aa0c6f406137155b7a221362d4e4d9042231d1f37999dd35863431eb32"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Charts__data-screen.svg.png",
+          "bytes": 885,
+          "sha256": "463d81e5d118eaa37e18f2c70d26a3d4ae16a9577a67f3ddab2fc2f5cd778812"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Charts__histogram.svg.png",
+          "bytes": 2295,
+          "sha256": "c547a1b6e2a35212815c37bfe13393723192ac49f567a457ca42454130613129"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Charts__positive-dynamics.svg.png",
+          "bytes": 1497,
+          "sha256": "3322998799ee296373a182bcf8ce51c37c9167ad764e824945a47686b797fb2a"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Charts__radar-chart.svg.png",
+          "bytes": 1529,
+          "sha256": "61632dd1be74f8485e388af870d83b877c7de9ee5d20055712026777fb5f2c6f"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Money__trend.svg.png",
+          "bytes": 737,
+          "sha256": "571eaef6ebe82e23b61fe6ac720d5a43cf504c04f880fff9a531763b12250832"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Office__envelope-one.svg.png",
+          "bytes": 1288,
+          "sha256": "2e271c77bb408e8701153606f7799f075bcf399bd8937593c1ec1b910f32d10f"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Peoples__peoples.svg.png",
+          "bytes": 2087,
+          "sha256": "e46a250aa682c9cc48648b90450c21e7b779a004ef5fae88f6e8b16b84030403"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Safe__protect.svg.png",
+          "bytes": 1458,
+          "sha256": "9047435aeeb7bad3e0f0399960ef9d17a148fc9feb2bdba9f4faac9858e88dc9"
+        },
+        {
+          "path": "lark/assets/icons/iconpark__Travel__world.svg.png",
+          "bytes": 4193,
+          "sha256": "0401e133b546c80c20323bde06b84926d9a9cd223b7be039d5c2f419641ef52b"
+        },
+        {
+          "path": "lark/references/style/academic-research.md",
+          "bytes": 15854,
+          "sha256": "b20f6023ef5b61de833f82dfe0bc9153cd01b0d3565034e1b1585598dad4fd56"
+        },
+        {
+          "path": "lark/references/style/brand-storytelling.md",
+          "bytes": 4645,
+          "sha256": "a95f191cbd31c5a07be8929928c72c104c96a1e46c77f8a8515e425396be83b9"
+        },
+        {
+          "path": "lark/references/style/business-pitch.md",
+          "bytes": 10216,
+          "sha256": "cdb239f995995604ec90b24d667158c71db63ae53bf2e5f80b7577588645bea8"
+        },
+        {
+          "path": "lark/references/style/business-review.md",
+          "bytes": 18265,
+          "sha256": "0b0e5666d490577013cbbb1eaed9748e8a454c565a217722a15cc7273a7b00d4"
+        },
+        {
+          "path": "lark/references/style/fallback.md",
+          "bytes": 1542,
+          "sha256": "5baac6f30b8c61a16eddc013c2156f4bf9e3eb47eba502087175d9924f131249"
+        },
+        {
+          "path": "lark/references/style/learning-and-training.md",
+          "bytes": 18733,
+          "sha256": "966590431576244fec6e0f51b293c9d20634755c431ea7e3f521667f6343ee15"
+        },
+        {
+          "path": "lark/references/style/slide-taxonomy.md",
+          "bytes": 1944,
+          "sha256": "e5f18f21c11d72f4d73511347322282374808b3d1825ec3ff2f01bb337980384"
+        },
+        {
+          "path": "lark/references/style/strategy-and-analysis.md",
+          "bytes": 7127,
+          "sha256": "2ef8c1801d3a70f72905cc40c316ded0113392825e7999038dbf2aa89a60bebf"
+        },
+        {
+          "path": "lark/references/style/technical-presentation.md",
+          "bytes": 14220,
+          "sha256": "9790992557229c6daa66599143f6bbbf2d5051bd4f26e6d5013f892463942f7d"
+        },
+        {
+          "path": "lark/references/xml/iconpark-index.json",
+          "bytes": 746862,
+          "sha256": "5d79500c5a227dace15b40dc6de92e18d02eab1cc9491c7eda46f28a96c033dc"
+        },
+        {
+          "path": "lark/references/xml/iconpark.md",
+          "bytes": 3421,
+          "sha256": "57fdf051bd0192b116d9bb971ef6db86c086f70c82430073228662b60a608fe6"
+        },
+        {
+          "path": "lark/references/xml/slides_chart_demo.xml",
+          "bytes": 9106,
+          "sha256": "e55446f306e06f4d9c7ab08563eee776454da6ed64385c3a9217a6ce39ae050f"
+        },
+        {
+          "path": "lark/references/xml/slides_xml_schema_definition.xml",
+          "bytes": 213516,
+          "sha256": "0f03268e9aafe976952ac7cde808884a2e70f0f7ad4a68b7f29f55ec8b06eed3"
+        },
+        {
+          "path": "lark/references/xml/xml-schema-quick-ref.md",
+          "bytes": 25684,
+          "sha256": "a7c707906aaeec5c4400d988eae214b037b9957fc5504e3734d9b3ea33fdcfc0"
+        },
+        {
+          "path": "lark/scripts/backend_capabilities.py",
+          "bytes": 7784,
+          "sha256": "b5383b445e0c5b12f28c28a6602ea52c87fa49fd357e5b4d7564ba7cab1d922f"
+        },
+        {
+          "path": "lark/scripts/iconpark_render.py",
+          "bytes": 7437,
+          "sha256": "0fdda6bcd0149d1e053bd7b00b8be64466ea30d2848dd0c2a8c520be10194741"
+        },
+        {
+          "path": "lark/scripts/iconpark_tool.py",
+          "bytes": 12829,
+          "sha256": "8fd82c981fdc04815e1cdab843727b0705d59522e91fddcbc68d3a6e2771bbac"
+        },
+        {
+          "path": "lark/scripts/local_render_check.py",
+          "bytes": 3999,
+          "sha256": "3ee536be0a3c012f3b78bde6d83ae923be971694cd94eedb12509fb50fe45a8f"
+        },
+        {
+          "path": "lark/scripts/sml_to_pptx.py",
+          "bytes": 61985,
+          "sha256": "56decec19ea9c67daebdd14126181d2f58397b71d04a268cdf606de4b370ac51"
+        },
+        {
+          "path": "lark/scripts/sxsd_validator.py",
+          "bytes": 39643,
+          "sha256": "cf75b86fac04700848e9556ad9cee26a51461b0eb7ef45d9e550cadc229add85"
+        },
+        {
+          "path": "lark/scripts/xml_lint.py",
+          "bytes": 215905,
+          "sha256": "a803c16e784990211bdf277b7d8cc3993bec727a1c12f7e4fa2eed04adac8726"
+        },
+        {
+          "path": "package_manifest.json",
+          "bytes": 12800,
+          "sha256": "43b4f50095b2c91c15d64a96131d9da866563a545ebea787b8ee5617d43a65b7"
+        },
+        {
+          "path": "references/adaptive-batch-contract.md",
+          "bytes": 13886,
+          "sha256": "d94ce223bdb18e6466e49c4505d0955f29d55fd8e5800f5884d4449a1b898fbe"
+        },
+        {
+          "path": "references/asset-recovery.md",
+          "bytes": 8070,
+          "sha256": "938b5dcb3c1c902bf76e16829449cd35fae3722e0b25f958c6eb710a763587f9"
+        },
+        {
+          "path": "references/audience-copy.md",
+          "bytes": 7021,
+          "sha256": "3af1f600062a3459941da1e77b6b9ed038e515a84688f7afaf7dba2d8757a3bb"
+        },
+        {
+          "path": "references/brief-recovery.md",
+          "bytes": 3402,
+          "sha256": "0f413923d3a2263c69c212135d7d69137d16dc819ebcecf5c962de96778679de"
+        },
+        {
+          "path": "references/context-authority.md",
+          "bytes": 3693,
+          "sha256": "ce8522efa268eeb6336c4a7c8f218408edb84b3bbfa5f9dd033958adb7ed426e"
+        },
+        {
+          "path": "references/context-capacity.md",
+          "bytes": 5158,
+          "sha256": "60242cddc95a17ca079c1a4fd419689781138889f6d082ef650c722dc7aa794c"
+        },
+        {
+          "path": "references/design-quality.md",
+          "bytes": 7634,
+          "sha256": "763e1d47f7f2d54fecf7f13b04c9be68a73e962394b3fb65e5f4711da8a6e4b0"
+        },
+        {
+          "path": "references/dsh-handoff.md",
+          "bytes": 5758,
+          "sha256": "f0e458712f8f8545b50020a07bfc80cda1f09a1ba2310731cb6b79c3b113fbfc"
+        },
+        {
+          "path": "references/dsh-runtime.md",
+          "bytes": 13550,
+          "sha256": "c93638930c47f40f96585f91dbd0111db0694de6f0d2a1f11cd95e74c4ea0c4f"
+        },
+        {
+          "path": "references/enterprise-proxy.md",
+          "bytes": 2599,
+          "sha256": "865ec4b33be12f4ce6bc0916cadb1dc9dac8a20c6931800ad587ee44b4612f54"
+        },
+        {
+          "path": "references/managed-revision.md",
+          "bytes": 3546,
+          "sha256": "7d6a462ee33bf1d50d251584f8ce0efdce60e38e824800befc386335537c7a09"
+        },
+        {
+          "path": "references/quality-policy.md",
+          "bytes": 12127,
+          "sha256": "05b408525325371bcd7da1f2b676f16c245627081512e3b5a80f7d8443944a0b"
+        },
+        {
+          "path": "references/resilient-delivery.md",
+          "bytes": 8187,
+          "sha256": "c453abc849ddee2a819f7973288ba3ce30319a11090651fb5cf2fe8cd0ec186d"
+        },
+        {
+          "path": "references/semantic-contract.md",
+          "bytes": 3166,
+          "sha256": "d99f614afbf8a0fedb8b5b79b42baf057ac4249258dc6a79994730705a508bbe"
+        },
+        {
+          "path": "references/steady-recovery.md",
+          "bytes": 4016,
+          "sha256": "c9b39d0041e4d9642db5783d7d97e9497aaedbfa0900258a0accdede808354bf"
+        },
+        {
+          "path": "references/work-budget.md",
+          "bytes": 12355,
+          "sha256": "83c71c4e0a2ce57c6a1c6215db227a1fa340a707b758baf9b720298c38b4563a"
+        },
+        {
+          "path": "requirements.txt",
+          "bytes": 250,
+          "sha256": "da4548267c3612fa1d2e00e714377896db112ce15e735636b68019f603c8ce56"
+        },
+        {
+          "path": "scripts/asset_preflight.py",
+          "bytes": 10282,
+          "sha256": "7617bbeec46925d53eb6d5f6719d464589ed5fe25d7b1712760ccf9bdabd53da"
+        },
+        {
+          "path": "scripts/audience_copy.py",
+          "bytes": 7569,
+          "sha256": "69fc912290c76a80ce25b6f1c7c3256f950bdc2aa8b6b515b3d5577fd97728ef"
+        },
+        {
+          "path": "scripts/blueprint_validation.py",
+          "bytes": 14013,
+          "sha256": "22391592042e95cd62cfe6b934f4ec6b6befbf01ebb894958e9e6c41c620f745"
+        },
+        {
+          "path": "scripts/brief_capacity.py",
+          "bytes": 3988,
+          "sha256": "2ddc776c63320e59e37b36b886e8012149302c3de574bfc5f9c0ad3091d49111"
+        },
+        {
+          "path": "scripts/brief_contract.py",
+          "bytes": 11480,
+          "sha256": "ac7beb74ea4e2c54629a54d6df2596cc00d7cb8d2a27cc5d87097f61bd3a1c72"
+        },
+        {
+          "path": "scripts/brief_recovery.py",
+          "bytes": 8493,
+          "sha256": "991db81d38bc6dfca6b885f34232da78970bbcbee8ea49edf3636f72530dff1d"
+        },
+        {
+          "path": "scripts/call_budget.py",
+          "bytes": 4751,
+          "sha256": "65cf46708c2be26ba066f167ae57b7c3d29392b84bc7a1be69b34b7c5db89e46"
+        },
+        {
+          "path": "scripts/context_capacity.py",
+          "bytes": 4081,
+          "sha256": "ce493e59b6285f53d2b23e2cfe0ebc0c4d4a2a4df0c21e40e0e99db4829afba7"
+        },
+        {
+          "path": "scripts/defect_map.py",
+          "bytes": 7540,
+          "sha256": "af981c4cdc85a9ed95469989d325af6a35538a0afa96cec612cdd259ae551f3d"
+        },
+        {
+          "path": "scripts/delivery.py",
+          "bytes": 23036,
+          "sha256": "5eda0de8f472131a60cac763fdbc58f8d742a7c8ecb7a62382e0671425748c88"
+        },
+        {
+          "path": "scripts/delivery_quality.py",
+          "bytes": 1980,
+          "sha256": "b650121d51d740ec2037a3abf66fde7f51bc5fbefa2294b9da40fe566370646c"
+        },
+        {
+          "path": "scripts/dependency_queue.py",
+          "bytes": 8000,
+          "sha256": "92684f00ef4d20094356b9efa5a3551b6daef179dce64b0c4d0e7f0406ebccef"
+        },
+        {
+          "path": "scripts/design_refinement.py",
+          "bytes": 15474,
+          "sha256": "e5a25f9313ec58b93d4b3c6c99ad535e848f1e3630e349b1fe7ac195c20e3a6a"
+        },
+        {
+          "path": "scripts/enterprise_proxy.mjs",
+          "bytes": 8109,
+          "sha256": "8e8a174887c9ebc3771689cbacf4f252e2328484dee665a762780a98d4b687fa"
+        },
+        {
+          "path": "scripts/enterprise_proxy.py",
+          "bytes": 1858,
+          "sha256": "5819933f03bff6298dd1abcf6e728c9715be96d4f517a94929722f50ab5e82c6"
+        },
+        {
+          "path": "scripts/final_repair.py",
+          "bytes": 20223,
+          "sha256": "c4c073ed4d6ce89bd3b821696d0d5664cb488ed37d1c27bdd0b8ef69eb402e59"
+        },
+        {
+          "path": "scripts/font_policy.py",
+          "bytes": 11252,
+          "sha256": "6827a377f29d5b6ed6962e32f7e621649c7f5aed2969915255856834355370a3"
+        },
+        {
+          "path": "scripts/gen_gpt_image2.py",
+          "bytes": 8336,
+          "sha256": "23d02bc3c891f4b2523d0a910ad598140fc8065d336383d32c924924e8cb27d7"
+        },
+        {
+          "path": "scripts/gen_images.py",
+          "bytes": 23547,
+          "sha256": "2f77310361ef70c73e62ae95fe9151e5e2862625d0a9d8aa7ba4d96918bfa2be"
+        },
+        {
+          "path": "scripts/image_lineage.py",
+          "bytes": 4008,
+          "sha256": "3530a115b24a0614fd2d8f6d6666ab4e6ceeff48ce1f89843f446dfeb2901644"
+        },
+        {
+          "path": "scripts/import_handoff.py",
+          "bytes": 12894,
+          "sha256": "fbaa4f49536e9c906f1d0a8d5c0e056b9ed2756b9b295b75e24071f5fecaafdd"
+        },
+        {
+          "path": "scripts/ingest_materials.py",
+          "bytes": 21609,
+          "sha256": "f1eb08d8ce37f8eaf6adc07da9b48243d3a60da72b59949e168901b9aecaa399"
+        },
+        {
+          "path": "scripts/lint_brief.py",
+          "bytes": 3277,
+          "sha256": "1db615c1a89ebfe715ef37c773775c81bcf6e8b30b6e3da54adb13bbc439d32f"
+        },
+        {
+          "path": "scripts/managed_revision.py",
+          "bytes": 15514,
+          "sha256": "b3161039030051390c60147adda5bc89f257efe63693c91aaa74d41720bd733a"
+        },
+        {
+          "path": "scripts/page_conversion.py",
+          "bytes": 1012,
+          "sha256": "982a52bc7e78717f83fcf54829d5011b92600c3926439929930b14caa04c95c2"
+        },
+        {
+          "path": "scripts/page_validation.py",
+          "bytes": 2867,
+          "sha256": "6a1145f421b4e45a7633dacbf08f7ded373c9d61bc17c3c04038888b3560da98"
+        },
+        {
+          "path": "scripts/plan_checkpoint.py",
+          "bytes": 10781,
+          "sha256": "787afb559c6daa00a25e4d72427b061739148413a43486b1eda9c85443c5975f"
+        },
+        {
+          "path": "scripts/plan_repair.py",
+          "bytes": 7806,
+          "sha256": "a73d0829edc31d77cdfef413d7594d12baca8aeef435b11fdc15b8146e35739c"
+        },
+        {
+          "path": "scripts/plan_request.py",
+          "bytes": 4480,
+          "sha256": "455495b25ace9576d3b8ff2c858da0088fbc7f87e58101af0673ade7a6c8bfb8"
+        },
+        {
+          "path": "scripts/platform_runtime.py",
+          "bytes": 5277,
+          "sha256": "79693d0be02f7211611f14a629ff7e12ff608ddc6ae26b8c41a2b6aaf8649c4c"
+        },
+        {
+          "path": "scripts/ppt.py",
+          "bytes": 33519,
+          "sha256": "36143771a6b090b76ff9ca5d5b9ac22ab8ea2da4804cb8e552fffccd965319df"
+        },
+        {
+          "path": "scripts/ppt_contract.py",
+          "bytes": 14725,
+          "sha256": "0f622f957a99fab795ab3920bff4c3d9343a34e116332b0422f4383d680210b6"
+        },
+        {
+          "path": "scripts/ppt_proxy.py",
+          "bytes": 3518,
+          "sha256": "cb28da2bbe324da7df9be76fffdfcca18810d313cede165e8a2e4c75cd83f3f0"
+        },
+        {
+          "path": "scripts/pptx_integrity.py",
+          "bytes": 3282,
+          "sha256": "4bc77ad497102123a62e9725b03f9e8b9a360ad1fe2298825d1e2320d509b176"
+        },
+        {
+          "path": "scripts/publish_release.py",
+          "bytes": 1205,
+          "sha256": "ab1d03d9ddd8f8912d0a706484ed300d84d14c75e7fde5c379a61064976b53a6"
+        },
+        {
+          "path": "scripts/qa_gate.py",
+          "bytes": 24657,
+          "sha256": "b0b4f232c449240110dff284529d8801c136ef0f308999e94ea2a0c355a103d3"
+        },
+        {
+          "path": "scripts/quality_policy.py",
+          "bytes": 9635,
+          "sha256": "2494caf489e469530555caafd9f31694162906e87af33deb9c3663ec43cf2a16"
+        },
+        {
+          "path": "scripts/recovery_feedback.py",
+          "bytes": 9424,
+          "sha256": "517b4fa23381259f07f6c952888a5e133d690c69172786aba9519f69fe60dacc"
+        },
+        {
+          "path": "scripts/render_checkpoint.py",
+          "bytes": 3056,
+          "sha256": "d2ec8b295754b88fb1e06749b33c42fd9c311ac874cbc834c27c2bec25814eee"
+        },
+        {
+          "path": "scripts/request_journal.py",
+          "bytes": 17455,
+          "sha256": "ab22d4cd7ee06fceceb506aed5f9f866c9ae50771e6e36f07b904dd8b750dada"
+        },
+        {
+          "path": "scripts/runtime_doctor.py",
+          "bytes": 5007,
+          "sha256": "0895f064142cac0336a1b31f3314608a61c6cc63eea6a1ef43f8009e9f273a39"
+        },
+        {
+          "path": "scripts/sml_patch.py",
+          "bytes": 24665,
+          "sha256": "68ead685191e255aaf1702e9906918ff40548e361d7607d7488dd9b6fc43f213"
+        },
+        {
+          "path": "scripts/sol_brief.py",
+          "bytes": 13236,
+          "sha256": "43f87ba4d298b0a89694243a73560d426d8a752119e55b64998e41ecf6681070"
+        },
+        {
+          "path": "scripts/sol_build.py",
+          "bytes": 43925,
+          "sha256": "253a83610d302cd0228c1d794bf56a73a7289cfb5eb04f05c075476b6ab49ed2"
+        },
+        {
+          "path": "scripts/sol_common.py",
+          "bytes": 6717,
+          "sha256": "4a2d576256d7fcc331743eeb02d1569df2f00f5d6d1441c740b7fa2d2d8b9eda"
+        },
+        {
+          "path": "scripts/sol_context.py",
+          "bytes": 11362,
+          "sha256": "3c5809ca7cb42a972566e4dae5afde11be4df93a3d72b636785cb4b5f00e3743"
+        },
+        {
+          "path": "scripts/sol_plan.py",
+          "bytes": 61630,
+          "sha256": "91a2d4a8b40de82d883be46c2a1effe710e1fadf0b57d7347253f3bdde7094c5"
+        },
+        {
+          "path": "scripts/sol_render.py",
+          "bytes": 96516,
+          "sha256": "366d4d22e24ba61bc8a1dbfc72dfae199ae87ca1251dcb6a552f72e65ff136a9"
+        },
+        {
+          "path": "scripts/stage_runtime.py",
+          "bytes": 5533,
+          "sha256": "a635deaf2083df4a33aaea71a430ee170bbafa6eebb7abbc7a89cf56f124a700"
+        },
+        {
+          "path": "scripts/work_budget.py",
+          "bytes": 15561,
+          "sha256": "d0280ae9ca2b742938fc7752846250de41d3f90dce02da1e3f020276d267d702"
+        },
+        {
+          "path": "scripts/workflow_runtime.py",
+          "bytes": 14453,
+          "sha256": "63c65dc660e96ad549526dde91c78bbed1d0bb8025025d8f54b69691902a34be"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 124,
+          "sha256": "e5ee0b725d93ab2161574089e588084bd65cab39526be16c1a20a4e7a8750e62"
+        }
+      ]
+    },
+    {
+      "inventoryId": "S15",
+      "directory": "soccor-proposal",
+      "invocationName": "soccor-proposal",
+      "displayName": "说可策划",
+      "shortDescription": "基于说可方法论梳理品牌定位、价值主张与创意概念，形成策略提案。",
+      "entrySha256": "9c91f2e0d3b95bb849976768dbfcf7753520c82eccf8dd2f80340b372bdaee38",
+      "treeSha256": "1f77c0135334868ee66967534dfa672c043de34d0e9165f3deeb39632d872a16",
+      "fileCount": 2,
+      "bytes": 18887,
+      "scriptCount": 0,
+      "nodeManifests": [],
+      "pythonRequirements": [],
+      "files": [
+        {
+          "path": "SKILL.md",
+          "bytes": 18732,
+          "sha256": "9c91f2e0d3b95bb849976768dbfcf7753520c82eccf8dd2f80340b372bdaee38"
+        },
+        {
+          "path": "ui.json",
+          "bytes": 155,
+          "sha256": "33a868fee37ac4c6fdaaead5d56b63688304ccb9889fb7a8d228cfc38b557deb"
+        }
+      ]
+    }
+  ]
+}

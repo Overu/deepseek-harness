@@ -1,0 +1,23 @@
+{
+  "schema": "insight-desktop-release/v2",
+  "version": "1.0.9",
+  "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+  "coreRuntime": {
+    "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+    "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+  },
+  "targets": [
+    {
+      "id": "darwin-arm64",
+      "manifestSha512": "l3+llRrkEZWFMfzSkhY+6UJV7fl72u6BJkhkNWy1BcqoPucaZIOuWr/yHwa/3jERHth1V0fMqXRkUfU2RAczhQ=="
+    },
+    {
+      "id": "darwin-x64",
+      "manifestSha512": "f+ZLAtCo7PVCz570oh809WANBiWh6Q9zfwsHkVqSEjD8GCCvB8J7MWiRG5stXJS5hvyyTjX0O+fuV0Sq3U3t0A=="
+    },
+    {
+      "id": "win32-x64",
+      "manifestSha512": "hXp+aY6GOjIqp+SLjgSjCxci/NTQn+P4YCSODL/Agd42dDwdv9Y85QSE0w74gdVqig37OFDlBkbxQdKrf/59mg=="
+    }
+  ]
+}

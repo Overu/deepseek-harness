@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for migration-summary.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/insight/migration-summary.md
+/insight-migration-summary:
+  en: 133753846914484e
+  zh: 969a765a0f13015c
+/insight-migration-summary/summary:
+  en: 5ec0ac842c42994a
+  zh: f2b584b6d4e6474f
+/insight-migration-summary/reading-guide:
+  en: a7287944f525eef9
+  zh: c815f2a9334bc5b1
+/insight-migration-summary/result-and-product-scope:
+  en: e53b9864d8b6a6e4
+  zh: 7dce5d1c3f1035cb
+/insight-migration-summary/data-and-release-evidence:
+  en: 25030d40914f6acf
+  zh: ed12786c4a135476
+/insight-migration-summary/retirement-decisions:
+  en: 66a8f99e8dbdd61f
+  zh: 44ab99eb824b178c
+/insight-migration-summary/maintenance-handoff:
+  en: 08508afab35c23bf
+  zh: ab4fc3422a38160b
+/insight-migration-summary/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

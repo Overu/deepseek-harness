@@ -1,0 +1,96 @@
+{
+  "version": "0.3.0-alpha.19",
+  "date": "2026-10-15",
+  "status": "candidate_ready_for_live_account_acceptance",
+  "branch": "codex/canvas-guidance-and-media-reuse",
+  "scope": [
+    "packaged on-demand workflow Skill",
+    "same-session media-generator remote image discovery and import",
+    "atomic tool description consolidation",
+    "native text/image input regression",
+    "ordinary-user delivery guidance"
+  ],
+  "coreSourceChanges": 0,
+  "backendChanges": 0,
+  "nativeCanvasBusinessChanges": 0,
+  "toolCount": 8,
+  "shellChanges": [
+    "bundled-skills/media-generator/SKILL.md: one general delivery instruction; deployment still follows normal Shell skill distribution"
+  ],
+  "tests": {
+    "plugin": {
+      "passed": 280,
+      "failed": 0
+    },
+    "nativeCanvas": {
+      "passed": 330,
+      "files": 26
+    },
+    "shellRelated": {
+      "passed": 8,
+      "files": 2
+    },
+    "pluginTypes": "passed",
+    "unusedLocalsAndParameters": "passed",
+    "actualRuntimePublicSdkTypes": "passed",
+    "webTypes": {
+      "existingDiagnostics": 9,
+      "newDiagnostics": 0,
+      "identicalToAlpha18": true
+    }
+  },
+  "isolatedProfile": {
+    "installAndRemoval": "passed",
+    "officialSkillInActualAgentScope": "passed",
+    "fourChapterReadsViaOfficialReadTool": "passed",
+    "eightTools": "passed",
+    "persistedSyntheticMediaResultDiscovery": "passed",
+    "existingBridgeSourcePersistenceAndSessionSse": "passed",
+    "generatedMedia": false
+  },
+  "publicHttpsSmoke": {
+    "passed": true,
+    "mediaType": "image/png",
+    "bytes": 8991,
+    "realMediaGeneratorResult": false
+  },
+  "package": {
+    "archive": "/Users/boxser.shi/Documents/harness/desktop-canvas-plugin/insight-ai-desktop-canvas-plugin-0.3.0-alpha.19.tgz",
+    "version": "0.3.0-alpha.19",
+    "size": 14610324,
+    "files": 64,
+    "sha256": "239792f324fd3ad0d466c0208aa01ecf2767896b1fa401bb17d6623d49100d31",
+    "mismatches": [],
+    "forbidden": [],
+    "guidanceFiles": [
+      "package/lib/guidance/desktop-canvas-workflow/manifest.json",
+      "package/lib/guidance/desktop-canvas-workflow/references/graph-and-generation.md",
+      "package/lib/guidance/desktop-canvas-workflow/references/interaction-and-output.md",
+      "package/lib/guidance/desktop-canvas-workflow/references/media-reuse.md",
+      "package/lib/guidance/desktop-canvas-workflow/references/recovery.md",
+      "package/lib/guidance/desktop-canvas-workflow/SKILL.md"
+    ],
+    "alpha18Unchanged": true
+  },
+  "review": {
+    "completed": true,
+    "blockingCandidateFindings": 0,
+    "mediaTrust": "session-scoped actual tool call/result provenance, not gateway attestation",
+    "remoteParser": "strict success envelope and URL-string image_list only; unknown object forms rejected",
+    "download": "public DNS pinned, no ambient credentials, no redirects, <20MiB, 30s, image decode",
+    "workflow": "guidance only; permissions/version/native validation still enforced in code",
+    "manualAcceptanceRequired": true
+  },
+  "liveAccount": {
+    "installed": false,
+    "mediaGeneratorRawSuccessCaptured": false,
+    "remoteToOssImportVerified": false,
+    "naturalLanguageWorkflowVerified": false,
+    "reason": "desktop control timed out; did not choose arbitrary account or trigger paid gateway generation"
+  },
+  "git": {
+    "pushed": false,
+    "committed": false,
+    "preexistingWindowsInstallDocPreserved": true
+  }
+}

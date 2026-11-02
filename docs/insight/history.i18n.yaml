@@ -1,0 +1,25 @@
+# Bilingual-pair consistency record for history.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/insight/history.md
+/insight-historical-evidence:
+  en: 71018ada185955e4
+  zh: 3626635bdfd88927
+/insight-historical-evidence/summary:
+  en: ceeffc85e2cb7128
+  zh: 61b0278d29b8dc13
+/insight-historical-evidence/evidence-by-question:
+  en: 440d3881f7ef9b4c
+  zh: a238bb4a9c0d3126
+/insight-historical-evidence/import-scope-and-traceability:
+  en: 3c3b71f2cd8009f3
+  zh: 3a830ede67704821
+/insight-historical-evidence/p6-verification-record:
+  en: ebb8774b94db74c4
+  zh: 4bd355aeb4c8340f
+/insight-historical-evidence/p6-decisions-and-limits:
+  en: a84f28a2b9874032
+  zh: b40e37ab424ca08d
+/insight-historical-evidence/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

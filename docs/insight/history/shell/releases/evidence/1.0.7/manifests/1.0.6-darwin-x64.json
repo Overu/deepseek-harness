@@ -1,0 +1,56 @@
+{
+  "schema": "insight-desktop-target/v2",
+  "version": "1.0.6",
+  "target": {
+    "platform": "darwin",
+    "arch": "x64"
+  },
+  "shellCommit": "29718822b36a232eeabe202b77fed6ae44256338",
+  "coreRuntime": {
+    "tag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+    "commit": "c3aaab2e76ddfad6163478687287774ad7233374"
+  },
+  "compatibility": {
+    "profileSchema": 1,
+    "accountStorageSchema": 1,
+    "readsDataSchema": {
+      "minimum": 1,
+      "maximum": 2
+    },
+    "writesDataSchema": 2
+  },
+  "artifacts": [
+    {
+      "platform": "darwin",
+      "arch": "x64",
+      "kind": "blockmap",
+      "name": "insight-1.0.6-mac-x64.zip.blockmap",
+      "size": 355092,
+      "sha512": "QlaJcIAiNe3Gy0Kk5cMCCHMHSbkkmZSAIySrnxM35RhmHaZGxULveSP2RIdKpSWwvDoLtZStPmNnCI9xJuLHqA=="
+    },
+    {
+      "platform": "darwin",
+      "arch": "x64",
+      "kind": "dmg",
+      "name": "insight-1.0.6-mac-x64.dmg",
+      "size": 290928251,
+      "sha512": "/6duBRfOBfxnHenMb1zUPYPQUxitA6QcMBEx8iyDBR+EVlYIH7seHSNi3EXXevMSLsf2wH8AZ9kLtdelXuWs7A=="
+    },
+    {
+      "platform": "darwin",
+      "arch": "x64",
+      "kind": "updater-metadata",
+      "name": "latest-mac.yml",
+      "size": 380,
+      "sha512": "CIBMTfktlpnadf1Hb7dJq0f3MaA7J6x9PjGEC+bkI26Dd2Fcz40JwHjUuXZbx4568ejylc2FIJdi1owlDKQQqw=="
+    },
+    {
+      "platform": "darwin",
+      "arch": "x64",
+      "kind": "zip",
+      "name": "insight-1.0.6-mac-x64.zip",
+      "size": 341753250,
+      "sha512": "xKpQi6lt8S18TI5pN6G6l66fcJDhp84EQMxWAmRdN+f/DiU6gyGTf0iiu6UjeXo78gM+fyQ/dosTPLb34W5odw=="
+    }
+  ]
+}

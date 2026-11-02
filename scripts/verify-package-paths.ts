@@ -6,7 +6,7 @@
  */
 
 import { existsSync, globSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { historicalSchemaRegion } from './historical-schema-region.ts'
 import {
@@ -84,6 +84,7 @@ function isDriftedPackageReference(repoRoot: string, packageNames: ReadonlySet<s
  * @returns missing references naming a live package, with original source line numbers.
  */
 export function findPackagePathViolations(repoRoot: string, absPath: string, packageNames: ReadonlySet<string>): Violation[] {
+  if (relative(repoRoot, absPath).replaceAll('\\', '/').startsWith('docs/insight/history/shell/')) return []
   return findReferenceViolations(
     repoRoot,
     absPath,

@@ -1,0 +1,8 @@
+{
+  "ok": false,
+  "action": "publish-candidate-all",
+  "version": "1.0.7",
+  "target": null,
+  "error": "Publisher failed; inspect the redacted workflow error.",
+  "completedAt": "2026-10-16T09:45:09.529Z"
+}

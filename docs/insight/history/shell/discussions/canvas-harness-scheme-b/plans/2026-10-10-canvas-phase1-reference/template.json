@@ -1,0 +1,1025 @@
+{
+  "schemaVersion": 1,
+  "kind": "canvas.scene-template.design",
+  "status": "design_reference_not_directly_executable",
+  "templateId": "3c-trendy-headphones",
+  "revision": "2.0.0-draft",
+  "skillName": "skill-3c-trendy",
+  "displayName": "头戴式耳机赛博潮流视频",
+  "scope": {
+    "supportedProducts": [
+      "over_ear_headphones"
+    ],
+    "outputProfile": "full_template",
+    "backendChanges": false,
+    "commandTransport": "existing_api",
+    "eventTransport": "existing_sse",
+    "periodicPolling": false
+  },
+  "legacyReference": {
+    "relativePath": "comfyui-workflow/templates-detailed-new/48_潮流个性展示.json",
+    "sha256": "ed90c0f152d8112ae0181bbdd6c3d8a0c7c2b98e3a550f9d31c97473e88bfd06",
+    "nodeCount": 29,
+    "edgeCount": 34,
+    "assetInputCount": 3,
+    "generateImageCount": 21,
+    "generateVideoCount": 5
+  },
+  "slots": {
+    "product_image": {
+      "type": "asset_reference",
+      "required": true,
+      "source": "user_attachment_or_explicit_selection"
+    },
+    "model_image": {
+      "type": "asset_reference",
+      "required": true,
+      "source": "user_attachment_or_explicit_selection"
+    },
+    "pose_reference": {
+      "type": "asset_reference",
+      "required": true,
+      "userSuppliedRequired": false,
+      "defaultAssetRef": "template-asset:pose-standing-01",
+      "defaultAssetStatus": "not_yet_curated_or_packaged"
+    },
+    "product_description": {
+      "type": "string",
+      "required": true,
+      "resolution": "visible_image_facts_plus_user_description",
+      "supportedProductCheck": true
+    },
+    "style_brief": {
+      "type": "string",
+      "required": false,
+      "default": "赛博潮流，霓虹光影，红色空间，保持人物和商品设定一致"
+    },
+    "canvas_name": {
+      "type": "string",
+      "required": false,
+      "resolution": "user_name_or_product_scene_name"
+    },
+    "canvas_id": {
+      "type": "decimal_long_string",
+      "required": false,
+      "defaultBehavior": "create_new_canvas",
+      "existingCanvasBehavior": "validate_binding_and_prepare_scoped_update"
+    }
+  },
+  "parameterProfiles": {
+    "image_reference_2k": {
+      "candidateModel": "gpt-image-2",
+      "verification": "legacy_reference_requires_current_config_permission_and_runtime_test",
+      "modelType": "reference_image_to_image",
+      "params": {
+        "resolution": "2K",
+        "aspect_ratio": "9:16",
+        "gen_count": 1
+      },
+      "unknownFieldPolicy": "reject",
+      "fallbackPolicy": "evaluated_semantically_equivalent_only"
+    },
+    "video_first_last_1080": {
+      "candidateModel": "MiniMax-Hailuo-02",
+      "verification": "legacy_reference_requires_current_config_permission_and_runtime_test",
+      "modelType": "first_last_frame_to_video",
+      "params": {
+        "resolution": "1080P",
+        "duration": 6,
+        "gen_count": 1,
+        "seniorParams": {}
+      },
+      "unknownFieldPolicy": "reject",
+      "fallbackPolicy": "evaluated_semantically_equivalent_only"
+    },
+    "video_first_last_768": {
+      "candidateModel": "MiniMax-Hailuo-02",
+      "verification": "legacy_reference_requires_current_config_permission_and_runtime_test",
+      "modelType": "first_last_frame_to_video",
+      "params": {
+        "resolution": "768P",
+        "duration": 6,
+        "gen_count": 1,
+        "seniorParams": {}
+      },
+      "unknownFieldPolicy": "reject",
+      "fallbackPolicy": "evaluated_semantically_equivalent_only"
+    },
+    "video_single_1080": {
+      "candidateModel": "viduq2",
+      "verification": "legacy_reference_requires_current_config_permission_and_runtime_test",
+      "modelType": "image_to_video",
+      "params": {
+        "resolution": "1080p",
+        "duration": 5,
+        "gen_count": 1
+      },
+      "unknownFieldPolicy": "reject",
+      "fallbackPolicy": "evaluated_semantically_equivalent_only"
+    }
+  },
+  "nodes": [
+    {
+      "key": "product",
+      "legacyNodeId": "29eeb526-f2eb-4e3f-8d43-d97a5fe54e62",
+      "legacyTitle": "用户产品上传",
+      "canvasType": "image",
+      "title": "商品素材",
+      "kind": "asset_input",
+      "contentRole": "upload",
+      "slot": "product_image",
+      "inputs": []
+    },
+    {
+      "key": "model",
+      "legacyNodeId": "0da5aeb5-5be4-4cda-9c14-dbaf518b4f99",
+      "legacyTitle": "用户模特上传",
+      "canvasType": "image",
+      "title": "模特素材",
+      "kind": "asset_input",
+      "contentRole": "upload",
+      "slot": "model_image",
+      "inputs": []
+    },
+    {
+      "key": "pose",
+      "legacyNodeId": "bc10f860-51c3-4702-a6ae-79bbb4230212",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "姿势参考素材",
+      "kind": "asset_input",
+      "contentRole": "upload",
+      "slot": "pose_reference",
+      "inputs": []
+    },
+    {
+      "key": "P2",
+      "legacyNodeId": "dad0eff8-1273-446b-8e3e-8e5d14491071",
+      "legacyTitle": "产品场景设计2",
+      "canvasType": "image",
+      "title": "商品场景设计",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1中商品外观、结构、颜色和原有logo，使用参考图2的背景风格、色调和光影设计商品场景。商品描述：{{product_description}}。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "product",
+          "role": "product_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "model",
+          "role": "style_reference",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "keyframes"
+    },
+    {
+      "key": "M1",
+      "legacyNodeId": "6b0dfdbc-6179-4591-9163-c36a5e787816",
+      "legacyTitle": "模特场景设计1",
+      "canvasType": "image",
+      "title": "模特佩戴关键帧",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "让参考图1的模特佩戴参考图2的头戴式耳机，保留商品外观、颜色、结构和原有logo，保持模特和场景风格。商品描述：{{product_description}}。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "model",
+          "role": "model_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "product",
+          "role": "product_reference",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "keyframes"
+    },
+    {
+      "key": "P1",
+      "legacyNodeId": "adce228d-7cd3-41e6-acf7-ff6e40bfa021",
+      "legacyTitle": "产品场景设计1",
+      "canvasType": "image",
+      "title": "商品高光关键帧",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1商品外观、结构、颜色和原有logo，参考图2的构图位置与场景，设计商品高光关键帧。商品描述：{{product_description}}。不替换品牌。",
+      "inputs": [
+        {
+          "source": "product",
+          "role": "product_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "P2",
+          "role": "composition_reference",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "keyframes"
+    },
+    {
+      "key": "M2",
+      "legacyNodeId": "ea752a94-091a-4fed-a2f1-3e3becfbd5b2",
+      "legacyTitle": "模特场景设计2",
+      "canvasType": "image",
+      "title": "模特正视关键帧",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的人物身份、耳机外观和场景，让模特正视前方。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "M1",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "keyframes"
+    },
+    {
+      "key": "M3",
+      "legacyNodeId": "017e0721-ec8e-43af-ab49-41bb7a162cda",
+      "legacyTitle": "模特场景设计3",
+      "canvasType": "image",
+      "title": "模特全身关键帧",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "让参考图1中的模特改为全身画面，参考图2的站姿和动作，保持人物、耳机外观与场景色调。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "pose",
+          "role": "pose_reference",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "keyframes"
+    },
+    {
+      "key": "V1",
+      "legacyNodeId": "1046b6d9-2fae-47df-84cd-c94debd82c31",
+      "legacyTitle": "视频1",
+      "canvasType": "video",
+      "title": "分镜1 商品高光",
+      "kind": "generate_video",
+      "parameterProfile": "video_first_last_1080",
+      "promptTemplate": "头戴式耳机从地面升起悬浮，在空中旋转后落回地面。保持商品轮廓、结构、颜色和原有logo。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "P1",
+          "role": "first_frame",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "P2",
+          "role": "last_frame",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "video_segments"
+    },
+    {
+      "key": "V2",
+      "legacyNodeId": "0ae57dda-d3cc-45a2-8419-ddb15de0d998",
+      "legacyTitle": "视频2",
+      "canvasType": "video",
+      "title": "分镜2 拿取佩戴",
+      "kind": "generate_video",
+      "parameterProfile": "video_first_last_1080",
+      "promptTemplate": "模特拿起地面的头戴式耳机并佩戴，保持人物与商品外观，动作连贯。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "P2",
+          "role": "first_frame",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "M1",
+          "role": "last_frame",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "video_segments"
+    },
+    {
+      "key": "V3",
+      "legacyNodeId": "743fb547-2fe2-4ec3-ba79-3693c071381b",
+      "legacyTitle": "视频3",
+      "canvasType": "video",
+      "title": "分镜3 转头正视",
+      "kind": "generate_video",
+      "parameterProfile": "video_first_last_1080",
+      "promptTemplate": "模特佩戴耳机，微微抬头回望，然后转头看向镜头并正视，保持人物、商品和场景一致。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "M1",
+          "role": "first_frame",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "M2",
+          "role": "last_frame",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "video_segments"
+    },
+    {
+      "key": "V4",
+      "legacyNodeId": "31d405e1-3354-438f-9bed-fffe13d06733",
+      "legacyTitle": "视频4",
+      "canvasType": "video",
+      "title": "分镜4 拉远全身",
+      "kind": "generate_video",
+      "parameterProfile": "video_first_last_768",
+      "promptTemplate": "模特注视镜头，镜头迅速拉远至全身，站在霓虹红色空间中摆姿势，保持人物与耳机一致。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "first_frame",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        },
+        {
+          "source": "M3",
+          "role": "last_frame",
+          "order": 2,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "video_segments"
+    },
+    {
+      "key": "V5",
+      "legacyNodeId": "9464bd37-1657-4971-a0b7-1f08b25d0220",
+      "legacyTitle": "视频5",
+      "canvasType": "video",
+      "title": "分镜5 潮流舞动",
+      "kind": "generate_video",
+      "parameterProfile": "video_single_1080",
+      "promptTemplate": "模特轻触佩戴的耳机，随节奏做自然的街头舞动，保持耳机外观、佩戴关系和人物一致。风格：{{style_brief}}。",
+      "inputs": [
+        {
+          "source": "M3",
+          "role": "image",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "video_segments"
+    },
+    {
+      "key": "VAR01",
+      "legacyNodeId": "742a8029-d43a-40d6-80af-5a8e5d786e54",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "亚洲女性霓虹配饰变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成亚洲女性霓虹配饰风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR02",
+      "legacyNodeId": "267ac36c-1e74-4f1f-bb06-ac703f2f23df",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "白色寸头街头男模变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成白色寸头街头男模风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR03",
+      "legacyNodeId": "e732ee3c-6ef2-4eec-aea5-16096fd4ba55",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "发光脏辫街头男模变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成发光脏辫街头男模风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR04",
+      "legacyNodeId": "2346665d-4433-43dc-b4c2-3aa7729e2f4f",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "漫画猫耳少女变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成漫画猫耳少女风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR05",
+      "legacyNodeId": "b930e549-07f3-42a1-9ce5-624f04caa5e5",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "长发虚拟偶像变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成长发虚拟偶像风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR06",
+      "legacyNodeId": "2cf96673-2fda-45fa-9b5d-541bb8665b03",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "漫画机能男模变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成漫画机能男模风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR07",
+      "legacyNodeId": "4e23b8a8-6c94-4fdd-a90a-979c89ee9811",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "冰蓝短发说唱女模变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成冰蓝短发说唱女模风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR08",
+      "legacyNodeId": "17948b56-be7b-4210-8b98-11cc31cc559f",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "复古像素少女变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成复古像素少女风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR09",
+      "legacyNodeId": "8381584d-404d-4cbc-8c81-693c33c4573d",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "黏土定格潮人变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成黏土定格潮人风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR10",
+      "legacyNodeId": "ea77a37d-fa8b-4f53-a313-fe77663d8aca",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "手绘水彩女模变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成手绘水彩女模风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR11",
+      "legacyNodeId": "a9cdecaf-dc32-46b9-8048-b4af7b67c846",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "体素积木潮人变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成体素积木潮人风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR12",
+      "legacyNodeId": "a85378b9-5673-4552-a036-778b28b1ed8b",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "体素鼠系少年变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成体素鼠系少年风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR13",
+      "legacyNodeId": "19b6ecd6-1350-495d-86dc-34f9eb9214e1",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "机械牛角潮人变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成机械牛角潮人风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR14",
+      "legacyNodeId": "3924d4cf-9709-4b4b-885e-3e5acb5aeef8",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "复古漫画美少年变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成复古漫画美少年风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR15",
+      "legacyNodeId": "09168864-b32a-42a4-bde0-f50711a2433a",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "像素马赛克硬汉变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成像素马赛克硬汉风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    },
+    {
+      "key": "VAR16",
+      "legacyNodeId": "374c8dbb-93f2-4cfb-b902-4d04a5fdd64d",
+      "legacyTitle": "图片",
+      "canvasType": "image",
+      "title": "发光马鬃机能男模变体",
+      "kind": "generate_image",
+      "parameterProfile": "image_reference_2k",
+      "promptTemplate": "保持参考图1的商品外观、颜色、结构和原有logo，保持构图与光影，将人物表现改成发光马鬃机能男模风格。商品描述：{{product_description}}。",
+      "inputs": [
+        {
+          "source": "M2",
+          "role": "subject_reference",
+          "order": 1,
+          "sourceHandle": "image_source",
+          "targetHandle": "image_target"
+        }
+      ],
+      "outputSelection": {
+        "policy": "single_required",
+        "field": "data.value"
+      },
+      "deliveryGroup": "character_variants"
+    }
+  ],
+  "compilation": {
+    "instantiateIds": "fresh_uuid_for_all_nodes_and_edges",
+    "legacyIdsUse": "migration_mapping_only",
+    "generationFieldsToReset": [
+      "data.value",
+      "data.product",
+      "data.taskInfo.taskId",
+      "data.taskInfo.errorMsg",
+      "data.time"
+    ],
+    "uiTransientFieldsToDrop": [
+      "selected",
+      "dragging",
+      "resizing"
+    ],
+    "remoteTaskStatusInitialization": "match_verified_existing_node_factory_never_use_as_artifact_readiness",
+    "inputRoleField": "data.type=upload",
+    "generationImageMode": "explicit_reference_image_to_image",
+    "edgeOrdering": "stable_per_target_inputs_order",
+    "canvasVersion": "comfyui",
+    "canvasType": 1,
+    "remoteExecutionNodeCount": 26
+  },
+  "execution": {
+    "primaryStrategy": "existing_backend_total_after_P0_validation",
+    "runningNodes": "all_generate_image_and_generate_video_keys_only",
+    "singleStrategy": "validated_node_retry_and_scoped_updates_only",
+    "persistSubmissionBeforeInvoke": true,
+    "unknownSubmissionPolicy": "reconcile_without_automatic_resubmit",
+    "automaticPaidRetries": 0,
+    "concurrency": "existing_backend_semantics_not_frontend_quantity_threshold",
+    "mutations": "per_canvas_single_desktop_host_command_queue",
+    "activeRunBusinessEditing": "freeze_inputs_and_connections_until_confirmed_stop_or_completion_allow_layout",
+    "eventHandling": "normalize_existing_sse_and_event_driven_snapshot_if_needed",
+    "normalPolling": false
+  },
+  "localSteps": [
+    {
+      "key": "compose_final",
+      "operation": "concat_videos",
+      "executionPlace": "web_worker",
+      "requiresBackendNodeType": false,
+      "dependsOn": [
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5"
+      ],
+      "inputs": [
+        {
+          "source": "V1",
+          "order": 1,
+          "selection": "pinned_artifact_for_this_run"
+        },
+        {
+          "source": "V2",
+          "order": 2,
+          "selection": "pinned_artifact_for_this_run"
+        },
+        {
+          "source": "V3",
+          "order": 3,
+          "selection": "pinned_artifact_for_this_run"
+        },
+        {
+          "source": "V4",
+          "order": 4,
+          "selection": "pinned_artifact_for_this_run"
+        },
+        {
+          "source": "V5",
+          "order": 5,
+          "selection": "pinned_artifact_for_this_run"
+        }
+      ],
+      "params": {
+        "container": "mp4",
+        "codec": "h264",
+        "width": 1080,
+        "height": 1920,
+        "fps": 30,
+        "fit": "contain_pad",
+        "transitions": "hard_cut",
+        "audio": "none"
+      },
+      "estimatedRequestDurationSeconds": 29,
+      "actualDuration": "probe_generated_artifacts",
+      "readiness": "all_five_current_run_video_artifacts_persisted_and_input_valid",
+      "variantDependency": false,
+      "noWebExecutorPolicy": "awaiting_local_compose_then_resume_on_reopen",
+      "output": {
+        "canvasType": "video",
+        "contentRole": "tool",
+        "nodeId": "reserved_result_uuid",
+        "backendInvocation": false,
+        "graphDependencies": "local_run_store_and_result_card_only",
+        "remoteGraphEdgesAdded": 0,
+        "graphPersistenceTiming": "after_confirmed_remote_total_terminal_preview_can_be_delivered_earlier",
+        "assetAssociation": "existing_asset_api_with_reserved_resultNodeId_verified_in_P0"
+      },
+      "retryPolicy": "local_compose_or_upload_only_no_regeneration"
+    }
+  ],
+  "outputs": {
+    "keyframes": [
+      "P1",
+      "P2",
+      "M1",
+      "M2",
+      "M3"
+    ],
+    "characterVariants": [
+      "VAR01",
+      "VAR02",
+      "VAR03",
+      "VAR04",
+      "VAR05",
+      "VAR06",
+      "VAR07",
+      "VAR08",
+      "VAR09",
+      "VAR10",
+      "VAR11",
+      "VAR12",
+      "VAR13",
+      "VAR14",
+      "VAR15",
+      "VAR16"
+    ],
+    "videoSegments": [
+      "V1",
+      "V2",
+      "V3",
+      "V4",
+      "V5"
+    ],
+    "primary": "compose_final",
+    "completion": "all_26_generation_nodes_success_and_final_saved",
+    "partialSuccess": "final_ready_with_failed_variants_is_deliverable_with_partial_material_status"
+  },
+  "confirmation": {
+    "trigger": {
+      "imageGenerationCountGreaterThan": 30,
+      "videoGenerationCountGreaterThan": 6
+    },
+    "paymentConfirmation": false,
+    "counting": "submitted_plus_planned_generations_in_this_run_include_intermediates_variants_and_retry_exclude_deterministic_compose",
+    "defaultGenerationImages": 21,
+    "defaultGenerationVideos": 5,
+    "defaultRequiresBatchConfirmation": false,
+    "approvalOwner": "recorded_real_user_response_bound_to_account_session_planHash"
+  },
+  "invalidation": {
+    "rule": "transitive_descendants_of_changed_business_inputs_and_local_steps_layout_changes_excluded",
+    "examples": {
+      "V3": [
+        "V3",
+        "compose_final"
+      ],
+      "M3": [
+        "M3",
+        "V4",
+        "V5",
+        "compose_final"
+      ],
+      "VAR01": [
+        "VAR01"
+      ],
+      "product": "all_generation_nodes_and_compose_final",
+      "model": "all_generation_nodes_and_compose_final",
+      "pose": [
+        "M3",
+        "V4",
+        "V5",
+        "compose_final"
+      ]
+    },
+    "executionPolicy": "prepare_affected_plan_preserve_history_do_not_autorun_all_descendants"
+  },
+  "prerequisites": [
+    "P0_existing_API_semantics_and_stale_version_test",
+    "P0_SSE_notification_result_visibility_and_correlation",
+    "current_model_config_and_account_permissions",
+    "curated_pose_asset",
+    "template_compiler_and_native_tools",
+    "shared_command_and_event_adapters",
+    "local_multi_source_compose_worker_and_upload"
+  ]
+}

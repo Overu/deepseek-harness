@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-16T09:45:41.991Z",
+  "id": 38878298033,
+  "attempt": 1,
+  "url": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/38878298033",
+  "headSha": "4c13969622237ccec798d9de0ddea3c154699806",
+  "status": "completed",
+  "conclusion": "failure",
+  "jobs": [
+    {
+      "id": 116898582989,
+      "name": "publish-candidate-all v1.0.7 none",
+      "status": "completed",
+      "conclusion": "failure",
+      "failedSteps": [
+        "Execute guarded v2 release transition"
+      ]
+    }
+  ]
+}

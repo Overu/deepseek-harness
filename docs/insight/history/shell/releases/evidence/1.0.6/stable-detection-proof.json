@@ -1,0 +1,506 @@
+{
+  "checkedAt": "2026-10-09T08:52:07.985Z",
+  "sourceTag": "v1.0.3",
+  "ok": true,
+  "results": [
+    {
+      "target": "darwin-arm64",
+      "stableVersion": "1.0.6",
+      "optional": true,
+      "indexTargetManifestMetadataTrustChain": "passed",
+      "candidateBytesUnchanged": true,
+      "oldVersionsCanDiscover": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4",
+        "1.0.5"
+      ],
+      "downloads": [
+        {
+          "kind": "zip",
+          "name": "insight-1.0.6-mac-arm64.zip",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-1.0.6-mac-arm64.zip",
+          "size": 329932251,
+          "sha512": "gZucequZjZJ0VpzSKWD1L7WMyPagh9DQ+5TpAjRr2gUH9zoMU4tf520/z4zQ/6BGo51SaohHg9KnFOywgyS/Uw==",
+          "headStatus": 200,
+          "headLength": 329932251,
+          "rangeStatus": 206,
+          "contentRange": "bytes 0-1023/329932251"
+        },
+        {
+          "kind": "dmg",
+          "name": "insight-1.0.6-mac-arm64.dmg",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-1.0.6-mac-arm64.dmg",
+          "size": 280304697,
+          "sha512": "8TZIn0iLYCYLm9dqONZ+rh1BfdXa6s9C6ihb9A6vl5c56YngGvz50GXuzjwm0J8/RdH6Kvmd3F7vpu5DAhnaIQ==",
+          "headStatus": 200,
+          "headLength": 280304697,
+          "rangeStatus": 206,
+          "contentRange": "bytes 0-1023/280304697"
+        }
+      ]
+    },
+    {
+      "target": "darwin-x64",
+      "stableVersion": "1.0.6",
+      "optional": true,
+      "indexTargetManifestMetadataTrustChain": "passed",
+      "candidateBytesUnchanged": true,
+      "oldVersionsCanDiscover": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4",
+        "1.0.5"
+      ],
+      "downloads": [
+        {
+          "kind": "zip",
+          "name": "insight-1.0.6-mac-x64.zip",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-1.0.6-mac-x64.zip",
+          "size": 341753250,
+          "sha512": "xKpQi6lt8S18TI5pN6G6l66fcJDhp84EQMxWAmRdN+f/DiU6gyGTf0iiu6UjeXo78gM+fyQ/dosTPLb34W5odw==",
+          "headStatus": 200,
+          "headLength": 341753250,
+          "rangeStatus": 206,
+          "contentRange": "bytes 0-1023/341753250"
+        },
+        {
+          "kind": "dmg",
+          "name": "insight-1.0.6-mac-x64.dmg",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-1.0.6-mac-x64.dmg",
+          "size": 290928251,
+          "sha512": "/6duBRfOBfxnHenMb1zUPYPQUxitA6QcMBEx8iyDBR+EVlYIH7seHSNi3EXXevMSLsf2wH8AZ9kLtdelXuWs7A==",
+          "headStatus": 200,
+          "headLength": 290928251,
+          "rangeStatus": 206,
+          "contentRange": "bytes 0-1023/290928251"
+        }
+      ]
+    },
+    {
+      "target": "win32-x64",
+      "stableVersion": "1.0.6",
+      "optional": true,
+      "indexTargetManifestMetadataTrustChain": "passed",
+      "candidateBytesUnchanged": true,
+      "oldVersionsCanDiscover": [
+        "1.0.0",
+        "1.0.1",
+        "1.0.2",
+        "1.0.3",
+        "1.0.4",
+        "1.0.5"
+      ],
+      "downloads": [
+        {
+          "kind": "nsis",
+          "name": "insight-1.0.6-windows-x64-setup.exe",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/insight-1.0.6-windows-x64-setup.exe",
+          "size": 278943045,
+          "sha512": "oN4WfpYjJvBLqmP23/UtI84GJ2TYhNxKD0Zk2JEDQf/zHnGhDzTE0SkXivGwX3OaRjVUdgAT1fCntaA+H3/jSw==",
+          "headStatus": 200,
+          "headLength": 278943045,
+          "rangeStatus": 206,
+          "contentRange": "bytes 0-1023/278943045"
+        }
+      ]
+    }
+  ],
+  "responses": [
+    {
+      "url": "https://updates.insight-aigc.com/desktop/candidate-v2/darwin-arm64/current.json",
+      "status": 200,
+      "length": 628,
+      "sha512": "1MLOFEi0FeyBlwYU+e2D1fXokFxWkdthc1E0h2VoTgzx5yaTMAFtmQoSjuEiHob3+mEwd3gBLgDgQ/Jgp7YnCA==",
+      "headers": {
+        "content-length": "628",
+        "cache-control": "public,max-age=60,must-revalidate",
+        "age": "0",
+        "x-swift-cachetime": "60",
+        "etag": "\"4FF88797B966349CEA3FE86ACB7050FD\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/candidate-v2/darwin-x64/current.json",
+      "status": 200,
+      "length": 624,
+      "sha512": "Z/jvd4gEDWHVbRE85Qsd62CL3jKKeCv6g3uZl39me7wmaKsoIiESlsiqIkYlEhVVJfme4sQuIdo7piILgCK9Mg==",
+      "headers": {
+        "content-length": "624",
+        "cache-control": "public,max-age=60,must-revalidate",
+        "age": "0",
+        "x-swift-cachetime": "60",
+        "etag": "\"6565AF8658EF08E1777DA163332A3BD7\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-target.json",
+      "status": 200,
+      "length": 1564,
+      "sha512": "Wp5JkbCdCzQpEs27hCksHZJ7GqK9K006i1zTmJUP3IZWg0Q+VYf/QSFjq6QqlgxQRlYOYgKy2pAdbvYcDAFRKQ==",
+      "headers": {
+        "content-length": "750",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2094",
+        "x-swift-cachetime": "31533906",
+        "etag": null
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/candidate-v2/win32-x64/current.json",
+      "status": 200,
+      "length": 624,
+      "sha512": "OtiWqH7oEtIZzpWDtFJNlPDCqyoyRBG/Tt1oMY/sQSC+nUUhSIUZRmQMDZoCkwe9oFWvNVXvqHVUOhtLgPOYnw==",
+      "headers": {
+        "content-length": "624",
+        "cache-control": "public,max-age=60,must-revalidate",
+        "age": "0",
+        "x-swift-cachetime": "60",
+        "etag": "\"3A180D479D3375A54C86CAD054E44C4B\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/stable/current.json",
+      "status": 200,
+      "length": 592,
+      "sha512": "q69IYWrcO/l8T3Br7oXjguHx6I3IXpYkgKn6xTioEGmPZoE0eRyG+hf1imu5A2k2p11Fx56DqNtRVfL7ghzCcw==",
+      "headers": {
+        "content-length": "592",
+        "cache-control": "public,max-age=60,must-revalidate",
+        "age": null,
+        "x-swift-cachetime": "60",
+        "etag": "\"63BDB9C270CB75FF7DEEB82E5D00B002\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/stable/current.json",
+      "status": 200,
+      "length": 592,
+      "sha512": "q69IYWrcO/l8T3Br7oXjguHx6I3IXpYkgKn6xTioEGmPZoE0eRyG+hf1imu5A2k2p11Fx56DqNtRVfL7ghzCcw==",
+      "headers": {
+        "content-length": "592",
+        "cache-control": "public,max-age=60,must-revalidate",
+        "age": "0",
+        "x-swift-cachetime": "60",
+        "etag": "\"63BDB9C270CB75FF7DEEB82E5D00B002\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/stable/current.json",
+      "status": 200,
+      "length": 592,
+      "sha512": "q69IYWrcO/l8T3Br7oXjguHx6I3IXpYkgKn6xTioEGmPZoE0eRyG+hf1imu5A2k2p11Fx56DqNtRVfL7ghzCcw==",
+      "headers": {
+        "content-length": "592",
+        "cache-control": "public,max-age=60,must-revalidate",
+        "age": "0",
+        "x-swift-cachetime": "60",
+        "etag": "\"63BDB9C270CB75FF7DEEB82E5D00B002\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-target.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "Te049aP+j8dC+pVoN2iKv1K53hQeUFFLdLbd9WbbmR8bk+KG23PY2jOfMHyKY8tCASHi55USXNUM4ssfomgpbw==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2096",
+        "x-swift-cachetime": "31533904",
+        "etag": "\"33939B5CF1943C818AF712B66B7D7615\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-target.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "Jul12Io1vuTBofDVyXccyx5C/p9oacCR3fxaeowwRwPCcbxjrYnMU7oxDStzQe0PtsmFIRxbTRcjWxPKSNHPvg==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2094",
+        "x-swift-cachetime": "31533906",
+        "etag": "\"D37F146B9FB7BF77897D3236EAC73710\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-target.json",
+      "status": 200,
+      "length": 1580,
+      "sha512": "09EVJ1Rt2vNM/DRjvW0NVrJiesd6FmFwWhanmuKDYwvfz/SDx+KZIVG6LEZeb3D6r6I6fnlfCc8RxYTsbN4Flg==",
+      "headers": {
+        "content-length": "753",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2096",
+        "x-swift-cachetime": "31533904",
+        "etag": null
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/insight-target.json",
+      "status": 200,
+      "length": 1319,
+      "sha512": "4aN8EapEA8IMyEXP4MCqnH5+c2ryeQZddss2hBmHoj5aVJ4mMV8TXMnQBBpn7UPCju/LcV6gpRi0oaC3OJQy1g==",
+      "headers": {
+        "content-length": "666",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2096",
+        "x-swift-cachetime": "31533904",
+        "etag": null
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/insight-target.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "tOqgJwQlJZG1zE3EwgRpBMGu7uSDyr3NYmXMPZmZ54DgQEdERNJ+nzMsMgACQ4PjyNFZ7m8H+zyPYkkRQvcS6g==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2095",
+        "x-swift-cachetime": "31533905",
+        "etag": "\"D6C74815364A3D06A90D286D3A57E03D\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/latest-mac.yml",
+      "status": 200,
+      "length": 380,
+      "sha512": "CIBMTfktlpnadf1Hb7dJq0f3MaA7J6x9PjGEC+bkI26Dd2Fcz40JwHjUuXZbx4568ejylc2FIJdi1owlDKQQqw==",
+      "headers": {
+        "content-length": "380",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2093",
+        "x-swift-cachetime": "31533907",
+        "etag": "\"81813A94328E523D6B27153922EB6976\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/latest.yml",
+      "status": 200,
+      "length": 371,
+      "sha512": "sPF91ztLapedP7xzPjvw4jWjfx6gnIkl05nNqnlRNndQa9stJaK2Nlmh+GRwYnIgUNyYivC8vZOIVprrwCylfg==",
+      "headers": {
+        "content-length": "371",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2093",
+        "x-swift-cachetime": "31533907",
+        "etag": "\"6271F3789E8368CB3D30D989D99DD66E\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/latest-mac.yml",
+      "status": 200,
+      "length": 384,
+      "sha512": "sVfJ2+mlWZ9aXV93AhaT5lCa9Jn9WnjejVXGJMuwEIptq8FzAcjjI2tLFM5wiKFGvsSX374KSsEaeb+b1/vxcg==",
+      "headers": {
+        "content-length": "384",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2095",
+        "x-swift-cachetime": "31533905",
+        "etag": "\"C597C2A6B927D62D53765A140BF36583\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/insight-release.json",
+      "status": 200,
+      "length": 746,
+      "sha512": "sw3pZg4uhSYNdqu9RW5RGxpSxRUvzHPVOnJeQ/iDgirG7yySkqXifInosbMQfrQhC1UBWNP+CiH2dwmd2RZDpQ==",
+      "headers": {
+        "content-length": "746",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": null,
+        "x-swift-cachetime": "31536000",
+        "etag": "\"77DE6837A2578793B6E3DB85D76C0C9F\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/insight-release.json",
+      "status": 200,
+      "length": 746,
+      "sha512": "sw3pZg4uhSYNdqu9RW5RGxpSxRUvzHPVOnJeQ/iDgirG7yySkqXifInosbMQfrQhC1UBWNP+CiH2dwmd2RZDpQ==",
+      "headers": {
+        "content-length": "746",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "0",
+        "x-swift-cachetime": "31536000",
+        "etag": "\"77DE6837A2578793B6E3DB85D76C0C9F\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/insight-release.json",
+      "status": 200,
+      "length": 746,
+      "sha512": "sw3pZg4uhSYNdqu9RW5RGxpSxRUvzHPVOnJeQ/iDgirG7yySkqXifInosbMQfrQhC1UBWNP+CiH2dwmd2RZDpQ==",
+      "headers": {
+        "content-length": "746",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "0",
+        "x-swift-cachetime": "31536000",
+        "etag": "\"77DE6837A2578793B6E3DB85D76C0C9F\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/insight-release.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "hLOVu+on3RnPJS98RYVXAT5lFpi2Ss/TqS6WyD1F0rYBNYRSl7hBwNdE1UIdaVpkaFC7buqK8g5iZ00l/AzqWQ==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": null,
+        "x-swift-cachetime": "31536000",
+        "etag": "\"3519BA4983D52EA2CF74F7C27F98EE7A\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/insight-release.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "hLOVu+on3RnPJS98RYVXAT5lFpi2Ss/TqS6WyD1F0rYBNYRSl7hBwNdE1UIdaVpkaFC7buqK8g5iZ00l/AzqWQ==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "0",
+        "x-swift-cachetime": "31536000",
+        "etag": "\"3519BA4983D52EA2CF74F7C27F98EE7A\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/insight-release.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "hLOVu+on3RnPJS98RYVXAT5lFpi2Ss/TqS6WyD1F0rYBNYRSl7hBwNdE1UIdaVpkaFC7buqK8g5iZ00l/AzqWQ==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "0",
+        "x-swift-cachetime": "31536000",
+        "etag": "\"3519BA4983D52EA2CF74F7C27F98EE7A\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-target.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "Jul12Io1vuTBofDVyXccyx5C/p9oacCR3fxaeowwRwPCcbxjrYnMU7oxDStzQe0PtsmFIRxbTRcjWxPKSNHPvg==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2094",
+        "x-swift-cachetime": "31533906",
+        "etag": "\"D37F146B9FB7BF77897D3236EAC73710\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-target.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "Te049aP+j8dC+pVoN2iKv1K53hQeUFFLdLbd9WbbmR8bk+KG23PY2jOfMHyKY8tCASHi55USXNUM4ssfomgpbw==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2096",
+        "x-swift-cachetime": "31533904",
+        "etag": "\"33939B5CF1943C818AF712B66B7D7615\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/insight-target.json.sig",
+      "status": 200,
+      "length": 64,
+      "sha512": "tOqgJwQlJZG1zE3EwgRpBMGu7uSDyr3NYmXMPZmZ54DgQEdERNJ+nzMsMgACQ4PjyNFZ7m8H+zyPYkkRQvcS6g==",
+      "headers": {
+        "content-length": "64",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2095",
+        "x-swift-cachetime": "31533905",
+        "etag": "\"D6C74815364A3D06A90D286D3A57E03D\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/insight-target.json",
+      "status": 200,
+      "length": 1319,
+      "sha512": "4aN8EapEA8IMyEXP4MCqnH5+c2ryeQZddss2hBmHoj5aVJ4mMV8TXMnQBBpn7UPCju/LcV6gpRi0oaC3OJQy1g==",
+      "headers": {
+        "content-length": "666",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2096",
+        "x-swift-cachetime": "31533904",
+        "etag": null
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/insight-target.json",
+      "status": 200,
+      "length": 1580,
+      "sha512": "09EVJ1Rt2vNM/DRjvW0NVrJiesd6FmFwWhanmuKDYwvfz/SDx+KZIVG6LEZeb3D6r6I6fnlfCc8RxYTsbN4Flg==",
+      "headers": {
+        "content-length": "753",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2096",
+        "x-swift-cachetime": "31533904",
+        "etag": null
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-target.json",
+      "status": 200,
+      "length": 1564,
+      "sha512": "Wp5JkbCdCzQpEs27hCksHZJ7GqK9K006i1zTmJUP3IZWg0Q+VYf/QSFjq6QqlgxQRlYOYgKy2pAdbvYcDAFRKQ==",
+      "headers": {
+        "content-length": "750",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2095",
+        "x-swift-cachetime": "31533906",
+        "etag": null
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-arm64/latest-mac.yml",
+      "status": 200,
+      "length": 384,
+      "sha512": "sVfJ2+mlWZ9aXV93AhaT5lCa9Jn9WnjejVXGJMuwEIptq8FzAcjjI2tLFM5wiKFGvsSX374KSsEaeb+b1/vxcg==",
+      "headers": {
+        "content-length": "384",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2095",
+        "x-swift-cachetime": "31533905",
+        "etag": "\"C597C2A6B927D62D53765A140BF36583\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/win32-x64/latest.yml",
+      "status": 200,
+      "length": 371,
+      "sha512": "sPF91ztLapedP7xzPjvw4jWjfx6gnIkl05nNqnlRNndQa9stJaK2Nlmh+GRwYnIgUNyYivC8vZOIVprrwCylfg==",
+      "headers": {
+        "content-length": "371",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2093",
+        "x-swift-cachetime": "31533907",
+        "etag": "\"6271F3789E8368CB3D30D989D99DD66E\""
+      }
+    },
+    {
+      "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/latest-mac.yml",
+      "status": 200,
+      "length": 380,
+      "sha512": "CIBMTfktlpnadf1Hb7dJq0f3MaA7J6x9PjGEC+bkI26Dd2Fcz40JwHjUuXZbx4568ejylc2FIJdi1owlDKQQqw==",
+      "headers": {
+        "content-length": "380",
+        "cache-control": "public,max-age=31536000,immutable",
+        "age": "2093",
+        "x-swift-cachetime": "31533907",
+        "etag": "\"81813A94328E523D6B27153922EB6976\""
+      }
+    }
+  ],
+  "scope": "Unchanged old client source reading the real public Stable channel. Signature, identity, immutable Candidate equality and installer HEAD/Range checks; no installed client or user data changed."
+}

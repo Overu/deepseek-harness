@@ -1,0 +1,242 @@
+{
+  "verifiedOn": "2026-10-29",
+  "timezone": "Asia/Shanghai",
+  "branch": "insight",
+  "conclusion": "P1 accepted and checkpointed; P2 authorized but not started; P3 requires separate confirmation; not releasable",
+  "checks": [
+    {
+      "command": "pnpm run build:artifacts",
+      "status": "passed",
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "command": "pnpm run build:check",
+      "status": "passed",
+      "passed": 2,
+      "failed": 0
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --config vitest.e2e.config.ts apps/cli/tests/profiles/web/insight-intake.e2e.ts --retry=0",
+      "status": "passed",
+      "tests": 1,
+      "home": "fresh temporary only"
+    },
+    {
+      "command": "pnpm --dir packages/insight/<package> pack --pack-destination <temporary-output>",
+      "status": "passed",
+      "packages": 3,
+      "verified": [
+        "export targets",
+        "declarations",
+        "Client registration",
+        "required resources",
+        "retired updater absent"
+      ]
+    },
+    {
+      "command": "pnpm run verify:insight-source packages/insight/<package> <pinned-local-archive>",
+      "status": "passed",
+      "archives": 3
+    },
+    {
+      "command": "DSH_GATE_CONCURRENCY=2 pnpm run hygiene",
+      "status": "failed",
+      "passed": 19,
+      "failed": 4,
+      "failures": [
+        "plugin locale metadata",
+        "client UI i18n",
+        "client route resolution",
+        "no new unknown casts"
+      ]
+    },
+    {
+      "command": "DSH_GATE_CONCURRENCY=2 pnpm run doc-sync",
+      "status": "failed",
+      "passed": 42,
+      "failed": 1,
+      "failure": "repository references: unchanged python/sdk/uv.lock:113 commit-hash"
+    },
+    {
+      "command": "pnpm run test:docs",
+      "status": "failed",
+      "passed": 20,
+      "failed": 1,
+      "failure": "same unchanged uv.lock reference"
+    },
+    {
+      "command": "pnpm run lint",
+      "status": "failed",
+      "errors": 46069,
+      "warnings": 9,
+      "errorsOutsideInsight": 0,
+      "lastFullRunBeforeCloseoutFixes": true,
+      "rerunAfterCloseoutFixes": false,
+      "remainingScope": "P3 explicitly approved; do not treat recorded old counts as current exact counts"
+    },
+    {
+      "command": "node --import tsx/esm scripts/run-oxlint.ts <24 P1 integration files>",
+      "status": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    }
+  ],
+  "approvedP3": {
+    "documentRelativeRoutes": 2,
+    "unknownAssertions": 43,
+    "fixedBusinessSourceLint": {
+      "errorsByPackage": {
+        "packages/insight/canvas": 43963,
+        "packages/insight/memory-evolve": 1918,
+        "packages/insight/prompt-enhance": 188
+      },
+      "styleErrors": 44916,
+      "otherErrors": 1153,
+      "errorsByRule": {
+        "@stylistic(semi)": 34875,
+        "@stylistic(member-delimiter-style)": 4235,
+        "@stylistic(quotes)": 37,
+        "@stylistic(comma-dangle)": 571,
+        "@stylistic(max-len)": 614,
+        "@stylistic(indent)": 3148,
+        "@stylistic(no-trailing-spaces)": 7,
+        "@stylistic(arrow-parens)": 1058,
+        "TS(1016)": 1,
+        "sonarjs(no-all-duplicated-branches)": 3,
+        "sonarjs(no-identical-functions)": 5,
+        "typescript(no-non-null-assertion)": 38,
+        "eslint(prefer-const)": 1,
+        "sonarjs(duplicates-in-character-class)": 4,
+        "@stylistic(eol-last)": 1,
+        "eslint(no-restricted-properties)": 9,
+        "@stylistic(object-curly-spacing)": 370,
+        "typescript(no-explicit-any)": 15,
+        "eslint(no-unused-vars)": 1,
+        "sonarjs(no-duplicated-branches)": 1,
+        "typescript(no-unsafe-argument)": 27,
+        "typescript(no-unsafe-assignment)": 33,
+        "typescript(no-unsafe-return)": 3,
+        "typescript(no-unsafe-member-access)": 97,
+        "typescript(no-base-to-string)": 7,
+        "typescript(no-confusing-void-expression)": 499,
+        "typescript(prefer-promise-reject-errors)": 3,
+        "typescript(no-unnecessary-condition)": 165,
+        "typescript(no-unnecessary-type-parameters)": 1,
+        "typescript(restrict-template-expressions)": 2,
+        "typescript(restrict-plus-operands)": 6,
+        "typescript(no-unsafe-call)": 7,
+        "typescript(no-unnecessary-type-assertion)": 17,
+        "typescript(use-unknown-in-catch-callback-variable)": 34,
+        "typescript(no-deprecated)": 75,
+        "typescript(no-unnecessary-type-conversion)": 17,
+        "typescript(unbound-method)": 15,
+        "typescript(require-await)": 2,
+        "typescript(no-misused-spread)": 32,
+        "typescript(tsconfig-error)": 4,
+        "typescript(no-unnecessary-template-expression)": 2,
+        "typescript(no-unnecessary-boolean-literal-compare)": 20,
+        "typescript(no-meaningless-void-operator)": 1,
+        "typescript(no-misused-promises)": 6
+      }
+    }
+  },
+  "notChecked": [
+    "built-in skill business correctness",
+    "real account/cloud generation",
+    "native GUI full feature acceptance",
+    "historical user Home migration",
+    "signed installer/in-place update",
+    "multi-platform release"
+  ],
+  "closedInP1": {
+    "originalDependencyViolations": [
+      "packages/insight/canvas/package.json: remove devDependencies.@types/react; the root package.json provides it because each package-local link slows TypeScript JSX checking (packages/client/AGENTS.md#dependency-declaration)",
+      "packages/insight/canvas/src/host/canvas-asset-tools.ts:4:10: @deepseek-ai/dsh-tools#defineTool is not classified as safe or peer-required — import { defineTool } from '@deepseek-ai/dsh-tools'",
+      "packages/insight/canvas/src/host/canvas-graph-tools.ts:2:10: @deepseek-ai/dsh-tools#defineTool is not classified as safe or peer-required — import { defineTool } from '@deepseek-ai/dsh-tools'",
+      "packages/insight/canvas/src/host/canvas-management-tools.ts:2:10: @deepseek-ai/dsh-tools#defineTool is not classified as safe or peer-required — import { defineTool, type ParameterSchemaSpec } from '@deepseek-ai/dsh-tools';",
+      "packages/insight/canvas/src/host/canvas-process-tools.ts:2:10: @deepseek-ai/dsh-tools#defineTool is not classified as safe or peer-required — import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools';",
+      "packages/insight/canvas/src/host/canvas-process-tools.ts:4:10: @deepseek-ai/dsh-llm#createUserMessage is not classified as safe or peer-required — import { createUserMessage } from '@deepseek-ai/dsh-llm';",
+      "packages/insight/canvas/src/host/canvas-result-store.ts:3:24: @deepseek-ai/dsh-storage-domain#domainTable is not classified as safe or peer-required — import { defineDomain, domainTable, type Domain } from '@deepseek-ai/dsh-storage-domain'",
+      "packages/insight/canvas/src/host/canvas-run-tools.ts:3:10: @deepseek-ai/dsh-llm#createUserMessage is not classified as safe or peer-required — import { createUserMessage } from '@deepseek-ai/dsh-llm'",
+      "packages/insight/canvas/src/host/canvas-run-tools.ts:6:10: @deepseek-ai/dsh-tools#defineTool is not classified as safe or peer-required — import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'",
+      "packages/insight/canvas/src/host/canvas-tools.ts:3:10: @deepseek-ai/dsh-tools#defineTool is not classified as safe or peer-required — import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'",
+      "packages/insight/prompt-enhance/src/enhancer.ts:9:10: @deepseek-ai/dsh-llm#BlockAssembler is not classified as safe or peer-required — import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'",
+      "packages/insight/prompt-enhance/src/enhancer.ts:9:26: @deepseek-ai/dsh-llm#createUserMessage is not classified as safe or peer-required — import { BlockAssembler, createUserMessage } from '@deepseek-ai/dsh-llm'"
+    ],
+    "additionalDeclarationFindings": [
+      "attachment/fs type-only inputs in devDependencies",
+      "declare Client attachment injection in devDependencies",
+      "keep ali-oss in runtime dependencies with statically visible local require binding"
+    ],
+    "safeHostExports": [
+      "@deepseek-ai/dsh-llm#BlockAssembler",
+      "@deepseek-ai/dsh-llm#createUserMessage",
+      "@deepseek-ai/dsh-storage-domain#domainTable"
+    ],
+    "sharedPeerExports": [
+      "@deepseek-ai/dsh-tools#defineTool"
+    ],
+    "uuid": "existing dsh-util-crypto; regression failed on prior implementation and passes without crypto.randomUUID",
+    "review": "independent Host export review finding resolved; reviewer did not inspect Canvas",
+    "buildArtifacts": {
+      "passed": 8,
+      "failed": 0
+    },
+    "buildCheck": {
+      "passed": 2,
+      "failed": 0
+    },
+    "dependencyPolicyTests": 61,
+    "canvasTests": 418,
+    "iframeUploadTests": 10,
+    "nodeNextPackageApis": 381,
+    "sourceReplayArchives": 3,
+    "finalPackedComponents": 3,
+    "isolatedLoaderTests": 1,
+    "targetedLint": "passed; policy, UUID helper and related tests"
+  },
+  "outOfCurrentScopeByLatestUserDecision": {
+    "insightI18n": {
+      "recordedHardcodedUiStringsOrFalsePositives": 382,
+      "missingLocalesPerMemoryAndPrompt": [
+        "ja",
+        "es",
+        "fr",
+        "de",
+        "ru",
+        "pt"
+      ],
+      "checkResult": "historical failure retained; no gate code changed; no P3 translation requirement"
+    },
+    "decisionDate": "2026-10-29"
+  },
+  "migrationRequirements": {
+    "branding": "existing Shell name 因赛AI and icon assets; P2 product integration and P5 installer verification",
+    "history": "all historical conversations and branches/resources retained, visible/openable/resumable in original account; P4/P5 release gate; re-login never clears history",
+    "loginAndApi": "P2 native login/account endpoints; P3 model/search/skill providers; not implemented in P1"
+  },
+  "checkpoint": {
+    "sourceRepository": "deepseek-harness",
+    "branch": "insight",
+    "sourceCommit": "413ce141bec951ed001e5398b981beb42a7fd7ab",
+    "date": "2026-10-29",
+    "pushed": false,
+    "stagedChangedFilesByteCompared": 1381,
+    "manualPreCommitPassed": [
+      "12 staged translation pairs",
+      "provider metadata",
+      "vendor manifest guard",
+      "read-only staged lint for 28 integration files",
+      "owned-file whitespace"
+    ],
+    "notRunAsAutomaticHook": [
+      "bulk staged lint --fix",
+      "full imported-source whitespace acceptance"
+    ],
+    "fullStagedWhitespace": "failed only on imported skills, snapshots and patches; bytes preserved",
+    "gitHookHandling": "applicable checks executed manually; commit invocation did not repeat full hook runner; hook config unchanged"
+  }
+}

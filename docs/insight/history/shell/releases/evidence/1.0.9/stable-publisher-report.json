@@ -1,0 +1,97 @@
+{
+  "ok": true,
+  "action": "promote-stable-all",
+  "version": "1.0.9",
+  "target": null,
+  "accepted": [
+    {
+      "target": "darwin-arm64",
+      "acceptance": {
+        "schema": "insight-desktop-acceptance/v1",
+        "version": "1.0.9",
+        "target": "darwin-arm64",
+        "manifestSha512": "l3+llRrkEZWFMfzSkhY+6UJV7fl72u6BJkhkNWy1BcqoPucaZIOuWr/yHwa/3jERHth1V0fMqXRkUfU2RAczhQ==",
+        "actor": "Overu",
+        "workflowRun": "40510038388",
+        "acceptedAt": "2026-10-27T13:15:10.929Z"
+      },
+      "alreadyAccepted": false
+    },
+    {
+      "target": "darwin-x64",
+      "acceptance": {
+        "schema": "insight-desktop-acceptance/v1",
+        "version": "1.0.9",
+        "target": "darwin-x64",
+        "manifestSha512": "f+ZLAtCo7PVCz570oh809WANBiWh6Q9zfwsHkVqSEjD8GCCvB8J7MWiRG5stXJS5hvyyTjX0O+fuV0Sq3U3t0A==",
+        "actor": "Overu",
+        "workflowRun": "40510038388",
+        "acceptedAt": "2026-10-27T13:15:19.375Z"
+      },
+      "alreadyAccepted": false
+    },
+    {
+      "target": "win32-x64",
+      "acceptance": {
+        "schema": "insight-desktop-acceptance/v1",
+        "version": "1.0.9",
+        "target": "win32-x64",
+        "manifestSha512": "hXp+aY6GOjIqp+SLjgSjCxci/NTQn+P4YCSODL/Agd42dDwdv9Y85QSE0w74gdVqig37OFDlBkbxQdKrf/59mg==",
+        "actor": "Overu",
+        "workflowRun": "40510038388",
+        "acceptedAt": "2026-10-27T13:15:26.692Z"
+      },
+      "alreadyAccepted": false
+    }
+  ],
+  "index": {
+    "schema": "insight-desktop-release/v2",
+    "version": "1.0.9",
+    "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+    "coreRuntime": {
+      "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+      "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+    },
+    "targets": [
+      {
+        "id": "darwin-arm64",
+        "manifestSha512": "l3+llRrkEZWFMfzSkhY+6UJV7fl72u6BJkhkNWy1BcqoPucaZIOuWr/yHwa/3jERHth1V0fMqXRkUfU2RAczhQ=="
+      },
+      {
+        "id": "darwin-x64",
+        "manifestSha512": "f+ZLAtCo7PVCz570oh809WANBiWh6Q9zfwsHkVqSEjD8GCCvB8J7MWiRG5stXJS5hvyyTjX0O+fuV0Sq3U3t0A=="
+      },
+      {
+        "id": "win32-x64",
+        "manifestSha512": "hXp+aY6GOjIqp+SLjgSjCxci/NTQn+P4YCSODL/Agd42dDwdv9Y85QSE0w74gdVqig37OFDlBkbxQdKrf/59mg=="
+      }
+    ]
+  },
+  "githubPublished": true,
+  "pointerBefore": {
+    "schema": "insight-desktop-rollout/v2",
+    "state": "active",
+    "track": "stable",
+    "version": "1.0.6",
+    "referencedSha512": "sw3pZg4uhSYNdqu9RW5RGxpSxRUvzHPVOnJeQ/iDgirG7yySkqXifInosbMQfrQhC1UBWNP+CiH2dwmd2RZDpQ==",
+    "policy": {
+      "mode": "optional",
+      "minimumSupportedVersion": "1.0.0-rc.1"
+    },
+    "publishedAt": "2026-10-09T08:50:55.382Z"
+  },
+  "pointerAfter": {
+    "schema": "insight-desktop-rollout/v2",
+    "state": "active",
+    "track": "stable",
+    "version": "1.0.9",
+    "referencedSha512": "lYW+QmWDRsLht0Y+vv7/m+h0FjbKPsI+QGwihECdDcmJzO5Uvm5Egu2Mn5jsvbB6Y4sr150FnJ89EKb+LKsTmQ==",
+    "policy": {
+      "mode": "optional",
+      "minimumSupportedVersion": "1.0.0-rc.1"
+    },
+    "publishedAt": "2026-10-27T13:15:39.139Z"
+  },
+  "alreadyPromoted": false,
+  "completedAt": "2026-10-27T13:15:59.144Z"
+}

@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-10-16T09:53:34.073Z",
+  "version": "1.0.6",
+  "method": "Every byte read using bounded parallel HTTPS ranges, then hashed in exact file order into one SHA-512 per artifact; complete size and digest compared to independently authenticated target manifests",
+  "allArtifactsVerified": true,
+  "targets": [
+    {
+      "target": "darwin-x64",
+      "artifacts": [
+        {
+          "name": "insight-1.0.6-mac-x64.dmg",
+          "url": "https://updates.insight-aigc.com/desktop/releases/v1.0.6/targets/darwin-x64/insight-1.0.6-mac-x64.dmg",
+          "size": 290928251,
+          "sha512": "/6duBRfOBfxnHenMb1zUPYPQUxitA6QcMBEx8iyDBR+EVlYIH7seHSNi3EXXevMSLsf2wH8AZ9kLtdelXuWs7A==",
+          "requests": 35,
+          "verified": true
+        }
+      ]
+    }
+  ]
+}

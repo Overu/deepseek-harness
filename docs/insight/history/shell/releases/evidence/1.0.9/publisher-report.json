@@ -1,0 +1,381 @@
+{
+  "ok": true,
+  "action": "publish-candidate-all",
+  "version": "1.0.9",
+  "target": null,
+  "staged": [
+    {
+      "target": "darwin-arm64",
+      "manifest": {
+        "schema": "insight-desktop-target/v2",
+        "version": "1.0.9",
+        "target": {
+          "platform": "darwin",
+          "arch": "arm64"
+        },
+        "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+        "coreRuntime": {
+          "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+          "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+        },
+        "compatibility": {
+          "profileSchema": 1,
+          "accountStorageSchema": 1,
+          "readsDataSchema": {
+            "minimum": 1,
+            "maximum": 2
+          },
+          "writesDataSchema": 2
+        },
+        "artifacts": [
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "blockmap",
+            "name": "insight-1.0.9-mac-arm64.zip.blockmap",
+            "size": 433670,
+            "sha512": "R8KcR7BekWrdVlBxCHkGVcjzkbdbSeGgOt3V8lw6T5SN+S7fKy4YYfLLIWMzFAwA7g++OvQVRjcUNQeTcCNH0w=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "dmg",
+            "name": "insight-1.0.9-mac-arm64.dmg",
+            "size": 358327937,
+            "sha512": "naYb7B5Kryq1VKFVRAVzIHK7MrQnMgieKI2GxKRBJI364JHtKi72Et+D5ByPTHrZrdM5wps1BGYeHHbUT3yBtA=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "updater-metadata",
+            "name": "latest-mac.yml",
+            "size": 384,
+            "sha512": "7fbJtK+GjeBDRGJ9LfQ0VxRHgu4Z+NknztgkYk2e4gCFtJ27wxAyBG1KOrdkllMVr1SIjGZrPvpdKO9UR9UsmQ=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "arm64",
+            "kind": "zip",
+            "name": "insight-1.0.9-mac-arm64.zip",
+            "size": 421882888,
+            "sha512": "r6LqWi7MsSIJPFK3qEItkZSm9ZWLZqo4ZtYIlR8dCcVRGYEiKcaYTxpqPRxekgn3CkDZ6S475GazjL4K//2RQg=="
+          }
+        ]
+      },
+      "manifestSha512": "l3+llRrkEZWFMfzSkhY+6UJV7fl72u6BJkhkNWy1BcqoPucaZIOuWr/yHwa/3jERHth1V0fMqXRkUfU2RAczhQ==",
+      "uploaded": [
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-arm64/insight-1.0.9-mac-arm64.dmg",
+          "size": 358327937,
+          "sha512": "naYb7B5Kryq1VKFVRAVzIHK7MrQnMgieKI2GxKRBJI364JHtKi72Et+D5ByPTHrZrdM5wps1BGYeHHbUT3yBtA==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-arm64/insight-1.0.9-mac-arm64.zip",
+          "size": 421882888,
+          "sha512": "r6LqWi7MsSIJPFK3qEItkZSm9ZWLZqo4ZtYIlR8dCcVRGYEiKcaYTxpqPRxekgn3CkDZ6S475GazjL4K//2RQg==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-arm64/insight-1.0.9-mac-arm64.zip.blockmap",
+          "size": 433670,
+          "sha512": "R8KcR7BekWrdVlBxCHkGVcjzkbdbSeGgOt3V8lw6T5SN+S7fKy4YYfLLIWMzFAwA7g++OvQVRjcUNQeTcCNH0w==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-arm64/insight-target.json",
+          "size": 1580,
+          "sha512": "l3+llRrkEZWFMfzSkhY+6UJV7fl72u6BJkhkNWy1BcqoPucaZIOuWr/yHwa/3jERHth1V0fMqXRkUfU2RAczhQ==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-arm64/insight-target.json.sig",
+          "size": 64,
+          "sha512": "t1+cCKBUDl+FCTXyxRiuFevJl3AMjs1Zb/kDZRk/o3ESkPVZjnTpTp1UJFJo8aWH7uxtaQhRJcF2/khRlpFoww==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-arm64/latest-mac.yml",
+          "size": 384,
+          "sha512": "7fbJtK+GjeBDRGJ9LfQ0VxRHgu4Z+NknztgkYk2e4gCFtJ27wxAyBG1KOrdkllMVr1SIjGZrPvpdKO9UR9UsmQ==",
+          "action": "uploaded"
+        }
+      ]
+    },
+    {
+      "target": "darwin-x64",
+      "manifest": {
+        "schema": "insight-desktop-target/v2",
+        "version": "1.0.9",
+        "target": {
+          "platform": "darwin",
+          "arch": "x64"
+        },
+        "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+        "coreRuntime": {
+          "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+          "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+        },
+        "compatibility": {
+          "profileSchema": 1,
+          "accountStorageSchema": 1,
+          "readsDataSchema": {
+            "minimum": 1,
+            "maximum": 2
+          },
+          "writesDataSchema": 2
+        },
+        "artifacts": [
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "blockmap",
+            "name": "insight-1.0.9-mac-x64.zip.blockmap",
+            "size": 446883,
+            "sha512": "i2e/0ycyndY90zzhl8+G2b1Z+XSUKN9sPv0VCTsfir0ia2fnRcHavdpDrFqzC++7fua10pdbUsCbmWYg80xI6Q=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "dmg",
+            "name": "insight-1.0.9-mac-x64.dmg",
+            "size": 369304865,
+            "sha512": "nJRSKGdJ8zWDcjE7u5Y2dgTloYmbgp+HCBxDhoIkqtyKaToMca/fR6KEvJ6J+7mefcuGex645WiIrncUBb3ehA=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "updater-metadata",
+            "name": "latest-mac.yml",
+            "size": 380,
+            "sha512": "Rk4RVpbH+wCPblGh/X/My2Xr5y3oXWhtRP4EVlXk0D6Uqr+lNf4ex7AxJImJo/RmLfai+ZhdffMPFl6Nv7ugSg=="
+          },
+          {
+            "platform": "darwin",
+            "arch": "x64",
+            "kind": "zip",
+            "name": "insight-1.0.9-mac-x64.zip",
+            "size": 434837710,
+            "sha512": "jf8j+Xij9rTKZzvDF7t1vTmUBnEDLV/6zw/FDif0xTF+TRQhLnA12pgkquA5ZlsB7bxGPk9JeUTg6L+Pdebnjg=="
+          }
+        ]
+      },
+      "manifestSha512": "f+ZLAtCo7PVCz570oh809WANBiWh6Q9zfwsHkVqSEjD8GCCvB8J7MWiRG5stXJS5hvyyTjX0O+fuV0Sq3U3t0A==",
+      "uploaded": [
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-x64/insight-1.0.9-mac-x64.dmg",
+          "size": 369304865,
+          "sha512": "nJRSKGdJ8zWDcjE7u5Y2dgTloYmbgp+HCBxDhoIkqtyKaToMca/fR6KEvJ6J+7mefcuGex645WiIrncUBb3ehA==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-x64/insight-1.0.9-mac-x64.zip",
+          "size": 434837710,
+          "sha512": "jf8j+Xij9rTKZzvDF7t1vTmUBnEDLV/6zw/FDif0xTF+TRQhLnA12pgkquA5ZlsB7bxGPk9JeUTg6L+Pdebnjg==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-x64/insight-1.0.9-mac-x64.zip.blockmap",
+          "size": 446883,
+          "sha512": "i2e/0ycyndY90zzhl8+G2b1Z+XSUKN9sPv0VCTsfir0ia2fnRcHavdpDrFqzC++7fua10pdbUsCbmWYg80xI6Q==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-x64/insight-target.json",
+          "size": 1564,
+          "sha512": "f+ZLAtCo7PVCz570oh809WANBiWh6Q9zfwsHkVqSEjD8GCCvB8J7MWiRG5stXJS5hvyyTjX0O+fuV0Sq3U3t0A==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-x64/insight-target.json.sig",
+          "size": 64,
+          "sha512": "xVdGfFXQVG+lr7ZwuZaye5/qbVZp4Wgh9PMxq6CkjoRAMq+9n98VZY6UaBHdd7nir2QWppghskoH7kirsLnZ+w==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/darwin-x64/latest-mac.yml",
+          "size": 380,
+          "sha512": "Rk4RVpbH+wCPblGh/X/My2Xr5y3oXWhtRP4EVlXk0D6Uqr+lNf4ex7AxJImJo/RmLfai+ZhdffMPFl6Nv7ugSg==",
+          "action": "uploaded"
+        }
+      ]
+    },
+    {
+      "target": "win32-x64",
+      "manifest": {
+        "schema": "insight-desktop-target/v2",
+        "version": "1.0.9",
+        "target": {
+          "platform": "win32",
+          "arch": "x64"
+        },
+        "shellCommit": "bc45fc03af26b89f43ae6cf0d98a312293c02a13",
+        "coreRuntime": {
+          "tag": "insight-runtime-v0.2.1-alpha.1-insight.4",
+          "commit": "90e7d68e5472883e54affe254eebc2bc0a97f7bc"
+        },
+        "compatibility": {
+          "profileSchema": 1,
+          "accountStorageSchema": 1,
+          "readsDataSchema": {
+            "minimum": 1,
+            "maximum": 2
+          },
+          "writesDataSchema": 2
+        },
+        "artifacts": [
+          {
+            "platform": "win32",
+            "arch": "x64",
+            "kind": "blockmap",
+            "name": "insight-1.0.9-windows-x64-setup.exe.blockmap",
+            "size": 321352,
+            "sha512": "Vj8b92EuEqDrRg89bbvwBYX+coJMGgg96o0pq/ZOUpvRhYoLT2t/2tZ4VKPvIh1x2b2RbPjNOpUeRf0H52LQTQ=="
+          },
+          {
+            "platform": "win32",
+            "arch": "x64",
+            "kind": "nsis",
+            "name": "insight-1.0.9-windows-x64-setup.exe",
+            "size": 336049614,
+            "sha512": "sddhJbdX28oDZ7w4eON7tsJLDTMy8/S1a+/X/TdspxRGlpBNTmeJ++mWKlCaUiRtxjCO2u8DgGeXnXWSe6j/DQ=="
+          },
+          {
+            "platform": "win32",
+            "arch": "x64",
+            "kind": "updater-metadata",
+            "name": "latest.yml",
+            "size": 371,
+            "sha512": "aat1PAf7+4PrawcgkDf9Z2OPLW2jphhTfgiLX99yopMSMFjgHy/4uNh4JBfEX6jGreRkRkxfl7WGnZkGVtDgOA=="
+          }
+        ]
+      },
+      "manifestSha512": "hXp+aY6GOjIqp+SLjgSjCxci/NTQn+P4YCSODL/Agd42dDwdv9Y85QSE0w74gdVqig37OFDlBkbxQdKrf/59mg==",
+      "uploaded": [
+        {
+          "key": "desktop/releases/v1.0.9/targets/win32-x64/insight-1.0.9-windows-x64-setup.exe",
+          "size": 336049614,
+          "sha512": "sddhJbdX28oDZ7w4eON7tsJLDTMy8/S1a+/X/TdspxRGlpBNTmeJ++mWKlCaUiRtxjCO2u8DgGeXnXWSe6j/DQ==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/win32-x64/insight-1.0.9-windows-x64-setup.exe.blockmap",
+          "size": 321352,
+          "sha512": "Vj8b92EuEqDrRg89bbvwBYX+coJMGgg96o0pq/ZOUpvRhYoLT2t/2tZ4VKPvIh1x2b2RbPjNOpUeRf0H52LQTQ==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/win32-x64/insight-target.json",
+          "size": 1319,
+          "sha512": "hXp+aY6GOjIqp+SLjgSjCxci/NTQn+P4YCSODL/Agd42dDwdv9Y85QSE0w74gdVqig37OFDlBkbxQdKrf/59mg==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/win32-x64/insight-target.json.sig",
+          "size": 64,
+          "sha512": "W4vgvmCFfLDiAVtVndlk9lrkWOUSNm8pMsxEautsoxWNxg44lDeh/p08XFi3d9VGoToqUttOoGAimtoT2wgU0A==",
+          "action": "uploaded"
+        },
+        {
+          "key": "desktop/releases/v1.0.9/targets/win32-x64/latest.yml",
+          "size": 371,
+          "sha512": "aat1PAf7+4PrawcgkDf9Z2OPLW2jphhTfgiLX99yopMSMFjgHy/4uNh4JBfEX6jGreRkRkxfl7WGnZkGVtDgOA==",
+          "action": "uploaded"
+        }
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "target": "darwin-arm64",
+      "pointerBefore": {
+        "schema": "insight-desktop-rollout/v2",
+        "state": "active",
+        "track": "candidate",
+        "version": "1.0.8",
+        "target": "darwin-arm64",
+        "referencedSha512": "h4O4JlA3MgUOlMZ3S1N5sJObZagJuo9Waeno9VPmkOj7VXysxJZgVRMUN5u2O5boi6FL3RRztdtfVGlzJcyfxg==",
+        "policy": {
+          "mode": "optional",
+          "minimumSupportedVersion": "1.0.0-rc.1"
+        },
+        "publishedAt": "2026-10-27T08:04:33.356Z"
+      },
+      "pointerAfter": {
+        "schema": "insight-desktop-rollout/v2",
+        "state": "active",
+        "track": "candidate",
+        "version": "1.0.9",
+        "target": "darwin-arm64",
+        "referencedSha512": "l3+llRrkEZWFMfzSkhY+6UJV7fl72u6BJkhkNWy1BcqoPucaZIOuWr/yHwa/3jERHth1V0fMqXRkUfU2RAczhQ==",
+        "policy": {
+          "mode": "optional",
+          "minimumSupportedVersion": "1.0.0-rc.1"
+        },
+        "publishedAt": "2026-10-27T12:10:35.242Z"
+      },
+      "alreadyPublished": false
+    },
+    {
+      "target": "darwin-x64",
+      "pointerBefore": {
+        "schema": "insight-desktop-rollout/v2",
+        "state": "active",
+        "track": "candidate",
+        "version": "1.0.8",
+        "target": "darwin-x64",
+        "referencedSha512": "ch4iVx9y3IW8SUIewQ5tbC6X3weuuOMUEXNcucwuTjBWNMS6eGwAtnUeKXMQupob2rEPdWXtgdbAEjUyCEKHUA==",
+        "policy": {
+          "mode": "optional",
+          "minimumSupportedVersion": "1.0.0-rc.1"
+        },
+        "publishedAt": "2026-10-27T08:12:12.773Z"
+      },
+      "pointerAfter": {
+        "schema": "insight-desktop-rollout/v2",
+        "state": "active",
+        "track": "candidate",
+        "version": "1.0.9",
+        "target": "darwin-x64",
+        "referencedSha512": "f+ZLAtCo7PVCz570oh809WANBiWh6Q9zfwsHkVqSEjD8GCCvB8J7MWiRG5stXJS5hvyyTjX0O+fuV0Sq3U3t0A==",
+        "policy": {
+          "mode": "optional",
+          "minimumSupportedVersion": "1.0.0-rc.1"
+        },
+        "publishedAt": "2026-10-27T12:15:42.837Z"
+      },
+      "alreadyPublished": false
+    },
+    {
+      "target": "win32-x64",
+      "pointerBefore": {
+        "schema": "insight-desktop-rollout/v2",
+        "state": "active",
+        "track": "candidate",
+        "version": "1.0.8",
+        "target": "win32-x64",
+        "referencedSha512": "9d0/Rif65XfAJPc87MvmV3FVFSTDyq7lteLm0oHqrU0VgjGVRz42yd9AN32EfD/JLzYmkIzhdQFGQiMVzi8vHw==",
+        "policy": {
+          "mode": "optional",
+          "minimumSupportedVersion": "1.0.0-rc.1"
+        },
+        "publishedAt": "2026-10-27T08:16:25.080Z"
+      },
+      "pointerAfter": {
+        "schema": "insight-desktop-rollout/v2",
+        "state": "active",
+        "track": "candidate",
+        "version": "1.0.9",
+        "target": "win32-x64",
+        "referencedSha512": "hXp+aY6GOjIqp+SLjgSjCxci/NTQn+P4YCSODL/Agd42dDwdv9Y85QSE0w74gdVqig37OFDlBkbxQdKrf/59mg==",
+        "policy": {
+          "mode": "optional",
+          "minimumSupportedVersion": "1.0.0-rc.1"
+        },
+        "publishedAt": "2026-10-27T12:19:57.928Z"
+      },
+      "alreadyPublished": false
+    }
+  ],
+  "completedAt": "2026-10-27T12:20:01.097Z"
+}

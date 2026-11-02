@@ -1,0 +1,93 @@
+[
+  {
+    "track": "candidate-v2/darwin-arm64",
+    "url": "https://updates.insight-aigc.com/desktop/candidate-v2/darwin-arm64/current.json",
+    "payload": {
+      "schema": "insight-desktop-rollout/v2",
+      "state": "active",
+      "track": "candidate",
+      "version": "1.0.8",
+      "target": "darwin-arm64",
+      "referencedSha512": "h4O4JlA3MgUOlMZ3S1N5sJObZagJuo9Waeno9VPmkOj7VXysxJZgVRMUN5u2O5boi6FL3RRztdtfVGlzJcyfxg==",
+      "policy": {
+        "mode": "optional",
+        "minimumSupportedVersion": "1.0.0-rc.1"
+      },
+      "publishedAt": "2026-10-27T08:04:33.356Z"
+    },
+    "envelope": {
+      "schema": "insight-desktop-rollout-envelope/v2",
+      "payloadBase64": "eyJzY2hlbWEiOiJpbnNpZ2h0LWRlc2t0b3Atcm9sbG91dC92MiIsInN0YXRlIjoiYWN0aXZlIiwidHJhY2siOiJjYW5kaWRhdGUiLCJ2ZXJzaW9uIjoiMS4wLjgiLCJ0YXJnZXQiOiJkYXJ3aW4tYXJtNjQiLCJyZWZlcmVuY2VkU2hhNTEyIjoiaDRPNEpsQTNNZ1VPbE1aM1MxTjVzSk9iWmFnSnVvOVdhZW5vOVZQbWtPajdWWHlzeEpaZ1ZSTVVONXUyTzVib2k2RkwzUlJ6dGR0ZlZHbHpKY3lmeGc9PSIsInBvbGljeSI6eyJtb2RlIjoib3B0aW9uYWwiLCJtaW5pbXVtU3VwcG9ydGVkVmVyc2lvbiI6IjEuMC4wLXJjLjEifSwicHVibGlzaGVkQXQiOiIyMDI2LTEwLTI3VDA4OjA0OjMzLjM1NloifQ==",
+      "signatureBase64": "liGn6vRcI4DXNySfxPLvnNJfTNkhKcS0mun6V1qbP4Uuc5xOFkmBqMY3CXKR5+QxDo5K7i9Gk5qEzkREhQAfDA=="
+    },
+    "signatureValid": true
+  },
+  {
+    "track": "candidate-v2/darwin-x64",
+    "url": "https://updates.insight-aigc.com/desktop/candidate-v2/darwin-x64/current.json",
+    "payload": {
+      "schema": "insight-desktop-rollout/v2",
+      "state": "active",
+      "track": "candidate",
+      "version": "1.0.8",
+      "target": "darwin-x64",
+      "referencedSha512": "ch4iVx9y3IW8SUIewQ5tbC6X3weuuOMUEXNcucwuTjBWNMS6eGwAtnUeKXMQupob2rEPdWXtgdbAEjUyCEKHUA==",
+      "policy": {
+        "mode": "optional",
+        "minimumSupportedVersion": "1.0.0-rc.1"
+      },
+      "publishedAt": "2026-10-27T08:12:12.773Z"
+    },
+    "envelope": {
+      "schema": "insight-desktop-rollout-envelope/v2",
+      "payloadBase64": "eyJzY2hlbWEiOiJpbnNpZ2h0LWRlc2t0b3Atcm9sbG91dC92MiIsInN0YXRlIjoiYWN0aXZlIiwidHJhY2siOiJjYW5kaWRhdGUiLCJ2ZXJzaW9uIjoiMS4wLjgiLCJ0YXJnZXQiOiJkYXJ3aW4teDY0IiwicmVmZXJlbmNlZFNoYTUxMiI6ImNoNGlWeDl5M0lXOFNVSWV3UTV0YkM2WDN3ZXV1T01VRVhOY3Vjd3VUakJXTk1TNmVHd0F0blVlS1hNUXVwb2IyckVQZFdYdGdkYkFFalV5Q0VLSFVBPT0iLCJwb2xpY3kiOnsibW9kZSI6Im9wdGlvbmFsIiwibWluaW11bVN1cHBvcnRlZFZlcnNpb24iOiIxLjAuMC1yYy4xIn0sInB1Ymxpc2hlZEF0IjoiMjAyNi0xMC0yN1QwODoxMjoxMi43NzNaIn0=",
+      "signatureBase64": "JZ/Wps55qJrI4Aab8hVbbYTYsErMKe8HnUJ9t8vjFbXT5VqR1Unc0zknGSauTKandLMRVtBLtSBYPyn6c+/aAQ=="
+    },
+    "signatureValid": true
+  },
+  {
+    "track": "candidate-v2/win32-x64",
+    "url": "https://updates.insight-aigc.com/desktop/candidate-v2/win32-x64/current.json",
+    "payload": {
+      "schema": "insight-desktop-rollout/v2",
+      "state": "active",
+      "track": "candidate",
+      "version": "1.0.8",
+      "target": "win32-x64",
+      "referencedSha512": "9d0/Rif65XfAJPc87MvmV3FVFSTDyq7lteLm0oHqrU0VgjGVRz42yd9AN32EfD/JLzYmkIzhdQFGQiMVzi8vHw==",
+      "policy": {
+        "mode": "optional",
+        "minimumSupportedVersion": "1.0.0-rc.1"
+      },
+      "publishedAt": "2026-10-27T08:16:25.080Z"
+    },
+    "envelope": {
+      "schema": "insight-desktop-rollout-envelope/v2",
+      "payloadBase64": "eyJzY2hlbWEiOiJpbnNpZ2h0LWRlc2t0b3Atcm9sbG91dC92MiIsInN0YXRlIjoiYWN0aXZlIiwidHJhY2siOiJjYW5kaWRhdGUiLCJ2ZXJzaW9uIjoiMS4wLjgiLCJ0YXJnZXQiOiJ3aW4zMi14NjQiLCJyZWZlcmVuY2VkU2hhNTEyIjoiOWQwL1JpZjY1WGZBSlBjODdNdm1WM0ZWRlNURHlxN2x0ZUxtMG9IcXJVMFZnakdWUno0MnlkOUFOMzJFZkQvSkx6WW1rSXpoZFFGR1FpTVZ6aTh2SHc9PSIsInBvbGljeSI6eyJtb2RlIjoib3B0aW9uYWwiLCJtaW5pbXVtU3VwcG9ydGVkVmVyc2lvbiI6IjEuMC4wLXJjLjEifSwicHVibGlzaGVkQXQiOiIyMDI2LTEwLTI3VDA4OjE2OjI1LjA4MFoifQ==",
+      "signatureBase64": "qyfEfrUsiQxdWqikfz3WamZdKBo4WAAk3lUCGpD2LXenvIFYumq38ajo+ORZwB9NeNPhnVKERwSrxaVuHscFBw=="
+    },
+    "signatureValid": true
+  },
+  {
+    "track": "stable",
+    "url": "https://updates.insight-aigc.com/desktop/stable/current.json",
+    "payload": {
+      "schema": "insight-desktop-rollout/v2",
+      "state": "active",
+      "track": "stable",
+      "version": "1.0.6",
+      "referencedSha512": "sw3pZg4uhSYNdqu9RW5RGxpSxRUvzHPVOnJeQ/iDgirG7yySkqXifInosbMQfrQhC1UBWNP+CiH2dwmd2RZDpQ==",
+      "policy": {
+        "mode": "optional",
+        "minimumSupportedVersion": "1.0.0-rc.1"
+      },
+      "publishedAt": "2026-10-09T08:50:55.382Z"
+    },
+    "envelope": {
+      "schema": "insight-desktop-rollout-envelope/v2",
+      "payloadBase64": "eyJzY2hlbWEiOiJpbnNpZ2h0LWRlc2t0b3Atcm9sbG91dC92MiIsInN0YXRlIjoiYWN0aXZlIiwidHJhY2siOiJzdGFibGUiLCJ2ZXJzaW9uIjoiMS4wLjYiLCJyZWZlcmVuY2VkU2hhNTEyIjoic3czcFpnNHVoU1lOZHF1OVJXNVJHeHBTeFJVdnpIUFZPbkplUS9pRGdpckc3eXlTa3FYaWZJbm9zYk1RZnJRaEMxVUJXTlArQ2lIMmR3bWQyUlpEcFE9PSIsInBvbGljeSI6eyJtb2RlIjoib3B0aW9uYWwiLCJtaW5pbXVtU3VwcG9ydGVkVmVyc2lvbiI6IjEuMC4wLXJjLjEifSwicHVibGlzaGVkQXQiOiIyMDI2LTEwLTA5VDA4OjUwOjU1LjM4MloifQ==",
+      "signatureBase64": "myZZsh/TSJ8vNhcSxP0Qc/LYT6D3VBMiivYBAFD5JzJf+fLggKU7DwLJiO/Tm0c8Ks11u+q0peI6ysDz/vQmBA=="
+    },
+    "signatureValid": true
+  }
+]

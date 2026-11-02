@@ -1,0 +1,74 @@
+{
+  "schema": "insight-desktop-build-acceptance/v1",
+  "desktopVersion": "1.0.6",
+  "runId": 37891766871,
+  "runAttempt": 1,
+  "runUrl": "https://github.com/Boxser567/insight-desktop-shell/actions/runs/37891766871",
+  "runConclusion": "success",
+  "startedAt": "2026-10-09T06:05:51Z",
+  "completedAt": "2026-10-09T06:32:21Z",
+  "shellCommit": "29718822b36a232eeabe202b77fed6ae44256338",
+  "coreCommit": "c3aaab2e76ddfad6163478687287774ad7233374",
+  "runtimeTag": "insight-runtime-v0.2.1-alpha.1-insight.3",
+  "release": {
+    "id": 407577205,
+    "tag": "v1.0.6",
+    "draft": true,
+    "url": "https://github.com/Boxser567/insight-desktop-shell/releases/tag/untagged-e3595ad772526bb1824b",
+    "assetCount": 17
+  },
+  "installers": {
+    "darwin-arm64": {
+      "name": "darwin-arm64--insight-1.0.6-mac-arm64.dmg",
+      "size": 280304697,
+      "sha256": "5337d048ed8e2df966c6c17b8bb6f95e932edb7aa0f3947b986197d01246a26a",
+      "jobId": 113694498368,
+      "startupAndRecoveryProof": "darwin-arm64-session-recovery.json",
+      "proofSha256": "e9e9df59aee5a7927cf73ef2d4025f91a196038fbfdab41b0d997b65098b4876",
+      "proofArtifactId": 11599641304,
+      "nativeBuild": "success",
+      "packagedRuntimeStartup": "passed",
+      "sessionMigrationAndRecovery": "passed",
+      "signingAndNotarization": {
+        "conclusion": "success",
+        "evidence": "Completed Certify and verify distribution job step; workflow requires codesign verification, notarization, app and DMG stapler validation."
+      }
+    },
+    "darwin-x64": {
+      "name": "darwin-x64--insight-1.0.6-mac-x64.dmg",
+      "size": 290928251,
+      "sha256": "6ab569a3dd156f9a0eeb50e2005567c5dd3295d421bce20c2b338db21a4b2932",
+      "jobId": 113694498426,
+      "startupAndRecoveryProof": "darwin-x64-session-recovery.json",
+      "proofSha256": "8252324a83194e850139d45d69dd8a088b8eecffb2d3ab64bdb1739e7fffed9a",
+      "proofArtifactId": 11598923946,
+      "nativeBuild": "success",
+      "packagedRuntimeStartup": "passed",
+      "sessionMigrationAndRecovery": "passed",
+      "signingAndNotarization": {
+        "conclusion": "success",
+        "evidence": "Completed Certify and verify distribution job step; workflow requires codesign verification, notarization, app and DMG stapler validation."
+      }
+    },
+    "win32-x64": {
+      "name": "win32-x64--insight-1.0.6-windows-x64-setup.exe",
+      "size": 278943045,
+      "sha256": "f5575357111cd42cd03831835f9829132ad1eca38bc05958562732a459888e3b",
+      "jobId": 113694498351,
+      "startupAndRecoveryProof": "win32-x64-session-recovery.json",
+      "proofSha256": "6d7aaabbd5fb462ba84139fba0cbb3140a3195a968fa208f42090a6d2f8ce60b",
+      "proofArtifactId": 11598569819,
+      "nativeBuild": "success",
+      "packagedRuntimeStartup": "passed",
+      "sessionMigrationAndRecovery": "passed"
+    }
+  },
+  "signedTargetManifestAssembly": "success",
+  "stable": {
+    "version": "1.0.4",
+    "signatureVerification": "passed"
+  },
+  "candidateRolloutTriggered": false,
+  "monitorStatus": "PAUSED",
+  "verificationScope": "Native CI package checks and bundled Runtime startup/session recovery; user manual macOS ARM64 acceptance was completed before dispatch."
+}

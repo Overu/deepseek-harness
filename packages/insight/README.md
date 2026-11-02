@@ -34,9 +34,11 @@ The components belong to one Insight product distribution.
 <a id="related-documentation"></a>
 ## Related documentation
 
-- [Insight subsystem](../../docs/subsystems/insight.md) — product ownership and source synchronization
-- [Baseline integration record](../../docs/subsystems/insight-baseline-changes.md) — existing official file changes
+- [Insight architecture](../../docs/insight/architecture.md) — product ownership and source synchronization
+- [Baseline integration record](../../docs/insight/baseline-changes.md) — existing official file changes
 - [Application architecture](../../docs/architecture.md) — profile and bundle composition
+
+- [Generated account API](../../docs/subsystems/insight.md) — generator-owned service reference
 
 <a id="dev-note"></a>
 ## Dev Note

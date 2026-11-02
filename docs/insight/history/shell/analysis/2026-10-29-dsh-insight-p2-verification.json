@@ -1,0 +1,259 @@
+{
+  "phase": "P2",
+  "date": "2026-10-29",
+  "timezone": "Asia/Shanghai",
+  "status": "checkpoint-committed-p3-authorized",
+  "branch": "insight",
+  "baseCheckpoint": "413ce141bec951ed001e5398b981beb42a7fd7ab",
+  "changes": "committed",
+  "nextPhase": "P3 authorized; P4 awaits later confirmation",
+  "delivered": [
+    "Insight native login before Host startup",
+    "Main-owned account APIs and encrypted packaged credential store",
+    "account-scoped native Home and legacy Home block",
+    "Host-only credential service and public Host type definition without Remote",
+    "Insight product metadata and sidebar/Hero branding",
+    "quiescent logout followed by process relaunch",
+    "local unsigned macOS arm64 packaging",
+    "original Insight login layout and interactive dot grid",
+    "account menu and Insight product settings",
+    "managed Insight Gateway default model without user API key setup"
+  ],
+  "verified": {
+    "sourceTests": {
+      "files": 15,
+      "passed": 218
+    },
+    "unitWithoutOwnLib": {
+      "files": 10,
+      "passed": 52
+    },
+    "builtSmokeFiles": [
+      "real-loader.built.e2e.ts",
+      "host-exports.built.e2e.ts"
+    ],
+    "buildCheck": "latest source dev:desktop build:artifacts followed by build:check; Host/Client aggregates 2/2 passed; earlier packaging local gates 10/10 passed",
+    "hygiene": {
+      "passed": 19,
+      "failed": 4,
+      "failures": [
+        "client UI i18n",
+        "plugin locale metadata",
+        "retained Prompt client routes",
+        "retained snapshot unknown assertions"
+      ]
+    },
+    "docs": {
+      "initialPass": 40,
+      "total": 43,
+      "newPairingFailureFixedAndRechecked": "capability graph English/Chinese",
+      "allPairingCheck": {
+        "pairs": 1143,
+        "passed": true
+      },
+      "retainedFailures": [
+        "python/sdk/uv.lock repository reference",
+        "concrete terms in retained synchronized sources"
+      ],
+      "aggregateRerun": false
+    },
+    "independentReview": "No remaining material finding in the rework; startup false activation, cleanup failures, dependency sharing, and Gateway-before-Account teardown checked",
+    "builtSmoke": {
+      "files": 2,
+      "passed": 2,
+      "managedModelCatalogUsesPrivateIPC": true
+    },
+    "targetedLint": "passed for P2 new and modified source/test/script files",
+    "exportJsdoc": "passed",
+    "nativeRuntime": {
+      "main": "development Main",
+      "host": "final packaged app.asar/dsh",
+      "isolatedUserData": true,
+      "finalState": "login page after logout and relaunch",
+      "productionMainLaunched": false
+    },
+    "publicHelperExportTest": {
+      "passed": 1,
+      "notSelected": 54
+    },
+    "dependencyPolicyTests": {
+      "passed": 61
+    },
+    "previousNativeFlow": [
+      "SMS login",
+      "native DSH workspace",
+      "Insight sidebar identity",
+      "safe account summary",
+      "logout",
+      "new process login page",
+      "old Host endpoint closed",
+      "final ASAR-backed Host workspace and logout repeated",
+      "Insight native window title"
+    ],
+    "nativeFlow": [
+      "Shell-style login presentation and SMS authentication",
+      "DSH native workspace and Insight sidebar",
+      "managed default model and single-model picker",
+      "real Insight Gateway reply P2-model-ok",
+      "account menu handbook/settings/sign-out entries",
+      "Insight product settings: account/version/environment/platform",
+      "Models settings page absent",
+      "logout and new-process login page",
+      "previous Host endpoint closed"
+    ],
+    "nativePersistence": {
+      "nativeSessionFiles": 1,
+      "assistantReplyPersisted": true,
+      "managedRoutePersisted": true,
+      "previousHostEndpointClosed": true,
+      "sessionRecords": 42,
+      "completeZstdFrames": true
+    },
+    "nativeModelRoundTrip": {
+      "provider": "yinsai-gateway",
+      "model": "deepseek-flash",
+      "response": "P2-model-ok",
+      "userCredentialConfigurationRequired": false
+    },
+    "nativeSettings": {
+      "productVersion": "1.0.9-p2.1",
+      "environment": "test",
+      "modelSettingsVisible": false
+    }
+  },
+  "notPerformed": [
+    "production signing or notarization",
+    "installation over existing client",
+    "upload or release pointer changes",
+    "Windows/macOS x64 real package qualification",
+    "actual historical conversation conversion",
+    "real password-account login",
+    "bundled-skills business validation"
+  ],
+  "p3": [
+    "remaining search/skill backend adapters",
+    "Canvas/Memory/Prompt activation and feature migration",
+    "mandatory four-component runtime management enforcement",
+    "retained routes/assertions/business lint",
+    "additional token-consumer teardown review"
+  ],
+  "p4": [
+    "legacy conversation/workspace/config/plugin staging migration and interrupted recovery",
+    "visible/openable/resumable historical conversations with branches and resources"
+  ],
+  "p5": [
+    "old client in-place upgrade identity/signatures/platform matrix",
+    "OSS/CDN production and opt-in beta update flow"
+  ],
+  "privacy": {
+    "realTestCredentialsInSource": false,
+    "legacyProductionDataTouched": false,
+    "testDataRoot": "/private/tmp/insight-p2-rework-user-data"
+  },
+  "artifact": {
+    "localOnly": true,
+    "installed": false,
+    "uploaded": false,
+    "developerSigned": false,
+    "notarized": false,
+    "path": "/Users/jian.feng/dev/insight/migrate-dsh/deepseek-harness/apps/desktop/.desktop-build/targets/mac-arm64/unsigned-artifacts/mac-arm64/因赛AI.app",
+    "version": "1.0.9-p2.1",
+    "runtimeVersion": "0.2.2-alpha.2",
+    "product": "insight",
+    "appId": "com.insight-aigc.desktop",
+    "displayName": "因赛AI",
+    "asarBytes": 300488729,
+    "asarSha256": "66532d51ca8f1c2594b4aa9c61902a68d181f5d4e64262b8ad9a9f4fe197ed57",
+    "relativeBundleEntry": true,
+    "publicHostEntry": true,
+    "managedGateway": true,
+    "hidesModelSettings": true,
+    "loginTextFieldOverride": true,
+    "loginAssets": [
+      {
+        "path": "lib/preload-insight-login.cjs",
+        "present": true
+      },
+      {
+        "path": "lib/insight-login/insight-login.js",
+        "present": true
+      },
+      {
+        "path": "lib/insight-login/insight-login.css",
+        "present": true
+      },
+      {
+        "path": "renderer/insight-login.html",
+        "present": true
+      }
+    ],
+    "adHocSigned": true,
+    "matchesLatestSource": false,
+    "scope": "previous packaged checkpoint before settings-entry and login document reset follow-up"
+  },
+  "rework": {
+    "reason": "user acceptance feedback",
+    "authorized": [
+      "original login presentation",
+      "account menu and product settings",
+      "managed Insight default model and no user credential setup"
+    ],
+    "verification": "complete",
+    "previousArtifactMatchesCurrentSource": false,
+    "legacyDataReadOnlyInventory": {
+      "productionLegacyHomes": 1,
+      "productionSessionNamedFiles": 2,
+      "developmentLegacyHomes": 1,
+      "developmentSessionNamedFiles": 25,
+      "conversationContentsRead": false,
+      "filesModified": false
+    },
+    "officialExportsAuthorized": [
+      "resolveProfiles",
+      "credentialStoreFrom",
+      "authContextFrom"
+    ],
+    "hostValuePolicy": "8 exact peer-required exports; no new duplicate-safe exception"
+  },
+  "followUp": {
+    "reason": "user clarified removal of only standalone sidebar settings entry; native login body reset",
+    "changes": [
+      "settings launcher renders no sidebar entry and forwards account-menu requests once",
+      "existing DSH settings panel and sections retained",
+      "standalone login document html/body/root margin and padding reset to zero"
+    ],
+    "sourceTests": {
+      "files": 3,
+      "passed": 5
+    },
+    "targetedLint": "passed",
+    "buildCheck": {
+      "passed": 2,
+      "failed": 0
+    },
+    "namedDocPairs": {
+      "passed": 2
+    },
+    "nativeRuntime": {
+      "main": "source development Main",
+      "host": "source workspace built runtime",
+      "productVersion": "1.0.9-dev.0",
+      "userData": "/Users/jian.feng/dev/insight/migrate-dsh/deepseek-harness/apps/desktop/.desktop-build/development/insight-desktop-dev",
+      "isolatedFromProductionData": true,
+      "verified": [
+        "full-bleed native login and bundled reset CSS",
+        "SMS login to workspace",
+        "no standalone sidebar settings entry",
+        "account menu opens original settings panel",
+        "Insight/general/built-in plugins/Agent presets sections retained"
+      ],
+      "finalState": "Insight settings panel open"
+    },
+    "developmentCommand": "DSH_DESKTOP_PRODUCT=insight INSIGHT_DESKTOP_VERSION=1.0.9-dev.0 pnpm run dev:desktop",
+    "automaticSourceWatching": false,
+    "repackaged": false,
+    "legacyDataModified": false,
+    "enteredP3": false
+  },
+  "commit": "ef5b752aca"
+}

@@ -1,0 +1,75 @@
+{
+  "version": "0.3.0-alpha.18",
+  "scope": "Client/Plugin bridge audit, lifecycle fixes, retired code/document cleanup and first-commit preparation",
+  "coreSourceChanges": 0,
+  "shellBusinessChanges": 0,
+  "nativeCanvasBusinessChanges": 0,
+  "backendChanges": 0,
+  "publicToolContractChanges": 0,
+  "sourceSchemaChanges": 0,
+  "tests": {
+    "plugin": {
+      "passed": 261,
+      "failed": 0,
+      "skipped": 0
+    },
+    "nativeAdapter": {
+      "passed": 330,
+      "files": 26
+    },
+    "types": {
+      "plugin": "passed",
+      "actualCorePublicSdk": "passed",
+      "unusedLocalsAndParametersInPlugin": "passed",
+      "webExistingDiagnostics": 9,
+      "webNewDiagnostics": 0
+    }
+  },
+  "isolatedProfile": {
+    "installAndRemoval": "passed",
+    "toolCount": 8,
+    "sourcePersistenceQuerySse": "passed",
+    "bridgeRegistrationAndDetach": "passed",
+    "generatedMedia": false
+  },
+  "review": {
+    "hostCommandSseTeardown": "reproduced and fixed",
+    "partialRuntimeViewRegistration": "reproduced and fixed",
+    "unownedVerificationDirectoryDeletion": "protected with ownership marker",
+    "duplicateEnvironmentSelection": "centralized; invalid page environment rejected",
+    "obsoleteV2AgentIframeProtocol": "removed after confirming zero production callers",
+    "obsoleteDocsMoved": 8,
+    "archiveMatchesPreviousCommit": true,
+    "remainingBlockingFindings": 0,
+    "nativeWebBusinessReview": "outside scope"
+  },
+  "package": {
+    "previousAlpha17Sha256": "460b79b30168fb993b212b9bdd8d897186990604e47c13b86b65e3dc3a494ed5",
+    "archive": "/Users/boxser.shi/Documents/harness/desktop-canvas-plugin/insight-ai-desktop-canvas-plugin-0.3.0-alpha.18.tgz",
+    "version": "0.3.0-alpha.18",
+    "size": 14602852,
+    "files": 58,
+    "mismatches": [],
+    "forbidden": [],
+    "sha256": "4f67168247f8500acfae169e196f0d8b478392a3fcc01063b7cd33fc3aae9f9c",
+    "previousAlpha16Sha256": "bb941e0b2fe24478e782c0e7caf66c68e9a86bc1296bd34a16e2a59adb12e124",
+    "client": {
+      "squareGallery": true,
+      "testInputRemoved": true,
+      "sessionBridgeRetained": true,
+      "titleRead": true
+    },
+    "coreChanges": 0,
+    "backendChanges": 0
+  },
+  "git": {
+    "branch": "codex/desktop-canvas-plugin-init",
+    "remoteConfigured": false,
+    "historyRewritten": false,
+    "pushed": false,
+    "pluginCommit": "c79f10152aff556045a511d0021e78a5ead559f3",
+    "pluginWorktreeClean": true,
+    "coreWorktreeClean": true
+  },
+  "manualAcceptance": "User reported initial core capability acceptance; no new live-account generation or installation performed by this review"
+}
