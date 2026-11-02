@@ -241,7 +241,8 @@ function githubApi(fetchImplementation: typeof globalThis.fetch, token: string):
       return boundedResponse(await request(asset.url, 'application/octet-stream'), maximum)
     },
     async download(url, destination, expected, maximum) {
-      const response = await request(url, 'application/octet-stream', 3_600_000)
+      const accept = url.startsWith(`${base}/actions/artifacts/`) ? 'application/vnd.github+json' : 'application/octet-stream'
+      const response = await request(url, accept, 3_600_000)
       const handle = await open(destination, 'wx', 0o600)
       let size = 0
       try {

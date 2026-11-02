@@ -50,7 +50,7 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 发布工作流的 target 输入决定渠道：平台目标发布 Candidate；`stable` 为全部三个目标发布 Stable。Candidate 接受 final 或 prerelease 版本。Stable 要求 final 版本，且三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。
 
-第二阶段在读取或发布附件前拒绝 draft Release。其轻量运行时不会重新构建、打包、公证或安装应用。
+第二阶段在读取或发布附件前拒绝 draft Release。其轻量运行时不会重新构建、打包、公证或安装应用。Actions artifact 下载请求 GitHub JSON 媒体类型以获取归档重定向；Release 附件下载请求 octet-stream 字节。
 
 -----
 

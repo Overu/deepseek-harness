@@ -48,7 +48,7 @@ async function fixture(releaseVersion = version) {
     url: `https://api.github.com/repos/Overu/deepseek-harness/releases/assets/${String(index + 1)}`,
   }))
   const artifactBytes = Buffer.from('zip placeholder')
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = requestUrl(input)
     if (url.endsWith(`/releases/tags/insight-v${releaseVersion}`)) {
       return Response.json({ tag_name: `insight-v${releaseVersion}`, draft: false, assets })
@@ -61,9 +61,13 @@ async function fixture(releaseVersion = version) {
       size_in_bytes: artifactBytes.byteLength, expired: false,
       archive_download_url: 'https://api.github.com/repos/Overu/deepseek-harness/actions/artifacts/99/zip',
       workflow_run: { id: 41, head_sha: sourceCommit } }] })
-    if (url.endsWith('/actions/artifacts/99/zip')) return new Response(artifactBytes)
+    if (url.endsWith('/actions/artifacts/99/zip')) {
+      if (new Headers(init?.headers).get('accept') !== 'application/vnd.github+json') return new Response(null, { status: 415 })
+      return new Response(artifactBytes)
+    }
     const asset = assets.find(item => item.url === url)
     if (asset !== undefined) {
+      if (new Headers(init?.headers).get('accept') !== 'application/octet-stream') return new Response(null, { status: 415 })
       const bytes = releaseFiles.get(asset.name)
       if (bytes === undefined) throw new Error('Release fixture is missing asset bytes.')
       return new Response(Buffer.from(bytes))
@@ -138,11 +142,11 @@ it('rejects a prerelease Stable request before reading GitHub', async () => {
 
 it('refuses a draft Release before inspecting or publishing its artifacts', async () => {
   const f = await fixture()
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     if (requestUrl(input).endsWith(`/releases/tags/insight-v${version}`)) {
       return Response.json({ tag_name: `insight-v${version}`, draft: true, assets: f.assets })
     }
-    return f.fetch(input)
+    return f.fetch(input, init)
   })
   const extractArtifact = vi.fn()
   const publishCandidate = vi.fn()
@@ -179,8 +183,8 @@ it('refuses changed Release payload bytes before any OSS publication', async () 
 it('accepts legacy buildRunRecord bytes after the same source run advances to a later attempt', async () => {
   const f = await fixture()
   const originalFetch = f.fetch
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
-    const response = await originalFetch(input)
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await originalFetch(input, init)
     if (requestUrl(input).endsWith('/actions/runs/41')) {
       const value = await response.json() as Record<string, unknown>
       return Response.json({ ...value, run_attempt: 3 })
@@ -208,8 +212,8 @@ it.each([
 ] as const)('refuses a source run with a changed %s', async (_label, override) => {
   const f = await fixture()
   const originalFetch = f.fetch
-  const fetch = vi.fn(async (input: RequestInfo | URL) => {
-    const response = await originalFetch(input)
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await originalFetch(input, init)
     if (requestUrl(input).endsWith('/actions/runs/41')) {
       const value = await response.json() as Record<string, unknown>
       return Response.json({ ...value, ...override })

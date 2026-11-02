@@ -50,7 +50,7 @@ Only the final publish step receives `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`. The O
 
 The publish workflow target input selects the channel: a platform target publishes Candidate; `stable` publishes Stable for all three targets. Candidate accepts final or prerelease versions. Stable requires a final version and three verified distribution targets with the same version, source commit, and DSH runtime version.
 
-Stage two rejects a draft Release before it reads or publishes attachments. Its lightweight runtime does not rebuild, package, notarize, or install the application.
+Stage two rejects a draft Release before it reads or publishes attachments. Its lightweight runtime does not rebuild, package, notarize, or install the application. Actions artifact downloads request GitHub JSON media for the archive redirect; Release asset downloads request octet-stream bytes.
 
 -----
 
