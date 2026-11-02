@@ -2,6 +2,11 @@
 !include "FileFunc.nsh"
 !define INSTALLER_SOURCE_DIR "${__FILEDIR__}\..\installer"
 !define /ifndef INSTALLER_BUILD_DIR "${__FILEDIR__}\..\.desktop-build\targets\win-x64\installer-ui"
+!ifdef APP_ID
+  !if "${APP_ID}" == "com.insight-aigc.desktop"
+    !define INSIGHT_LEGACY_APP_EXECUTABLE_FILENAME "因赛AI.exe"
+  !endif
+!endif
 
 ManifestDPIAware true
 !ifndef BUILD_UNINSTALLER
@@ -164,18 +169,34 @@ ManifestDPIAware true
   Pop $0
 !macroend
 
+; Returns 0 when the selected installation is running, a positive value when it is not, and a negative value on lookup failure.
+; Insight accepts its old executable name only in the exact per-user directory that Windows has registered for this app.
+!macro InstallerFindAppProcess
+  Push $0
+  System::Call '$PLUGINSDIR\window-frame.dll::InstallerFindProcess(w "$INSTDIR\${APP_EXECUTABLE_FILENAME}") i.R0 ?c'
+  ${If} $R0 > 0
+    !ifdef INSIGHT_LEGACY_APP_EXECUTABLE_FILENAME
+      ReadRegStr $0 HKCU "${INSTALL_REGISTRY_KEY}" "InstallLocation"
+      ${If} $0 == $INSTDIR
+        System::Call '$PLUGINSDIR\window-frame.dll::InstallerFindProcess(w "$INSTDIR\${INSIGHT_LEGACY_APP_EXECUTABLE_FILENAME}") i.R0 ?c'
+      ${EndIf}
+    !endif
+  ${EndIf}
+  Pop $0
+!macroend
+
 !macro customCheckAppRunning
   !ifdef BUILD_UNINSTALLER
     InitPluginsDir
     File "/oname=$PLUGINSDIR\window-frame.dll" "${INSTALLER_BUILD_DIR}\window-frame.dll"
   !endif
-  System::Call '$PLUGINSDIR\window-frame.dll::InstallerFindProcess(w "$INSTDIR\${APP_EXECUTABLE_FILENAME}") i.R0 ?c'
+  !insertmacro InstallerFindAppProcess
   ${If} $R0 == 0
     ${If} ${isUpdated}
       StrCpy $R1 0
       ${DoWhile} $R0 == 0
         Sleep 250
-        System::Call '$PLUGINSDIR\window-frame.dll::InstallerFindProcess(w "$INSTDIR\${APP_EXECUTABLE_FILENAME}") i.R0 ?c'
+        !insertmacro InstallerFindAppProcess
         IntOp $R1 $R1 + 1
         ${If} $R1 >= 40
           ${ExitDo}
