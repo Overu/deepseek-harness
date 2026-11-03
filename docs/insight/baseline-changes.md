@@ -56,6 +56,8 @@ This record identifies existing DSH files changed for the private Insight source
 
 ## New integration owners
 
+`apps/desktop/src/insight-updates.ts` and `insight-update-fetch.ts` are Insight-added files, absent from the imported official baseline. Their Electron adapter normalizes only a missing response URL with redirects prohibited; the shared update resolver and its verification remain unchanged. Focused wiring tests and a real-Electron loopback regression preserve this behavior when updating Electron, without an official Main/coordinator API change.
+
 The update-coordinator extension, single-updater Main adapter, update-window compiler entry, and product packaging extension are the four explicitly authorized official hooks for P5. The `tsconfig` alias belongs to the compiler entry. The three Windows branding files and the DMG validation recovery in the table are four additional authorized official files; no locale-helper, C++ caller, or notary-executor change belongs to this scope.
 
 The exact private package roster lives in [insight-package-policy.ts](../../scripts/insight-package-policy.ts). [Insight product integration](architecture.md) describes runtime ownership, source snapshots, and synchronized skills. The [Desktop Integration package](../../packages/insight/desktop-integration/README.md) owns authentication and account process behavior. Each fixed business package's `upstream.json` and the replayable differences under `patches/insight` identify imported code and local adaptation.

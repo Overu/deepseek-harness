@@ -4,7 +4,7 @@ import { release as systemRelease } from 'node:os'
 import semver from 'semver'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, dialog, Menu, net, shell } from 'electron'
+import { app, dialog, Menu, shell } from 'electron'
 import electronUpdater from 'electron-updater'
 import {
   createInsightUpdateController, InsightUpdateStateStore, readInsightUpdateDistribution, resolveInsightUpdate,
@@ -13,6 +13,7 @@ import {
 import type { DesktopUpdateState } from './ipc.ts'
 import { DesktopUpdateCoordinator } from './update-coordinator.ts'
 import { insightUpdateFeed } from './insight-update-provider.ts'
+import { fetchInsightUpdate } from './insight-update-fetch.ts'
 import { createInsightUpdateWindow } from './insight-update-window.ts'
 import { DesktopUpdateSchedule, resolveDesktopUpdateScheduleConfig } from './update-schedule.ts'
 
@@ -72,7 +73,7 @@ export async function createInsightDesktopUpdates(): Promise<InsightDesktopUpdat
     if (target === undefined) throw new Error('Insight update platform is unsupported')
     const release = await resolveInsightUpdate({
       track, target, distributionOrigin: distribution.origin, publicKeyPem: distribution.publicKeyPem,
-      fetch: (input, init) => net.fetch(input instanceof Request ? input : String(input), init),
+      fetch: fetchInsightUpdate,
       signal: lifetime.signal, acceptRollout: input => store.acceptRollout(input),
     })
     if (isDisposed()) throw new Error('Insight updates are disposed')

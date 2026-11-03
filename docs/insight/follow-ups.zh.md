@@ -8,11 +8,17 @@
 
 ## 导航
 
+- [更新检查修复交付](#update-check-fix-delivery)
 - [插件安装策略](#plugin-installation-policy)
 - [用户与平台反馈](#user-and-platform-feedback)
 - [历史检查](#historical-checks)
 - [暂缓产品取舍](#deferred-product-choices)
 - [范围排除](#excluded-scope)
+
+<a id="update-check-fix-delivery"></a>
+## 更新检查修复交付
+
+源码适配修复了已发布 1.0.10 与 1.0.11-rc.1 因 Electron 响应 URL 为空而无法检查更新的问题。单测、真实 Electron 回环服务和隔离原生检查覆盖该修复，下载与安装仍是另一组验证。仍需构建修复客户端并提供手动安装入口：修改 CDN 元数据无法修复已安装的传输实现。1.0.11-rc.2 已获授权构建并发布 Candidate；执行结果由[版本记录](history/releases/1.0.11-rc.2.md)维护。保留旧 V2 final 渠道和 V3 rc 渠道。
 
 <a id="plugin-installation-policy"></a>
 ## 插件安装策略

@@ -8,11 +8,16 @@ Use this list when scheduling a client release, receiving a defect report, or up
 
 ## Navigation
 
+- [Update check fix delivery](#update-check-fix-delivery)
 - [Plugin installation policy](#plugin-installation-policy)
 - [User and platform feedback](#user-and-platform-feedback)
 - [Historical checks](#historical-checks)
 - [Deferred product choices](#deferred-product-choices)
 - [Excluded scope](#excluded-scope)
+
+## Update check fix delivery
+
+The source adapter fixes the empty Electron response URL that breaks update discovery in published 1.0.10 and 1.0.11-rc.1. Unit, real-Electron loopback, and isolated native check evidence cover the repair, while download and installation remain separate. A fixed client build and manual installation path are still required: changing CDN metadata cannot repair the already-installed transport. Version 1.0.11-rc.2 is authorized for a build and Candidate publication; its [release record](history/releases/1.0.11-rc.2.md) owns the outcome. Preserve both legacy V2 final channels and V3 rc channels.
 
 ## Plugin installation policy
 

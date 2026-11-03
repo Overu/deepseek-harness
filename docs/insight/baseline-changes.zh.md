@@ -56,6 +56,8 @@
 
 ## 新增集成的拥有者
 
+`apps/desktop/src/insight-updates.ts` 和 `insight-update-fetch.ts` 均为 Insight 新增文件，不存在于导入的官方基线。Electron 适配仅在禁止重定向时补齐响应缺失的 URL；共用更新读取器及其校验保持不变。接线测试和真实 Electron 本地服务回归用于后续 Electron 升级验证，不增加官方 Main/coordinator API 改动。
+
 更新协调器扩展、Main 单 updater 适配、更新窗口编译入口和产品打包扩展是 P5 已获明确授权的四组官方 hook。`tsconfig` alias 属于编译入口。表中的三个 Windows 品牌文件与 DMG 验证恢复是另外四个已授权官方文件；该范围不包含 locale helper、C++ 调用方或 notary executor 改动。
 
 精确私有包清单位于 [insight-package-policy.ts](../../scripts/insight-package-policy.ts)。[Insight 产品集成](architecture.zh.md) 说明运行时归属、源码快照与同步技能。[Desktop Integration 包](../../packages/insight/desktop-integration/README.zh.md) 负责认证与账号进程行为。每个固定业务包的 `upstream.json` 和 `patches/insight` 下可回放差异记录引入源码及本地适配。

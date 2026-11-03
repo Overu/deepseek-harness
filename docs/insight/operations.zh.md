@@ -24,7 +24,7 @@
 
 当前 Candidate V3 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.11-rc.1；旧 final Candidate V2 仍为 1.0.10，Stable 仍为 1.0.9。Candidate 和 Stable 是发布渠道，final 语义版本可以先在 Candidate 验证，之后将同一份已验证制品提升到 Stable。
 
-1.0.11-rc.1 安装包已包含 Candidate V2/V3 双协议 reader。已发布的 1.0.10 reader 可通过手动 Candidate V3 检查验签发现本 rc；旧 Shell 仍读取未改变的 final Candidate V2。原生安装反馈与元数据发现属于不同证据。Stable 发布仍需单独授权。
+1.0.11-rc.1 安装包已包含 Candidate V2/V3 双协议 reader。它与 1.0.10 的 Node 元数据检查通过，但两个已发布应用都有 Electron 传输缺陷：`net.fetch` 返回空响应 URL，严格读取器在比较版本前即拒绝响应。当前源码适配已修复此差异，修复尚未打包。现有安装需要手动安装修复版本后才能恢复更新；该交付步骤见[后续事项](follow-ups.zh.md#update-check-fix-delivery)。Stable 发布仍需单独授权。
 
 迁移证据保留在 [Insight 历史记录](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md)。当决定依赖精确源码、平台或渠道证据时，读取交付记录，而非只依赖本运维摘要。
 
@@ -34,7 +34,7 @@
 
 ## 本地开发
 
-在仓库根目录运行 `npm run dev:insight`。启动器选择 Insight 产品，并默认将开发产品版本设为 1.0.11-rc.1。它复用 Desktop 开发启动器，并使用与 Shell 兼容的 Insight 开发 userData 位置。
+在仓库根目录运行 `npm run dev:insight`。启动器选择 Insight 产品，并默认将开发产品版本设为 1.0.11-rc.2。它复用 Desktop 开发启动器，并使用与 Shell 兼容的 Insight 开发 userData 位置。
 
 开发登录流程不持久化凭据。已打包应用在隐藏窗口恢复并校验保存的凭据；有效账号和账号 Home 会打开工作区，无效凭据、离线请求或 Home 保护失败会显示登录或恢复页面。不要因为本地存在 token 文件而跳过服务端校验。
 

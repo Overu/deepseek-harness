@@ -22,7 +22,7 @@ Use this reference when an Insight build, publication, signing step, or local de
 
 The current Candidate V3 is version 1.0.11-rc.1 for macOS arm64, macOS x64, and Windows x64. The legacy final Candidate V2 remains 1.0.10 and Stable remains 1.0.9. Candidate and Stable are publication channels; a final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable.
 
-The packaged 1.0.11-rc.1 contains the dual Candidate V2/V3 reader. The published 1.0.10 reader verifies this rc through a manual Candidate V3 check; the old Shell still reads the unchanged final Candidate V2. Native installation feedback remains separate from metadata discovery. Stable publication requires separate authorization.
+The packaged 1.0.11-rc.1 contains the dual Candidate V2/V3 reader. Node-based metadata probes of it and 1.0.10 passed, but both published applications have an Electron transport defect: `net.fetch` returns an empty response URL, which their strict resolver rejects before version comparison. The current source adapter fixes that mismatch; the fix has not been packaged. Existing installations need a manual fixed-version installation before updater recovery. [Follow-ups](follow-ups.md#update-check-fix-delivery) owns that delivery step. Stable publication requires separate authorization.
 
 The migration evidence is retained under [Insight history](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md). Read the delivery record when a decision depends on the exact source, platform, or channel evidence rather than this operational summary.
 
@@ -30,7 +30,7 @@ The [1.0.11-rc.1 execution record](history/releases/1.0.11-rc.1.md) identifies t
 
 ## Developing locally
 
-Run `npm run dev:insight` from the repository root. The launcher selects the Insight product and defaults the development product version to 1.0.11-rc.1. It reuses the Desktop development launcher and uses the Shell-compatible Insight development user-data location.
+Run `npm run dev:insight` from the repository root. The launcher selects the Insight product and defaults the development product version to 1.0.11-rc.2. It reuses the Desktop development launcher and uses the Shell-compatible Insight development user-data location.
 
 The development login flow does not persist credentials. The packaged application restores and validates saved credentials in a hidden window; a valid account and account Home open the workspace, while an invalid credential, offline request, or Home protection failure shows the login or recovery page. Do not treat a local token file as authorization to skip server validation.
 

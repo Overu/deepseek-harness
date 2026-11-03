@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DesktopUpdateState } from '../src/ipc.ts'
+import { resolveInsightUpdate } from '@insight-ai/desktop-integration/desktop'
+import { insightUpdateFeed } from '../src/insight-update-provider.ts'
+import { fetchInsightUpdate } from '../src/insight-update-fetch.ts'
 
 const fixture = await vi.hoisted(async () => {
   const { EventEmitter } = await import('node:events')
@@ -99,6 +102,8 @@ beforeEach(() => {
   fixture.dialog.showMessageBox.mockReset()
   fixture.dialog.showMessageBox.mockResolvedValue({ response: 1 })
   fixture.menu.setApplicationMenu.mockReset(); fixture.menu.buildFromTemplate.mockClear()
+  vi.mocked(resolveInsightUpdate).mockReset()
+  vi.mocked(insightUpdateFeed).mockClear()
   for (const method of [fixture.controller.automaticCheck, fixture.controller.updateState, fixture.controller.dispose,
     fixture.controller.checkForUpdates, fixture.controller.checkCandidate, fixture.controller.download, fixture.controller.install,
     fixture.controller.fullInstaller, fixture.controller.skip]) method.mockReset()
@@ -110,6 +115,22 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 describe('Insight desktop updates', () => {
+  it('passes the Electron URL adapter into signed candidate discovery', async () => {
+    const service = await createInsightDesktopUpdates()
+    try {
+      await expect(fixture.controller.options!.coordinator.check('candidate', true))
+        .rejects.toThrow('desktop update: this application has no packaged update source')
+      const resolve = vi.mocked(insightUpdateFeed).mock.calls.at(-1)?.[1]
+      if (resolve === undefined) throw new Error('Missing Insight candidate resolver')
+      const failure = new Error('stop before metadata validation')
+      vi.mocked(resolveInsightUpdate).mockRejectedValueOnce(failure)
+      await expect(resolve()).rejects.toBe(failure)
+      expect(resolveInsightUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        track: 'candidate', target: 'darwin-arm64', fetch: fetchInsightUpdate,
+      }))
+    } finally { service.dispose() }
+  })
+
   it('creates one coordinator before login and reuses it through workspace binding', async () => {
     const service = await createInsightDesktopUpdates()
     expect(fixture.coordinator.instances).toHaveLength(1)
