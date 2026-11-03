@@ -4,7 +4,7 @@
 
 ## 摘要
 
-Insight 已将产品能力接入 DSH 原生 Desktop 工作区，退出旧 Shell/Core 运行链。Candidate 1.0.11-rc.2 已完成 macOS arm64、macOS x64 和 Windows x64 构建及 OSS 发布，公开 CDN 缓存配置仍待处理。本报告分开说明实现结果、已观察的验收、范围排除和后续工作。
+Insight 已将产品能力接入 DSH 原生 Desktop 工作区，退出旧 Shell/Core 运行链。Candidate 1.0.11 已完成 macOS arm64、macOS x64 和 Windows x64 构建及 OSS V2 发布，旧版/新版公开发现检查通过；V3 CDN 旧缓存仍待处理。本报告分开说明实现结果、已观察的验收、范围排除和后续工作。
 
 ## 阅读指引
 
@@ -35,7 +35,7 @@ P4 使用旧账号数据隔离副本：22 个会话可读取，两个工作区�
 
 最终 1.0.10 制品完成三平台 CI、macOS 签名/公证和 Candidate 发布。已发布 Shell reader 对三个 CDN 目标验证通过。用户报告 macOS arm64 从 1.0.8 升至 1.0.10 成功；其他平台待第三方反馈，生产数据保留未逐项确认。Stable 仍为 1.0.9，本轮只发 Candidate。
 
-1.0.11-rc.2 保留双协议 Candidate reader，并修复 1.0.10 与 rc.1 的原生 Electron 传输缺陷。原站签名和隔离原生发现检查通过，公开 CDN 仍返回旧元数据，修正缓存规则后才能验收实际发现。Stable 与 final Candidate V2 指针保持不变。当前兼容关系由[操作手册](operations.zh.md)维护，待配置事项和原生验证限度保留在[后续清单](follow-ups.zh.md)，[执行记录](history/releases/1.0.11-rc.2.md)绑定精确源码和 run。
+1.0.11 以真实 final 语义版本投放 Candidate V2，保留双协议 reader 和 Electron 传输修复。旧 Shell 1.0.7 原始 reader 的 CDN/原站三目标检查、当前 reader 及隔离 Electron/MacUpdater 发现均通过；未下载安装。Stable 保持 1.0.9，V3 原站保持 rc.2，公开 V3 仍返回旧缓存。后续 rc 从 1.0.12-rc.1 起，已安装的新 DSH 1.0.10/rc.1 需手动安装修复版本一次。当前兼容关系由[操作手册](operations.zh.md)维护，待配置事项和验证限度保留在[后续清单](follow-ups.zh.md)，[执行记录](history/releases/1.0.11.md)绑定精确源码和 run。
 
 <a id="retirement-decisions"></a>
 ## 退役取舍

@@ -19,9 +19,9 @@
 <a id="update-check-fix-delivery"></a>
 ## 更新检查修复交付
 
-1.0.11-rc.2 已完成打包并发布到三个目标的 OSS Candidate。原站签名检查和隔离 Electron/MacUpdater 发现检查通过，下载及安装仍是另一组验证。原站已更新，但公开 CDN 仍返回旧签名指针：30 天缓存覆盖源站 60 秒设置，并忽略查询参数。控制台访问仍待明确授权；需要将 `/desktop/candidate-v3/*/current.json` 设为遵循源站 60 秒、刷新三个目标 URL，再用客户端固定 CDN 域名复测签名和原生发现。现有 1.0.10 与 rc.1 安装需要手动安装修复版本一次，旧 V2 final 渠道保持不变。[版本记录](history/releases/1.0.11-rc.2.md)维护执行证据。
+1.0.11 已完成三平台构建及 Candidate V2 发布，旧 Shell reader、新双协议 reader 和隔离原生发现通过，未下载安装。V3 原站仍为 rc.2；用户确认已配置并刷新后，公开 CDN 仍返回 rc.1，响应头显示部分旧缓存期限和部分负缓存时间，尚未验收成功。需核对 `/desktop/candidate-v3/` 的目录缓存规则优先级及三个 `current.json` 完整 URL 的刷新任务状态，再用固定 CDN 域名复测。未访问私有控制台。执行证据见[1.0.11 记录](history/releases/1.0.11.md)。
 
-下一次已授权的过渡包采用真正的 `1.0.11`，只投 Candidate V2，兼容旧 Shell V2 与新双协议 reader；具体执行见[1.0.11 记录](history/releases/1.0.11.md)。后续 rc 从 `1.0.12-rc.1` 起，final 应用仍通过五连击手动检查内测。既有 1.0.10／rc.1 的更新请求缺陷仍需一次手动安装。
+过渡包为真实 1.0.11，仅投 Candidate V2，兼容旧 Shell V2 与新双协议 reader；Stable/V3 原站指针逐字节保持不变。后续 rc 从 1.0.12-rc.1 起，final 应用仍通过五连击手动检查内测。本地签名序列测试验证后续 V3 选择与防回放，生产下载安装仍待真实版本反馈。既有新 DSH 1.0.10／rc.1 的传输缺陷仍需一次手动安装。
 
 <a id="plugin-installation-policy"></a>
 ## 插件安装策略
@@ -50,6 +50,8 @@ P1/P3/P4 历史报告中保留 Canvas 前端 fixture、额外 standalone TypeScr
 [既有 CI 提速分析](history/shell/analysis/2026-11-02-dsh-insight-client-followups.md#提速建议与边界)保留为优化依据；随正常构建对照耗时，不为采集数据额外触发 CI。
 
 - [ ] App 最终票据验证的 CloudKit 瞬断恢复：App 的 `stapler validate` 访问 `api.apple-cloudkit.com` 时，可能以 `NSURLErrorDomain Code=-1005`、退出码 68 失败；目前该路径没有 DMG 验证器的有界重试，导致整个 macOS job 重跑。评估复用现有的精确错误匹配和只读有界重试，不重新签名、提交公证或放宽最终验证。
+
+- [ ] App 已被 Apple 接受但 CI 未取得结果：1.0.11 x64 第二次在 notarytool 结果获取阶段失败，随后只读 Apple 历史及详细日志确认该 x86_64 提交为 Accepted。评估保留 submission ID 与脱敏失败 journal；仅在同一制品仍存在时查询原提交并恢复等待和附票，runner 清理后仍需重跑任务。不得据此跳过附票和最终验证；[1.0.11 记录](history/releases/1.0.11.md)保存证据，本项未实施。
 
 [rc.2 执行记录](history/releases/1.0.11-rc.2.md#源码与原-run)保留 arm64 首轮 27m33s 失败、重试 23m31s 成功的证据。当前仍按[运维恢复流程](operations.zh.md#known-failure-recovery)在原 run 重跑失败 job，复用其他平台成功产物。后续验收需覆盖目标网络错误恢复、非匹配错误立即失败及重试耗尽仍失败；涉及官方验证脚本的实现须另行明确授权，本项尚未实施。
 

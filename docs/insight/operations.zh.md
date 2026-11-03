@@ -22,13 +22,13 @@
 
 ## 当前交付状态
 
-当前 OSS Candidate V3 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.11-rc.2，完整 GitHub prerelease 已生成；旧 final Candidate V2 仍为 1.0.10，Stable 仍为 1.0.9。Candidate 和 Stable 是发布渠道，final 语义版本可以先在 Candidate 验证，之后将同一份已验证制品提升到 Stable。
+当前三个平台的 Candidate V2 为 1.0.11，Candidate V3 原站保留 1.0.11-rc.2，Stable 保持 1.0.9。1.0.11 的三平台 GitHub prerelease、构建和 OSS 发布均已完成。Candidate 和 Stable 是发布渠道，final 语义版本可先在 Candidate 验证，再将同一份已验证制品提升到 Stable。
 
-1.0.11-rc.2 包含双协议 Candidate reader 和 Electron 响应 URL 修复。三个 OSS 原站目标均通过签名及源码核对，隔离 Electron/MacUpdater 原站检查发现 rc.2，未下载或安装。公开 CDN 发现仍被指针 30 天缓存阻塞，它覆盖了源站 60 秒设置；配置事项由[后续清单](follow-ups.zh.md#update-check-fix-delivery)维护。已安装的 1.0.10 与 rc.1 需要手动安装 rc.2 一次，元数据不能修复其传输实现。Stable 发布仍需单独授权。
+1.0.11 包含双协议 Candidate reader 和 Electron 响应 URL 修复。旧 Shell 1.0.7 reader 在 CDN/原站的三个目标验签通过；当前 reader 和隔离 Electron/MacUpdater 的旧版、新版发现路径均通过，未下载或安装。既有新 DSH 1.0.10 与 rc.1 仍需手动安装 1.0.11 一次。final 1.0.11 通过五连击手动检查后续 Candidate，后续 rc 从 1.0.12-rc.1 起。V3 CDN 仍返回 rc.1，缓存事项由[后续清单](follow-ups.zh.md#update-check-fix-delivery)维护。Stable 发布需单独授权。
 
 迁移证据保留在 [Insight 历史记录](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md)。当决定依赖精确源码、平台或渠道证据时，读取交付记录，而非只依赖本运维摘要。
 
-[1.0.11-rc.2 执行记录](history/releases/1.0.11-rc.2.md)保存随包源码、成功的三平台 run、Candidate 发布 run、原站验证、未变化的 Stable/V2 指针摘要，以及待完成的 CDN 配置。
+[1.0.11 执行记录](history/releases/1.0.11.md)保存精确源码、三平台构建与 Candidate 发布 run、旧版/新版公开发现证据、未变化的 Stable/V3 指针摘要，以及 V3 CDN 的剩余限制。
 
 <a id="developing-locally"></a>
 
@@ -49,6 +49,8 @@
 准备可能以后成为 Stable 的版本时运行全部目标。单目标打包只生成对应 Actions artifact，不能直接用于 OSS 发布；Candidate 发布从已完整校验并公开的 Release 选择目标。打包工作流保持平台 job 并行，也保持 macOS App 与 DMG 公证路径并行；不要在发布器中增加 qualification 阶段或重复完整构建。
 
 平台 job 成功后，如果 finalizer 或附件回读失败，应在同一 workflow run 重跑失败 job，复用成功 native job 的已记录制品；OSS 投放前要求整个 run 最终成功。重新构建或从不同源码 rerun 会改变发布器验证的来源。rerun 仍必须通过 workflow 身份、源码、Release 附件、manifest、大小和 SHA-512 检查。
+
+final Candidate 在汇总后还需核对 GitHub Release 为 prerelease 且非 latest。现有 finalizer 会按 final 语义版本重置 prerelease；必要时只修正 Release 标记，不替换附件或重建。1.0.11 已实际执行并回读该修正。
 
 <a id="publishing-a-verified-release"></a>
 

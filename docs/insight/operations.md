@@ -20,13 +20,13 @@ Use this reference when an Insight build, publication, signing step, or local de
 
 ## Current delivery state
 
-The OSS Candidate V3 is version 1.0.11-rc.2 for macOS arm64, macOS x64, and Windows x64, with a complete GitHub prerelease. The legacy final Candidate V2 remains 1.0.10 and Stable remains 1.0.9. Candidate and Stable are publication channels; a final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable.
+Candidate V2 is 1.0.11 on all three platforms; Candidate V3 at the origin retains 1.0.11-rc.2 and Stable remains 1.0.9. The three-platform 1.0.11 GitHub prerelease, build, and OSS publication are complete. Candidate and Stable are publication channels; a final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable.
 
-Version 1.0.11-rc.2 contains the dual Candidate reader and the Electron response-URL repair. All three OSS-origin targets passed signature and source checks; an isolated Electron/MacUpdater check found rc.2 through the origin without downloading or installing. Public CDN discovery remains blocked by a 30-day pointer cache overriding the origin’s 60-second setting. [Follow-ups](follow-ups.md#update-check-fix-delivery) owns that configuration step. Installed 1.0.10 and rc.1 need a manual rc.2 installation once; metadata cannot repair their transport. Stable publication requires separate authorization.
+Version 1.0.11 contains the dual Candidate reader and the Electron response-URL repair. The old Shell 1.0.7 reader verified all three CDN/origin targets; the current reader and isolated old/new Electron/MacUpdater discovery paths passed without downloading or installing. Existing new DSH 1.0.10 and rc.1 installations still need one manual 1.0.11 installation. Final 1.0.11 checks later Candidate releases through the five-click manual action; subsequent rc releases start at 1.0.12-rc.1. The V3 CDN still returns rc.1; [follow-ups](follow-ups.md#update-check-fix-delivery) owns that cache issue. Stable publication requires separate authorization.
 
 The migration evidence is retained under [Insight history](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md). Read the delivery record when a decision depends on the exact source, platform, or channel evidence rather than this operational summary.
 
-The [1.0.11-rc.2 execution record](history/releases/1.0.11-rc.2.md) identifies the packaged source, successful three-platform run, Candidate publication runs, origin verification, unchanged Stable/V2 pointer digests, and outstanding CDN configuration.
+The [1.0.11 execution record](history/releases/1.0.11.md) identifies the exact source, three-platform build and Candidate publication runs, old/new public discovery checks, unchanged Stable/V3 pointer digests, and remaining V3 CDN limitation.
 
 ## Developing locally
 
@@ -43,6 +43,8 @@ The package workflow creates signed, notarized macOS artifacts and the Windows N
 Run all targets when preparing a release that could later become Stable. A single-target package run creates only its Actions artifact and cannot publish directly to OSS; Candidate publication selects a target from a fully verified public Release. The package workflow keeps platform jobs parallel and keeps macOS app and DMG notarization paths parallel; do not add a qualification stage or repeat a full build in the publisher.
 
 When a finalizer or artifact readback fails after successful platform jobs, rerun failed jobs in the same workflow run and reuse the successful native jobs’ recorded artifacts; the complete run must ultimately succeed before OSS publication. Rebuilding or rerunning a different source changes the build identity the publisher verifies. A rerun must still pass the workflow identity, source, release attachment, manifest, size, and SHA-512 checks.
+
+For a final Candidate, also verify after finalization that the GitHub Release is a prerelease and is not latest. The current finalizer resets prerelease for final semantic versions. Correct only the Release flags when needed, without replacing attachments or rebuilding. This correction was executed and read back for 1.0.11.
 
 ## Publishing a verified release
 
