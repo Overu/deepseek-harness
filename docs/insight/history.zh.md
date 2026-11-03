@@ -17,6 +17,7 @@
 | 旧账号历史如何保留？ | [P4 交付](history/shell/analysis/2026-10-30-dsh-insight-p4-delivery.md)、[只读盘点](history/shell/analysis/2026-10-30-dsh-insight-p4-readonly-inventory.md) |
 | 哪次构建、Candidate 上传和旧客户端检查成功？ | [P5 交付](history/shell/analysis/2026-10-30-dsh-insight-p5-delivery.md)、[发布执行记录](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md) |
 | 1.0.11-rc.1 的源码、构建结果和剩余发布工作是什么？ | [Candidate 执行记录](history/releases/1.0.11-rc.1.md) |
+| 为什么 rc.2 已打包发布，CDN 更新发现仍被阻塞？ | [rc.2 发布与缓存诊断](history/releases/1.0.11-rc.2.md) |
 | 进入 P6 前审阅了哪些官方改动？ | [逐文件清单](history/shell/analysis/2026-11-02-dsh-insight-p6-preflight-review.md)、[P6 交接](history/shell/analysis/2026-11-02-dsh-insight-p6-handoff.md) |
 | 原 Shell 发布协议是怎么做的？ | [旧发布手册](history/shell/release-runbook.md)、[V2 操作清单](history/shell/releases/update-v2-operator-checklist.md)、[1.0.9 证据](history/shell/releases/1.0.9.md) |
 

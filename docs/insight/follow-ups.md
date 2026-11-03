@@ -17,7 +17,7 @@ Use this list when scheduling a client release, receiving a defect report, or up
 
 ## Update check fix delivery
 
-The source adapter fixes the empty Electron response URL that breaks update discovery in published 1.0.10 and 1.0.11-rc.1. Unit, real-Electron loopback, and isolated native check evidence cover the repair, while download and installation remain separate. A fixed client build and manual installation path are still required: changing CDN metadata cannot repair the already-installed transport. Version 1.0.11-rc.2 is authorized for a build and Candidate publication; its [release record](history/releases/1.0.11-rc.2.md) owns the outcome. Preserve both legacy V2 final channels and V3 rc channels.
+Version 1.0.11-rc.2 is packaged and published to OSS Candidate for all three targets. Origin signature checks and an isolated Electron/MacUpdater discovery check passed; download and installation remain separate. The public CDN still serves an old signed pointer despite the origin being updated: its 30-day cache overrides the 60-second origin setting and ignores query parameters. Console access is awaiting explicit authorization. Configure `/desktop/candidate-v3/*/current.json` to honor the origin’s 60 seconds, refresh the three target URLs, then repeat signature and native discovery checks on the client’s fixed CDN domain. Existing 1.0.10 and rc.1 installations need one manual fixed-version installation. Preserve legacy V2 final channels. The [release record](history/releases/1.0.11-rc.2.md) owns execution evidence.
 
 ## Plugin installation policy
 

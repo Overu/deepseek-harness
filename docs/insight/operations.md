@@ -20,13 +20,13 @@ Use this reference when an Insight build, publication, signing step, or local de
 
 ## Current delivery state
 
-The current Candidate V3 is version 1.0.11-rc.1 for macOS arm64, macOS x64, and Windows x64. The legacy final Candidate V2 remains 1.0.10 and Stable remains 1.0.9. Candidate and Stable are publication channels; a final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable.
+The OSS Candidate V3 is version 1.0.11-rc.2 for macOS arm64, macOS x64, and Windows x64, with a complete GitHub prerelease. The legacy final Candidate V2 remains 1.0.10 and Stable remains 1.0.9. Candidate and Stable are publication channels; a final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable.
 
-The packaged 1.0.11-rc.1 contains the dual Candidate V2/V3 reader. Node-based metadata probes of it and 1.0.10 passed, but both published applications have an Electron transport defect: `net.fetch` returns an empty response URL, which their strict resolver rejects before version comparison. The current source adapter fixes that mismatch; the fix has not been packaged. Existing installations need a manual fixed-version installation before updater recovery. [Follow-ups](follow-ups.md#update-check-fix-delivery) owns that delivery step. Stable publication requires separate authorization.
+Version 1.0.11-rc.2 contains the dual Candidate reader and the Electron response-URL repair. All three OSS-origin targets passed signature and source checks; an isolated Electron/MacUpdater check found rc.2 through the origin without downloading or installing. Public CDN discovery remains blocked by a 30-day pointer cache overriding the origin’s 60-second setting. [Follow-ups](follow-ups.md#update-check-fix-delivery) owns that configuration step. Installed 1.0.10 and rc.1 need a manual rc.2 installation once; metadata cannot repair their transport. Stable publication requires separate authorization.
 
 The migration evidence is retained under [Insight history](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md). Read the delivery record when a decision depends on the exact source, platform, or channel evidence rather than this operational summary.
 
-The [1.0.11-rc.1 execution record](history/releases/1.0.11-rc.1.md) identifies the packaged source, successful three-platform run, Candidate publication runs, public-reader verification, and unchanged Stable/V2 pointer digests.
+The [1.0.11-rc.2 execution record](history/releases/1.0.11-rc.2.md) identifies the packaged source, successful three-platform run, Candidate publication runs, origin verification, unchanged Stable/V2 pointer digests, and outstanding CDN configuration.
 
 ## Developing locally
 

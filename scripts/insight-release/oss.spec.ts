@@ -31,15 +31,18 @@ describe('Insight OSS transport', () => {
     const multipart: Array<{ key: string; headers: Record<string, string> }> = []
     const transport = createAliOssTransport({
       getStsToken: async () => ({ accessKeyId: 'id', accessKeySecret: 'secret', securityToken: 'token', expirationMs: Date.now() + 3_600_000 }),
-      ossClientFactory: () => ({
-        getStream: async () => { throw new Error('not used') },
-        get: async () => { throw new Error('not used') },
-        put: async (key, source, options) => {
-          if (!Buffer.isBuffer(source)) throw new TypeError('Must provide String/Buffer/ReadableStream for put.')
-          puts.push({ key, bytes: [...source], headers: options.headers })
-        },
-        multipartUpload: async (key, _source, options) => { multipart.push({ key, headers: options.headers }) },
-      }),
+      ossClientFactory: (configuration) => {
+        expect(configuration).toMatchObject({ timeout: 30 * 60_000 })
+        return {
+          getStream: async () => { throw new Error('not used') },
+          get: async () => { throw new Error('not used') },
+          put: async (key, source, options) => {
+            if (!Buffer.isBuffer(source)) throw new TypeError('Must provide String/Buffer/ReadableStream for put.')
+            puts.push({ key, bytes: [...source], headers: options.headers })
+          },
+          multipartUpload: async (key, _source, options) => { multipart.push({ key, headers: options.headers }) },
+        }
+      },
     })
 
     await transport.putImmutable('desktop/releases/v1.0.10/target.json', { bytes: new Uint8Array([1]) })

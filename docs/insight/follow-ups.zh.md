@@ -18,7 +18,7 @@
 <a id="update-check-fix-delivery"></a>
 ## 更新检查修复交付
 
-源码适配修复了已发布 1.0.10 与 1.0.11-rc.1 因 Electron 响应 URL 为空而无法检查更新的问题。单测、真实 Electron 回环服务和隔离原生检查覆盖该修复，下载与安装仍是另一组验证。仍需构建修复客户端并提供手动安装入口：修改 CDN 元数据无法修复已安装的传输实现。1.0.11-rc.2 已获授权构建并发布 Candidate；执行结果由[版本记录](history/releases/1.0.11-rc.2.md)维护。保留旧 V2 final 渠道和 V3 rc 渠道。
+1.0.11-rc.2 已完成打包并发布到三个目标的 OSS Candidate。原站签名检查和隔离 Electron/MacUpdater 发现检查通过，下载及安装仍是另一组验证。原站已更新，但公开 CDN 仍返回旧签名指针：30 天缓存覆盖源站 60 秒设置，并忽略查询参数。控制台访问仍待明确授权；需要将 `/desktop/candidate-v3/*/current.json` 设为遵循源站 60 秒、刷新三个目标 URL，再用客户端固定 CDN 域名复测签名和原生发现。现有 1.0.10 与 rc.1 安装需要手动安装修复版本一次，旧 V2 final 渠道保持不变。[版本记录](history/releases/1.0.11-rc.2.md)维护执行证据。
 
 <a id="plugin-installation-policy"></a>
 ## 插件安装策略

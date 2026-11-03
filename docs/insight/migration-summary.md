@@ -4,7 +4,7 @@ English | [中文](migration-summary.zh.md)
 
 ## Summary
 
-Insight now runs its product features on the native DSH Desktop workspace instead of launching the old Shell/Core runtime. The delivered Candidate V3 is 1.0.11-rc.1 on macOS arm64, macOS x64, and Windows x64. This report separates implementation, observed acceptance, exclusions, and remaining work.
+Insight now runs its product features on the native DSH Desktop workspace instead of launching the old Shell/Core runtime. Candidate 1.0.11-rc.2 is built and published at OSS on macOS arm64, macOS x64, and Windows x64; public CDN cache configuration remains pending. This report separates implementation, observed acceptance, exclusions, and remaining work.
 
 ## Reading guide
 
@@ -33,7 +33,7 @@ P4 used an isolated copy of old account data: 22 sessions were readable, two wor
 
 The final 1.0.10 package completed three-platform CI, macOS signing/notarization, and Candidate publication. The released Shell reader verified all three CDN targets. A user reported a successful macOS arm64 upgrade from 1.0.8 to 1.0.10; the other platforms remain for third-party feedback, and production data preservation was not confirmed item by item. Stable remains 1.0.9; only Candidate was published.
 
-The published 1.0.11-rc.1 delivers the dual-protocol Candidate reader. Both its current reader and the published 1.0.10 reader verified the three public rc targets; the Stable and final Candidate V2 pointers remained unchanged. [Operations](operations.md) owns current channel compatibility, [follow-ups](follow-ups.md) retains native verification limits, and the [execution record](history/releases/1.0.11-rc.1.md) binds the exact source and runs.
+Version 1.0.11-rc.2 carries the dual-protocol Candidate reader and fixes the native Electron transport defect in 1.0.10 and rc.1. Origin signature and isolated native discovery checks passed; the public CDN still returns stale metadata and needs a cache-rule correction before discovery can be accepted. Stable and final Candidate V2 pointers remain unchanged. [Operations](operations.md) owns current compatibility, [follow-ups](follow-ups.md) retains the pending configuration and native verification limits, and the [execution record](history/releases/1.0.11-rc.2.md) binds the exact source and runs.
 
 ## Retirement decisions
 

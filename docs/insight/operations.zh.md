@@ -22,13 +22,13 @@
 
 ## 当前交付状态
 
-当前 Candidate V3 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.11-rc.1；旧 final Candidate V2 仍为 1.0.10，Stable 仍为 1.0.9。Candidate 和 Stable 是发布渠道，final 语义版本可以先在 Candidate 验证，之后将同一份已验证制品提升到 Stable。
+当前 OSS Candidate V3 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.11-rc.2，完整 GitHub prerelease 已生成；旧 final Candidate V2 仍为 1.0.10，Stable 仍为 1.0.9。Candidate 和 Stable 是发布渠道，final 语义版本可以先在 Candidate 验证，之后将同一份已验证制品提升到 Stable。
 
-1.0.11-rc.1 安装包已包含 Candidate V2/V3 双协议 reader。它与 1.0.10 的 Node 元数据检查通过，但两个已发布应用都有 Electron 传输缺陷：`net.fetch` 返回空响应 URL，严格读取器在比较版本前即拒绝响应。当前源码适配已修复此差异，修复尚未打包。现有安装需要手动安装修复版本后才能恢复更新；该交付步骤见[后续事项](follow-ups.zh.md#update-check-fix-delivery)。Stable 发布仍需单独授权。
+1.0.11-rc.2 包含双协议 Candidate reader 和 Electron 响应 URL 修复。三个 OSS 原站目标均通过签名及源码核对，隔离 Electron/MacUpdater 原站检查发现 rc.2，未下载或安装。公开 CDN 发现仍被指针 30 天缓存阻塞，它覆盖了源站 60 秒设置；配置事项由[后续清单](follow-ups.zh.md#update-check-fix-delivery)维护。已安装的 1.0.10 与 rc.1 需要手动安装 rc.2 一次，元数据不能修复其传输实现。Stable 发布仍需单独授权。
 
 迁移证据保留在 [Insight 历史记录](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md)。当决定依赖精确源码、平台或渠道证据时，读取交付记录，而非只依赖本运维摘要。
 
-[1.0.11-rc.1 执行记录](history/releases/1.0.11-rc.1.md)保存随包源码、成功的三平台 run、Candidate 发布 run、公开 reader 验签和未变化的 Stable/V2 指针摘要。
+[1.0.11-rc.2 执行记录](history/releases/1.0.11-rc.2.md)保存随包源码、成功的三平台 run、Candidate 发布 run、原站验证、未变化的 Stable/V2 指针摘要，以及待完成的 CDN 配置。
 
 <a id="developing-locally"></a>
 

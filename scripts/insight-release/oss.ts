@@ -102,7 +102,7 @@ export function createAliOssTransport(
   const client = async () => {
     if (active !== undefined && active.expirationMs - now() > 180_000) return active.client
     const credentials = await input.getStsToken()
-    const configuration: OSS.Options = { accessKeyId: credentials.accessKeyId, accessKeySecret: credentials.accessKeySecret, stsToken: credentials.securityToken, bucket: 'insight-desktop-updates', region: 'oss-cn-guangzhou', endpoint: 'https://oss-accelerate.aliyuncs.com', secure: true, authorizationV4: true }
+    const configuration: OSS.Options = { accessKeyId: credentials.accessKeyId, accessKeySecret: credentials.accessKeySecret, stsToken: credentials.securityToken, bucket: 'insight-desktop-updates', region: 'oss-cn-guangzhou', endpoint: 'https://oss-accelerate.aliyuncs.com', secure: true, authorizationV4: true, timeout: 30 * 60_000 }
     const factory = input.ossClientFactory ?? ((options: object): OssClient => new OSS(options as OSS.Options) as OssClient)
     active = { expirationMs: credentials.expirationMs, client: factory(configuration) }
     return active.client
