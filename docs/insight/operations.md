@@ -20,7 +20,19 @@ Use this reference when an Insight build, publication, signing step, or local de
 
 ## Current delivery state
 
-Candidate V2 is 1.0.11 on all three platforms; Candidate V3 at the origin retains 1.0.11-rc.2 and Stable remains 1.0.9. The three-platform 1.0.11 GitHub prerelease, build, and OSS publication are complete. Candidate and Stable are publication channels; a final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable.
+P6 is closed. This table distinguishes functional source from published artifacts; the [closure record](history/p6-closeout.md#source-and-artifacts) pins commits and verification evidence.
+
+| Object | Version or baseline | Status |
+| --- | --- | --- |
+| Current functional source | Installation-confirmation fix identified in the closure record | Committed and pushed; not packaged or published |
+| Candidate V2 installers | 1.0.11, all three platforms | Published; excludes the later source fix above |
+| Candidate V3 installers | 1.0.11-rc.2, all three platforms | Published at the origin; stale CDN pointer is transferred as a bug |
+| Stable | 1.0.9 | Existing rollout retained; no promotion in this work |
+| Separate pending maintenance | App ticket retry and macOS preparation concurrency | Uncommitted working-tree changes at closure; tracked under [packaging optimization](follow-ups.md#packaging-optimization), outside the committed baseline above |
+
+Current source additionally contains the explicit install-and-restart action, no repeated confirmation for idle tasks, exact-version approval limited to one attempt, and the macOS update window as owner for necessary prompts. Windows retains its original owner when a prompt is required; same-window overlay adaptation is deferred. The [Integration package](../../packages/insight/desktop-integration/README.md#desktop-updates) owns behavior details. These source behaviors must not be attributed to the published 1.0.11 installers. A later delivery uses a new version without replacing existing 1.0.11 assets; this work changes no version and performs no packaging or publication.
+
+Candidate and Stable are publication channels. A final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable; promotion still requires separate authorization.
 
 Version 1.0.11 contains the dual Candidate reader and the Electron response-URL repair. The old Shell 1.0.7 reader verified all three CDN/origin targets; the current reader and isolated old/new Electron/MacUpdater discovery paths passed without downloading or installing. Existing new DSH 1.0.10 and rc.1 installations still need one manual 1.0.11 installation. Final 1.0.11 checks later Candidate releases through the five-click manual action; subsequent rc releases start at 1.0.12-rc.1. The V3 CDN still returns rc.1; [follow-ups](follow-ups.md#update-check-fix-delivery) owns that cache issue. Stable publication requires separate authorization.
 

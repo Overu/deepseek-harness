@@ -4,12 +4,13 @@
 
 ## 摘要
 
-维护 Insight Desktop、理解 DSH 接入或排查迁移问题时，从这里开始。按当前问题选择一篇文档；冻结的 Shell 报告用于追溯证据，不要求按时间顺序全部阅读。
+P6 已于 2026-11-03 完成文档收口和遗留事项移交，迁移任务暂告一段落。[收口记录](history/p6-closeout.md)固定源码与安装包基准；后续维护、版本交付和 bug 按下表查阅，不默认重启迁移阶段。
 
 ## 按问题查阅
 
 | 你遇到的问题 | 从这里开始 |
 | --- | --- |
+| P6 是否结束，源码与已发安装包有什么差异？ | [收口记录](history/p6-closeout.md)、[交付状态](operations.zh.md#current-delivery-state) |
 | 迁移了什么、保留了什么、哪些不在范围内？ | [迁移总结](migration-summary.zh.md) |
 | 登录、账号数据、Host 和插件如何连接？ | [架构](architecture.zh.md) |
 | 为什么修改官方 DSH 文件，更新基线时要保住什么？ | [基线改动](baseline-changes.zh.md) |

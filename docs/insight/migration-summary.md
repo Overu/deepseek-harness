@@ -4,7 +4,7 @@ English | [中文](migration-summary.zh.md)
 
 ## Summary
 
-Insight now runs its product features on the native DSH Desktop workspace instead of launching the old Shell/Core runtime. Candidate 1.0.11 is built and published through OSS V2 on macOS arm64, macOS x64, and Windows x64; old/new public discovery checks passed, while stale V3 CDN caching remains unresolved. This report separates implementation, observed acceptance, exclusions, and remaining work.
+P6 closed on 2026-11-03, and migration work is now at rest. Insight runs its product features on the native DSH Desktop workspace instead of the old Shell/Core runtime. Current functional source differs from the published 1.0.11 installers; [delivery state](operations.md#current-delivery-state) distinguishes them, and [follow-ups](follow-ups.md) owns later releases, bugs, verification feedback, and product decisions. Stage closure does not mean that every issue is fixed or every platform has passed native acceptance.
 
 ## Reading guide
 
@@ -31,9 +31,9 @@ The standalone bundled dsh CLI is outside the product. This does not exclude Age
 
 P4 used an isolated copy of old account data: 22 sessions were readable, two workspaces and selected historical messages remained visible after initial login and restart, and the recorded original log digests were unchanged. This evidence covers the tested copy, not every production account or continued generation from every old record.
 
-The final 1.0.10 package completed three-platform CI, macOS signing/notarization, and Candidate publication. The released Shell reader verified all three CDN targets. A user reported a successful macOS arm64 upgrade from 1.0.8 to 1.0.10; the other platforms remain for third-party feedback, and production data preservation was not confirmed item by item. Stable remains 1.0.9; only Candidate was published.
+The final 1.0.10 package completed three-platform CI, macOS signing/notarization, and Candidate publication. The released Shell reader verified all three CDN targets. A user reported a successful macOS arm64 upgrade from 1.0.8 to 1.0.10; the other platforms remain for third-party feedback, and production data preservation was not confirmed item by item. That rollout targeted Candidate only; operations owns the current channel state.
 
-Version 1.0.11 is a true final semantic version published to Candidate V2, with the dual-protocol reader and Electron transport repair. The original Shell 1.0.7 reader passed all three CDN/origin targets; the current reader and isolated Electron/MacUpdater discovery checks also passed without downloading or installing. Stable remains 1.0.9, the V3 origin remains rc.2, and public V3 still serves stale cache. Subsequent rc releases start at 1.0.12-rc.1; installed new DSH 1.0.10/rc.1 needs one manual fixed-version installation. [Operations](operations.md) owns current compatibility, [follow-ups](follow-ups.md) retains configuration and verification limits, and the [execution record](history/releases/1.0.11.md) binds the exact source and runs.
+The published 1.0.11 Candidate passed discovery checks with the old Shell V2 reader, the current dual-protocol reader, and isolated Electron/MacUpdater. Later user feedback reported that updating worked again, without a new all-platform or itemized data-acceptance matrix. The later installation-confirmation changes are not in the installers. [Delivery state](operations.md#current-delivery-state) and the [closure record](history/p6-closeout.md) own exact source, artifacts, and evidence limits; [follow-ups](follow-ups.md) owns unresolved V3 CDN and other issues.
 
 ## Retirement decisions
 
@@ -54,7 +54,7 @@ Old Shell/Core repositories and user directories are not deleted. Old publishing
 
 The [baseline record](baseline-changes.md) explains necessary product integrations, shared API changes, sync costs, and implementation trade-offs. [Operations](operations.md) records successful recovery paths without adding build stages. [Follow-ups](follow-ups.md) carries unresolved policy choices, and verification debt with their original context.
 
-P6 documentation migration and its checks are recorded in the historical index. Product behavior changes, new official DSH edits, and Stable publication still require their own explicit scope; entering P6 is not blanket authorization for them.
+P6 delivered the consumer audit, retirement decisions, 201-file Shell documentation import, question-based navigation, official-difference rationale, and build/publication experience. The current baseline record includes the latest installation-confirmation fix, and unverified, deferred, and excluded items have explicit dispositions. The [closure record](history/p6-closeout.md) records the stage end; later source changes, baseline updates, packaging, or publication require their own task scope rather than extending an unfinished P6.
 
 ## Dev Note
 

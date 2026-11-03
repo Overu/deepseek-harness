@@ -4,12 +4,13 @@ English | [中文](history.zh.md)
 
 ## Summary
 
-Read an original report when a migration decision, acceptance result, or failure needs its recorded context. Start with the topic table; these frozen records are not current operating instructions. [Current guidance](README.md) owns the maintained product description.
+P6 ended on 2026-11-03. The [closure record](history/p6-closeout.md) pins this delivery and handoff. Read the corresponding original record from the table when a migration decision, acceptance result, or failure needs context. Historical evidence is not current operating guidance; [current documentation](README.md) owns product descriptions.
 
 ## Evidence by question
 
 | Question | Frozen source |
 | --- | --- |
+| When did P6 close, which source and installers are pinned, and where did remaining work go? | [P6 closure record](history/p6-closeout.md) |
 | Why migrate from Shell/Core, and which capabilities mattered? | [Capability inventory](history/shell/analysis/2026-10-08-business-capability-inventory.md), [execution design](history/shell/analysis/2026-10-28-dsh-insight-execution-report.md) |
 | How were fixed source, required components, and skills agreed? | [P0](history/shell/analysis/2026-10-28-dsh-insight-p0-design.md), [P1 delivery](history/shell/analysis/2026-10-28-dsh-insight-p1-delivery.md) |
 | What was implemented for login, managed models, and native UI? | [P2 delivery](history/shell/analysis/2026-10-29-dsh-insight-p2-delivery.md), [P3 acceptance](history/shell/analysis/2026-10-30-dsh-insight-p3-acceptance.md) |
@@ -31,6 +32,8 @@ JSON, signatures, text evidence, and the existing ZIP retain their bytes. Markdo
 The current baseline record explains the rationale and maintenance impact; the frozen preflight preserves the reviewed file/commit comparison. Source hashes identify what was imported, not what an installed client contains. The published 1.0.10 artifact source and the later dual-reader source remain distinct in their original release records.
 
 ## P6 verification record
+
+The table retains the scope and counts from the original documentation import. The [closure record](history/p6-closeout.md) owns stage-closure and functional-source evidence; counts from different stages are not interchangeable.
 
 | Check | Observed result for this stage |
 | --- | --- |

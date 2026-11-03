@@ -22,7 +22,19 @@
 
 ## 当前交付状态
 
-当前三个平台的 Candidate V2 为 1.0.11，Candidate V3 原站保留 1.0.11-rc.2，Stable 保持 1.0.9。1.0.11 的三平台 GitHub prerelease、构建和 OSS 发布均已完成。Candidate 和 Stable 是发布渠道，final 语义版本可先在 Candidate 验证，再将同一份已验证制品提升到 Stable。
+P6 已结束；下表区分功能源码与实际发布制品，精确提交和核对证据见[收口记录](history/p6-closeout.md#source-and-artifacts)。
+
+| 对象 | 版本或基准 | 状态 |
+| --- | --- | --- |
+| 当前功能源码 | 收口记录中的安装确认修复提交 | 已提交推送，尚未打包发布 |
+| Candidate V2 安装包 | 1.0.11，三个平台 | 已发布；不包含上行的后续修复 |
+| Candidate V3 安装包 | 1.0.11-rc.2，三个平台 | 源站已投放；CDN 旧指针问题转 bug |
+| Stable | 1.0.9 | 保持原投放，本次未晋升 |
+| 独立待提交维护 | App 票据重试与 macOS 准备并行 | 收口时仍为工作区未提交改动，见[打包优化](follow-ups.zh.md#packaging-optimization)，不计入上行已提交基准 |
+
+当前源码额外包含“安装并重启”明确操作、无活动任务时免重复确认、精确版本的单次授权，以及 macOS 必要确认使用更新窗口。Windows 仍需提示时保留原宿主，同窗遮罩适配已暂缓。行为细节由 [Integration 包](../../packages/insight/desktop-integration/README.zh.md#desktop-updates)维护；这些源码行为不能视为已发布 1.0.11 包的表现。后续交付使用新版本，不覆盖现有 1.0.11 附件；本次不调整版本、不打包或发布。
+
+Candidate 和 Stable 是发布渠道，final 语义版本可先在 Candidate 验证，再将同一份已验证制品提升到 Stable；晋升仍需独立授权。
 
 1.0.11 包含双协议 Candidate reader 和 Electron 响应 URL 修复。旧 Shell 1.0.7 reader 在 CDN/原站的三个目标验签通过；当前 reader 和隔离 Electron/MacUpdater 的旧版、新版发现路径均通过，未下载或安装。既有新 DSH 1.0.10 与 rc.1 仍需手动安装 1.0.11 一次。final 1.0.11 通过五连击手动检查后续 Candidate，后续 rc 从 1.0.12-rc.1 起。V3 CDN 仍返回 rc.1，缓存事项由[后续清单](follow-ups.zh.md#update-check-fix-delivery)维护。Stable 发布需单独授权。
 

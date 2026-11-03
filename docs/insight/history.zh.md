@@ -4,12 +4,13 @@
 
 ## 摘要
 
-需要理解某次迁移决策、验收结果或故障的原始背景时，再打开对应报告。从下表按问题查阅；冻结记录不是现行操作指引。产品现状由[当前文档](README.zh.md)维护。
+P6 已于 2026-11-03 结束。[收口记录](history/p6-closeout.md)固定本次交付和移交状态。需要了解某次迁移决策、验收或故障的原始背景时，再按下表读取对应记录；历史不是现行操作指引，[当前文档](README.zh.md)维护产品说明。
 
 ## 按问题定位证据
 
 | 问题 | 冻结来源 |
 | --- | --- |
+| P6 何时结束，源码与安装包以什么为准，遗留项如何移交？ | [P6 收口记录](history/p6-closeout.md) |
 | 为什么从 Shell/Core 迁移，当时看重哪些能力？ | [能力盘点](history/shell/analysis/2026-10-08-business-capability-inventory.md)、[执行设计](history/shell/analysis/2026-10-28-dsh-insight-execution-report.md) |
 | 固定源码、必需组件和技能如何确定？ | [P0](history/shell/analysis/2026-10-28-dsh-insight-p0-design.md)、[P1 交付](history/shell/analysis/2026-10-28-dsh-insight-p1-delivery.md) |
 | 登录、托管模型和原生界面实现到哪？ | [P2 交付](history/shell/analysis/2026-10-29-dsh-insight-p2-delivery.md)、[P3 验收](history/shell/analysis/2026-10-30-dsh-insight-p3-acceptance.md) |
@@ -31,6 +32,8 @@ JSON、签名、文本证据和原 ZIP 保持原字节。Markdown 增加冻结�
 当前基线记录维护理由和同步影响，冻结的审阅清单保留当时逐文件/提交比较。来源摘要用于确认迁入内容，不代表安装包内容；已发 1.0.10 制品源码和更晚的双 reader 源码仍在原发布记录中分开说明。
 
 ## P6 检查记录
+
+下表保留原文档迁移时的检查范围和次数；本次阶段收口及功能源码证据见[收口记录](history/p6-closeout.md)，不混用不同阶段的测试统计。
 
 | 检查 | 本阶段实际结果 |
 | --- | --- |

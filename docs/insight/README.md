@@ -4,12 +4,13 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Start here to maintain Insight Desktop, understand its DSH integration, or diagnose a migration problem. Read the page for the task at hand; the frozen Shell reports are evidence, not a required reading sequence.
+P6 documentation closure and the remaining-work handoff completed on 2026-11-03; migration work is now at rest. The [closure record](history/p6-closeout.md) pins the source and artifact baselines. Use the table below for maintenance, later releases, and bugs; those tasks do not restart the migration stage by default.
 
 ## Find the answer
 
 | Your question | Start here |
 | --- | --- |
+| Is P6 closed, and how does source differ from published installers? | [Closure record](history/p6-closeout.md), [delivery state](operations.md#current-delivery-state) |
 | What was migrated, retained, or excluded? | [Migration summary](migration-summary.md) |
 | How do login, account data, the Host, and plugins connect? | [Architecture](architecture.md) |
 | Why did we change official DSH files, and what must survive an upstream update? | [Baseline changes](baseline-changes.md) |

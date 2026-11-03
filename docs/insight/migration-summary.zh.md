@@ -4,7 +4,7 @@
 
 ## 摘要
 
-Insight 已将产品能力接入 DSH 原生 Desktop 工作区，退出旧 Shell/Core 运行链。Candidate 1.0.11 已完成 macOS arm64、macOS x64 和 Windows x64 构建及 OSS V2 发布，旧版/新版公开发现检查通过；V3 CDN 旧缓存仍待处理。本报告分开说明实现结果、已观察的验收、范围排除和后续工作。
+P6 已于 2026-11-03 完成收口，迁移任务暂告一段落。Insight 已将产品能力接入 DSH 原生 Desktop 工作区，退出旧 Shell/Core 运行链。当前功能源码与已发布 1.0.11 安装包存在已记录差异；[交付状态](operations.zh.md#current-delivery-state)区分两者，[后续清单](follow-ups.zh.md)承接下一版本、bug、验证反馈和产品决策。阶段结束不表示遗留问题全部修复或所有平台完成原生验收。
 
 ## 阅读指引
 
@@ -33,9 +33,9 @@ Insight 已将产品能力接入 DSH 原生 Desktop 工作区，退出旧 Shell/
 
 P4 使用旧账号数据隔离副本：22 个会话可读取，两个工作区及选定历史消息在首次登录和重启后仍可见，记录的原始日志摘要不变。这些证据覆盖测试副本，不等于每个生产账号或全部旧记录继续生成都已验证。
 
-最终 1.0.10 制品完成三平台 CI、macOS 签名/公证和 Candidate 发布。已发布 Shell reader 对三个 CDN 目标验证通过。用户报告 macOS arm64 从 1.0.8 升至 1.0.10 成功；其他平台待第三方反馈，生产数据保留未逐项确认。Stable 仍为 1.0.9，本轮只发 Candidate。
+最终 1.0.10 制品完成三平台 CI、macOS 签名/公证和 Candidate 发布。已发布 Shell reader 对三个 CDN 目标验证通过。用户报告 macOS arm64 从 1.0.8 升至 1.0.10 成功；其他平台待第三方反馈，生产数据保留未逐项确认。该次投放仅使用 Candidate；当前渠道状态由操作手册维护。
 
-1.0.11 以真实 final 语义版本投放 Candidate V2，保留双协议 reader 和 Electron 传输修复。旧 Shell 1.0.7 原始 reader 的 CDN/原站三目标检查、当前 reader 及隔离 Electron/MacUpdater 发现均通过；未下载安装。Stable 保持 1.0.9，V3 原站保持 rc.2，公开 V3 仍返回旧缓存。后续 rc 从 1.0.12-rc.1 起，已安装的新 DSH 1.0.10/rc.1 需手动安装修复版本一次。当前兼容关系由[操作手册](operations.zh.md)维护，待配置事项和验证限度保留在[后续清单](follow-ups.zh.md)，[执行记录](history/releases/1.0.11.md)绑定精确源码和 run。
+已发布的 1.0.11 Candidate 完成旧 Shell V2、当前双协议 reader 及隔离 Electron/MacUpdater 的发现检查；后续用户反馈更新已恢复可用，未形成新的全平台或数据逐项验收矩阵。更晚提交的更新确认体验修复尚未进入安装包。精确源码、制品与证据边界见[交付状态](operations.zh.md#current-delivery-state)和[收口记录](history/p6-closeout.md)，V3 CDN 等未关闭问题见[后续清单](follow-ups.zh.md)。
 
 <a id="retirement-decisions"></a>
 ## 退役取舍
@@ -58,7 +58,7 @@ P4 使用旧账号数据隔离副本：22 个会话可读取，两个工作区�
 
 [基线记录](baseline-changes.zh.md)说明必要产品接入、共享 API 变化、同步成本和实现取舍。[操作手册](operations.zh.md)记录成功恢复方式，不增加打包阶段。[后续事项](follow-ups.zh.md)保留未决策略和验证债务及其原始上下文。
 
-P6 文档迁移及检查结果记入历史索引。产品行为变化、新增官方 DSH 修改和 Stable 发布仍需各自明确范围；进入 P6 不构成这些操作的统一授权。
+P6 的消费者盘点、退役取舍、201 份 Shell 文档迁入、按问题查阅入口、官方差异理由及构建/发布经验已交付。现行基线记录包含最近的安装确认修复，未验证、暂缓及排除项已明确移交。[收口记录](history/p6-closeout.md)确认阶段结束；后续源码修改、基线同步、打包或发布按独立任务授权，不作为未结束的 P6 工作继续扩展。
 
 ## 开发备注
 
