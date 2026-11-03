@@ -41,6 +41,15 @@ describe('InsightUpdateStateStore', () => {
     await expect(store.acceptRollout({ track: 'stable', version: '1.0.9', state: 'active', fingerprint })).rejects.toThrow('回放')
   })
 
+  it('preserves a V2 final candidate floor while accepting a newer V3 rc candidate', async () => {
+    const { updates, store } = await fixture()
+    await store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.11', state: 'active', fingerprint })
+    await store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.12-rc.1', state: 'active', fingerprint: otherFingerprint })
+    await expect(store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.11-rc.2', state: 'active', fingerprint })).rejects.toThrow('回放')
+    const history = JSON.parse(await readFile(join(updates, 'rollout-history.json'), 'utf8')) as { pointers: Record<string, { version: string }> }
+    expect(history.pointers['candidate/darwin-arm64']?.version).toBe('1.0.12-rc.1')
+  })
+
   it('writes the legacy candidate key used by the Shell', async () => {
     const { updates, store } = await fixture()
     await store.acceptRollout({ track: 'candidate', target: 'darwin-arm64', version: '1.0.10-rc.1', state: 'active', fingerprint })

@@ -12,6 +12,7 @@
 - [插件安装策略](#plugin-installation-policy)
 - [用户与平台反馈](#user-and-platform-feedback)
 - [历史检查](#historical-checks)
+- [打包流程优化](#packaging-optimization)
 - [暂缓产品取舍](#deferred-product-choices)
 - [范围排除](#excluded-scope)
 
@@ -19,6 +20,8 @@
 ## 更新检查修复交付
 
 1.0.11-rc.2 已完成打包并发布到三个目标的 OSS Candidate。原站签名检查和隔离 Electron/MacUpdater 发现检查通过，下载及安装仍是另一组验证。原站已更新，但公开 CDN 仍返回旧签名指针：30 天缓存覆盖源站 60 秒设置，并忽略查询参数。控制台访问仍待明确授权；需要将 `/desktop/candidate-v3/*/current.json` 设为遵循源站 60 秒、刷新三个目标 URL，再用客户端固定 CDN 域名复测签名和原生发现。现有 1.0.10 与 rc.1 安装需要手动安装修复版本一次，旧 V2 final 渠道保持不变。[版本记录](history/releases/1.0.11-rc.2.md)维护执行证据。
+
+下一次已授权的过渡包采用真正的 `1.0.11`，只投 Candidate V2，兼容旧 Shell V2 与新双协议 reader；具体执行见[1.0.11 记录](history/releases/1.0.11.md)。后续 rc 从 `1.0.12-rc.1` 起，final 应用仍通过五连击手动检查内测。既有 1.0.10／rc.1 的更新请求缺陷仍需一次手动安装。
 
 <a id="plugin-installation-policy"></a>
 ## 插件安装策略
@@ -40,6 +43,15 @@
 P1/P3/P4 历史报告中保留 Canvas 前端 fixture、额外 standalone TypeScript、固定源码 lint/路由/断言及全仓 GUI/文档检查失败。后续构建和定向测试成功不会逐项关闭它们。部分依赖分类随后已加入基线记录，旧失败次数也不能冒充当前复测结果。
 
 当代码涉及对应范围或 CI 失败时，在当前源码复现那项具名检查，保留预期行为并修复拥有者。不得删除有效测试、放宽全局检查，或把打包成功解释为全套检查通过。Insight 界面国际化与内置技能业务正确性仍在已确认迁移范围外。
+
+<a id="packaging-optimization"></a>
+## 打包流程优化
+
+[既有 CI 提速分析](history/shell/analysis/2026-11-02-dsh-insight-client-followups.md#提速建议与边界)保留为优化依据；随正常构建对照耗时，不为采集数据额外触发 CI。
+
+- [ ] App 最终票据验证的 CloudKit 瞬断恢复：App 的 `stapler validate` 访问 `api.apple-cloudkit.com` 时，可能以 `NSURLErrorDomain Code=-1005`、退出码 68 失败；目前该路径没有 DMG 验证器的有界重试，导致整个 macOS job 重跑。评估复用现有的精确错误匹配和只读有界重试，不重新签名、提交公证或放宽最终验证。
+
+[rc.2 执行记录](history/releases/1.0.11-rc.2.md#源码与原-run)保留 arm64 首轮 27m33s 失败、重试 23m31s 成功的证据。当前仍按[运维恢复流程](operations.zh.md#known-failure-recovery)在原 run 重跑失败 job，复用其他平台成功产物。后续验收需覆盖目标网络错误恢复、非匹配错误立即失败及重试耗尽仍失败；涉及官方验证脚本的实现须另行明确授权，本项尚未实施。
 
 <a id="deferred-product-choices"></a>
 ## 暂缓产品取舍

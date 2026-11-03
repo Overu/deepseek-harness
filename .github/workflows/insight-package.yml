@@ -6,7 +6,7 @@ on:
       version:
         description: Insight product version to package
         type: string
-        default: 1.0.11-rc.2
+        default: 1.0.11
         required: true
       target:
         description: Native target to package

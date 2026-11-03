@@ -12,12 +12,15 @@ Use this list when scheduling a client release, receiving a defect report, or up
 - [Plugin installation policy](#plugin-installation-policy)
 - [User and platform feedback](#user-and-platform-feedback)
 - [Historical checks](#historical-checks)
+- [Packaging optimization](#packaging-optimization)
 - [Deferred product choices](#deferred-product-choices)
 - [Excluded scope](#excluded-scope)
 
 ## Update check fix delivery
 
 Version 1.0.11-rc.2 is packaged and published to OSS Candidate for all three targets. Origin signature checks and an isolated Electron/MacUpdater discovery check passed; download and installation remain separate. The public CDN still serves an old signed pointer despite the origin being updated: its 30-day cache overrides the 60-second origin setting and ignores query parameters. Console access is awaiting explicit authorization. Configure `/desktop/candidate-v3/*/current.json` to honor the origin’s 60 seconds, refresh the three target URLs, then repeat signature and native discovery checks on the client’s fixed CDN domain. Existing 1.0.10 and rc.1 installations need one manual fixed-version installation. Preserve legacy V2 final channels. The [release record](history/releases/1.0.11-rc.2.md) owns execution evidence.
+
+The next authorized transition build is a real `1.0.11`, published only to Candidate V2 for old Shell V2 and new dual-protocol readers; the [1.0.11 record](history/releases/1.0.11.md) owns execution. Subsequent rc releases start at `1.0.12-rc.1`; final applications retain the five-click manual Candidate check. Existing 1.0.10/rc.1 transport defects still require one manual installation.
 
 ## Plugin installation policy
 
@@ -36,6 +39,14 @@ The user chose to follow up later and treat observed failures as bugs. New-clien
 Historical P1/P3/P4 reports contain failing Canvas frontend fixtures, extra standalone TypeScript checks, fixed-source lint/routes/assertions, and full GUI/documentation checks. Later successful builds and targeted tests do not close each failure. Some dependency classifications were subsequently added to the baseline record; a stale failure count is not a current retest result.
 
 When a touched area or CI failure makes one relevant, reproduce that named check against the current source, preserve the expected behavior, and fix the owner. Do not delete valid tests, weaken global checks, or treat packaging success as full-suite success. Insight UI internationalization and built-in skill business correctness remain outside the agreed migration scope.
+
+## Packaging optimization
+
+The [existing CI speed analysis](history/shell/analysis/2026-11-02-dsh-insight-client-followups.md#提速建议与边界) remains the optimization reference. Compare timings during normal builds rather than triggering extra CI to collect data.
+
+- [ ] Recover from transient CloudKit failures during final App ticket validation: App `stapler validate` requests to `api.apple-cloudkit.com` can fail with `NSURLErrorDomain Code=-1005` and exit status 68. This path lacks the DMG verifier’s bounded retry and requires rerunning the whole macOS job. Evaluate reusing exact error matching and bounded read-only retries without signing again, resubmitting notarization, or weakening final validation.
+
+The [rc.2 execution record](history/releases/1.0.11-rc.2.md#源码与原-run) retains the arm64 failure after 27m33s and successful retry in 23m31s. The current [operational recovery](operations.md#known-failure-recovery) reruns failed jobs in the original run and retains successful artifacts from other platforms. Acceptance must cover recovery from the target network error, immediate failure for unrelated errors, and failure after retries are exhausted. Implementation in the official verifier requires separate explicit authorization; this item is not implemented.
 
 ## Deferred product choices
 

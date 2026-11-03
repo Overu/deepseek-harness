@@ -169,12 +169,19 @@ describe('Insight trusted update source', () => {
     await expect(resolveInsightUpdate({ track: 'stable', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: stable.publicKeyPem, fetch: fetchFor(stable.responses) })).rejects.toThrow('final versions')
   })
 
-  it('reads both candidate protocols and selects the greatest authenticated version', async () => {
-    const data = fixture('candidate', '1.0.10', undefined, undefined, 'v2')
-    addV3Candidate(data, '1.0.11-rc.1')
+  it('moves from a V2 final candidate to the greater V3 rc candidate', async () => {
+    const data = fixture('candidate', '1.0.11', undefined, undefined, 'v2')
     const observed: string[] = []
+    const accepted: string[] = []
     const fetch = fetchFor(data.responses, observed)
-    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch })).resolves.toMatchObject({ version: '1.0.11-rc.1' })
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch,
+      acceptRollout: (observation) => { accepted.push(observation.version); return Promise.resolve() },
+    })).resolves.toMatchObject({ version: '1.0.11' })
+    addV3Candidate(data, '1.0.12-rc.1')
+    await expect(resolveInsightUpdate({ track: 'candidate', target: 'darwin-arm64', distributionOrigin: ORIGIN, publicKeyPem: data.publicKeyPem, fetch,
+      acceptRollout: (observation) => { accepted.push(observation.version); return Promise.resolve() },
+    })).resolves.toMatchObject({ version: '1.0.12-rc.1' })
+    expect(accepted).toEqual(['1.0.11', '1.0.12-rc.1'])
     expect(observed).toContain(`${ORIGIN}/desktop/candidate-v2/darwin-arm64/current.json`)
     expect(observed).toContain(`${ORIGIN}/desktop/candidate-v3/darwin-arm64/current.json`)
   })
