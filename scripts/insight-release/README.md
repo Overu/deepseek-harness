@@ -65,7 +65,7 @@ Stable V2 uses `desktop/stable/current.json`, one signed release index, and all 
 
 Both formats bind the version, target, source commit, runtime version, compatibility fields, artifact name, byte size, and SHA-512. The channel pointer is an Ed25519-signed envelope that refers to the exact manifest or release-index bytes.
 
-The current source client authenticates both Candidate pointers and selects the highest version; only HTTP 404 means a pointer is absent. A rejected highest version remains withdrawn rather than falling back to an older active version. Both protocols share the Candidate version floor. The released `1.0.10` Candidate package predates this dual-protocol reader change; see the [Desktop Integration limitations](../../packages/insight/desktop-integration/README.md#known-limitations-and-deferred-work) for its delivery boundary.
+The current source client authenticates both Candidate pointers and selects the highest version; only HTTP 404 means a pointer is absent. A rejected highest version remains withdrawn rather than falling back to an older active version. Both protocols share the Candidate version floor. The reader ships in `1.0.11-rc.1`; [operations](../../docs/insight/operations.md#current-delivery-state) owns published-version compatibility and discovery evidence.
 
 The V2 index and target readers accept trailing whitespace for compatibility with the released Shell parser. Signatures still authenticate the complete original bytes, including that whitespace, so a publisher or CDN cannot change it after signing.
 

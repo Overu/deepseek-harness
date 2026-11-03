@@ -20,13 +20,13 @@ Use this reference when an Insight build, publication, signing step, or local de
 
 ## Current delivery state
 
-The current public Candidate is version 1.0.10 for macOS arm64, macOS x64, and Windows x64. Stable remains at 1.0.9. Candidate and Stable describe publication channels, so a final semantic version can be validated in Candidate before the same verified artifacts are later promoted to Stable.
+The current Candidate V3 is version 1.0.11-rc.1 for macOS arm64, macOS x64, and Windows x64. The legacy final Candidate V2 remains 1.0.10 and Stable remains 1.0.9. Candidate and Stable are publication channels; a final semantic version can be validated in Candidate before the same verified artifacts are promoted to Stable.
 
-The published 1.0.10 application predates the source change that reads both final-version Candidate V2 pointers and prerelease Candidate V3 pointers. A later package must carry that reader change. Do not overwrite the existing 1.0.10 artifacts to deliver it; use a new version. Stable publication remains a separate authorization.
+The packaged 1.0.11-rc.1 contains the dual Candidate V2/V3 reader. The published 1.0.10 reader verifies this rc through a manual Candidate V3 check; the old Shell still reads the unchanged final Candidate V2. Native installation feedback remains separate from metadata discovery. Stable publication requires separate authorization.
 
 The migration evidence is retained under [Insight history](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md). Read the delivery record when a decision depends on the exact source, platform, or channel evidence rather than this operational summary.
 
-The initial 1.0.11-rc.1 build was blocked by GitHub arm64 capacity after Windows and macOS x64 succeeded. The authorized welcome change requires a new all-target build at the same unpublished version; old-source artifacts cannot be mixed into its Release. The [execution record](history/releases/1.0.11-rc.1.md) owns each run, source, and publication result.
+The [1.0.11-rc.1 execution record](history/releases/1.0.11-rc.1.md) identifies the packaged source, successful three-platform run, Candidate publication runs, public-reader verification, and unchanged Stable/V2 pointer digests.
 
 ## Developing locally
 
@@ -83,7 +83,7 @@ A cancelled arm64 job with no executed steps and the annotation “The job was n
 
 ## Limits and follow-up
 
-This reference records successful build and Candidate-publication practice, not a platform qualification result. A macOS arm64 user reported an old-client upgrade to Candidate 1.0.10; data retention was not checked item by item. Other platform feedback, update failure recovery, data continuity, and the next-version dual-Candidate-reader delivery remain follow-up work and become bugs when reproduced.
+This reference records successful build and Candidate-publication practice, not a platform qualification result. A macOS arm64 user reported an old-client upgrade to Candidate 1.0.10; data retention was not checked item by item. Other platform feedback, update failure recovery, and data continuity remain follow-up work and become bugs when reproduced.
 
 The bundled `dsh` command-line launcher is outside the Insight product scope. This does not remove the Host, Agent shell, Memory external CLI, skill scripts, or the Node runtime used by those product integrations.
 

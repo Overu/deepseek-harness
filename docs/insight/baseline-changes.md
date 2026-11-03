@@ -101,7 +101,7 @@ The notarization dependency change from 2.5.0 to 3.1.2 crosses a SemVer major ve
 
 Use a known-good checkpoint before a baseline merge. Read the upstream changes for the affected owners, merge without overwriting shared history, reconcile the lockfile with the package manager, and regenerate catalogs from source instead of hand-resolving generated output. Run focused behavior/recorded-session checks for affected consumers; use a real package when runtime layout or installer behavior changes. A documentation-only merge does not require a new package build. This P6 review did not execute a newer baseline merge, so the relative costs above are not measured time estimates.
 
-The [follow-up list](follow-ups.md) carries the unshipped Candidate reader, plugin-source policy, platform feedback, and historical check debt. Keep evidence for necessary behavior; remove local integration and its exclusive tests only after an upstream replacement and its actual consumers have been verified.
+The [follow-up list](follow-ups.md) carries plugin-source policy, platform feedback, and historical check debt. Keep evidence for necessary behavior; remove local integration and its exclusive tests only after an upstream replacement and its actual consumers have been verified.
 
 ## Dev Note
 

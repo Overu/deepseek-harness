@@ -4,7 +4,7 @@
 
 ## 摘要
 
-Insight 已将产品能力接入 DSH 原生 Desktop 工作区，退出旧 Shell/Core 运行链。当前交付的 Candidate 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.10。本报告分开说明实现结果、已观察的验收、范围排除和后续工作。
+Insight 已将产品能力接入 DSH 原生 Desktop 工作区，退出旧 Shell/Core 运行链。当前交付的 Candidate V3 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.11-rc.1。本报告分开说明实现结果、已观察的验收、范围排除和后续工作。
 
 ## 阅读指引
 
@@ -35,7 +35,7 @@ P4 使用旧账号数据隔离副本：22 个会话可读取，两个工作区�
 
 最终 1.0.10 制品完成三平台 CI、macOS 签名/公证和 Candidate 发布。已发布 Shell reader 对三个 CDN 目标验证通过。用户报告 macOS arm64 从 1.0.8 升至 1.0.10 成功；其他平台待第三方反馈，生产数据保留未逐项确认。Stable 仍为 1.0.9，本轮只发 Candidate。
 
-当前源码包含已构建的 1.0.10 包没有的双协议 Candidate reader。它应随下一次自然客户端版本交付，不覆盖不可变的 1.0.10 字节。[后续事项](follow-ups.zh.md)记录交付路径和验证限度；精确来源、run 和验收记录见[历史索引](history.zh.md)。
+已发布的 1.0.11-rc.1 交付了双协议 Candidate reader。当前 reader 和已发布的 1.0.10 reader 均已验证三个公开 rc 目标，Stable 与 final Candidate V2 指针保持不变。当前渠道兼容关系由[操作手册](operations.zh.md)维护，原生验证限度保留在[后续事项](follow-ups.zh.md)，[执行记录](history/releases/1.0.11-rc.1.md)绑定精确源码和 run。
 
 <a id="retirement-decisions"></a>
 ## 退役取舍
@@ -56,7 +56,7 @@ P4 使用旧账号数据隔离副本：22 个会话可读取，两个工作区�
 <a id="maintenance-handoff"></a>
 ## 维护交接
 
-[基线记录](baseline-changes.zh.md)说明必要产品接入、共享 API 变化、同步成本和实现取舍。[操作手册](operations.zh.md)记录成功恢复方式，不增加打包阶段。[后续事项](follow-ups.zh.md)保留尚未随包交付的修复、未决策略和验证债务及其原始上下文。
+[基线记录](baseline-changes.zh.md)说明必要产品接入、共享 API 变化、同步成本和实现取舍。[操作手册](operations.zh.md)记录成功恢复方式，不增加打包阶段。[后续事项](follow-ups.zh.md)保留未决策略和验证债务及其原始上下文。
 
 P6 文档迁移及检查结果记入历史索引。产品行为变化、新增官方 DSH 修改和 Stable 发布仍需各自明确范围；进入 P6 不构成这些操作的统一授权。
 

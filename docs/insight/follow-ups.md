@@ -4,22 +4,15 @@ English | [中文](follow-ups.zh.md)
 
 ## Summary
 
-Use this list when scheduling a client release, receiving a defect report, or updating the DSH baseline. Items distinguish unshipped source work, unresolved product choices, verification feedback, and explicit exclusions. Stage closure does not turn an unobserved result into a pass.
+Use this list when scheduling a client release, receiving a defect report, or updating the DSH baseline. Items distinguish unresolved product choices, verification feedback, and explicit exclusions. Stage closure does not turn an unobserved result into a pass.
 
 ## Navigation
 
-- [Next client release](#next-client-release)
 - [Plugin installation policy](#plugin-installation-policy)
 - [User and platform feedback](#user-and-platform-feedback)
 - [Historical checks](#historical-checks)
 - [Deferred product choices](#deferred-product-choices)
 - [Excluded scope](#excluded-scope)
-
-## Next client release
-
-The goal is for newer Insight clients to discover both final Candidate V2 and rc Candidate V3. The source fix and CDN reader checks are complete; the published 1.0.10 bytes came from an earlier build. The user chose artifact reuse rather than rebuilding the same version, so delivery remains open rather than implementation.
-
-Include the reader in the next natural client build. The installed 1.0.10 reads only V3 Candidate; delivering the fix through Candidate requires an rc package or manual installation. A separately authorized Stable release is another discovery path, but Stable publication is not authorized by this list. Do not replace 1.0.10 assets or mark the source fix as already shipped.
 
 ## Plugin installation policy
 

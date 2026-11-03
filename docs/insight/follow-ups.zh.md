@@ -4,23 +4,15 @@
 
 ## 摘要
 
-安排客户端版本、收到缺陷反馈或更新 DSH 基线时查阅此表。事项分为未随包交付的源码、未决产品取舍、验证反馈和明确排除项。阶段收口不会把未观察到的结果改成通过。
+安排客户端版本、收到缺陷反馈或更新 DSH 基线时查阅此表。事项分为未决产品取舍、验证反馈和明确排除项。阶段收口不会把未观察到的结果改成通过。
 
 ## 导航
 
-- [下次客户端发版](#next-client-release)
 - [插件安装策略](#plugin-installation-policy)
 - [用户与平台反馈](#user-and-platform-feedback)
 - [历史检查](#historical-checks)
 - [暂缓产品取舍](#deferred-product-choices)
 - [范围排除](#excluded-scope)
-
-<a id="next-client-release"></a>
-## 下次客户端发版
-
-目标是新版 Insight 同时发现 final Candidate V2 和 rc Candidate V3。源码修复与 CDN reader 检查已完成，已发 1.0.10 字节来自更早构建。用户选择复用制品而不重建同版本，因此留下的是交付事项，不是实现缺失。
-
-下一次自然客户端构建应包含该 reader。已安装的 1.0.10 只读取 V3 Candidate，通过 Candidate 交付修复需要 rc 包或手动安装。另行授权的 Stable 发版也是发现路径，但本清单不授权 Stable 发布。不得替换 1.0.10 附件或把源码修复记为已随包交付。
 
 <a id="plugin-installation-policy"></a>
 ## 插件安装策略

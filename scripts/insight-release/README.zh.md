@@ -65,7 +65,7 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 两种格式都绑定版本、目标、源码提交、运行时版本、兼容字段、产物名称、字节大小和 SHA-512。渠道指针是引用精确 manifest 或 release 索引字节的 Ed25519 签名 envelope。
 
-当前源码客户端认证两个 Candidate 指针并选择最高版本；只有 HTTP 404 表示指针不存在。最高版本若已撤回，不会回退到较旧的 active 版本。两种协议共享 Candidate 版本下限。已发布的 `1.0.10` Candidate 包早于双协议读取器改动；其交付边界见 [Desktop Integration 限制](../../packages/insight/desktop-integration/README.zh.md#known-limitations-and-deferred-work)。
+当前源码客户端认证两个 Candidate 指针并选择最高版本；只有 HTTP 404 表示指针不存在。最高版本若已撤回，不会回退到较旧的 active 版本。两种协议共享 Candidate 版本下限。`1.0.11-rc.1` 已随包交付该 reader；已发布版本的兼容关系和发现证据由[操作手册](../../docs/insight/operations.zh.md#current-delivery-state)维护。
 
 V2 index 和目标读取器为兼容已发布 Shell 解析器而接受尾随空白。签名仍认证包含该空白的完整原始字节，因此发布器或 CDN 不能在签名后修改它。
 

@@ -22,13 +22,13 @@
 
 ## 当前交付状态
 
-当前公开 Candidate 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.10。Stable 仍为 1.0.9。Candidate 和 Stable 是发布渠道，因此 final 语义版本可以先在 Candidate 验证，之后将同一份已验证制品提升到 Stable。
+当前 Candidate V3 为 macOS arm64、macOS x64 和 Windows x64 的 1.0.11-rc.1；旧 final Candidate V2 仍为 1.0.10，Stable 仍为 1.0.9。Candidate 和 Stable 是发布渠道，final 语义版本可以先在 Candidate 验证，之后将同一份已验证制品提升到 Stable。
 
-已发布的 1.0.10 应用早于同时读取 final Candidate V2 指针和 prerelease Candidate V3 指针的源码改动。后续安装包必须带上该 reader 改动。不要覆盖现有 1.0.10 制品交付它；应使用新版本。Stable 发布仍需单独授权。
+1.0.11-rc.1 安装包已包含 Candidate V2/V3 双协议 reader。已发布的 1.0.10 reader 可通过手动 Candidate V3 检查验签发现本 rc；旧 Shell 仍读取未改变的 final Candidate V2。原生安装反馈与元数据发现属于不同证据。Stable 发布仍需单独授权。
 
 迁移证据保留在 [Insight 历史记录](history/shell/analysis/2026-11-02-dsh-insight-stable-release.md)。当决定依赖精确源码、平台或渠道证据时，读取交付记录，而非只依赖本运维摘要。
 
-首轮 1.0.11-rc.1 构建在 Windows 和 macOS x64 成功后因 GitHub arm64 容量不足受阻。已授权的欢迎语修改需要在相同未发布版本上重新构建全部目标；旧源码产物不能混入新 Release。各轮 run、源码及发布结果由[执行记录](history/releases/1.0.11-rc.1.md)维护。
+[1.0.11-rc.1 执行记录](history/releases/1.0.11-rc.1.md)保存随包源码、成功的三平台 run、Candidate 发布 run、公开 reader 验签和未变化的 Stable/V2 指针摘要。
 
 <a id="developing-locally"></a>
 
@@ -97,7 +97,7 @@ arm64 job 未执行任何步骤即被取消，并出现“The job was not acquir
 
 ## 限制与后续事项
 
-本参考记录成功的构建和 Candidate 发布实践，不是平台 qualification 结论。一名 macOS arm64 用户报告旧客户端升级到 Candidate 1.0.10 成功；数据保留尚未逐项检查。其他平台反馈、更新失败恢复、数据连续性和下一版本双 Candidate reader 交付仍是后续工作，复现后作为 bug 处理。
+本参考记录成功的构建和 Candidate 发布实践，不是平台 qualification 结论。一名 macOS arm64 用户报告旧客户端升级到 Candidate 1.0.10 成功；数据保留尚未逐项检查。其他平台反馈、更新失败恢复、数据连续性仍是后续工作，复现后作为 bug 处理。
 
 随包 `dsh` 命令行启动器不属 Insight 产品范围。这不移除 Host、Agent shell、Memory 外部 CLI、技能脚本或这些产品集成使用的 Node runtime。
 

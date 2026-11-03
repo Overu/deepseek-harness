@@ -4,7 +4,7 @@ English | [中文](migration-summary.zh.md)
 
 ## Summary
 
-Insight now runs its product features on the native DSH Desktop workspace instead of launching the old Shell/Core runtime. The delivered Candidate is 1.0.10 on macOS arm64, macOS x64, and Windows x64. This report separates implementation, observed acceptance, exclusions, and remaining work.
+Insight now runs its product features on the native DSH Desktop workspace instead of launching the old Shell/Core runtime. The delivered Candidate V3 is 1.0.11-rc.1 on macOS arm64, macOS x64, and Windows x64. This report separates implementation, observed acceptance, exclusions, and remaining work.
 
 ## Reading guide
 
@@ -33,7 +33,7 @@ P4 used an isolated copy of old account data: 22 sessions were readable, two wor
 
 The final 1.0.10 package completed three-platform CI, macOS signing/notarization, and Candidate publication. The released Shell reader verified all three CDN targets. A user reported a successful macOS arm64 upgrade from 1.0.8 to 1.0.10; the other platforms remain for third-party feedback, and production data preservation was not confirmed item by item. Stable remains 1.0.9; only Candidate was published.
 
-The current source includes a dual-protocol Candidate reader that is absent from the already-built 1.0.10 package. Deliver it with the next natural client version; do not replace immutable 1.0.10 bytes. [Follow-ups](follow-ups.md) records the delivery path and validation limits. Precise sources, runs, and acceptance records are indexed in [history](history.md).
+The published 1.0.11-rc.1 delivers the dual-protocol Candidate reader. Both its current reader and the published 1.0.10 reader verified the three public rc targets; the Stable and final Candidate V2 pointers remained unchanged. [Operations](operations.md) owns current channel compatibility, [follow-ups](follow-ups.md) retains native verification limits, and the [execution record](history/releases/1.0.11-rc.1.md) binds the exact source and runs.
 
 ## Retirement decisions
 
@@ -52,7 +52,7 @@ Old Shell/Core repositories and user directories are not deleted. Old publishing
 
 ## Maintenance handoff
 
-The [baseline record](baseline-changes.md) explains necessary product integrations, shared API changes, sync costs, and implementation trade-offs. [Operations](operations.md) records successful recovery paths without adding build stages. [Follow-ups](follow-ups.md) carries unshipped fixes, unresolved policy choices, and verification debt with their original context.
+The [baseline record](baseline-changes.md) explains necessary product integrations, shared API changes, sync costs, and implementation trade-offs. [Operations](operations.md) records successful recovery paths without adding build stages. [Follow-ups](follow-ups.md) carries unresolved policy choices, and verification debt with their original context.
 
 P6 documentation migration and its checks are recorded in the historical index. Product behavior changes, new official DSH edits, and Stable publication still require their own explicit scope; entering P6 is not blanket authorization for them.
 
