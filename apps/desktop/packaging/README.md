@@ -210,6 +210,8 @@ Apple tooling uses the active macOS network service's HTTP/HTTPS proxies. Config
 
 ## Directory builds and preparation
 
+Signed Insight commands use `build:artifacts --profile official`, retaining package compilation, bundles, Web assets and the client artifact record. Test and script aggregate type checks run separately: local builds require `pnpm run typecheck`; Insight Actions runs it once for the same source commit alongside the three platform jobs and requires success before Release creation.
+
 macOS and Windows packaging prepare workspace tarballs and the interpreter runtime concurrently. Both operations settle before package assembly or subsequent signing begins. A preparation failure stops later assembly and drains the other operation before reporting the error.
 
 Create a runnable application directory instead of an installer by using the matching `:dir` command, such as:

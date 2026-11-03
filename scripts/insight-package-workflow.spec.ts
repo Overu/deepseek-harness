@@ -11,11 +11,14 @@ const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insig
     target: { options: string[] }
     create_release: { type: string; default: boolean; required: boolean }
   } } }
-  jobs: Record<'arm64' | 'x64' | 'windows' | 'finalize-release', {
+  jobs: Record<'aggregate-checks' | 'arm64' | 'x64' | 'windows' | 'finalize-release', {
     if: string
+    needs: string | string[]
+    'runs-on': string
     permissions?: { contents?: string }
     steps: Array<{
       id?: string
+      if?: string
       name?: string
       uses?: string
       run?: string
@@ -40,6 +43,45 @@ it('keeps verified platform artifacts when Release creation is disabled', () => 
     expect(job.steps.some(step => step.env?.INSIGHT_RELEASE_MODE === 'finalize')).toBe(false)
     expect(job.steps.find(step => step.id === 'collected')).toBeDefined()
     expect(job.steps.some(step => step.uses?.startsWith('actions/upload-artifact@'))).toBe(true)
+  }
+})
+
+it('checks the same source once without delaying independent platform builds', () => {
+  const checks = workflow.jobs['aggregate-checks']
+  expect(checks.needs).toBe('validate-input')
+  expect(checks['runs-on']).toBe('ubuntu-24.04')
+  expect(checks.steps.find(step => step.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe('${{ github.sha }}')
+  expect(checks.steps.filter(step => step.run === 'pnpm run typecheck')).toHaveLength(1)
+  for (const target of ['arm64', 'x64', 'windows'] as const) expect(workflow.jobs[target].needs).toBe('validate-input')
+  expect(workflow.jobs['finalize-release'].needs).toContain('aggregate-checks')
+  expect(workflow.jobs['finalize-release'].if).toContain("needs.aggregate-checks.result == 'success'")
+})
+
+it('retains phase summaries separately from installer artifacts after packaging failures', () => {
+  for (const target of ['arm64', 'x64', 'windows'] as const) {
+    const steps = workflow.jobs[target].steps
+    const metrics = steps.find(step => step.id === 'metrics')
+    expect(metrics?.if).toBe("always() && steps.dependencies.outcome == 'success'")
+    expect(metrics?.run).toContain('scripts/insight-release/collect-packaging-metrics.ts')
+    const upload = steps.find(step => step.name === 'Upload packaging metrics')
+    expect(upload?.if).toBe("always() && steps.metrics.outcome == 'success'")
+    expect(upload?.with?.path).toBe('${{ runner.temp }}/insight-packaging-metrics/*')
+  }
+})
+
+it('samples macOS memory around packaging and preserves its exit status', () => {
+  for (const target of ['arm64', 'x64'] as const) {
+    const build = workflow.jobs[target].steps.find(step => step.name === 'Build signed Insight installers')!.run!
+    const before = build.indexOf('vm_stat > "$metrics/memory-before.txt"')
+    const command = build.indexOf('/usr/bin/time -l -o "$metrics/package-resources.txt"')
+    const after = build.indexOf('vm_stat > "$metrics/memory-after.txt"')
+    const exit = build.indexOf('exit "$package_status"')
+    expect(before).toBeGreaterThanOrEqual(0)
+    expect(command).toBeGreaterThan(before)
+    expect(after).toBeGreaterThan(command)
+    expect(exit).toBeGreaterThan(after)
+    expect(build.match(/\|\| package_status=\$\?/gu)).toHaveLength(2)
+    expect(workflow.jobs[target].steps.find(step => step.id === 'metrics')?.run).not.toContain('vm_stat')
   }
 })
 

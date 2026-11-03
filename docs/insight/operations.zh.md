@@ -56,6 +56,8 @@ Candidate 和 Stable 是发布渠道，final 语义版本可先在 Candidate 验
 
 ## 构建 GitHub Release 制品
 
+三个打包 job 生成 official 制品，独立的 `aggregate-checks` job 对同一提交检查包和测试／脚本类型；检查及所选平台均成功后才能创建 Release。单独的 metrics artifact 仅包含筛选后的 journal 元数据和阶段耗时。macOS 还记录 `/usr/bin/time -l` 输出、物理内存、CPU 数量和 VM／swap 快照；最大 RSS 是单进程高水位，不是同时运行的进程树内存总峰值。
+
 仅收集制品的性能测试需在 `Package Insight desktop` 中设置 `create_release=false`。平台 job 仍执行签名、所需公证、验证和 artifact 上传，跳过 Release 汇总；该输入默认值为 `true`。本工作流不向 OSS 发布，性能测试也不调度独立的发布工作流。
 
 打包工作流创建已签名、已公证的 macOS 制品和 Windows NSIS 制品。它生成一个 GitHub Release，其附件和来源记录是发布工作流唯一可使用的输入。发布工作流不会重新构建、签名、公证或安装应用。

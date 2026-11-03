@@ -50,6 +50,8 @@ Development mode intentionally does not check packaged application updates. Its 
 
 ## Building GitHub Release artifacts
 
+The three packaging jobs emit official artifacts while one `aggregate-checks` job checks package and test/script types for the same commit. Release creation requires that check and the requested platforms to succeed. Separate metrics artifacts contain only selected journal metadata and stage durations. macOS also records `/usr/bin/time -l` output, physical memory, CPU count, and VM/swap snapshots; maximum RSS is a single-process high-water mark, not simultaneous process-tree memory.
+
 For artifact-only performance tests, set `create_release=false` in `Package Insight desktop`. Platform jobs still sign, notarize where required, verify, and upload their artifacts; the Release finalizer is skipped. The default is `true`. This workflow does not publish to OSS; do not dispatch the separate publish workflow for these tests.
 
 The package workflow creates signed, notarized macOS artifacts and the Windows NSIS artifact. It produces one GitHub Release whose attachments and source record are the only inputs that the publish workflow may use. The publish workflow does not rebuild, sign, notarize, or install the application.

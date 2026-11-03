@@ -47,6 +47,25 @@ jobs:
             exit 1
           fi
 
+  aggregate-checks:
+    needs: validate-input
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check package and aggregate types for this source
+        run: pnpm run typecheck
+
   arm64:
     needs: validate-input
     if: github.ref == 'refs/heads/insight' && (inputs.target == 'all' || inputs.target == 'arm64')
@@ -85,6 +104,7 @@ jobs:
       - name: Configure package caches
         run: echo "DSH_DESKTOP_PACKAGE_CACHE_DIR=$HOME/.cache/dsh-insight-package" >> "$GITHUB_ENV"
       - name: Install locked dependencies
+        id: dependencies
         run: pnpm install --frozen-lockfile
       - name: Prepare private signing configuration
         id: configuration
@@ -100,7 +120,20 @@ jobs:
         run: node --import tsx scripts/insight-release/prepare-macos.ts
       - name: Build signed Insight installers
         run: |
-          if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then pnpm run package:desktop:mac:arm64 --skip-notarization; else pnpm run package:desktop:mac:arm64; fi
+          metrics="$RUNNER_TEMP/insight-packaging-metrics"
+          mkdir -p "$metrics"
+          sysctl hw.memsize hw.logicalcpu > "$metrics/runner-resources.txt"
+          vm_stat > "$metrics/memory-before.txt"
+          sysctl vm.swapusage > "$metrics/swap-before.txt"
+          package_status=0
+          if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then
+            /usr/bin/time -l -o "$metrics/package-resources.txt" pnpm run package:desktop:mac:arm64 --skip-notarization || package_status=$?
+          else
+            /usr/bin/time -l -o "$metrics/package-resources.txt" pnpm run package:desktop:mac:arm64 || package_status=$?
+          fi
+          vm_stat > "$metrics/memory-after.txt"
+          sysctl vm.swapusage > "$metrics/swap-after.txt"
+          exit "$package_status"
       - name: Collect verified release attachments
         if: success()
         id: collected
@@ -122,6 +155,21 @@ jobs:
         env:
           INSIGHT_MACOS_CONFIGURATION_ACTION: cleanup
         run: node --import tsx scripts/insight-release/prepare-macos.ts
+      - name: Collect packaging metrics
+        if: always() && steps.dependencies.outcome == 'success'
+        id: metrics
+        run: |
+          metrics="$RUNNER_TEMP/insight-packaging-metrics"
+          mkdir -p "$metrics"
+          node --import tsx scripts/insight-release/collect-packaging-metrics.ts --root apps/desktop/.desktop-build/packaging-runs --out "$metrics"
+      - name: Upload packaging metrics
+        if: always() && steps.metrics.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: insight-package-metrics-darwin-arm64-${{ inputs.version }}
+          path: ${{ runner.temp }}/insight-packaging-metrics/*
+          if-no-files-found: error
+          retention-days: 14
 
   x64:
     needs: validate-input
@@ -161,6 +209,7 @@ jobs:
       - name: Configure package caches
         run: echo "DSH_DESKTOP_PACKAGE_CACHE_DIR=$HOME/.cache/dsh-insight-package" >> "$GITHUB_ENV"
       - name: Install locked dependencies
+        id: dependencies
         run: pnpm install --frozen-lockfile
       - name: Prepare private signing configuration
         id: configuration
@@ -176,7 +225,20 @@ jobs:
         run: node --import tsx scripts/insight-release/prepare-macos.ts
       - name: Build signed Insight installers
         run: |
-          if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then pnpm run package:desktop:mac:x64 --skip-notarization; else pnpm run package:desktop:mac:x64; fi
+          metrics="$RUNNER_TEMP/insight-packaging-metrics"
+          mkdir -p "$metrics"
+          sysctl hw.memsize hw.logicalcpu > "$metrics/runner-resources.txt"
+          vm_stat > "$metrics/memory-before.txt"
+          sysctl vm.swapusage > "$metrics/swap-before.txt"
+          package_status=0
+          if [[ "$INSIGHT_SKIP_NOTARIZATION" = true ]]; then
+            /usr/bin/time -l -o "$metrics/package-resources.txt" pnpm run package:desktop:mac:x64 --skip-notarization || package_status=$?
+          else
+            /usr/bin/time -l -o "$metrics/package-resources.txt" pnpm run package:desktop:mac:x64 || package_status=$?
+          fi
+          vm_stat > "$metrics/memory-after.txt"
+          sysctl vm.swapusage > "$metrics/swap-after.txt"
+          exit "$package_status"
       - name: Collect verified release attachments
         if: success()
         id: collected
@@ -198,6 +260,21 @@ jobs:
         env:
           INSIGHT_MACOS_CONFIGURATION_ACTION: cleanup
         run: node --import tsx scripts/insight-release/prepare-macos.ts
+      - name: Collect packaging metrics
+        if: always() && steps.dependencies.outcome == 'success'
+        id: metrics
+        run: |
+          metrics="$RUNNER_TEMP/insight-packaging-metrics"
+          mkdir -p "$metrics"
+          node --import tsx scripts/insight-release/collect-packaging-metrics.ts --root apps/desktop/.desktop-build/packaging-runs --out "$metrics"
+      - name: Upload packaging metrics
+        if: always() && steps.metrics.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: insight-package-metrics-darwin-x64-${{ inputs.version }}
+          path: ${{ runner.temp }}/insight-packaging-metrics/*
+          if-no-files-found: error
+          retention-days: 14
 
   windows:
     needs: validate-input
@@ -255,6 +332,7 @@ jobs:
           "insight_config_directory=$config" >> $env:GITHUB_OUTPUT
           "artifact_directory=$artifacts" >> $env:GITHUB_OUTPUT
       - name: Install locked dependencies
+        id: dependencies
         run: pnpm install --frozen-lockfile
       - name: Build Insight installer
         run: pnpm run package:desktop:win:x64
@@ -282,10 +360,22 @@ jobs:
           if ($env:INSIGHT_CONFIG_DIRECTORY) {
             Remove-Item -LiteralPath $env:INSIGHT_CONFIG_DIRECTORY -Force -Recurse -ErrorAction Stop
           }
+      - name: Collect packaging metrics
+        if: always() && steps.dependencies.outcome == 'success'
+        id: metrics
+        run: node --import tsx scripts/insight-release/collect-packaging-metrics.ts --root apps/desktop/.desktop-build/packaging-runs --out "${{ runner.temp }}/insight-packaging-metrics"
+      - name: Upload packaging metrics
+        if: always() && steps.metrics.outcome == 'success'
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: insight-package-metrics-win32-x64-${{ inputs.version }}
+          path: ${{ runner.temp }}/insight-packaging-metrics/*
+          if-no-files-found: error
+          retention-days: 14
 
   finalize-release:
-    needs: [validate-input, arm64, x64, windows]
-    if: inputs.create_release && always() && needs.validate-input.result == 'success' && (inputs.debug_skip_notarization && (inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'skipped' || inputs.target == 'arm64' && needs.arm64.result == 'success' && needs.x64.result == 'skipped' && needs.windows.result == 'skipped' || inputs.target == 'x64' && needs.x64.result == 'success' && needs.arm64.result == 'skipped' && needs.windows.result == 'skipped') || !inputs.debug_skip_notarization && inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'success')
+    needs: [validate-input, aggregate-checks, arm64, x64, windows]
+    if: inputs.create_release && always() && needs.validate-input.result == 'success' && needs.aggregate-checks.result == 'success' && (inputs.debug_skip_notarization && (inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'skipped' || inputs.target == 'arm64' && needs.arm64.result == 'success' && needs.x64.result == 'skipped' && needs.windows.result == 'skipped' || inputs.target == 'x64' && needs.x64.result == 'success' && needs.arm64.result == 'skipped' && needs.windows.result == 'skipped') || !inputs.debug_skip_notarization && inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
       contents: write

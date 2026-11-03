@@ -210,6 +210,8 @@ Apple 工具使用 macOS 当前活动网络服务的 HTTP/HTTPS 代理。配置�
 
 ## 目录构建与准备
 
+Insight 签名打包命令使用 `build:artifacts --profile official`，保留包编译、bundle、Web 资源和客户端制品记录。测试与脚本的聚合类型检查独立执行：本地构建需运行 `pnpm run typecheck`；Insight Actions 对同一源码提交执行一次该检查，与三个平台 job 并行，检查成功后才能创建 Release。
+
 macOS 与 Windows 打包并行准备 workspace tarball 和解释器运行时。两项操作均结束后才开始包组装或后续签名。任一准备失败都会阻止后续组装，并在另一项操作结束后报告错误。
 
 使用对应的 `:dir` 命令可以生成可直接运行的应用目录，而不是安装包，例如：

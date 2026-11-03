@@ -223,12 +223,24 @@ it('builds Insight Windows distribution without the unsigned debug suffix or Win
     ...environment,
     DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop', INSIGHT_DESKTOP_VERSION: '1.0.10-rc.1',
   }, run)
-  expect(stages).toContain('run build:official')
+  expect(stages).toContain('run build:artifacts --profile official')
   expect(stages).toContain('exec tsx scripts/smoke-packaged-runtime.ts')
   expect(stages).not.toContain('preflight:windows-signing')
   expect(stages.some(stage => stage.startsWith('run sign:primary-runtime'))).toBe(false)
   expect(withWindowsSigningStage).not.toHaveBeenCalled()
   for (const call of run.run.mock.calls) expect(call[3].env).not.toHaveProperty('DSH_DESKTOP_WINDOWS_TOKEN_PIN')
+  expect(writeFileSync).not.toHaveBeenCalled()
+})
+
+it.each(['mac-arm64', 'mac-x64'] as const)('builds official Insight artifacts before packaging %s', async (target) => {
+  const { run, stages } = supervisor()
+  await packageTarget(parseDesktopPackageInvocation([target], 'darwin', target === 'mac-arm64' ? 'arm64' : 'x64'), {
+    ...environment,
+    DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop', INSIGHT_DESKTOP_VERSION: '1.0.12-rc.1',
+  }, run)
+  expect(stages[0]).toBe('run build:artifacts --profile official')
+  expect(stages).toContain('exec tsx scripts/smoke-packaged-runtime.ts')
+  expect(packageMacOSArtifacts).toHaveBeenCalledOnce()
   expect(writeFileSync).not.toHaveBeenCalled()
 })
 

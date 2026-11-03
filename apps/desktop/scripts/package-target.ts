@@ -436,6 +436,7 @@ async function main(): Promise<void> {
  * Prepare one release only after its signing preflight, without publishing from the builder.
  * Workspace packing and interpreter preparation run concurrently; both settle before assembly
  * or later signing, and a preparation failure prevents either from starting.
+ * Signed Insight builds emit official artifacts; callers own the separate aggregate type checks.
  * @param invocation Validated host, target and packaging mode.
  * @param environment File-owned release configuration.
  * @param run Persistent stage supervisor; required for signed Windows packaging and enabled for all release commands.
@@ -511,7 +512,9 @@ export async function packageTarget(
         { cwd: APP_ROOT, env: electronBuilderEnv, timeoutMs: 60_000 })
     })
   }
-  await execute(invocation.unsigned ? ['run', 'build', '--profile', 'local'] : ['run', 'build:official'], buildEnv, REPOSITORY_ROOT)
+  const buildArguments = invocation.unsigned ? ['run', 'build', '--profile', 'local']
+    : insight === undefined ? ['run', 'build:official'] : ['run', 'build:artifacts', '--profile', 'official']
+  await execute(buildArguments, buildEnv, REPOSITORY_ROOT)
   let preparationFailure: { error: unknown } | undefined
   const executePreparation = async (args: readonly string[], env: NodeJS.ProcessEnv, cwd?: string): Promise<void> => {
     if (preparationFailure !== undefined) throw preparationFailure.error
