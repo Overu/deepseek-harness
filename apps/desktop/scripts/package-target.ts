@@ -434,6 +434,8 @@ async function main(): Promise<void> {
 
 /**
  * Prepare one release only after its signing preflight, without publishing from the builder.
+ * Workspace packing and interpreter preparation run concurrently; both settle before assembly
+ * or later signing, and a preparation failure prevents either from starting.
  * @param invocation Validated host, target and packaging mode.
  * @param environment File-owned release configuration.
  * @param run Persistent stage supervisor; required for signed Windows packaging and enabled for all release commands.
@@ -549,13 +551,8 @@ export async function packageTarget(
   }
   const prepareRuntime = () => executePreparation(
     ['run', 'prepare:runtime', ...(signPrimaryRuntime ? ['--defer-primary-runtime-smoke'] : [])], downloadEnv)
-  if (target.platform === 'win32') {
-    const results = await Promise.allSettled([pack(), prepareRuntime()])
-    for (const result of results) if (result.status === 'rejected') throw result.reason
-  } else {
-    await pack()
-    await prepareRuntime()
-  }
+  const results = await Promise.allSettled([pack(), prepareRuntime()])
+  for (const result of results) if (result.status === 'rejected') throw result.reason
   if (signPrimaryRuntime) await execute(['run', 'sign:primary-runtime'], electronBuilderEnv)
   await execute(['run', 'prepare:packages'], targetEnv)
   await execute(['run', 'prepare:dsh', ...(signPrimaryRuntime ? ['--defer-runtime-smoke'] : [])], downloadEnv)

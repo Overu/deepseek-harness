@@ -6,7 +6,7 @@ on:
       version:
         description: Insight product version to package
         type: string
-        default: 1.0.11
+        default: 1.0.12-rc.1
         required: true
       target:
         description: Native target to package
@@ -18,6 +18,11 @@ on:
         description: Skip notarization only for an internal debug artifact; this workflow never publishes it
         type: boolean
         default: false
+        required: true
+      create_release:
+        description: Create a GitHub Release after packaging; disable for artifact-only performance tests
+        type: boolean
+        default: true
         required: true
 
 permissions:
@@ -280,7 +285,7 @@ jobs:
 
   finalize-release:
     needs: [validate-input, arm64, x64, windows]
-    if: always() && needs.validate-input.result == 'success' && (inputs.debug_skip_notarization && (inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'skipped' || inputs.target == 'arm64' && needs.arm64.result == 'success' && needs.x64.result == 'skipped' && needs.windows.result == 'skipped' || inputs.target == 'x64' && needs.x64.result == 'success' && needs.arm64.result == 'skipped' && needs.windows.result == 'skipped') || !inputs.debug_skip_notarization && inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'success')
+    if: inputs.create_release && always() && needs.validate-input.result == 'success' && (inputs.debug_skip_notarization && (inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'skipped' || inputs.target == 'arm64' && needs.arm64.result == 'success' && needs.x64.result == 'skipped' && needs.windows.result == 'skipped' || inputs.target == 'x64' && needs.x64.result == 'success' && needs.arm64.result == 'skipped' && needs.windows.result == 'skipped') || !inputs.debug_skip_notarization && inputs.target == 'all' && needs.arm64.result == 'success' && needs.x64.result == 'success' && needs.windows.result == 'success')
     runs-on: ubuntu-24.04
     permissions:
       contents: write

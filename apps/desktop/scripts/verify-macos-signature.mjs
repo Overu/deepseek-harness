@@ -175,7 +175,7 @@ export function verifyMacOSSignature(appPath, expected) {
  */
 export function verifyMacOSNotarizedApplication(appPath, expected) {
   verifyMacOSSignature(appPath, expected)
-  runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', appPath], 'stapler validate')
+  verifyMacOSStaplerTicket(appPath)
   runAppleCommand('/usr/sbin/spctl', ['--assess', '--type', 'execute', '--verbose=4', appPath], 'spctl')
 }
 
@@ -187,20 +187,20 @@ export function verifyMacOSNotarizedApplication(appPath, expected) {
  */
 export function verifyMacOSDiskImage(diskImagePath, expected) {
   verifyMacOSDiskImageSignature(diskImagePath, expected)
-  verifyMacOSDiskImageStaplerTicket(diskImagePath)
+  verifyMacOSStaplerTicket(diskImagePath)
   runAppleCommand('/usr/sbin/spctl', ['--assess', '--type', 'install', '--verbose=4', diskImagePath], 'spctl')
 }
 
 /**
- * Verify a DMG ticket, retrying only Apple's known transient CloudKit interruption.
- * @param {string} diskImagePath - Path to the packaged `.dmg` file.
+ * Verify an App or DMG ticket, retrying only Apple's known transient CloudKit interruption.
+ * @param {string} artifactPath - Path to the stapled `.app` or `.dmg`.
  * @returns {void}
  */
-function verifyMacOSDiskImageStaplerTicket(diskImagePath) {
+function verifyMacOSStaplerTicket(artifactPath) {
   const delays = [2000, 5000]
   for (let attempt = 0; attempt <= delays.length; attempt += 1) {
     try {
-      runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', diskImagePath], 'stapler validate')
+      runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', artifactPath], 'stapler validate')
       return
     } catch (error) {
       const retryableCloudKitInterruption = error instanceof AppleCommandExitError

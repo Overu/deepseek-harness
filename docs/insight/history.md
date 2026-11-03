@@ -20,6 +20,7 @@ P6 ended on 2026-11-03. The [closure record](history/p6-closeout.md) pins this d
 | What is the 1.0.11-rc.1 source, build result, and remaining publication work? | [Candidate execution record](history/releases/1.0.11-rc.1.md) |
 | Why is rc.2 built and published but still blocked at CDN discovery? | [rc.2 release and cache diagnosis](history/releases/1.0.11-rc.2.md) |
 | How does the 1.0.11 Candidate transition cover old V2 and later V3 updates? | [1.0.11 transition record](history/releases/1.0.11.md) |
+| What is prepared for the 1.0.12-rc.1 packaging performance test without publication? | [Packaging optimization test preparation](history/releases/1.0.12-rc.1.md) |
 | What official changes were reviewed before P6? | [Per-file preflight](history/shell/analysis/2026-11-02-dsh-insight-p6-preflight-review.md), [P6 handoff](history/shell/analysis/2026-11-02-dsh-insight-p6-handoff.md) |
 | What did the original Shell release protocol do? | [Old release runbook](history/shell/release-runbook.md), [V2 checklist](history/shell/releases/update-v2-operator-checklist.md), [1.0.9 evidence](history/shell/releases/1.0.9.md) |
 

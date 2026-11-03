@@ -50,6 +50,8 @@ Development mode intentionally does not check packaged application updates. Its 
 
 ## Building GitHub Release artifacts
 
+For artifact-only performance tests, set `create_release=false` in `Package Insight desktop`. Platform jobs still sign, notarize where required, verify, and upload their artifacts; the Release finalizer is skipped. The default is `true`. This workflow does not publish to OSS; do not dispatch the separate publish workflow for these tests.
+
 The package workflow creates signed, notarized macOS artifacts and the Windows NSIS artifact. It produces one GitHub Release whose attachments and source record are the only inputs that the publish workflow may use. The publish workflow does not rebuild, sign, notarize, or install the application.
 
 Run all targets when preparing a release that could later become Stable. A single-target package run creates only its Actions artifact and cannot publish directly to OSS; Candidate publication selects a target from a fully verified public Release. The package workflow keeps platform jobs parallel and keeps macOS app and DMG notarization paths parallel; do not add a qualification stage or repeat a full build in the publisher.

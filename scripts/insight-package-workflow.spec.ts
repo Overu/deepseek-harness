@@ -6,8 +6,14 @@ import { expect, it } from 'vitest'
 const root = resolve(import.meta.dirname, '..')
 const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insight-package.yml'), 'utf8')) as {
   name: string
-  on: { workflow_dispatch: { inputs: { target: { options: string[] } } } }
+  permissions: { contents: string }
+  on: { workflow_dispatch: { inputs: {
+    target: { options: string[] }
+    create_release: { type: string; default: boolean; required: boolean }
+  } } }
   jobs: Record<'arm64' | 'x64' | 'windows' | 'finalize-release', {
+    if: string
+    permissions?: { contents?: string }
     steps: Array<{
       id?: string
       name?: string
@@ -18,6 +24,24 @@ const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insig
     }>
   }>
 }
+
+it('keeps verified platform artifacts when Release creation is disabled', () => {
+  expect(workflow.permissions).toEqual({ contents: 'read' })
+  expect(workflow.on.workflow_dispatch.inputs.create_release).toMatchObject({
+    type: 'boolean', default: true, required: true,
+  })
+  expect(workflow.jobs['finalize-release'].if).toMatch(/^inputs\.create_release && always\(\) && /u)
+  expect(workflow.jobs['finalize-release'].permissions).toEqual({ contents: 'write' })
+  expect(workflow.jobs['finalize-release'].steps.filter(step => step.env?.INSIGHT_RELEASE_MODE === 'finalize')).toHaveLength(1)
+  for (const target of ['arm64', 'x64', 'windows'] as const) {
+    const job = workflow.jobs[target]
+    expect(job.if).not.toContain('create_release')
+    expect(job.permissions?.contents).not.toBe('write')
+    expect(job.steps.some(step => step.env?.INSIGHT_RELEASE_MODE === 'finalize')).toBe(false)
+    expect(job.steps.find(step => step.id === 'collected')).toBeDefined()
+    expect(job.steps.some(step => step.uses?.startsWith('actions/upload-artifact@'))).toBe(true)
+  }
+})
 
 it('uses the isolated runtime when creating an Insight GitHub Release', () => {
   expect(workflow.name).toBe('Package Insight desktop')

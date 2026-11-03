@@ -45,36 +45,42 @@ function supervisor(failure?: string) {
   return { run, stages }
 }
 
-it.each(['pack', 'runtime'] as const)('overlaps Windows preparation and waits for both before signing when %s finishes first', async (first) => {
+const preparationCases = (['mac-arm64', 'mac-x64', 'win-x64'] as const).flatMap(target =>
+  (['pack', 'runtime'] as const).map(phase => ({ target, phase })))
+
+it.each(preparationCases)('overlaps $target preparation and waits for both when $phase finishes first', async ({ target, phase }) => {
   const { run, stages } = supervisor()
+  const runtimeStage = target === 'win-x64' ? 'run prepare:runtime --defer-primary-runtime-smoke' : 'run prepare:runtime'
+  const nextStage = target === 'win-x64' ? 'run sign:primary-runtime' : 'run prepare:packages'
   const pack = Promise.withResolvers<undefined>()
   const runtime = Promise.withResolvers<undefined>()
   const finished = new Set<string>()
   run.run.mockImplementation(async (stage) => {
     stages.push(stage)
     if (stage.startsWith('run release:pack --family dsh ')) await pack.promise
-    if (stage === 'run prepare:runtime --defer-primary-runtime-smoke') {
+    if (stage === runtimeStage) {
       await runtime.promise
       finished.add('runtime')
     }
     if (stage.startsWith('--dir native/system/packages/entry pack ')) finished.add('pack')
-    if (stage === 'run sign:primary-runtime') expect([...finished].sort()).toEqual(['pack', 'runtime'])
+    if (stage === nextStage) expect([...finished].sort()).toEqual(['pack', 'runtime'])
   })
-  const operation = packageTarget(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64'), environment, run)
+  const operation = packageTarget(parseDesktopPackageInvocation([target], target === 'win-x64' ? 'win32' : 'darwin',
+    target === 'mac-arm64' ? 'arm64' : 'x64'), environment, run)
   const outcome = operation.then(() => undefined, (error: unknown) => error)
   try {
     await vi.waitFor(() => {
       expect(stages.some(stage => stage.startsWith('run release:pack --family dsh '))).toBe(true)
-      expect(stages).toContain('run prepare:runtime --defer-primary-runtime-smoke')
+      expect(stages).toContain(runtimeStage)
     })
-    expect(stages).not.toContain('run sign:primary-runtime')
-    ;(first === 'pack' ? pack : runtime).resolve(undefined)
-    await vi.waitFor(() => { expect(finished.has(first)).toBe(true) })
-    expect(stages).not.toContain('run sign:primary-runtime')
+    expect(stages).not.toContain(nextStage)
+    ;(phase === 'pack' ? pack : runtime).resolve(undefined)
+    await vi.waitFor(() => { expect(finished.has(phase)).toBe(true) })
+    expect(stages).not.toContain(nextStage)
     expect(writeFileSync).not.toHaveBeenCalled()
-    ;(first === 'pack' ? runtime : pack).resolve(undefined)
+    ;(phase === 'pack' ? runtime : pack).resolve(undefined)
     expect(await outcome).toBeUndefined()
-    expect(stages).toContain('run sign:primary-runtime')
+    expect(stages).toContain(nextStage)
     expect(writeFileSync).toHaveBeenCalledOnce()
   } finally {
     pack.resolve(undefined)
@@ -83,37 +89,41 @@ it.each(['pack', 'runtime'] as const)('overlaps Windows preparation and waits fo
   }
 })
 
-it.each(['pack', 'runtime'] as const)('drains the other Windows preparation after %s fails without starting later packing or signing', async (failed) => {
+it.each(preparationCases)('drains the other $target preparation after $phase fails without assembling artifacts', async ({ target, phase }) => {
   const { run, stages } = supervisor()
+  const runtimeStage = target === 'win-x64' ? 'run prepare:runtime --defer-primary-runtime-smoke' : 'run prepare:runtime'
   const pack = Promise.withResolvers<undefined>()
   const runtime = Promise.withResolvers<undefined>()
-  const failure = new Error(`${failed} preparation failed`)
+  const failure = new Error(`${phase} preparation failed`)
   let settled = false
   run.run.mockImplementation(async (stage) => {
     stages.push(stage)
     if (stage.startsWith('run release:pack --family dsh ')) await pack.promise
-    if (stage === 'run prepare:runtime --defer-primary-runtime-smoke') await runtime.promise
+    if (stage === runtimeStage) await runtime.promise
   })
-  const outcome = packageTarget(parseDesktopPackageInvocation(['win-x64'], 'win32', 'x64'), environment, run).then(
+  const outcome = packageTarget(parseDesktopPackageInvocation([target], target === 'win-x64' ? 'win32' : 'darwin',
+    target === 'mac-arm64' ? 'arm64' : 'x64'), environment, run).then(
     () => { settled = true; return undefined },
     (error: unknown) => { settled = true; return error },
   )
   try {
     await vi.waitFor(() => {
       expect(stages.some(stage => stage.startsWith('run release:pack --family dsh '))).toBe(true)
-      expect(stages).toContain('run prepare:runtime --defer-primary-runtime-smoke')
+      expect(stages).toContain(runtimeStage)
     })
-    ;(failed === 'pack' ? pack : runtime).reject(failure)
+    ;(phase === 'pack' ? pack : runtime).reject(failure)
     await setImmediate()
     expect(settled).toBe(false)
     expect(writeFileSync).not.toHaveBeenCalled()
-    ;(failed === 'pack' ? runtime : pack).resolve(undefined)
+    ;(phase === 'pack' ? runtime : pack).resolve(undefined)
     expect(await outcome).toBe(failure)
     expect(stages.filter(stage => stage.startsWith('run release:pack'))).toHaveLength(1)
     expect(stages.some(stage => stage.startsWith('--dir apps/desktop-host pack'))).toBe(false)
     expect(stages.some(stage => stage.startsWith('--dir native/system'))).toBe(false)
     expect(stages.some(stage => stage.startsWith('run sign:primary-runtime'))).toBe(false)
     expect(stages.some(stage => stage.startsWith('run prepare:packages') || stage.startsWith('run prepare:dsh'))).toBe(false)
+    expect(stages.some(stage => stage.startsWith('exec electron-builder') || stage.includes('smoke-packaged-runtime'))).toBe(false)
+    expect(packageMacOSArtifacts).not.toHaveBeenCalled()
     expect(writeFileSync).not.toHaveBeenCalled()
   } finally {
     pack.resolve(undefined)
@@ -261,7 +271,7 @@ it.each([
   const failedAt = stages.findIndex(stage => stage.startsWith(failure))
   expect(failedAt).toBeGreaterThanOrEqual(0)
   expect(stages.slice(failedAt + 1)).toEqual(
-    target === 'win-x64' && failure.startsWith('exec tsx') ? ['run prepare:runtime'] : [])
+    failure.startsWith('exec tsx') ? ['run prepare:runtime'] : [])
   expect(stages.some(stage => stage.startsWith('--dir apps/desktop-host pack'))).toBe(false)
   expect(writeFileSync).not.toHaveBeenCalled()
 })
