@@ -95,7 +95,7 @@ export function UpdatePage({ api, logoUrl }: UpdatePageProps) {
         : state.phase === 'available'
           ? <button className={css.primary} type="button" onClick={() =>{  execute(() => api.download()) }}>下载更新</button>
           : state.phase === 'ready'
-            ? <button className={css.primary} type="button" onClick={() =>{  execute(() => api.install()) }}>立即安装</button>
+            ? <button className={css.primary} type="button" onClick={() =>{  execute(() => api.install()) }}>安装并重启</button>
             : <button type="button" onClick={() =>{  execute(() => api.close()) }} disabled={busy}>关闭</button>}
     </footer>
   </main>

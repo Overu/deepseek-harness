@@ -737,14 +737,14 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
 
   const manifest: unknown = JSON.parse(await readFile(join(app.getAppPath(), 'package.json'), 'utf8'))
   const updateChannel = desktopUpdateChannel(manifest)
-  const beforeRestart = async () => {
+  const beforeRestart = async (confirmedVersion?: string) => {
     await commandManager.idle()
     await workspaceRecovery
     await startup?.catch(() => undefined)
     const host = backend.host
     if (host === undefined) throw new DesktopUpdatePreparationError('tasks-unavailable', locale.messages.updateTasksUnavailable)
     const active = await host.updateTasks('inspect')
-    const parent = currentDialogWindow()
+    const parent = insightUpdates?.confirmationWindow() ?? currentDialogWindow()
     if (parent === undefined || !await prepareDesktopUpdateWindow(parent, locale.messages.updateFullscreenTimeout)) return false
     const ready = desktopUpdateReadyConfirmation(locale.messages, updates.state.version ?? '', process.platform)
     const confirmation: Electron.MessageBoxOptions = {
@@ -756,7 +756,7 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
     }
     if (isMandatory()) {
       if (!await mandatoryUI?.confirm(updates.state.version ?? '', active)) return false
-    } else {
+    } else if (active || insightUpdates === undefined || confirmedVersion === undefined || confirmedVersion !== updates.state.version) {
       const result = await updateDialog.show(parent, confirmation)
       if (result.response !== 0 || isMandatory()) return false
     }

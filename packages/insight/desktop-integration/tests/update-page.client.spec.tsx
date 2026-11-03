@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Update-page actions stay constrained to the safe preload API. */
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { UpdatePage } from '../src/client/update/UpdatePage.tsx'
 import type { InsightUpdateApi, InsightUpdateSnapshot } from '../src/shared/update-api.ts'
 
@@ -9,7 +9,7 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 
 function api(state: InsightUpdateSnapshot) {
   const methods = {
-    status: vi.fn(async () => state), subscribe: vi.fn(() => () => {}),
+    status: vi.fn(async () => state), subscribe: vi.fn<InsightUpdateApi['subscribe']>(() => () => {}),
     checkForUpdates: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}),
     download: vi.fn(async () => {}), install: vi.fn(async () => {}), fullInstaller: vi.fn(async () => {}),
     skip: vi.fn(async () => {}), close: vi.fn(async () => {}),
@@ -61,7 +61,7 @@ describe('UpdatePage', () => {
     expect(bridge.fullInstaller).toHaveBeenCalledOnce()
     expect(bridge.close).toHaveBeenCalledOnce()
     view.rerender(<UpdatePage api={api({ ...idle, phase: 'ready', version: '1.0.10', required: false })} logoUrl="brand.svg" />)
-    await vi.waitFor(() => { expect(screen.getByRole('button', { name: '立即安装' })).toBeTruthy() })
+    await vi.waitFor(() => { expect(screen.getByRole('button', { name: '安装并重启' })).toBeTruthy() })
   })
 
   it('marks processing states for the Shell-style logo acknowledgement', async () => {
@@ -70,6 +70,21 @@ describe('UpdatePage', () => {
     await vi.waitFor(() => { expect(screen.getByRole('button', { name: '因赛AI 标志' }).className).toContain('logoBusy') })
     view.rerender(<UpdatePage api={api(idle)} logoUrl="brand.svg" />)
     await vi.waitFor(() => { expect(screen.getByRole('button', { name: '因赛AI 标志' }).className).not.toContain('logoBusy') })
+  })
+
+  it('changes download progress into an explicit install-and-restart action without installing automatically', async () => {
+    const bridge = api({ ...idle, phase: 'available', version: '1.0.11' })
+    render(<UpdatePage api={bridge} logoUrl="brand.svg" />)
+    fireEvent.click(await screen.findByRole('button', { name: '下载更新' }))
+    expect(bridge.download).toHaveBeenCalledOnce()
+    const update = bridge.subscribe.mock.calls[0]![0]
+    act(() => { update({ ...idle, phase: 'downloading', version: '1.0.11', percent: 50 }) })
+    expect(screen.getByRole('progressbar', { name: '下载进度' }).getAttribute('value')).toBe('50')
+    act(() => { update({ ...idle, phase: 'ready', version: '1.0.11' }) })
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(bridge.install).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '安装并重启' }))
+    expect(bridge.install).toHaveBeenCalledOnce()
   })
 
   it('releases its preload listener when unmounted', () => {

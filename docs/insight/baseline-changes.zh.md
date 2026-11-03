@@ -10,6 +10,7 @@
 
 | 文件 | 目的 | 保留条件 |
 | --- | --- | --- |
+| `apps/desktop/src/main.ts` 与 `tests/main-startup.spec.ts`（安装确认） | macOS 必要提示使用更新窗口；Insight 安装按钮对精确目标版本的授权可在无活动任务时免去重复确认 | 用户授权的 Main 接入。Windows 或更新窗口关闭后保留原宿主。直接/官方入口、目标变化、活动任务和强更仍需确认；任务检查、锁定、新任务出现时中止及关停不变。Insight 授权仅存在于一次协调器安装尝试，所有结束路径均清除。上游确认组件或任务流程变化时复核 |
 | `packages/client/ui-conversation/src/client/locales.ts`、`skeleton/EmptyHero.tsx`、`skeleton/HeroShell.module.css` 及测试/快照 | 直接在共享字典使用 Insight 中文欢迎语，并移除预览标签及无用样式；不新增标题插槽 API | 用户明确接受共享 Web/Desktop 品牌变化。同步基线时保留中文标题与标签移除，其他语言的标题翻译继续沿用上游 |
 | `apps/desktop-host/package.json`、`apps/desktop/package.json` | 让四个私有 Insight 包进入既有递归运行时与 Main 进程依赖闭包 | Insight 组件随桌面运行时交付期间保留 |
 | `apps/desktop/src/main.ts` 及其测试 | 在 `userData` 前选择产品，要求 Insight 登录先于 Host 启动，把一个账号 Home 与凭据回调绑定到 Host，暴露渲染器安全账号操作，应用品牌，并且只在账号关停后重启 | 保持 Insight 生命周期分支显式，同时让官方路径不变 |

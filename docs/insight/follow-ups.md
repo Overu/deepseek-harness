@@ -59,6 +59,7 @@ The [rc.2 execution record](history/releases/1.0.11-rc.2.md#源码与原-run) re
 | Faster login restoration | A hidden window avoids the login-page flash, but credential validation and Home preparation still take time | Optimize on reproducible latency or failure feedback; do not bypass validation or create an empty Home |
 | Smaller Main integration | Current product wiring touches several lifecycle locations | Evaluate after a real upstream merge shows conflicts; do not create a new client or framework preemptively |
 | Shared notarization changes | A cross-major dependency upgrade and strict DMG validation retry solved separate build failures | Compare with the next upstream baseline; remove local differences once equivalent behavior is supplied |
+| Windows same-window update confirmation | The macOS source uses the update window when confirmation is needed; the Windows shared overlay reserves 40 content pixels for a custom caption, which leaves the native-frame update page partly exposed | The user deferred the shared-component change. Keep Windows on its original confirmation owner; the original obscured-prompt issue remains open. Revisit only when native-frame inset support and its bounds/input regression are authorized |
 | Stable rollout | Candidate can reuse final artifacts for promotion | Separate release decision; keep the current Stable pointer unchanged until authorized |
 
 ## Excluded scope

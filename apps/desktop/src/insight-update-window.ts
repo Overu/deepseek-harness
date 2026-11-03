@@ -20,6 +20,8 @@ export interface InsightUpdateWindowCallbacks {
 export interface InsightUpdateWindow {
   open(): Promise<void>
   focus(): void
+  /** @returns The live update window, shown and focused for a Main-owned installation confirmation. */
+  confirmationWindow(): BrowserWindow | undefined
   publish(state: InsightUpdateSnapshot): void
   dispose(): void
 }
@@ -101,6 +103,11 @@ export function createInsightUpdateWindow(callbacks: InsightUpdateWindowCallback
       }
     },
     focus(): void { if (window !== undefined && !window.isDestroyed()) { window.show(); window.focus() } },
+    confirmationWindow(): BrowserWindow | undefined {
+      if (!canShow() || window === undefined || window.isDestroyed()) return undefined
+      window.show(); window.focus()
+      return window
+    },
     publish(state): void {
       if (active && window !== undefined && !window.isDestroyed()) window.webContents.send(INSIGHT_UPDATE_IPC.changed, state)
     },

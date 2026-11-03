@@ -4,7 +4,7 @@ import { release as systemRelease } from 'node:os'
 import semver from 'semver'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, dialog, Menu, shell } from 'electron'
+import { app, dialog, Menu, shell, type BrowserWindow } from 'electron'
 import electronUpdater from 'electron-updater'
 import {
   createInsightUpdateController, InsightUpdateStateStore, readInsightUpdateDistribution, resolveInsightUpdate,
@@ -24,10 +24,15 @@ export interface InsightDesktopUpdates {
   open(manual?: boolean): Promise<void>
   /** Poll the next eligible channel through the shared completion-based schedule. */
   automaticCheck(): void
+  /** @returns The focused macOS update window; other platforms retain the original confirmation owner. */
+  confirmationWindow(): BrowserWindow | undefined
   /** Close the never-started-Host installation path before workspace startup begins. */
   beginWorkspace(): void
-  /** Attach the workspace's existing task authorization and clean shutdown. */
-  bindWorkspace(publish: (state: DesktopUpdateState) => DesktopUpdateState, beforeRestart: () => Promise<boolean>): void
+  /** Attach task checks and shutdown; an optional version records explicit approval from the install button. */
+  bindWorkspace(
+    publish: (state: DesktopUpdateState) => DesktopUpdateState,
+    beforeRestart: (confirmedVersion?: string) => Promise<boolean>,
+  ): void
   /** Release the window, timers, network lifetime and updater listeners once. */
   dispose(): void
 }
@@ -51,14 +56,16 @@ export async function createInsightDesktopUpdates(): Promise<InsightDesktopUpdat
   const isDisposed = (): boolean => stage === 'disposed'
   const isLogin = (): boolean => stage === 'login'
   let workspacePublish: ((state: DesktopUpdateState) => DesktopUpdateState) | undefined
-  let workspaceBeforeRestart: (() => Promise<boolean>) | undefined
+  let workspaceBeforeRestart: ((confirmedVersion?: string) => Promise<boolean>) | undefined
+  let explicitlyConfirmedVersion: string | undefined
   const coordinator = new DesktopUpdateCoordinator((state) => {
     controller.updateState(state)
     workspacePublish?.(state)
     return state
   }, async () => {
-    if (workspaceBeforeRestart !== undefined) return workspaceBeforeRestart()
+    if (workspaceBeforeRestart !== undefined) return workspaceBeforeRestart(explicitlyConfirmedVersion)
     if (stage !== 'login') throw new Error('Insight workspace startup has not completed update handoff')
+    if (explicitlyConfirmedVersion !== undefined && explicitlyConfirmedVersion === coordinator.state.version) return true
     const result = await dialog.showMessageBox({ type: 'info', title: '安装更新', message: '更新已准备就绪，是否安装并重启因赛AI？',
       buttons: ['安装并重启', '稍后'], defaultId: 1, cancelId: 1 })
     if (result.response !== 0 || !isLogin()) return false
@@ -92,7 +99,12 @@ export async function createInsightDesktopUpdates(): Promise<InsightDesktopUpdat
         }
         return state
       },
-      download: version => coordinator.download(version), install: version => coordinator.install(version),
+      download: version => coordinator.download(version),
+      install: async (version) => {
+        explicitlyConfirmedVersion = version
+        try { return await coordinator.install(version) }
+        finally { explicitlyConfirmedVersion = undefined }
+      },
       dismissAvailable: version => coordinator.dismissAvailable(version),
     },
     resolved: track => releases.get(track),
@@ -142,6 +154,7 @@ export async function createInsightDesktopUpdates(): Promise<InsightDesktopUpdat
   ]))
   automaticCheck()
   return { coordinator, open, automaticCheck,
+    confirmationWindow: () => process.platform === 'darwin' ? window.confirmationWindow() : undefined,
     beginWorkspace(): void {
       if (stage !== 'login') throw new Error('Insight update startup handoff is not available')
       stage = 'starting'

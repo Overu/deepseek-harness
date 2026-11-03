@@ -25,10 +25,13 @@ const fixture = await vi.hoisted(async () => {
     automaticCheck: vi.fn(async () => {}), updateState: vi.fn(), dispose: vi.fn(), snapshot: { phase: 'idle' },
     checkForUpdates: vi.fn(async () => {}), checkCandidate: vi.fn(async () => {}), download: vi.fn(async () => {}),
     install: vi.fn(async () => {}), fullInstaller: vi.fn(async () => {}), skip: vi.fn(async () => {}),
-    options: undefined as undefined | { coordinator: { check(track: 'stable' | 'candidate', manual: boolean): Promise<DesktopUpdateState> } },
+    options: undefined as undefined | { coordinator: {
+      check(track: 'stable' | 'candidate', manual: boolean): Promise<DesktopUpdateState>
+      install(version: string): Promise<DesktopUpdateState>
+    } },
   }
   const schedule = { instances: [] as Array<{ check: ReturnType<typeof vi.fn>; dispose: () => void }> }
-  const window = { open: vi.fn(async () => {}), publish: vi.fn(), dispose: vi.fn() }
+  const window = { open: vi.fn(async () => {}), publish: vi.fn(), dispose: vi.fn(), confirmationWindow: vi.fn() }
   return { app, dialog, menu, coordinator, controller, schedule, window }
 })
 
@@ -65,7 +68,10 @@ vi.mock('../src/update-coordinator.ts', () => ({
       return this.entry.state
     }
     async download() { return this.entry.state }
-    async install() { return this.entry.state }
+    async install(version: string): Promise<DesktopUpdateState> {
+      this.entry.state = { phase: 'installing', version }
+      return await this.entry.beforeRestart() ? this.entry.state : { phase: 'ready', version }
+    }
     dispose() { this.entry.dispose() }
   },
 }))
@@ -84,7 +90,10 @@ vi.mock('@insight-ai/desktop-integration/desktop', () => ({
   InsightUpdateStateStore: class { constructor(...args: unknown[]) { void args.length } async acceptRollout() { return true } },
   readInsightUpdateDistribution: vi.fn(async () => ({ origin: 'https://updates.example.com', publicKeyPem: 'fixture' })),
   resolveInsightUpdate: vi.fn(),
-  createInsightUpdateController: vi.fn((options: { coordinator: { check(track: 'stable' | 'candidate', manual: boolean): Promise<DesktopUpdateState> } }) => {
+  createInsightUpdateController: vi.fn((options: { coordinator: {
+    check(track: 'stable' | 'candidate', manual: boolean): Promise<DesktopUpdateState>
+    install(version: string): Promise<DesktopUpdateState>
+  } }) => {
     fixture.controller.options = options
     return fixture.controller
   }),
@@ -165,6 +174,48 @@ describe('Insight desktop updates', () => {
     service.bindWorkspace(state => state, restart)
     await expect(fixture.coordinator.instances[0]!.beforeRestart()).resolves.toBe(true)
     expect(restart).toHaveBeenCalledOnce()
+  })
+
+  it('uses the explicit install-button approval before login without showing a second confirmation', async () => {
+    const service = await createInsightDesktopUpdates()
+    await expect(fixture.controller.options!.coordinator.install('1.0.11')).resolves.toEqual({ phase: 'installing', version: '1.0.11' })
+    expect(fixture.dialog.showMessageBox).not.toHaveBeenCalled()
+    await expect(service.coordinator.install('1.0.11')).resolves.toEqual({ phase: 'ready', version: '1.0.11' })
+    expect(fixture.dialog.showMessageBox).toHaveBeenCalledOnce()
+    service.dispose()
+  })
+
+  it.each([false, true])('clears explicit version approval after workspace preparation, failure=%s', async (fail) => {
+    const service = await createInsightDesktopUpdates()
+    service.beginWorkspace()
+    const failure = new Error('shutdown failed')
+    const restart = vi.fn(async (_confirmedVersion?: string) => false)
+    if (fail) restart.mockRejectedValueOnce(failure)
+    service.bindWorkspace(state => state, restart)
+    const install = fixture.controller.options!.coordinator.install('1.0.11')
+    if (fail) await expect(install).rejects.toBe(failure)
+    else await expect(install).resolves.toEqual({ phase: 'ready', version: '1.0.11' })
+    expect(restart).toHaveBeenCalledWith('1.0.11')
+    await fixture.coordinator.instances[0]!.beforeRestart()
+    expect(restart).toHaveBeenLastCalledWith(undefined)
+    service.dispose()
+  })
+
+  it('forwards the update confirmation owner without selecting a workspace window', async () => {
+    const service = await createInsightDesktopUpdates()
+    const owner = { id: 'update-window' }
+    fixture.window.confirmationWindow.mockReturnValueOnce(owner)
+    expect(service.confirmationWindow()).toBe(owner)
+    service.dispose()
+  })
+
+  it('retains the original Windows confirmation owner while native-frame overlay adaptation is deferred', async () => {
+    vi.stubGlobal('process', { ...process, platform: 'win32', arch: 'x64' })
+    const service = await createInsightDesktopUpdates()
+    fixture.window.confirmationWindow.mockClear()
+    expect(service.confirmationWindow()).toBeUndefined()
+    expect(fixture.window.confirmationWindow).not.toHaveBeenCalled()
+    service.dispose()
   })
 
   it('checks only stable updates automatically and disposes the pre-login service on application quit', async () => {

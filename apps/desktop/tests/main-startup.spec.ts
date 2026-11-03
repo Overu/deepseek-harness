@@ -41,11 +41,16 @@ vi.mock('../src/insight-startup.ts', () => ({
 vi.mock('../src/insight-account-exit.ts', () => ({ closeInsightAccount: insightStartup.close }))
 const insightUpdates = vi.hoisted(() => {
   const coordinator = {
-    state: { phase: 'idle' as const }, check: vi.fn(async () => ({ phase: 'idle' as const })),
+    get state(): DesktopUpdateState { return harness.updateState }, check: vi.fn(async () => ({ phase: 'idle' as const })),
     download: vi.fn(async () => ({ phase: 'idle' as const })), install: vi.fn(async () => ({ phase: 'idle' as const })), dispose: vi.fn(),
   }
   const service = {
-    coordinator, open: vi.fn(async () => {}), automaticCheck: vi.fn(), beginWorkspace: vi.fn(), bindWorkspace: vi.fn(), dispose: vi.fn(),
+    coordinator, open: vi.fn(async () => {}), automaticCheck: vi.fn(), beginWorkspace: vi.fn(),
+    bindWorkspace: vi.fn<(
+      publish: (state: DesktopUpdateState) => DesktopUpdateState,
+      beforeRestart: (confirmedVersion?: string) => Promise<boolean>,
+    ) => void>(),
+    confirmationWindow: vi.fn<() => object | undefined>(), dispose: vi.fn(),
   }
   return { create: vi.fn(), service }
 })
@@ -498,6 +503,7 @@ beforeEach(() => {
   insightUpdates.create.mockResolvedValue(insightUpdates.service)
   insightUpdates.service.open.mockReset(); insightUpdates.service.automaticCheck.mockReset()
   insightUpdates.service.beginWorkspace.mockReset(); insightUpdates.service.bindWorkspace.mockReset()
+  insightUpdates.service.confirmationWindow.mockReset()
   insightUpdates.service.dispose.mockReset()
   insightUpdates.service.coordinator.dispose.mockReset()
   insightStartup.close.mockReset()
@@ -2275,6 +2281,74 @@ describe('desktop main startup', () => {
     harness.dialog.showMessageBox.mockResolvedValueOnce({ response: 1 })
     await expect(harness.prepareUpdate()).resolves.toBe(false)
     expect(host.updateTasks.mock.calls).toEqual([['inspect']])
+    expect(host.stop).not.toHaveBeenCalled()
+  })
+
+  it.each([true, false])('hosts Insight installation confirmation in the update window when open=%s', async (open) => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    const host = await readyForUpdate()
+    const workspace = harness.windows.find(window => window.urls.includes('dsh-app://app/'))!
+    const owner = open ? new harness.FakeWindow({ show: true }) : undefined
+    insightUpdates.service.confirmationWindow.mockReturnValueOnce(owner)
+    const { DesktopUpdateDialog } = await import('../src/update-dialog.ts')
+    const show = vi.spyOn(DesktopUpdateDialog.prototype, 'show')
+    onTestFinished(() => { show.mockRestore() })
+    const binding = insightUpdates.service.bindWorkspace.mock.calls.at(-1)!
+    await expect(binding[1]()).resolves.toBe(false)
+    expect(show).toHaveBeenCalledWith(owner ?? workspace, expect.objectContaining({ type: 'info' }))
+    expect(host.updateTasks.mock.calls).toEqual([['inspect']])
+    expect(host.stop).not.toHaveBeenCalled()
+  })
+
+  it('uses explicit Insight install approval for the matching version without a second idle-task prompt', async () => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    const host = await readyForUpdate()
+    harness.updateState = { phase: 'ready', version: '1.0.11' }
+    const restart = insightUpdates.service.bindWorkspace.mock.calls.at(-1)![1]
+    const preparing = restart('1.0.11')
+    await host.stopping.promise
+    expect(harness.dialog.showMessageBox).not.toHaveBeenCalled()
+    expect(host.updateTasks.mock.calls).toEqual([['inspect'], ['lock']])
+    host.exited.resolve()
+    await expect(preparing).resolves.toBe(true)
+  })
+
+  it('still asks before stopping active Insight tasks after explicit install approval', async () => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    const host = await readyForUpdate()
+    harness.updateState = { phase: 'ready', version: '1.0.11' }
+    host.updateTasks.mockResolvedValue(true)
+    const restart = insightUpdates.service.bindWorkspace.mock.calls.at(-1)![1]
+    await expect(restart('1.0.11')).resolves.toBe(false)
+    expect(harness.dialog.showMessageBox).toHaveBeenCalledOnce()
+    expect(host.updateTasks.mock.calls).toEqual([['inspect']])
+    expect(host.stop).not.toHaveBeenCalled()
+  })
+
+  it('does not reuse Insight install approval for a different target version', async () => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    const host = await readyForUpdate()
+    harness.updateState = { phase: 'ready', version: '1.0.12' }
+    const restart = insightUpdates.service.bindWorkspace.mock.calls.at(-1)![1]
+    await expect(restart('1.0.11')).resolves.toBe(false)
+    expect(harness.dialog.showMessageBox).toHaveBeenCalledOnce()
+    expect(host.stop).not.toHaveBeenCalled()
+  })
+
+  it('rejects tasks appearing after an explicitly approved Insight installation begins', async () => {
+    selectInsightProduct()
+    insightStartup.prepare.mockResolvedValueOnce(insightContext())
+    const host = await readyForUpdate()
+    harness.updateState = { phase: 'ready', version: '1.0.11' }
+    host.updateTasks.mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+    const restart = insightUpdates.service.bindWorkspace.mock.calls.at(-1)![1]
+    await expect(restart('1.0.11')).rejects.toMatchObject({ kind: 'tasks-changed' })
+    expect(harness.dialog.showMessageBox).not.toHaveBeenCalled()
+    expect(host.updateTasks.mock.calls).toEqual([['inspect'], ['lock'], ['unlock']])
     expect(host.stop).not.toHaveBeenCalled()
   })
 
