@@ -28,7 +28,8 @@ export interface InsightWebSearchService {
  * Create the fixed Insight search provider.
  *
  * The upstream provider owns the Anthropic request protocol and cancellation
- * handling. A provider instance is created for each search so its credential
+ * handling. Insight Gateway receives the user token as Bearer and `x-api-key`
+ * authentication. A provider instance is created for each search so its credential
  * closure captures that search's signal; the token is never retained between
  * requests.
  * @param ctx - Context that records the model-visible auxiliary request.
@@ -62,7 +63,7 @@ export function createInsightWebSearchService(
   let closed = false
   const create = (signal?: AbortSignal) => new DeepSeekSearchProvider(() => ({
     baseURL: service.modelBaseUrl.replace(/\/$/u, ''),
-    resolveAccountToken: async () => await account.getAccessToken(signal),
+    resolveApiKey: async () => await account.getAccessToken(signal),
     model: 'enterprise-search',
     apiVersion: '2023-06-01',
     maxTokens: 4096,

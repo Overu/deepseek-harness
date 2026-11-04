@@ -82,7 +82,7 @@ Update discovery verifies an Ed25519-signed rollout, release or target manifest,
 <a id="business-services"></a>
 ## Business services
 
-The Host mounts an Insight enterprise search provider through DSH's public Web registry. Each search creates an isolated upstream provider whose token request receives that search's cancellation signal. Shutdown unregisters the provider, aborts admitted work, and waits for it before the account service is released.
+The Host mounts an Insight enterprise search provider through DSH's public Web registry. Each search sends the current Insight account token as `Authorization: Bearer` and `x-api-key` to the enterprise Gateway's `/messages` endpoint. Each search creates an isolated upstream provider whose token request receives that search's cancellation signal. Shutdown unregisters the provider, aborts admitted work, and waits for it before the account service is released.
 
 Bundled skills call a loopback proxy through an account-local descriptor at `$DSH_HOME/skill-proxy/connection.json`. The descriptor has a one-launch capability and contains no account token. The proxy accepts only capability-authenticated JSON POST requests, forwards only the fixed Insight skill service route, streams NDJSON with backpressure, and removes only the descriptor it owns during shutdown. It uses the bundled primary-runtime Node binary selected by Desktop Main. Admission bounds are eight active requests, 16 MiB buffered request bodies, and a 1,250-second request deadline. A transport or stream failure after forwarding is reported as an unknown outcome and is never retried automatically.
 

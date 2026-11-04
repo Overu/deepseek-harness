@@ -2,9 +2,54 @@
 import { Context } from '@deepseek-ai/cordis'
 import { WebError } from '@deepseek-ai/dsh-web'
 import { afterEach, expect, it, vi } from 'vitest'
-import { createInsightWebSearchProvider } from '../src/host/web-search.ts'
+import { createInsightWebSearchProvider, createInsightWebSearchService } from '../src/host/web-search.ts'
 
 afterEach(() => { vi.unstubAllGlobals() })
+
+it.each([
+  { environment: 'test', baseURL: 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1' },
+  { environment: 'production', baseURL: 'https://gapi.insight-aigc.com/insight-harness-llm-gateway/v1' },
+] as const)('authenticates $environment native searches with the current Bearer token', async ({ environment, baseURL }) => {
+  const context = new Context()
+  const token = vi.fn<() => Promise<string>>()
+    .mockResolvedValueOnce('first-user-token')
+    .mockResolvedValueOnce('second-user-token')
+  const service = createInsightWebSearchService(context, environment, { getAccessToken: token })
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ content: [{
+    type: 'web_search_tool_result',
+    content: [{ type: 'web_search_result', url: 'https://search.example/result', title: 'Search result' }],
+  }] }))
+  vi.stubGlobal('fetch', fetch)
+  try {
+    for (const expectedToken of ['first-user-token', 'second-user-token']) {
+      await expect(service.provider.search({ query: 'native search' })).resolves.toEqual({
+        sources: [{ url: 'https://search.example/result', title: 'Search result' }],
+        truncated: false,
+      })
+      const [url, init] = fetch.mock.calls.at(-1) ?? []
+      expect(url).toBe(`${baseURL}/messages`)
+      expect(init?.method).toBe('POST')
+      expect(init?.redirect).toBe('error')
+      const headers = new Headers(init?.headers)
+      expect(headers.get('authorization')).toBe(`Bearer ${expectedToken}`)
+      expect(headers.get('x-api-key')).toBe(expectedToken)
+      expect(headers.has('x-dsh-auth-token')).toBe(false)
+      expect(headers.get('anthropic-version')).toBe('2023-06-01')
+      expect(init?.body).toBe(JSON.stringify({
+        model: 'enterprise-search',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'Perform a web search for the query: native search' }] }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 5 }],
+        thinking: { type: 'disabled' },
+      }))
+    }
+    expect(token).toHaveBeenCalledTimes(2)
+    expect(fetch).toHaveBeenCalledTimes(2)
+  } finally {
+    await service.dispose()
+    await context.fiber.dispose()
+  }
+})
 
 it('cancels the Main token request before dispatching a search', async () => {
   const context = new Context()
