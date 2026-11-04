@@ -1,6 +1,6 @@
 /** Strict model response accepted by the publisher. */
 export interface AgentResult {
-  mode: 'reply' | 'change'
+  mode: 'reply' | 'change' | 'update'
   reply: string
   pr_title: string
   pr_body: string
@@ -38,7 +38,7 @@ export function validateResult(value: unknown): AgentResult
 export function validateChanges(value: unknown): FileChange[]
 
 /**
- * Require no changes for replies and a nonempty change set for PRs.
+ * Require no changes for replies and a nonempty change set for new or existing PRs.
  * @param result Model response.
  * @param changes Collected file changes.
  * @returns Validated publication data.

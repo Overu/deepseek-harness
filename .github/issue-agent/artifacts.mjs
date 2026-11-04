@@ -207,7 +207,7 @@ export function validateResult(value) {
     throw new Error('Result has unexpected or missing fields.')
   }
   const mode = text(value.mode, 'mode')
-  if (mode !== 'reply' && mode !== 'change') throw new Error('mode must be reply or change.')
+  if (mode !== 'reply' && mode !== 'change' && mode !== 'update') throw new Error('mode must be reply, change, or update.')
   const reply = text(value.reply, 'reply')
   if (reply.trim().length === 0) throw new Error('reply must not be empty.')
   limited(reply, 'reply', 48_000)
@@ -224,6 +224,12 @@ export function validateResult(value) {
   if (mode === 'reply') {
     if (title !== '' || body !== '' || value.kind !== '' || value.areas.length !== 0) {
       throw new Error('reply results must not include PR metadata.')
+    }
+    return value
+  }
+  if (mode === 'update') {
+    if (title.trim().length === 0 || body !== '' || value.kind !== '' || value.areas.length !== 0) {
+      throw new Error('update results require a PR title and must not include PR metadata.')
     }
     return value
   }
@@ -287,7 +293,7 @@ export function validateOutcome(result, changes) {
   const validResult = validateResult(result)
   const validChanges = validateChanges(changes)
   if (validResult.mode === 'reply' && validChanges.length > 0) throw new Error('reply results must not include file changes.')
-  if (validResult.mode === 'change' && validChanges.length === 0) throw new Error('change results require file changes.')
+  if (validResult.mode !== 'reply' && validChanges.length === 0) throw new Error(`${validResult.mode} results require file changes.`)
   return { result: validResult, changes: validChanges }
 }
 

@@ -2,30 +2,33 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .github/issue-agent/README.md
-/issue-agent:
-  en: 3301c571ee6e4b3a
-  zh: ceea703bdb66423c
-/issue-agent/summary:
-  en: 55cc2c0107f56f9d
-  zh: 2091c15cd0f6f9f8
-/issue-agent/table-of-contents:
-  en: b5f09e726a43fa39
-  zh: 3bf41b29d01d3952
-/issue-agent/setup:
-  en: 5e8d2e2d8d95add3
-  zh: 20625311833ac139
-/issue-agent/conversation:
-  en: b906b85320018135
-  zh: fc7968c95ac31026
-/issue-agent/code-changes:
-  en: 4691b91277ba5ce7
-  zh: 26ecb0eab5d0d8af
-/issue-agent/permissions-and-limits:
-  en: 30ace29f673cd806
-  zh: 680330c611a83c79
-/issue-agent/failures-and-maintenance:
-  en: 356fe88efe525b09
-  zh: 5c678d0d860339cb
-/issue-agent/dev-note:
-  en: 23859b5c4b23a10f
-  zh: 2a782db43ee39701
+/github-agent:
+  en: c5d106c46ad892e8
+  zh: 6681758c64349680
+/github-agent/summary:
+  en: a91c40032fd8d967
+  zh: eac861c56803b412
+/github-agent/table-of-contents:
+  en: b9589009eb73412c
+  zh: 8002a93e6af255ab
+/github-agent/setup:
+  en: c0948d2d2b1517da
+  zh: 6eea7d0caad50fc5
+/github-agent/conversation:
+  en: 3275c51f19427241
+  zh: 71a4959e792e1687
+/github-agent/pr-reviews:
+  en: 4dad0652cd82eb6a
+  zh: f624a6e198f80560
+/github-agent/code-changes:
+  en: e33a1aa9167fc332
+  zh: d4f25e576e523b3f
+/github-agent/permissions-and-limits:
+  en: 7559d1b53d7129d3
+  zh: 7c4d72b28f41b938
+/github-agent/failures-and-maintenance:
+  en: 96906136c0b36a23
+  zh: 1873787ab392a6e7
+/github-agent/dev-note:
+  en: b0d464af42ca3394
+  zh: 88e84a0dd7e9b75f

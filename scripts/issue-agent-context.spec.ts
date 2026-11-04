@@ -60,6 +60,81 @@ async function prepare(overrides: Record<string, unknown> = {}, payload: unknown
 }
 
 describe('Issue Agent context', () => {
+  it('prepares an automatic PR review with complete read-only context', async () => {
+    const pr = {
+      number: 12, state: 'open', draft: false, title: 'PR', body: 'Body', changed_files: 1, commits: 0,
+      head: { sha: 'head', ref: 'feature', repo: { full_name: 'fork/repo' } },
+      base: { sha: 'base', ref: 'insight', repo: { full_name: repository } },
+    }
+    const calls: string[] = []
+    const routes: Record<string, unknown> = {
+      [`/repos/${repository}/pulls/12`]: pr,
+      [`/repos/${repository}`]: { default_branch: 'insight' },
+      [`/repos/${repository}/git/ref/heads/insight`]: { object: { sha: 'default' } },
+      [`/repos/${repository}/issues/12/comments?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/12/reviews?per_page=100&page=1`]: Array.from({ length: 100 }, (_, index) => ({ id: index + 1 })),
+      [`/repos/${repository}/pulls/12/reviews?per_page=100&page=2`]: [],
+      [`/repos/${repository}/pulls/12/comments?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/12/files?per_page=100&page=1`]: [{ filename: 'a.ts', patch: '+x' }],
+      [`/repos/${repository}/pulls/12/commits?per_page=100&page=1`]: [],
+    }
+    const api = async (path: string) => {
+      calls.push(path)
+      const value = routes[path]
+      if (value === undefined) throw new Error(`unexpected ${path}`)
+      return value
+    }
+    const result = await prepareRequest({ event: { action: 'opened', sender: { id: 2, login: 'author', type: 'User' }, pull_request: pr }, repository, api, runUrl: 'run' })
+    expect(result).toMatchObject({ targetType: 'pull_request', trigger: 'review', capability: 'reply_only', requestKey: 'auto-base-head', branch: 'feature', workSha: 'head', headRepository: 'fork/repo', baseSha: 'base' })
+    expect(calls).toContain(`/repos/${repository}/pulls/12/reviews?per_page=100&page=2`)
+  })
+
+  it('rejects an automatic review when the live PR head changed', async () => {
+    const eventPr = {
+      number: 12, state: 'open', draft: false,
+      head: { sha: 'event-head', ref: 'feature', repo: { full_name: repository } },
+      base: { sha: 'base', ref: 'insight', repo: { full_name: repository } },
+    }
+    const live = { ...eventPr, head: { ...eventPr.head, sha: 'live-head' } }
+    const result = await prepareRequest({ event: { action: 'opened', pull_request: eventPr }, repository, api: async () => live, runUrl: 'run' })
+    expect(result).toBeNull()
+  })
+
+  it('accepts an exact trusted PR review command as reply-only', async () => {
+    const pr = {
+      number: issueNumber, state: 'open', draft: false, title: 'PR', body: '', changed_files: 0, commits: 0,
+      head: { sha: 'head', ref: 'feature', repo: { full_name: repository } },
+      base: { sha: 'base', ref: 'insight', repo: { full_name: repository } },
+    }
+    const result = await prepare({
+      [commentPath]: { ...record(commentId, '/review'), updated_at: '2026-11-04T00:00:00Z' },
+      [`/repos/${repository}/pulls/${issueNumber}`]: pr,
+      [`/repos/${repository}/pulls/${issueNumber}/reviews?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/${issueNumber}/comments?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/${issueNumber}/files?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/${issueNumber}/commits?per_page=100&page=1`]: [],
+    }, { ...event('/review'), issue: { number: issueNumber, pull_request: {} } })
+    expect(result.result).toMatchObject({ targetType: 'pull_request', trigger: 'comment', capability: 'reply_only', requestKey: 'comment-10' })
+  })
+
+  it('downgrades a protected PR branch command to reply-only', async () => {
+    const pr = {
+      number: issueNumber, state: 'open', draft: false, title: 'PR', body: '', changed_files: 0, commits: 0,
+      head: { sha: 'head', ref: 'feature', repo: { full_name: repository } },
+      base: { sha: 'base', ref: 'insight', repo: { full_name: repository } },
+    }
+    const result = await prepare({
+      [commentPath]: { ...record(commentId, '/agent 请修改'), updated_at: '2026-11-04T00:00:00Z' },
+      [`/repos/${repository}/pulls/${issueNumber}`]: pr,
+      [`/repos/${repository}/branches/feature`]: { protected: true },
+      [`/repos/${repository}/pulls/${issueNumber}/reviews?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/${issueNumber}/comments?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/${issueNumber}/files?per_page=100&page=1`]: [],
+      [`/repos/${repository}/pulls/${issueNumber}/commits?per_page=100&page=1`]: [],
+    }, { ...event('/agent 请修改'), issue: { number: issueNumber, pull_request: {} } })
+    expect(result.result).toMatchObject({ targetType: 'pull_request', capability: 'reply_only' })
+  })
+
   it('authorizes a failure notification without reading bounded history', async () => {
     const value = fixture()
     await expect(authorizeEvent({ event: event(), repository, api: value.api })).resolves.toMatchObject({
@@ -93,7 +168,6 @@ describe('Issue Agent context', () => {
     expect(bot.result).toBeNull()
     expect(bot.calls).toEqual([])
     expect((await prepare({ [`/repos/${repository}/collaborators/maintainer/permission`]: null })).result).toBeNull()
-    expect((await prepare({}, { ...event(), issue: { number: issueNumber, pull_request: {} } })).result).toBeNull()
     expect((await prepare({ [commentPath]: { ...record(commentId, '/agent 已编辑'), updated_at: '2026-11-05T00:00:00Z' } })).result).toBeNull()
     expect((await prepare({}, event('/agent   '))).result).toBeNull()
   })

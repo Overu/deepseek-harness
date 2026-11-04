@@ -4,7 +4,7 @@
   "additionalProperties": false,
   "required": ["mode", "reply", "pr_title", "pr_body", "kind", "areas"],
   "properties": {
-    "mode": { "type": "string", "enum": ["reply", "change"] },
+    "mode": { "type": "string", "enum": ["reply", "change", "update"] },
     "reply": { "type": "string" },
     "pr_title": { "type": "string" },
     "pr_body": { "type": "string" },

@@ -2,6 +2,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { applyChanges, validateChanges, validateOutcome, validateResult } from './artifacts.mjs'
+import { parseReview } from './context.mjs'
 
 const BOT_LOGIN = 'github-actions[bot]'
 const MAX_PAGES = 20
@@ -38,6 +39,31 @@ function marker(value) {
   return `<!-- issue-agent:comment=${value} -->`
 }
 
+/** @param {Record<string, unknown>} request */
+function completionMarker(request) {
+  return request.trigger === 'review'
+    ? `<!-- issue-agent:review=${text(request.requestKey)} -->`
+    : marker(String(request.commentId))
+}
+
+/** @param {Record<string, unknown>} request */
+function capability(request) {
+  const value = text(request.capability)
+  if (!['comment', 'review'].includes(text(request.trigger))) {
+    throw new PublishError('invalid-capability', 'Issue Agent: request trigger is invalid.')
+  }
+  if (!['reply_only', 'issue_change', 'pr_update'].includes(value)) {
+    throw new PublishError('invalid-capability', 'Issue Agent: request capability is invalid.')
+  }
+  if ((value === 'issue_change') !== (text(request.targetType) === 'issue')) {
+    throw new PublishError('invalid-capability', 'Issue Agent: request target and capability do not match.')
+  }
+  if ((value === 'pr_update' || value === 'reply_only') && text(request.targetType) !== 'pull_request') {
+    throw new PublishError('invalid-capability', 'Issue Agent: request target and capability do not match.')
+  }
+  return value
+}
+
 /** @param {string} branch */
 function refPath(branch) {
   return encodeURIComponent(branch)
@@ -69,18 +95,25 @@ async function pages(api, path, subject) {
  */
 export async function authorizeRequest(request, api) {
   const base = `/repos/${request.repository}`
+  if (request.commentId === null) return
   const comment = await api(`${base}/issues/comments/${request.commentId}`, { method: 'GET', allow404: true })
+  const body = text(record(comment) ? comment.body : '')
+  const review = text(request.targetType) === 'pull_request' ? parseReview(body) : undefined
+  const liveRequest = review ?? commandRequest(body)
   if (!record(comment)
     || text(comment.user && record(comment.user) ? comment.user.login : '') !== request.actor
     || text(comment.user && record(comment.user) ? comment.user.type : '') !== 'User'
-    || commandRequest(text(comment.body)) !== request.request
+    || liveRequest !== request.request
+    || (review !== undefined && request.capability !== 'reply_only')
     || text(comment.created_at) !== text(comment.updated_at)
-    || (request.commentUpdatedAt !== undefined && text(comment.updated_at) !== request.commentUpdatedAt)) {
+    || (request.commentUpdatedAt !== undefined && request.commentUpdatedAt !== null && text(comment.updated_at) !== request.commentUpdatedAt)) {
     throw new PublishError('authorization-stale', 'Issue Agent: the request comment changed or is no longer available.')
   }
-  const issue = await api(`${base}/issues/${request.issueNumber}`, { method: 'GET', allow404: true })
-  if (!record(issue) || record(issue.pull_request)) {
-    throw new PublishError('authorization-stale', 'Issue Agent: publication is allowed only for an open Issue, not a pull request.')
+  if (request.targetType === 'issue') {
+    const issue = await api(`${base}/issues/${request.issueNumber}`, { method: 'GET', allow404: true })
+    if (!record(issue) || record(issue.pull_request)) {
+      throw new PublishError('authorization-stale', 'Issue Agent: publication is allowed only for an open Issue, not a pull request.')
+    }
   }
   const permission = await api(`${base}/collaborators/${encodeURIComponent(request.actor)}/permission`, { method: 'GET', allow404: true })
   if (!record(permission) || !['write', 'maintain', 'admin'].includes(text(permission.permission))) {
@@ -93,7 +126,7 @@ async function completed(request, api) {
   const comments = await pages(api, `/repos/${request.repository}/issues/${request.issueNumber}/comments`, `issue ${request.issueNumber} comments`)
   return comments.some(comment => record(comment)
     && text(comment.user && record(comment.user) ? comment.user.login : '') === BOT_LOGIN
-    && text(comment.body).includes(marker(String(request.commentId))))
+    && text(comment.body).includes(completionMarker(request)))
 }
 
 /** @param {Record<string, unknown>} request */
@@ -139,6 +172,35 @@ async function reusablePullRequest(request, api) {
   return pr
 }
 
+/** @param {Record<string, unknown>} request @param {(path: string, options?: {method?: string, body?: unknown, allow404?: boolean}) => Promise<unknown>} api */
+async function livePullRequest(request, api, writable = false, expectedHead = request.workSha) {
+  const pull = await api(`/repos/${request.repository}/pulls/${request.issueNumber}`, { method: 'GET', allow404: true })
+  const head = record(pull) && record(pull.head) ? pull.head : undefined
+  const base = record(pull) && record(pull.base) ? pull.base : undefined
+  if (!record(pull) || !head || !base
+    || text(pull.state) !== 'open'
+    || text(head.ref) !== request.branch || text(head.sha) !== expectedHead
+    || !record(head.repo) || text(head.repo.full_name) !== request.headRepository
+    || text(base.ref) !== request.baseBranch || text(base.sha) !== request.baseSha) {
+    throw new PublishError('stale-pull-request', 'Issue Agent: pull request no longer matches the trusted snapshot.')
+  }
+  if (request.trigger === 'review' && pull.draft === true) {
+    throw new PublishError('stale-pull-request', 'Issue Agent: automatic review does not publish to a draft pull request.')
+  }
+  if (writable) {
+    if (text(request.headRepository) !== request.repository
+      || text(request.branch) === text(request.defaultBranch)
+      || text(request.branch) === text(request.baseBranch)) {
+      throw new PublishError('forked-branch', 'Issue Agent: pull request updates require a branch in this repository.')
+    }
+    const branch = await api(`/repos/${request.repository}/branches/${refPath(text(request.branch))}`, { method: 'GET', allow404: true })
+    if (!record(branch) || branch.protected !== false) {
+      throw new PublishError('protected-branch', 'Issue Agent: pull request head branch is unavailable or protected.')
+    }
+  }
+  return pull
+}
+
 /** @param {string} workdir @param {string[]} args @param {Record<string, string>} env */
 function defaultGit(workdir, args, env) {
   const result = spawnSync('git', args, {
@@ -176,6 +238,7 @@ async function commitAndPush(request, workdir, token, injected) {
     'commit', '-m', `Issue #${request.issueNumber}: ${request.outcome.result.pr_title}`,
   ])
   if (run(['rev-parse', 'HEAD^']) !== request.workSha) throw new PublishError('commit-parent', 'Issue Agent: commit does not extend the trusted work commit.')
+  const commitSha = run(['rev-parse', 'HEAD'])
   const header = Buffer.from(`x-access-token:${token}`, 'utf8').toString('base64')
   const pushEnv = {
     ...safeEnv,
@@ -190,6 +253,7 @@ async function commitAndPush(request, workdir, token, injected) {
     if (error instanceof PublishError) throw new PublishError('push-unknown', `Issue Agent: push failed; branch ${request.branch} may have changed remotely.`)
     throw error
   }
+  return commitSha
 }
 
 /** @param {string} body @param {string} report */
@@ -262,13 +326,40 @@ export async function publishResult({ request, outcome, api, workdir, token, git
   validateResult(outcome.result)
   validateChanges(outcome.changes)
   const valid = validateOutcome(outcome.result, outcome.changes)
+  const allowed = capability(request)
   await authorizeRequest(request, api)
+  if ((allowed === 'reply_only' && valid.result.mode !== 'reply')
+    || (allowed === 'issue_change' && !['reply', 'change'].includes(valid.result.mode))
+    || (allowed === 'pr_update' && !['reply', 'update'].includes(valid.result.mode))) {
+    throw new PublishError('invalid-mode', 'Issue Agent: result mode is not allowed for this request.')
+  }
+  const targetPull = request.targetType === 'pull_request' ? await livePullRequest(request, api, valid.result.mode === 'update') : undefined
   if (await completed(request, api)) return { status: 'duplicate' }
   if (valid.result.mode === 'reply') {
-    await api(`/repos/${request.repository}/issues/${request.issueNumber}/comments`, { method: 'POST', body: { body: `${valid.result.reply}\n\n${marker(String(request.commentId))}\n[Actions 日志](${request.runUrl})` } })
+    await api(`/repos/${request.repository}/issues/${request.issueNumber}/comments`, { method: 'POST', body: { body: `${valid.result.reply}\n\n${completionMarker(request)}\n[Actions 日志](${request.runUrl})` } })
     return { status: 'published' }
   }
   if (!token) throw new PublishError('missing-token', 'Issue Agent: GitHub token is missing.')
+  if (valid.result.mode === 'update') {
+    const pull = targetPull
+    const expectedSha = await currentRef(request, api)
+    if (expectedSha !== request.workSha) throw new PublishError('remote-moved', `Issue Agent: branch ${request.branch} moved before publication.`)
+    const enriched = { ...request, expectedSha, outcome: valid }
+    const commitSha = await commitAndPush(enriched, workdir, token, git)
+    try {
+      await livePullRequest(request, api, true, commitSha).then(current => {
+        const head = record(current.head) ? current.head : undefined
+        if (!head || text(head.sha) !== commitSha) throw new PublishError('partial-publication', `Issue Agent: branch ${request.branch} was pushed but pull request head is not confirmed.`)
+      })
+      await api(`/repos/${request.repository}/issues/${request.issueNumber}/comments`, {
+        method: 'POST',
+        body: { body: `${valid.result.reply}\n\nPull request: ${text(pull.html_url)}\n\n${completionMarker(request)}\n[Actions 日志](${request.runUrl})` },
+      })
+    } catch (error) {
+      throw new PublishError('partial-publication', `Issue Agent: branch ${request.branch} was pushed but publication is incomplete; PR ${text(pull.html_url)}. Check the branch and run log before retrying.`)
+    }
+    return { status: 'published', pullRequest: text(pull.html_url) }
+  }
   const branch = verifyBranch(request)
   const existing = await reusablePullRequest(request, api)
   if (existing) replaceReport(text(existing.body), formatReport(request, valid.result))

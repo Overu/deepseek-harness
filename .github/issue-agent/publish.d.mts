@@ -1,4 +1,4 @@
-import type { IssueRequest } from './context.mjs'
+import type { AuthorizedRequest } from './context.mjs'
 import type { GitHubApi } from './github.mjs'
 
 /** Failure that retains publication progress for operator inspection. */
@@ -14,7 +14,7 @@ export class PublishError extends Error {
  * @returns Resolves after authorization succeeds.
  */
 export function authorizeRequest(
-  request: Pick<IssueRequest, 'repository' | 'issueNumber' | 'commentId' | 'actor' | 'request'> & { commentUpdatedAt?: string },
+  request: Pick<AuthorizedRequest, 'targetType' | 'trigger' | 'issueNumber' | 'commentId' | 'actor' | 'request' | 'commentUpdatedAt'> & { repository: string, capability: 'reply_only' | 'issue_change' | 'pr_update' },
   api: GitHubApi,
 ): Promise<void>
 

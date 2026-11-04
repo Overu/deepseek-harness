@@ -52,6 +52,17 @@ function changeResult() {
   }
 }
 
+function updateResult() {
+  return {
+    mode: 'update',
+    reply: 'I prepared a follow-up commit.',
+    pr_title: 'Fix review feedback',
+    pr_body: '',
+    kind: '',
+    areas: [],
+  }
+}
+
 describe('Issue Agent artifacts', () => {
   ubuntuIntegration('collects modified, deleted, executable, hidden untracked, and ignores ignored files', async () => {
     const root = await fixture()
@@ -117,12 +128,19 @@ describe('Issue Agent artifacts', () => {
     expect(() => validateOutcome(replyResult(), [{ path: 'a.txt', content: '', mode: '100644' }])).toThrow(/reply/u)
     expect(() => validateOutcome(changeResult(), [])).toThrow(/require file changes/u)
     expect(validateOutcome(changeResult(), [{ path: 'a.txt', content: '', mode: '100644' }])).toMatchObject({ result: changeResult() })
+    expect(() => validateOutcome(updateResult(), [])).toThrow(/require file changes/u)
+    expect(validateOutcome(updateResult(), [{ path: 'a.txt', content: '', mode: '100644' }])).toMatchObject({ result: updateResult() })
   })
 
   it('requires canonical result metadata and PR sections', () => {
     const result = replyResult()
+    const update = updateResult()
     expect(validateResult(result)).toBe(result)
     expect(() => validateResult({ ...replyResult(), pr_title: 'unexpected' })).toThrow(/PR metadata/u)
+    expect(validateResult(update)).toBe(update)
+    expect(() => validateResult({ ...updateResult(), pr_body: compliantPrBody, kind: 'kind/bug-fix', areas: ['area/core'] })).toThrow(/PR metadata/u)
+    expect(() => validateResult({ ...updateResult(), pr_title: '' })).toThrow(/require a PR title/u)
+    expect(() => validateResult({ ...replyResult(), mode: 'unknown' })).toThrow(/reply, change, or update/u)
     expect(() => validateResult({ ...replyResult(), reply: '<!-- issue-agent:completion -->' })).toThrow(/reserved/u)
     expect(() => validateResult({ ...changeResult(), kind: 'kind/other' })).toThrow(/kind/u)
     expect(() => validateResult({ ...changeResult(), pr_body: '## Motivation\n## Changes\n## Testing\n## AI Usage' })).toThrow(/AI declaration/u)

@@ -1,6 +1,8 @@
-name: Issue Agent
+name: GitHub Agent
 
 on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
   issue_comment:
     types: [created]
 
@@ -8,18 +10,21 @@ permissions: {}
 
 concurrency:
   group: >-
-    issue-agent-${{ !github.event.issue.pull_request && github.event.comment.user.type == 'User' &&
+    github-agent-${{ (github.event_name == 'pull_request_target' && !github.event.pull_request.draft ||
+    github.event.comment.user.type == 'User' &&
     contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
-    startsWith(github.event.comment.body, '/agent') && format('issue-{0}', github.event.issue.number) || format('ignored-{0}', github.run_id) }}
+    (startsWith(github.event.comment.body, '/agent') || github.event.issue.pull_request && github.event.comment.body == '/review')) &&
+    format('target-{0}', github.event.pull_request.number || github.event.issue.number) || format('ignored-{0}', github.run_id) }}
   cancel-in-progress: false
   queue: max
 
 jobs:
   prepare:
     if: >-
-      !github.event.issue.pull_request && github.event.comment.user.type == 'User' &&
+      (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) ||
+      (github.event_name == 'issue_comment' && github.event.comment.user.type == 'User' &&
       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
-      startsWith(github.event.comment.body, '/agent')
+      (startsWith(github.event.comment.body, '/agent') || github.event.issue.pull_request && github.event.comment.body == '/review'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -29,17 +34,20 @@ jobs:
     outputs:
       run: ${{ steps.prepare.outputs.run }}
       default_sha: ${{ steps.prepare.outputs.default_sha }}
+      base_sha: ${{ steps.prepare.outputs.base_sha }}
       work_sha: ${{ steps.prepare.outputs.work_sha }}
+      work_repository: ${{ steps.prepare.outputs.work_repository }}
+      capability: ${{ steps.prepare.outputs.capability }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
           sparse-checkout: .github/issue-agent
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
         with:
           node-version: '24'
-      - name: Authorize and prepare Issue context
+      - name: Authorize and prepare conversation context
         id: prepare
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -63,13 +71,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.workflow_sha }}
           path: trusted
           persist-credentials: false
           sparse-checkout: .github/issue-agent
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ needs.prepare.outputs.work_sha }}
+          # Read-only requests inspect patches against base files without checking out PR code.
+          repository: ${{ needs.prepare.outputs.capability == 'reply_only' && github.repository || needs.prepare.outputs.work_repository }}
+          ref: ${{ needs.prepare.outputs.capability == 'reply_only' && needs.prepare.outputs.base_sha || needs.prepare.outputs.work_sha }}
           path: work
           persist-credentials: false
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
@@ -81,6 +91,18 @@ jobs:
           sudo useradd --system --create-home --home-dir /home/issueagent --shell /bin/bash issueagent
           sudo usermod -a -G runner issueagent
           sudo setfacl -m u:issueagent:x "$RUNNER_TEMP"
+          # Untrusted project settings cannot enable PR-provided hooks or MCP servers.
+          sudo chown runner:issueagent /home/issueagent
+          sudo chmod 1771 /home/issueagent
+          sudo install -d -o runner -g issueagent -m 1775 /home/issueagent/.codex
+          node --input-type=module <<'NODE'
+          import { chmodSync, realpathSync, writeFileSync } from 'node:fs'
+          const workdir = realpathSync(`${process.env.GITHUB_WORKSPACE}/work`)
+          writeFileSync('/home/issueagent/.codex/config.toml', `[projects.${JSON.stringify(workdir)}]\ntrust_level = "untrusted"\n`, { mode: 0o644 })
+          const serverInfo = `/home/issueagent/.codex/${process.env.GITHUB_RUN_ID}.json`
+          writeFileSync(serverInfo, '', { mode: 0o666 })
+          chmodSync(serverInfo, 0o666)
+          NODE
           sudo find "$GITHUB_WORKSPACE/work" -mindepth 1 -maxdepth 1 ! -name .git -exec chown -hR issueagent:issueagent {} +
           # Sticky ownership protects .git from replacement while allowing new root-level files.
           sudo chown runner:issueagent "$GITHUB_WORKSPACE/work"
@@ -88,17 +110,19 @@ jobs:
           sudo chown -hR runner:runner "$GITHUB_WORKSPACE/work/.git"
           sudo chmod -R go-w "$GITHUB_WORKSPACE/work/.git"
           sudo -u issueagent git config --global --add safe.directory "$GITHUB_WORKSPACE/work"
-      - name: Run Issue Agent
+      - name: Run GitHub Agent
         id: agent
         uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
         with:
           openai-api-key: ${{ secrets.OPENAI_KEY }}
           codex-version: '0.166.0'
-          model: ${{ vars.ISSUE_AGENT_MODEL || 'gpt-5.4-mini' }}
+          # The prepare job authorizes comments; automatic reviews are reply-only.
+          allow-users: '*'
+          model: ${{ vars.AGENT_MODEL || vars.ISSUE_AGENT_MODEL || vars.PR_AGENT_MODEL || 'gpt-5.4-mini' }}
           effort: medium
           safety-strategy: unprivileged-user
           codex-user: issueagent
-          permission-profile: ':workspace'
+          permission-profile: ${{ needs.prepare.outputs.capability == 'reply_only' && ':read-only' || ':workspace' }}
           working-directory: ${{ github.workspace }}/work
           prompt-file: ${{ runner.temp }}/issue-agent-input/prompt.md
           output-schema-file: ${{ github.workspace }}/trusted/.github/issue-agent/result-schema.json
@@ -145,12 +169,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.workflow_sha }}
           path: trusted
           persist-credentials: false
           sparse-checkout: .github/issue-agent
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        if: needs.prepare.outputs.capability != 'reply_only'
         with:
+          repository: ${{ needs.prepare.outputs.work_repository }}
           ref: ${{ needs.prepare.outputs.work_sha }}
           path: work
           persist-credentials: false
@@ -166,7 +192,7 @@ jobs:
           name: issue-agent-output-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/issue-agent/output
       # Only trusted orchestration executes in this job; generated files remain data.
-      - name: Publish Issue reply or draft PR
+      - name: Publish reply or validated code changes
         env:
           GITHUB_TOKEN: ${{ github.token }}
           ISSUE_AGENT_STATE: ${{ runner.temp }}/issue-agent
@@ -183,10 +209,11 @@ jobs:
     permissions:
       contents: read
       issues: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.workflow_sha }}
           persist-credentials: false
           sparse-checkout: .github/issue-agent
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
