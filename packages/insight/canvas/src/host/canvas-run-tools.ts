@@ -62,7 +62,7 @@ export function registerCanvasRunTools(ctx: Context, bridge: CanvasHostBridge, {
     try {
       release = bridge.subscribeRun(target, request, (state) => {
         if (closed || state.requestId !== request || state.canvasId !== target.canvasId || state.nodeId !== nodeId) return
-        if ((state.phase === 'completed' || state.phase === 'failed') && state.outputs.length > 0) {
+        if ((state.phase === 'completed' || state.phase === 'failed') && state.outputs.length > 0 && !state.generation.texts) {
           // Source capture outlives Jobs waiting/kill, but never changes its result or dispatches work.
           const write = store.record(binding, state).catch(() => { ctx.logger.warn('desktop-canvas: result source persistence unavailable') })
           void activities?.track(write)

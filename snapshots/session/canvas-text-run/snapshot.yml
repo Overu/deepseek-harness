@@ -1,0 +1,8 @@
+version: 1
+scenario: canvas-text-run
+profile: headless
+composition: canvas-text-run
+recording: authored
+header:
+  class: canvas-text-run
+  pin: true

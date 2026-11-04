@@ -37,6 +37,16 @@ describe('controlled node mapping', () => {
     expect(resolveAgentNodePatch(state, node, { title: '主图' }).data.title).toBe('主图')
     rejection(() => resolveAgentNodePatch(makeState([]), node, { title: '新标题' }), 'NODE_NOT_FOUND')
   })
+  it('edits text prompt and value independently without generating', () => {
+    const node = makeNode('text'); node.data.value = '已有正文'
+    const state = makeState([node])
+    const prompt = resolveAgentNodePatch(state, node, { prompt: '明确的生成要求' })
+    expect(prompt.data.params).toMatchObject({ prompt: '明确的生成要求' })
+    expect(prompt.data).not.toHaveProperty('value')
+    const body = resolveAgentNodePatch(state, node, { text: 'Agent 根据明确要求写好的正文' })
+    expect(body.data).toEqual({ value: 'Agent 根据明确要求写好的正文' })
+    expect(node.data.value).toBe('已有正文')
+  })
   it('maps text to value; text/audio keep technical defaults', () => {
     const node = makeNode('text'); const state = makeState([node])
     expect(resolveAgentNodePatch(state, node, { text: '脚本' }).data.value).toBe('脚本')
@@ -109,7 +119,7 @@ describe('native node construction and generation counts', () => {
     const state = makeState(); const node = state.nodes[0]
     expect(getAgentGenerationCounts(state, node)).toEqual({ images: 1, videos: 0 })
     expect(getAgentGenerationCounts(state, makeNode('video'))).toEqual({ images: 0, videos: 1 })
-    expect(getAgentGenerationCounts(state, makeNode('text'))).toEqual({ images: 0, videos: 0 })
+    expect(getAgentGenerationCounts(state, makeNode('text'))).toEqual({ images: 0, videos: 0, texts: 1 })
     expect(getAgentGenerationCounts(state, makeNode('audio'))).toBeNull() // No configured TTS mode in this fixture.
     for (const gen_count of [undefined, 0, -1, 1.5, 3, '1', Number.MAX_SAFE_INTEGER + 1]) expect(getAgentGenerationCounts(state, { ...node, data: { ...node.data, params: { ...(node.data.params as object), gen_count } } })).toBeNull()
     expect(getAgentGenerationCounts({ ...state, modelsMap: {} }, node)).toBeNull()

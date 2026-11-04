@@ -1,4 +1,4 @@
-import { CanvasAgentError, assertCanvasMessageSize, parseCanvasFailure, type Failure,
+import { CanvasAgentError, MAX_CONTENT_LENGTH, assertCanvasMessageSize, parseCanvasFailure, type Failure,
   type GenerationCounts } from './canvas-agent-protocol.ts'
 import { parseCanvasId } from './protocol.ts'
 import { isGenerationCounts } from './canvas-generation-counts.ts'
@@ -47,7 +47,12 @@ function assertCanvasRunState(input: unknown): asserts input is CanvasRunState {
  !value.products.every(p => object(p) && Object.keys(p).length === 2 && id(p.nodeId, 100) && url(p.url)))) reject()
   const generation = value.generation
   if (!isGenerationCounts(generation)) reject()
-  if (!Array.isArray(value.outputs) || value.outputs.length > 20 || !value.outputs.every(url)) reject()
+  const text = (generation as GenerationCounts).texts ?? 0
+  if (text > 0 && ((generation as GenerationCounts).images || (generation as GenerationCounts).videos
+    || (generation as GenerationCounts).audios)) reject()
+  if (!Array.isArray(value.outputs) || value.outputs.length > 20 || !value.outputs.every(text > 0
+    ? output => typeof output === 'string' && output.trim().length > 0 && output.length <= MAX_CONTENT_LENGTH
+    : url)) reject()
   if (Object.hasOwn(value, 'error')) parseCanvasFailure(value.error)
 }
 export function parseCanvasRunState(input: unknown): CanvasRunState {

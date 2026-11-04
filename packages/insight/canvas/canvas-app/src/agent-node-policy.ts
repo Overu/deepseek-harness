@@ -150,6 +150,7 @@ export function createAgentAssetNode(state: AgentNodeState, input: CanvasAssetIn
 
 export function getAgentGenerationCounts(state: AgentNodeState, node: Node): GenerationCounts | null {
   if (!supported(node)) return null
+  if (node.type === 'text') return { images: 0, videos: 0, texts: 1 }
   if (node.type === 'audio') {
     if (!canRunAgentGeneration(node)) return null
     try { validateAgentAudioParams(state, node) } catch (error) {

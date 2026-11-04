@@ -26,6 +26,8 @@ This package provides Canvas tools, conversation references, result cards, and a
 
 The package's [bundle patch](cordis.patch.yml) contributes the existing Host plugin. Its Client manifest declares the dynamic browser entry. Desktop build dependencies deliver the package without adding it to the official default profile.
 
+Text nodes support two independent edits: `changes.prompt` updates the generation instruction, and `changes.text` writes the native `data.value` body. `canvas_run` generates text through the native workflow and returns the body in Job `outputs`; media result cards remain media-only.
+
 The iframe builds from `canvas-app`; guidance remains package-owned rather than part of the root `bundled-skills` synchronization directory. [upstream.json](upstream.json) records the source input and retained identity.
 
 <a id="understand-the-implementation"></a>

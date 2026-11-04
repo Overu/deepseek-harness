@@ -17,7 +17,8 @@ export type Version = string
 export type StandardNodeType = typeof STANDARD_NODE_TYPES[number]
 export interface GenerationCounts { images: number
   videos: number
-  audios?: number }
+  audios?: number
+  texts?: number }
 export interface NodeChanges {
   title?: string
   prompt?: string

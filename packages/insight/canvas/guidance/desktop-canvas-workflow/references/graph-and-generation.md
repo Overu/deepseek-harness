@@ -14,6 +14,10 @@ canvas_get(view:graph)确认真实端口和兼容输入，再canvas_edges用ops[
 
 每批共用一个jobId，results列出各节点。submitted不是完成；用job_output收集同一Job的真实终态、results和outputs，Core会回传完成通知。旧outputs不是本次产物，实际数量不足时不能宣称全部完成。paused表示只受理当前容量内的前缀，续跑见恢复章。job_kill只停止跟踪，不等于取消云端生成。
 
+## 文本节点
+
+文本节点的prompt是生成要求，text对应原生data.value正文，两者可分别编辑。需要画布模型生成时，用canvas_node_edit的changes.prompt保存要求，再canvas_run运行该文本节点，生成的value通过Job的outputs及canvas_get节点text字段读取。提示词明确且Agent可直接完成时，可据此写作，再用changes.text填充value；编辑任一字段都不会自动触发生成。
+
 ## TTS配音
 
 要求把文案念出来时，创建普通audio节点，canvas_models(nodeType:audio)查询当前TTS模型与seniorParamHints；原生新节点默认TTS。已有文案节点时建立文案→配音的真实文本输入，不把待朗读正文改成“请念出以下文字”或重复填入prompt造成双份内容。要求配音时将普通音频节点configure为tts；上传音频是素材，不能直接当生成节点运行。

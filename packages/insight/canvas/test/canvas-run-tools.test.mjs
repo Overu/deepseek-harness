@@ -71,7 +71,7 @@ function fixture(options = {}) {
       return { status: 'submitted', canvasId, version: String(Number(operation.expectedVersion) + 1), nodeId: operation.nodeId, taskId: 'workflow-task', generation }
     }
   }
-  function state(phase, requestId = 'run-state', nodeId = 'target') { return { requestId, canvasId, nodeId, sequence: ++sequence, phase, version: '14', workflowTaskId: 'workflow-task', nodeTaskId: 'node-task', generation, outputs: phase === 'completed' ? [`https://assets.example/${nodeId === 'target' ? 'new' : nodeId}.png`] : phase === 'failed' ? options.failureOutputs ?? [] : [], ...(phase === 'failed' ? { error: { code: 'RUN_REJECTED', message: 'model rejected', retry: 'user_decision' } } : {}) } }
+  function state(phase, requestId = 'run-state', nodeId = 'target') { return { requestId, canvasId, nodeId, sequence: ++sequence, phase, version: '14', workflowTaskId: 'workflow-task', nodeTaskId: 'node-task', generation, outputs: phase === 'completed' ? [options.text ?? `https://assets.example/${nodeId === 'target' ? 'new' : nodeId}.png`] : phase === 'failed' ? options.failureOutputs ?? [] : [], ...(phase === 'failed' ? { error: { code: 'RUN_REJECTED', message: 'model rejected', retry: 'user_decision' } } : {}) } }
   registerCanvasRunTools(ctx, bridge, { ...options.timeouts, results: options.results }, options.activities)
   const human = (seq = 1) => events.get('session/event')(session, { seq, type: 'user/message', data: { source: { kind: 'user' } } })
   if (!options.noIntent) human()
@@ -497,4 +497,19 @@ test('unload retains an admitted terminal result write after its Job and tool re
   await closing
   assert.equal(saved, true)
   assert.equal(resourceClosed, true)
+})
+
+test('a text run completes through the existing Job without registering a media result', async t => {
+  const sources = [], f = fixture({ generation: { images: 0, videos: 0, texts: 1 }, text: '画布生成正文',
+    results: { async record(binding, state) { sources.push({ binding, state }) } } })
+  t.after(() => f.dispose())
+  assert.equal((await f.run()).status, 'submitted')
+  f.emit('completed'); await f.jobRecords[0].hooks.done
+  assert.equal(f.jobRecords[0].outcome.status, 'completed')
+  const result = JSON.parse(f.jobRecords[0].outcome.result)
+  assert.equal(result.actualOutputCount, 1)
+  assert.equal(result.requestedOutputCount, 1)
+  assert.deepEqual(result.results[0].outputs, ['画布生成正文'])
+  assert.deepEqual(sources, [])
+  assert.equal(f.invocations.length, 1)
 })

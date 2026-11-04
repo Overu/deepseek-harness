@@ -136,11 +136,11 @@ export const canvasToolContracts = {
   canvas_run: {
     name: 'canvas_run',
     timeoutMs: 180_000,
-    description: '运行nodeIds指定且依赖已就绪的普通image/video或audio（tts、text_to_audio、audio_to_audio）节点。预检后提交原生工作流，每批一个Job，results为逐节点回执；容量不足返回paused/nextIndex。expectedVersion为最新confirmed版本，未知版本为null。submitted仅表示提交；job_kill仅停止跟踪。累计超过30图/6视频须真实用户确认。',
+    description: '运行nodeIds指定且依赖已就绪的普通text/image/video或audio（tts、text_to_audio、audio_to_audio）节点。预检后提交原生工作流，每批一个Job，results为逐节点回执；容量不足返回paused/nextIndex。expectedVersion为最新confirmed版本，未知版本为null。submitted仅表示提交；job_kill仅停止跟踪。累计超过30图/6视频须真实用户确认。',
     parameters: {
       canvasId: { type: 'string', required: true, description: '已有画布ID，正Long十进制字符串。' },
       nodeIds: { type: 'array', required: true, items: { type: 'string' },
-        description: '非空且不重复的普通图片、视频或音频生成节点ID数组，不设置条数上限；受消息大小和执行时间限制。' },
+        description: '非空且不重复的普通文本、图片、视频或音频生成节点ID数组，不设置条数上限；受消息大小和执行时间限制。' },
       expectedVersion: { type: 'string', required: true, description: '最新confirmed保存版本原样传入。' },
     },
   },

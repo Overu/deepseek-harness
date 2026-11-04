@@ -26,6 +26,8 @@ kind: "package-bundle"
 
 本包的 [bundle patch](cordis.patch.yml) 提供已有 Host 插件，Client manifest 声明动态浏览器入口。桌面构建依赖交付本包，但不把它加入官方默认 profile。
 
+文本节点支持分别编辑：`changes.prompt` 更新生成要求，`changes.text` 写入原生 `data.value` 正文。`canvas_run` 通过原生工作流生成文本，并在 Job 的 `outputs` 中返回正文；媒体结果卡仍只处理媒体。
+
 iframe 从 `canvas-app` 构建；guidance 归本包拥有，不属于根目录 `bundled-skills` 同步资产。[upstream.json](upstream.json) 记录源码输入和保留的标识。
 
 <a id="understand-the-implementation"></a>
