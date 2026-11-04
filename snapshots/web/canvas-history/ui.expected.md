@@ -1,7 +1,6 @@
 - banner:
   - navigation "Session hierarchy": Canvas history
   - button "More actions"
-  - button "Open right sidebar"
   - tablist:
     - tab "Chat" [selected]
     - tab "Trajectory"
@@ -13,8 +12,31 @@
 - button "Copy"
 - status: Completed
 - button "Completed in {{duration}}" [disabled]
+- paragraph: 画布已经创建，可以继续编辑内容。
+- button "Copy"
+- button "Good response"
+- button "Bad response"
+- button "Branch into a new conversation"
+- text: {{clock}} 打开这次创建的画布。 {{clock}}
+- button "Copy"
+- status: Completed
+- button "Completed in {{duration}}" [expanded]
+- button "Analysis completed" [expanded]
+- button "Think" [expanded]
+- paragraph: 需要给出可点击的画布地址。
+- paragraph: 当前画布 ID：103334。
+- paragraph: 可以继续在画布上操作。
+- text: "Canvas ID:"
+- link "103334":
+  - /url: dsh-resource://canvas/103334
+- button "Copy"
+- button "Good response"
+- button "Bad response"
+- button "Branch into a new conversation"
+- text: {{clock}}
 - textbox "Message or run a task, / commands, @ files or sessions"
 - button "Add files or run commands"
 - 'button "Access mode, current: Workspace Write"': Workspace Write
 - button "Select model, current DeepSeek-V4-Flash": DeepSeek-V4-Flash
 - button "Send message" [disabled]
+- button "2 turns 3 steps"

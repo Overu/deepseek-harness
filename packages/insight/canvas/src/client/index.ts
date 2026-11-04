@@ -1,4 +1,3 @@
-import { registerCanvasMessageLinks } from './CanvasMessageLinks.tsx'
 import { createCanvasOpener } from './canvas-open.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { CanvasCreatedLinks } from './CanvasCreatedLinks.tsx'
@@ -27,7 +26,6 @@ const PACKAGE_ID = '@insight-ai/desktop-canvas-plugin'
 export const inject = ['slots', 'sidebarRightTabs', 'sidebarRight', 'uiConversation', 'locale']
 
 export function apply(ctx: Context): void {
-  registerCanvasMessageLinks(ctx)
   registerCanvasReferenceMessageViews(ctx)
   const references = new CanvasNodeReferences()
   ctx.effect(() => () =>{  references.reset() }, 'desktop-canvas: reference drafts')

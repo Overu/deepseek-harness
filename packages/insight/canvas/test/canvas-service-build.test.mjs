@@ -148,6 +148,7 @@ test('real Client registers a scoped results footer and canvas navigation only o
     slots: clientSlots(entries),
     sidebarRight: { mounted: mountedSession(), openResource: (address, options) => navigations.push({ address, options }) },
   })
+  assert.equal(entries.some(entry => entry.options.name === 'conversation.chat.node' && entry.options.key === 'assistant-step'), false)
   const entry = entries.find(entry => entry.options.name === 'conversation.chat.turnTail')
   assert(entry); assert.equal(definitions[0].kind, 'desktop-canvas-results')
   const injected = entry.options.inject('actual-session')
