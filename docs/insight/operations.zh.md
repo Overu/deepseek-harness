@@ -62,7 +62,7 @@ Candidate 和 Stable 是发布渠道，final 语义版本可先在 Candidate 验
 
 打包工作流创建已签名、已公证的 macOS 制品和 Windows NSIS 制品。它生成一个 GitHub Release，其附件和来源记录是发布工作流唯一可使用的输入。发布工作流不会重新构建、签名、公证或安装应用。
 
-准备可能以后成为 Stable 的版本时运行全部目标。单目标打包只生成对应 Actions artifact，不能直接用于 OSS 发布；Candidate 发布从已完整校验并公开的 Release 选择目标。打包工作流保持平台 job 并行，也保持 macOS App 与 DMG 公证路径并行；不要在发布器中增加 qualification 阶段或重复完整构建。
+准备可能以后成为 Stable 的版本时运行全部目标。单目标打包只生成对应 Actions artifact；发布工作流可通过可选 `package_run_id` 输入汇总成功的 Windows 单目标预发布版 run，再执行 Candidate 发布。Candidate 发布从已完整校验并公开的 Release 选择目标。[发布流水线](../../scripts/insight-release/README.zh.md#publish-workflow)维护所需输入和校验。打包工作流保持平台 job 并行，也保持 macOS App 与 DMG 公证路径并行；不要在发布器中增加 qualification 阶段或重复完整构建。
 
 平台 job 成功后，如果 finalizer 或附件回读失败，应在同一 workflow run 重跑失败 job，复用成功 native job 的已记录制品；OSS 投放前要求整个 run 最终成功。重新构建或从不同源码 rerun 会改变发布器验证的来源。rerun 仍必须通过 workflow 身份、源码、Release 附件、manifest、大小和 SHA-512 检查。
 
