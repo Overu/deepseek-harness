@@ -5,7 +5,8 @@ import { assertCanvasResultMatches, isCanvasRunOperation, expectedCanvasReadStat
   type GenerationCounts } from '../shared/canvas-agent-protocol.ts'
 import { sameGenerationCounts } from '../shared/canvas-generation-counts.ts'
 import { assertBridgeId, bridgeFingerprint, isRunTrackingClosed, messageBytes, MAX_BRIDGE_CACHE_BYTES,
-  MAX_BRIDGE_INFLIGHT, MAX_BRIDGE_RECORDS, parseBridgeOperation, parseServiceClientEvent, parseServiceHostEvent,
+  MAX_BOUND_SESSIONS, MAX_BRIDGE_INFLIGHT, MAX_BRIDGE_RECORDS, parseBridgeOperation, parseServiceClientEvent,
+  parseServiceHostEvent, SESSION_BINDING_PROTOCOL,
   type BridgeCapability, type BridgeOperation, type BridgeTarget, type ClientRegistration, type ServiceClientEvent,
   type ServiceHostEvent } from '../shared/canvas-bridge-protocol.ts'
 import type { CanvasRunState } from '../shared/canvas-run-protocol.ts'
@@ -23,6 +24,18 @@ export interface CanvasHostBridge {
   dispose(): void
 }
 export interface CanvasBridgeRegistry extends CanvasHostBridge {
+  /**
+   * Re-evaluates retained Client ownership after Agent or inbox activity changes.
+   * @param sessionId - Session whose live activity changed.
+   */
+  reconsiderSession(sessionId: string): void
+  /**
+   * Tracks one Canvas Job whose settlement may hand work back to its owning Agent.
+   * @param sessionId - Job owner's Session.
+   * @param jobId - Stable Job identity.
+   * @param active - Whether the Job can still settle.
+   */
+  setSessionJobActive(sessionId: string, jobId: string, active: boolean): void
   attachClient(origin: string, clientId: string, ownershipProtocol?: typeof OWNERSHIP_PROTOCOL): ClientRegistration
   checkClient(key: string, origin: string): boolean
   connectStream(key: string, origin: string, write: (event: ServiceHostEvent) => void): () => void
@@ -32,8 +45,10 @@ export interface CanvasBridgeRegistry extends CanvasHostBridge {
 type Command = Extract<ServiceHostEvent, { type: 'canvas.prepare' | 'canvas.command' }>
 interface Client { registration: ClientRegistration
   origin: string
+  desiredSessions: Set<string>
   sessions: Set<string>
   revision: number
+  bindingRevision: number
   contexts: Map<string, { contextId: string
     state: FrameReadiness
     order: number }>
@@ -64,8 +79,11 @@ const targetIdentity = (target: BridgeTarget) => bridgeFingerprint({ connectionI
 const error = (code: ErrorCode, message: string) => new CanvasAgentError(code, message)
 function rejected(canvasId: string, code: ErrorCode, message: string): CanvasOperationResult { return {
   status: 'rejected', canvasId, version: null, effect: 'none', error: { code, message, retry: 'read_first' } } }
-export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: number } = {}): CanvasBridgeRegistry {
+export function createCanvasHostBridge({ timeoutMs = 30000,
+  isSessionActive = () => false }: { timeoutMs?: number
+  isSessionActive?: (sessionId: string) => boolean } = {}): CanvasBridgeRegistry {
   const clients = new Map<string, Client>(), records = new Map<string, Pending>(), runs = new Map<string, RunSubscription>()
+  const sessionJobs = new Map<string, Set<string>>()
   interface SessionReferenceRecord { pending: CanvasReferenceItem[]
     revision: number
     owner: string
@@ -76,17 +94,46 @@ export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: numb
   const clientFor = (key: string, origin: string) => { active(); const client = clients.get(key); if (!client ||
  client.origin !== origin) throw error('AUTH_REQUIRED', '画布桥登记无效'); return client }
   const findConnection = (id: string) => [...clients.values()].find(client => client.registration.connectionId === id)
+  const hasActiveRun = (client: Client, sessionId: string) => [...runs.values()].some(run => run.active &&
+    run.target.connectionId === client.registration.connectionId && run.target.sessionId === sessionId)
+  const hasActiveJob = (sessionId: string) => Boolean(sessionJobs.get(sessionId)?.size)
+  const publishBindings = (client: Client, next: Set<string>, force = false) => {
+    const changed = next.size !== client.sessions.size || [...next].some(sessionId => !client.sessions.has(sessionId))
+    if (changed) { client.sessions = next; client.bindingRevision++ }
+    if ((!changed && !force) || !client.stream) return
+    try { client.stream.write({ type: 'session.bound', protocolVersion: 4,
+      connectionId: client.registration.connectionId, revision: client.bindingRevision,
+      sessionIds: [...client.sessions] }) } catch { disconnected(client) }
+  }
+  const resolveBindings = (client: Client, desiredSessions = client.desiredSessions) => {
+    const next = new Set([...client.sessions].filter(sessionId => desiredSessions.has(sessionId) ||
+      isSessionActive(sessionId) || hasActiveJob(sessionId) || hasActiveRun(client, sessionId)))
+    for (const sessionId of desiredSessions) {
+      if (!next.has(sessionId) && next.size >= MAX_BOUND_SESSIONS) throw error('BRIDGE_OVERLOADED',
+        '活跃会话保留已达上限，请等待已有会话空闲')
+      next.add(sessionId)
+    }
+    return next
+  }
+  const reconcile = (client: Client, force = false) => { publishBindings(client, resolveBindings(client), force) }
+  const reconsider = (sessionId: string) => {
+    for (const client of clients.values()) if (client.sessions.has(sessionId) || client.desiredSessions.has(sessionId)) {
+      reconcile(client)
+    }
+  }
   function finish(record: Pending, value?: BridgeTarget | CanvasOperationResult, failure?: CanvasAgentError, terminal = true) {
     if (terminal) record.terminal = true
     if (value && 'status' in value && value.status === 'rejected') {
+      let releasedRun = false
       const run = runs.get(record.event.requestId)
-      if (run?.active) { reservedRunBytes -= run.reserved; run.reserved = 0; run.active = false }
+      if (run?.active) { reservedRunBytes -= run.reserved; run.reserved = 0; run.active = false; releasedRun = true }
       if (record.event.type === 'canvas.command' && record.event.payload.action === 'workflow.run') {
         for (const reqId of Object.values(record.event.payload.runRequestIds)) {
           const r = runs.get(reqId)
-          if (r?.active) { reservedRunBytes -= r.reserved; r.reserved = 0; r.active = false }
+          if (r?.active) { reservedRunBytes -= r.reserved; r.reserved = 0; r.active = false; releasedRun = true }
         }
       }
+      if (releasedRun) reconsider(record.event.sessionId)
     }
     if (value !== undefined) { const size = messageBytes(value)
       cacheBytes += size - (record.value ? messageBytes(record.value) : 0); record.value = structuredClone(value)
@@ -162,8 +209,10 @@ export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: numb
       if (old) { if (old.origin !== origin) throw error('AUTH_REQUIRED', 'Client 登记来源不同'); return { ...old.registration } }
       if (clients.size >= 16) throw error('BRIDGE_OVERLOADED', '画布 Client 登记已达上限')
       const registration: ClientRegistration = { protocolVersion: 4, clientId, connectionId: randomUUID(),
-        bridgeKey: randomBytes(32).toString('base64url'), ...(ownershipProtocol ? { ownershipProtocol } : {}) }
-      clients.set(registration.bridgeKey, { registration, origin, sessions: new Set(), revision: -1,
+        bridgeKey: randomBytes(32).toString('base64url'), sessionBindingProtocol: SESSION_BINDING_PROTOCOL,
+        ...(ownershipProtocol ? { ownershipProtocol } : {}) }
+      clients.set(registration.bridgeKey, { registration, origin, desiredSessions: new Set(), sessions: new Set(), revision: -1,
+        bindingRevision: 0,
         contexts: new Map() }); return { ...registration }
     },
     checkClient: (key, origin) => !disposed && clients.get(key)?.origin === origin,
@@ -172,7 +221,8 @@ export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: numb
       if (client.stream) throw error('CLIENT_AMBIGUOUS', '同一 Client 已有事件流')
       const stream = { write }; client.stream = stream
       try { write({ type: 'bridge.connected', protocolVersion: 4,
-        connectionId: client.registration.connectionId }) } catch (cause) { disconnected(client); throw cause }
+        connectionId: client.registration.connectionId }); reconcile(client, true) }
+      catch (cause) { disconnected(client); throw cause }
       return () => { if (client.stream === stream) disconnected(client) }
     },
     acceptClientEvent(key, origin, input) {
@@ -180,9 +230,15 @@ export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: numb
       if (event.connectionId !== client.registration.connectionId) throw error('INVALID_ARGUMENT', '连接身份不匹配')
       if (event.type === 'session.sync') {
         if (event.revision < client.revision) return
-        if (event.revision === client.revision &&
- bridgeFingerprint(event.sessionIds) !== bridgeFingerprint([...client.sessions])) throw error('DUPLICATE_REQUEST_MISMATCH', '会话快照 revision 重复但内容不同')
-        client.revision = event.revision; client.sessions = new Set(event.sessionIds); return
+        if (event.revision === client.revision) {
+          if (bridgeFingerprint(event.sessionIds) !== bridgeFingerprint([...client.desiredSessions])) {
+            throw error('DUPLICATE_REQUEST_MISMATCH', '会话快照 revision 重复但内容不同')
+          }
+          return
+        }
+        const desiredSessions = new Set(event.sessionIds), next = resolveBindings(client, desiredSessions)
+        client.revision = event.revision; client.desiredSessions = desiredSessions
+        publishBindings(client, next); return
       }
       if (event.type === 'canvas.references.sync') {
         if (!client.sessions.has(event.sessionId)) throw error('CONTEXT_GONE', '节点引用所属会话未绑定')
@@ -247,6 +303,7 @@ export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: numb
         if (isRunTrackingClosed(event.state)) { reservedRunBytes -= run.reserved; run.reserved = 0; run.active = false }
         for (const listener of run.listeners) { try { listener(structuredClone(run.latest)) } catch {
           /* One observer cannot corrupt native task delivery. */ } }
+        if (!run.active) reconsider(event.sessionId)
         return
       }
       if (event.type === 'canvas.prepare.ack') {
@@ -291,6 +348,23 @@ export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: numb
         if (!isRun && result.status === 'submission_unknown' && result.phase !== 'save') throw error('INVALID_ARGUMENT', '保存回执不能携带执行未知状态')
         finish(record, result)
       }
+    },
+    reconsiderSession(sessionId) {
+      if (disposed) return
+      assertBridgeId(sessionId); reconsider(sessionId)
+    },
+    setSessionJobActive(sessionId, jobId, jobActive) {
+      if (disposed) return
+      assertBridgeId(sessionId); assertBridgeId(jobId)
+      let jobs = sessionJobs.get(sessionId)
+      if (jobActive) {
+        if (!jobs) { jobs = new Set(); sessionJobs.set(sessionId, jobs) }
+        jobs.add(jobId)
+      } else if (jobs) {
+        jobs.delete(jobId)
+        if (!jobs.size) sessionJobs.delete(sessionId)
+      }
+      reconsider(sessionId)
     },
     async ensureContext(sessionId, canvasId, capability, requestId, signal, refresh = false) {
       active(); assertBridgeId(sessionId); assertBridgeId(requestId)
@@ -400,6 +474,7 @@ export function createCanvasHostBridge({ timeoutMs = 30000 }: { timeoutMs?: numb
     },
     dispose() { if (disposed) return; for (const client of clients.values()) disconnected(client); disposed = true
       sessionReferences.clear(); for (const record of records.values()) { clearTimeout(record.timer)
-        record.releaseSignal?.() } clients.clear(); records.clear(); runs.clear(); cacheBytes = 0; reservedRunBytes = 0 },
+        record.releaseSignal?.() } clients.clear(); records.clear(); runs.clear(); sessionJobs.clear()
+      cacheBytes = 0; reservedRunBytes = 0 },
   }
 }

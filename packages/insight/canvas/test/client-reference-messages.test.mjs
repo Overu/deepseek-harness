@@ -8,9 +8,10 @@ const waitUntil = async check => {
   for (let i = 0; i < 100; i++) { if (check()) return; await new Promise(resolve => setTimeout(resolve, 5)) }
   assert.fail('reference bridge did not settle')
 }
-function setup(t) {
-  const posts = [], registration = { protocolVersion: 4, clientId: 'client', connectionId: 'connection', bridgeKey: 'x'.repeat(43) }
-  let stream
+function setup(t, options = {}) {
+  const posts = [], registration = { protocolVersion: 4, clientId: 'client', connectionId: 'connection',
+    bridgeKey: 'x'.repeat(43), sessionBindingProtocol: 'host-session-v1' }
+  let stream, rejectReference = options.rejectReference
   const push = event => stream.enqueue(new TextEncoder().encode('data: ' + JSON.stringify({ protocolVersion: 4, connectionId: 'connection', ...event }) + '\n\n'))
   const transport = async (input, init) => {
     const path = new URL(input).pathname
@@ -23,13 +24,28 @@ function setup(t) {
       } })
       return new Response(body, { headers: { 'content-type': 'text/event-stream' } })
     }
-    if (path.endsWith('/client-event')) posts.push(parseServiceClientEvent(JSON.parse(init.body)))
+    if (path.endsWith('/client-event')) { const event = parseServiceClientEvent(JSON.parse(init.body)); posts.push(event)
+      if (event.type === 'canvas.references.sync' && rejectReference) {
+        rejectReference = false
+        return Response.json({ code: 'PAYLOAD_TOO_LARGE' }, { status: 413 })
+      } }
     return Response.json({})
   }
   const bridge = createCanvasClientBridge({ origin: 'https://shell.test', getRuntime: async () => { throw new Error('not needed') }, transport })
   t.after(() => bridge.dispose())
   return { bridge, posts, push }
 }
+
+test('an oversized reference receipt does not block later Session binding receipts', async t => {
+  const h = setup(t, { rejectReference: true })
+  const release = h.bridge.retainSession('s1')
+  await waitUntil(() => h.posts.some(event => event.type === 'session.sync'))
+  h.bridge.syncReferences('s1', refs('oversized'))
+  release()
+  await waitUntil(() => h.posts.some(event => event.type === 'session.sync' && event.revision === 2 &&
+    !event.sessionIds.length))
+  assert.equal(h.posts.filter(event => event.type === 'canvas.references.sync').length, 1)
+})
 
 test('late consumption acknowledgements cannot clear newer Dock refs; matching ack clears only its session', async t => {
   const h = setup(t), consumed = []

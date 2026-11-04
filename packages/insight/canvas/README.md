@@ -38,6 +38,8 @@ The Host owns tools, local routes, bridge ownership, and result persistence. The
 
 Authenticated bridge requests admit the exact `dsh-app://app` origin alongside existing Web origins. Connection authentication and Canvas ownership checks still apply. Shutdown stops admission, cancels consumers, waits for dispatch and result writes, then drains OSS uploads before closing bridge and storage resources. Stopping local tracking does not promise cancellation of an accepted cloud operation.
 
+The Client reports UI-requested Sessions separately from the Host's effective bindings. After the UI switches conversations, the Host keeps the original Client bound while that Session's Agent, inbox, Canvas Job, or submitted run can still issue Canvas work, then sends a revisioned binding snapshot when the Session becomes idle. The attach handshake requires the matching Host-session capability, so an outdated page must reload instead of accepting retention events it cannot interpret.
+
 Historical user and steering messages parse the existing `<node-refs version="1">` protocol for node thumbnails, previews, and navigation. The Client sends the remaining display content through Chat’s complete `conversation.chat.user.message` Factory, preserving native message actions and source decoration without rewriting recorded content. Invalid or unknown tags remain visible.
 
 </details>

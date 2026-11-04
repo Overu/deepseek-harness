@@ -3,7 +3,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import { CanvasAgentError, MAX_MESSAGE_BYTES } from '../shared/canvas-agent-protocol.ts'
-import { assertBridgeId, OWNERSHIP_PROTOCOL, parseServiceClientEvent, type ServiceHostEvent } from '../shared/canvas-bridge-protocol.ts'
+import { assertBridgeId, OWNERSHIP_PROTOCOL, SESSION_BINDING_PROTOCOL, parseServiceClientEvent,
+  type ServiceHostEvent } from '../shared/canvas-bridge-protocol.ts'
 import type { CanvasBridgeRegistry } from './canvas-bridge.ts'
 const PREFIX = '/desktop-canvas/api/bridge'
 interface BrowserConnection { requestRejection(request: IncomingMessage): 401 | 403 | undefined }
@@ -81,7 +82,8 @@ export function bridgeHandler(connection: BrowserConnection, bridge: CanvasBridg
       const input = await body(req)
       if (url.pathname === PREFIX + '/attach') {
         if (!input || typeof input !== 'object' || Object.keys(input).some(key => !['clientId', 'protocolVersion',
-          'ownershipProtocol'].includes(key)) || Reflect.get(input, 'protocolVersion') !== 4) throw new Error('invalid registration')
+          'ownershipProtocol', 'sessionBindingProtocol'].includes(key)) || Reflect.get(input, 'protocolVersion') !== 4 ||
+ Reflect.get(input, 'sessionBindingProtocol') !== SESSION_BINDING_PROTOCOL) throw new Error('invalid registration')
         const fields = input as Record<string, unknown>
         const ownership = fields.ownershipProtocol
         if (ownership !== undefined && ownership !== OWNERSHIP_PROTOCOL) throw new Error('invalid ownership protocol')

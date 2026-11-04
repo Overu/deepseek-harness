@@ -34,7 +34,10 @@ test('real local HTTP route freezes origin/key, serves one SSE stream, and bound
   t.after(() => { bridge.dispose(); server.closeAllConnections(); server.close() })
   const path = suffix => origin + '/desktop-canvas/api/bridge/' + suffix
   const base = { authorization: 'fixture', 'x-canvas-bridge-origin': origin, origin, 'content-type': 'application/json' }
-  const attach = await fetch(path('attach'), { method: 'POST', headers: base, body: JSON.stringify({ protocolVersion: 4, clientId: 'client' }) }).then(r => r.json())
+  assert.equal((await fetch(path('attach'), { method: 'POST', headers: base,
+    body: JSON.stringify({ protocolVersion: 4, clientId: 'old-client' }) })).status, 400)
+  const attach = await fetch(path('attach'), { method: 'POST', headers: base, body: JSON.stringify({ protocolVersion: 4,
+    clientId: 'client', sessionBindingProtocol: 'host-session-v1' }) }).then(r => r.json())
   const headers = { ...base, 'x-canvas-bridge-key': attach.bridgeKey }
   assert.equal((await fetch(path('client-event'), { method: 'POST', headers: { ...headers, origin: 'https://wrong.test' }, body: '{}' })).status, 403)
   assert.equal((await fetch(path('client-event'), { method: 'POST', headers: { ...headers, 'x-canvas-bridge-key': 'bad' }, body: '{}' })).status, 403)
@@ -55,7 +58,7 @@ test('SSE backpressure drains buffered commands in order and overflow settles a 
   await bridgeHandler({requestRejection:()=>undefined},bridge)({method:'GET',url:'/desktop-canvas/api/bridge/events',headers:{'x-canvas-bridge-origin':origin,'x-canvas-bridge-key':registration.bridgeKey}},res)
   const preparing=bridge.ensureContext('session','2873','edit','prepare')
   assert.equal(frames.length,1)
-  blocked=false;res.emit('drain');assert.match(frames[1],/canvas.prepare/)
+  blocked=false;res.emit('drain');assert.match(frames[1],/session.bound/);assert.match(frames[2],/canvas.prepare/)
   bridge.acceptClientEvent(registration.bridgeKey,origin,{type:'canvas.prepare.ack',protocolVersion:4,connectionId:registration.connectionId,sessionId:'session',canvasId:'2873',requestId:'prepare',status:'prepared',contextId:'ctx',state:{phase:'ready',capabilities:{read:true,edit:true,run:false},version:'18'}})
   const target=await preparing;res.writableLength=8*1024*1024
   const result=await bridge.dispatch(target,'add',{action:'node.add',expectedVersion:'18',node:{type:'text'}})
@@ -103,7 +106,8 @@ test('native application origin remains subject to authentication, exact origin 
         ...(actual === undefined ? {} : { origin: actual }), ...(key ? { 'x-canvas-bridge-key': key } : {}) },
       async *[Symbol.asyncIterator]() { yield JSON.stringify(key
         ? { type: 'session.sync', protocolVersion: 4, connectionId: registered.connectionId, revision: 1, sessionIds: ['session'] }
-        : { protocolVersion: 4, clientId: 'native-client', ownershipProtocol: 'web-locks-v1' }) }
+        : { protocolVersion: 4, clientId: 'native-client', ownershipProtocol: 'web-locks-v1',
+          sessionBindingProtocol: 'host-session-v1' }) }
     }, response)
     return response
   }

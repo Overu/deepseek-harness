@@ -6,6 +6,8 @@ import { parseCanvasId } from './protocol.ts'
 import { isCanvasReferenceItem, type CanvasReferenceItem } from './canvas-node-references.ts'
 export const BRIDGE_VERSION = 4 as const
 export const OWNERSHIP_PROTOCOL = 'web-locks-v1' as const
+export const SESSION_BINDING_PROTOCOL = 'host-session-v1' as const
+export const MAX_BOUND_SESSIONS = 64
 export const MAX_BRIDGE_RECORDS = 1024
 export const MAX_BRIDGE_INFLIGHT = 8
 export const MAX_BRIDGE_CACHE_BYTES = 32 * 1024 * 1024
@@ -20,6 +22,7 @@ export interface ClientRegistration { protocolVersion: 4
   clientId: string
   connectionId: string
   bridgeKey: string
+  sessionBindingProtocol: typeof SESSION_BINDING_PROTOCOL
   ownershipProtocol?: typeof OWNERSHIP_PROTOCOL }
 interface Connection { protocolVersion: 4
   connectionId: string }
@@ -28,6 +31,9 @@ interface Request extends Connection { sessionId: string
   requestId: string }
 export type ServiceHostEvent =
   | (Connection & { type: 'bridge.connected' })
+  | (Connection & { type: 'session.bound'
+    revision: number
+    sessionIds: string[] })
   | (Connection & { type: 'canvas.references.consumed'
     sessionId: string
     revision: number
@@ -106,7 +112,8 @@ export function parseBridgeOperation(value: unknown): BridgeOperation {
 }
 function assertClientRegistration(value: Record<string, unknown>): asserts value is Record<string, unknown> & ClientRegistration {
   exact(value, ['protocolVersion', 'clientId', 'connectionId',
-    'bridgeKey'], ['ownershipProtocol'])
+    'bridgeKey', 'sessionBindingProtocol'], ['ownershipProtocol'])
+  if (value.sessionBindingProtocol !== SESSION_BINDING_PROTOCOL) invalid()
   if ('ownershipProtocol' in value && value.ownershipProtocol !== OWNERSHIP_PROTOCOL) invalid()
   base(value); assertBridgeId(value.clientId)
   if (typeof value.bridgeKey !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(value.bridgeKey)) invalid()
@@ -119,8 +126,14 @@ export function parseClientRegistration(input: unknown): ClientRegistration {
 
 function assertServiceHostEvent(value: Record<string, unknown>): asserts value is Record<string, unknown> & ServiceHostEvent {
   base(value, value.type !== 'bridge.connected' &&
- value.type !== 'canvas.references.consumed')
+ value.type !== 'session.bound' && value.type !== 'canvas.references.consumed')
   if (value.type === 'bridge.connected') exact(value, connectionFields)
+  else if (value.type === 'session.bound') {
+    exact(value, [...connectionFields, 'revision', 'sessionIds'])
+    if (!Number.isSafeInteger(value.revision) || Number(value.revision) < 0 || !Array.isArray(value.sessionIds) ||
+ value.sessionIds.length > MAX_BOUND_SESSIONS || new Set(value.sessionIds).size !== value.sessionIds.length) invalid()
+    value.sessionIds.forEach(assertBridgeId)
+  }
   else if (value.type === 'canvas.references.consumed') {
     exact(value, [...connectionFields, 'sessionId', 'revision', 'messageId']); assertBridgeId(value.sessionId)
     assertBridgeId(value.messageId)
@@ -149,7 +162,7 @@ function assertServiceClientEvent(value: Record<string, unknown>): asserts value
   if (value.type === 'session.sync') {
     exact(value, [...connectionFields, 'revision', 'sessionIds'])
     if (!Number.isSafeInteger(value.revision) || Number(value.revision) < 0 || !Array.isArray(value.sessionIds) ||
- value.sessionIds.length > 64 || new Set(value.sessionIds).size !== value.sessionIds.length) invalid()
+ value.sessionIds.length > MAX_BOUND_SESSIONS || new Set(value.sessionIds).size !== value.sessionIds.length) invalid()
     value.sessionIds.forEach(assertBridgeId)
   } else if (value.type === 'canvas.references.sync') {
     exact(value, [...connectionFields, 'sessionId', 'revision', 'references']); assertBridgeId(value.sessionId)

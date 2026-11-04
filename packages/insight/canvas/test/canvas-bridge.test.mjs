@@ -71,7 +71,8 @@ test('two registered clients for one session are ambiguous and never broadcast; 
   f.bridge.connectStream(b.bridgeKey, origin, event => events.push(event))
   f.bridge.acceptClientEvent(b.bridgeKey, origin, { type: 'session.sync', protocolVersion: 4, connectionId: b.connectionId, revision: 1, sessionIds: ['session'] })
   await assert.rejects(f.bridge.ensureContext('session', '2873', 'edit', 'p'), { code: 'CLIENT_AMBIGUOUS' })
-  assert.equal(events.length, 1); assert.equal(f.events.length, 1)
+  assert.equal(events.filter(event => event.type === 'canvas.prepare').length, 0)
+  assert.equal(f.events.filter(event => event.type === 'canvas.prepare').length, 0)
   f.send({ type: 'session.sync', revision: 3, sessionIds: [] }); f.send({ type: 'session.sync', revision: 2, sessionIds: ['session'] })
   f.bridge.detachClient(b.bridgeKey, origin)
   await assert.rejects(f.bridge.ensureContext('session', '2873', 'edit', 'p2'), { code: 'CLIENT_UNAVAILABLE' })
@@ -81,7 +82,7 @@ test('a dispatched write becomes unknown on disconnect; reconnect never replays 
   const waiting = f.bridge.dispatch(target, 'add', add); f.stop()
   assert.equal((await waiting).status, 'submission_unknown')
   const reconnected = []; f.bridge.connectStream(f.client.bridgeKey, origin, event => reconnected.push(event))
-  assert.equal(reconnected.length, 1)
+  assert.deepEqual(reconnected.map(event => event.type), ['bridge.connected', 'session.bound'])
   f.settle(target)
   assert.equal((await f.bridge.dispatch(target, 'add', add)).status, 'saved')
   assert.equal(f.events.filter(e => e.type === 'canvas.command').length, 1)
@@ -115,6 +116,64 @@ test('a released session cannot route new work but its already dispatched write 
   const f=fixture();t.after(()=>f.bridge.dispose());const target=await f.prepare();const waiting=f.bridge.dispatch(target,'add',add)
   f.send({type:'session.sync',revision:2,sessionIds:[]});f.settle(target);assert.equal((await waiting).status,'saved')
   assert.equal((await f.bridge.dispatch(target,'new',add)).error.code,'CLIENT_UNAVAILABLE')
+})
+test('Host retains one released Session while its Agent is active, then publishes one idle release', async t => {
+  let active = true
+  const f = fixture({ isSessionActive: () => active }); t.after(() => f.bridge.dispose())
+  f.send({ type: 'session.sync', revision: 2, sessionIds: [] })
+  assert.doesNotThrow(() => f.send({ type: 'session.sync', revision: 2, sessionIds: [] }))
+  assert.equal((await f.prepare('after-switch')).sessionId, 'session')
+  active = false; f.bridge.reconsiderSession('session')
+  await assert.rejects(f.bridge.ensureContext('session', '2873', 'read', 'after-idle'), { code: 'CLIENT_UNAVAILABLE' })
+  assert.deepEqual(f.events.filter(event => event.type === 'session.bound').map(event => event.sessionIds),
+    [[], ['session'], []])
+})
+test('a settling Canvas Job keeps its original Client through a synchronous Agent wake', async t => {
+  let active = false
+  const f = fixture({ isSessionActive: () => active }); t.after(() => f.bridge.dispose())
+  f.bridge.setSessionJobActive('session', 'job', true)
+  f.send({ type: 'session.sync', revision: 2, sessionIds: [] })
+  assert.equal((await f.prepare('while-job-runs')).sessionId, 'session')
+  active = true
+  f.bridge.setSessionJobActive('session', 'job', false)
+  assert.equal((await f.prepare('woken-next-turn')).sessionId, 'session')
+  active = false; f.bridge.reconsiderSession('session')
+  await assert.rejects(f.bridge.ensureContext('session', '2873', 'read', 'after-woken-turn'), { code: 'CLIENT_UNAVAILABLE' })
+})
+test('retained Sessions never make a Host binding snapshot exceed its declared capacity', t => {
+  let active = true
+  const bridge = createCanvasHostBridge({ isSessionActive: () => active })
+  t.after(() => bridge.dispose())
+  const registration = bridge.attachClient(origin, 'capacity', 'web-locks-v1'), events = []
+  bridge.connectStream(registration.bridgeKey, origin, event => events.push(event))
+  const oldIds = Array.from({ length: 64 }, (_, index) => `old-${index}`)
+  const nextIds = Array.from({ length: 64 }, (_, index) => `next-${index}`)
+  bridge.acceptClientEvent(registration.bridgeKey, origin, { type: 'session.sync', protocolVersion: 4,
+    connectionId: registration.connectionId, revision: 1, sessionIds: oldIds })
+  assert.throws(() => bridge.acceptClientEvent(registration.bridgeKey, origin, { type: 'session.sync', protocolVersion: 4,
+    connectionId: registration.connectionId, revision: 2, sessionIds: nextIds }), { code: 'BRIDGE_OVERLOADED' })
+  assert.deepEqual(events.at(-1).sessionIds, oldIds)
+  active = false; bridge.reconsiderSession('old-0')
+  assert.deepEqual(events.at(-1).sessionIds, oldIds)
+  bridge.acceptClientEvent(registration.bridgeKey, origin, { type: 'session.sync', protocolVersion: 4,
+    connectionId: registration.connectionId, revision: 2, sessionIds: nextIds })
+  assert.deepEqual(events.at(-1).sessionIds, nextIds)
+})
+test('an active old owner never hands a Session to another window', async t => {
+  let active = true
+  const f = fixture({ isSessionActive: () => active }); t.after(() => f.bridge.dispose())
+  f.send({ type: 'session.sync', revision: 2, sessionIds: [] })
+  const second = f.bridge.attachClient(origin, 'second', 'web-locks-v1'), events = []
+  f.bridge.connectStream(second.bridgeKey, origin, event => events.push(event))
+  f.bridge.acceptClientEvent(second.bridgeKey, origin, { type: 'session.sync', protocolVersion: 4,
+    connectionId: second.connectionId, revision: 1, sessionIds: ['session'] })
+  await assert.rejects(f.bridge.ensureContext('session', '2873', 'read', 'during-transfer'), { code: 'CLIENT_AMBIGUOUS' })
+  active = false; f.bridge.reconsiderSession('session')
+  const waiting = f.bridge.ensureContext('session', '2873', 'read', 'after-transfer')
+  const { deadline, capability, refresh, ...command } = events.at(-1)
+  f.bridge.acceptClientEvent(second.bridgeKey, origin, { ...command, type: 'canvas.prepare.ack',
+    status: 'prepared', contextId: 'second-context', state })
+  assert.equal((await waiting).connectionId, second.connectionId)
 })
 test('completed prepare identity cannot be overwritten by a conflicting duplicate receipt', async t => {
   const f=fixture();t.after(()=>f.bridge.dispose());const target=await f.prepare()
@@ -187,6 +246,18 @@ test('run events arrive before submission ACK, survive UI session release and re
   assert.equal(f.events.filter(event => event.type === 'canvas.command').length, 1)
   assert.equal((await f.bridge.dispatch(target, 'another-run', runOperation)).error.code, 'CLIENT_UNAVAILABLE')
 })
+test('a rejected run releases its retained Session without waiting for a Canvas Job observer', async t => {
+  const f = fixture(); t.after(() => f.bridge.dispose()); const target = await prepareRun(f)
+  t.after(f.bridge.subscribeRun(target, 'rejected-run', () => {}))
+  const waiting = f.bridge.dispatch(target, 'rejected-run', runOperation)
+  f.send({ type: 'session.sync', revision: 2, sessionIds: [] })
+  const { readiness, ...route } = target
+  f.send({ ...route, type: 'canvas.command.ack', requestId: 'rejected-run', phase: 'settled', result: {
+    status: 'rejected', canvasId: '2873', version: '18', effect: 'none',
+    error: { code: 'RUN_REJECTED', message: 'not started', retry: 'read_first' } } })
+  assert.equal((await waiting).status, 'rejected')
+  await assert.rejects(f.bridge.ensureContext('session', '2873', 'read', 'after-rejection'), { code: 'CLIENT_UNAVAILABLE' })
+})
 test('workflow child states are bound to their nodes and release run capacity independently', async t => {
   const f = fixture(); t.after(() => f.bridge.dispose()); const target = await prepareRun(f)
   const operation = { action: 'workflow.run', expectedVersion: '18', nodeIds: ['first', 'second'],
@@ -239,7 +310,8 @@ test('run disconnect reports generation-specific unknown and accepts matching la
   const { readiness, ...route } = target
   f.send({ ...route, type: 'canvas.run.state', requestId: 'run', state: runState('completed', 2) })
   const seen = []; t.after(f.bridge.subscribeRun(target, 'run', event => seen.push(event)))
-  assert.equal(seen[0].phase, 'completed'); assert.equal(reconnected.length, 1)
+  assert.equal(seen[0].phase, 'completed'); assert.deepEqual(reconnected.map(event => event.type),
+    ['bridge.connected', 'session.bound'])
   assert.throws(() => f.send({ ...route, type: 'canvas.run.state', requestId: 'run', state: { ...runState(), nodeId: 'different' } }), { code: 'CONTEXT_GONE' })
 })
 

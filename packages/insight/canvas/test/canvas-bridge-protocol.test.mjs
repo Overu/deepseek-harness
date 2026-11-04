@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { parseServiceHostEvent, parseServiceClientEvent, bridgeFingerprint } from '../src/shared/canvas-bridge-protocol.ts'
+import { parseClientRegistration, parseServiceHostEvent, parseServiceClientEvent,
+  bridgeFingerprint } from '../src/shared/canvas-bridge-protocol.ts'
 const base = { protocolVersion: 4, connectionId: 'connection', sessionId: 'session', canvasId: '9007199254740993', requestId: 'call', deadline: Date.now() + 30000 }
 const command = { ...base, type: 'canvas.command', contextId: 'context', payload: { action: 'node.add', expectedVersion: '18', node: { type: 'text', changes: { text: 'hello' } } } }
 test('service protocol preserves IDs, rejects legacy frame fields and accepts explicit single-node generation', () => {
@@ -15,6 +16,22 @@ test('client receipts require matching canvas, strict fields and versioned sessi
   assert.throws(() => parseServiceClientEvent({ ...ack, result: { ...ack.result, canvasId: '2873' } }))
   assert.throws(() => parseServiceClientEvent({ type: 'session.sync', protocolVersion: 4, connectionId: 'connection', revision: 0, sessionIds: ['s', 's'] }))
   assert.throws(() => parseServiceClientEvent({ ...ack, result: { ...ack.result, token: 'forbidden' } }))
+})
+test('Host binding snapshots require one nonnegative revision and unique Session IDs', () => {
+  const snapshot = { type: 'session.bound', protocolVersion: 4, connectionId: 'connection', revision: 3,
+    sessionIds: ['first', 'second'] }
+  assert.deepEqual(parseServiceHostEvent(snapshot), snapshot)
+  for (const input of [{ ...snapshot, revision: -1 }, { ...snapshot, revision: 1.5 },
+    { ...snapshot, sessionIds: ['first', 'first'] }, { ...snapshot, sessionIds: [''] }]) {
+    assert.throws(() => parseServiceHostEvent(input), { code: 'INVALID_ARGUMENT' })
+  }
+})
+test('Client registration requires explicit Host Session binding support', () => {
+  const registration = { protocolVersion: 4, clientId: 'client', connectionId: 'connection',
+    bridgeKey: 'x'.repeat(43), sessionBindingProtocol: 'host-session-v1' }
+  assert.deepEqual(parseClientRegistration(registration), registration)
+  assert.throws(() => parseClientRegistration({ ...registration, sessionBindingProtocol: undefined }),
+    { code: 'INVALID_ARGUMENT' })
 })
 test('fingerprints normalize key order and parsers own their input snapshot', () => {
   assert.equal(bridgeFingerprint({ a: 1, b: { c: 2 } }), bridgeFingerprint({ b: { c: 2 }, a: 1 }))

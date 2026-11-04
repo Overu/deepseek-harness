@@ -1,6 +1,6 @@
 import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import { CanvasAgentError } from '../shared/canvas-agent-protocol.ts'
-import { OWNERSHIP_PROTOCOL } from '../shared/canvas-bridge-protocol.ts'
+import { MAX_BOUND_SESSIONS, OWNERSHIP_PROTOCOL, SESSION_BINDING_PROTOCOL } from '../shared/canvas-bridge-protocol.ts'
 import { bridgeFingerprint, assertBridgeId, messageBytes, MAX_BRIDGE_CACHE_BYTES, MAX_BRIDGE_RECORDS,
   parseClientRegistration, parseServiceHostEvent, parseServiceClientEvent, type ClientRegistration,
   type ServiceClientEvent } from '../shared/canvas-bridge-protocol.ts'
@@ -20,14 +20,14 @@ export function createCanvasClientBridge(options: { origin: string
   reconnectMs?: number
   openCanvas?: Parameters<typeof createCanvasCommandEndpoint>[0]['openCanvas'] }): CanvasClientBridge {
   const transport: typeof fetch = options.transport ?? ((input, init) => fetch(input, init))
-  const controller = new AbortController(), sessions = new Map<string, number>(), outbox = new Map<string,
-      ServiceClientEvent>(), clientId = randomUUID()
+  const controller = new AbortController(), sessions = new Map<string, number>(), boundSessions = new Set<string>(),
+    outbox = new Map<string, ServiceClientEvent>(), clientId = randomUUID()
   const pendingReferences = new Map<string, { references: CanvasReferenceItem[]
       revision: number }>(), consumedListeners = new Set<(sessionId: string) => void>()
   let registration: ClientRegistration | undefined, endpoint: CanvasCommandEndpoint | undefined
   let streamController: AbortController | undefined
   let reconnectFailures = 0
-  let revision = 0, started = false, disposed = false, connected = false, flushing = false, buffered = 0,
+  let revision = 0, boundRevision = -1, started = false, disposed = false, connected = false, flushing = false, buffered = 0,
     streamGeneration = 0, retryTimer: ReturnType<typeof setTimeout> | undefined,
     receiptRetryTimer: ReturnType<typeof setTimeout> | undefined, deliveryFailures = 0
   const url = (path: string) => new URL('/desktop-canvas/api/bridge/' + path, options.origin).href
@@ -37,7 +37,7 @@ export function createCanvasClientBridge(options: { origin: string
     credentials: 'same-origin', signal: init.signal ? AbortSignal.any([controller.signal, init.signal]) : controller.signal })
   function stop() { if (disposed) return; disposed = true; connected = false; clearTimeout(retryTimer)
     clearTimeout(receiptRetryTimer); controller.abort(); endpoint?.dispose(); sessions.clear(); outbox.clear()
-    pendingReferences.clear(); consumedListeners.clear(); buffered = 0 }
+    boundSessions.clear(); pendingReferences.clear(); consumedListeners.clear(); buffered = 0 }
   async function recoverConnection(response: Response, current: ClientRegistration) {
     let lostRegistration = false
     if (response.status === 403) {
@@ -51,6 +51,8 @@ export function createCanvasClientBridge(options: { origin: string
     if (lostRegistration) {
       // A new Host cannot accept old identities or receipts; never replay their commands.
       endpoint?.dispose(); endpoint = undefined; registration = undefined
+      boundSessions.clear(); boundRevision = -1
+      for (const [sessionId, refs] of sessions) if (refs === 0) sessions.delete(sessionId)
       outbox.clear(); buffered = 0
     }
   }
@@ -59,28 +61,32 @@ export function createCanvasClientBridge(options: { origin: string
     clearTimeout(receiptRetryTimer); receiptRetryTimer = undefined
     flushing = true
     const generation = streamGeneration
+    let deferRetry = false
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Concurrent transport work can change this state.
-      while (outbox.size && connected && !disposed) {
+      let sessionBlocked = false
+      for (const [key, event] of [...outbox]) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Concurrent transport work can change this state.
+        if (!connected || disposed) break
+        if (outbox.get(key) !== event || sessionBlocked && event.type === 'canvas.references.sync') continue
         const current: ClientRegistration = registration
-        const next = outbox.entries().next().value
-        if (!next) break
-        const [key, event] = next
         const response = await request('client-event', { method: 'POST', body: JSON.stringify(event) })
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Concurrent transport work can change this state.
         if (registration !== current || disposed) return
         if (response.status === 401 || response.status === 403) { deliveryFailures++; await recoverConnection(response, current); return }
-        if (!response.ok && response.status >= 500) { deliveryFailures++; return }
-        deliveryFailures = 0
+        if (response.status === 413 && event.type === 'session.sync') {
+          deliveryFailures++; deferRetry = true; sessionBlocked = true; continue
+        }
+        if (!response.ok && response.status >= 500) { deliveryFailures++; deferRetry = true; break }
+        if (!deferRetry) deliveryFailures = 0
         // Invalid/stale state receipts are not execution requests and must not loop.
         if (outbox.get(key) === event) { outbox.delete(key); buffered -= messageBytes(event) }
       }
-    } catch { deliveryFailures++ /* Native commands are never resent; only receipt delivery retries. */ }
+    } catch { deliveryFailures++; deferRetry = true /* Native commands are never resent; only receipt delivery retries. */ }
     finally {
       flushing = false
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Concurrent transport work can change this state.
       if (!disposed && connected && outbox.size) {
-        if (generation !== streamGeneration) void flush()
+        if (generation !== streamGeneration || !deferRetry) void flush()
         else receiptRetryTimer = setTimeout(() => { receiptRetryTimer = undefined; void flush() }, Math.min(5000,
           (options.reconnectMs ?? 500) * 2 ** Math.min(deliveryFailures, 6)))
       }
@@ -96,7 +102,23 @@ export function createCanvasClientBridge(options: { origin: string
     outbox.set(key, event); buffered += bytes - (old ? messageBytes(old) : 0); void flush()
   }
   function syncSessions() { if (registration) enqueue({ type: 'session.sync', protocolVersion: 4,
-    connectionId: registration.connectionId, revision, sessionIds: [...sessions.keys()] }) }
+    connectionId: registration.connectionId, revision,
+    sessionIds: [...sessions].filter(([, refs]) => refs > 0).map(([sessionId]) => sessionId) }) }
+  function acceptBoundSessions(nextRevision: number, sessionIds: string[]) {
+    const next = new Set(sessionIds)
+    if (nextRevision < boundRevision) return
+    if (nextRevision === boundRevision) {
+      if (next.size !== boundSessions.size || [...next].some(sessionId => !boundSessions.has(sessionId))) stop()
+      return
+    }
+    for (const sessionId of boundSessions) if (!next.has(sessionId)) {
+      endpoint?.releaseSession(sessionId)
+      if ((sessions.get(sessionId) ?? 0) === 0) sessions.delete(sessionId)
+    }
+    for (const sessionId of next) if (!sessions.has(sessionId)) sessions.set(sessionId, 0)
+    boundSessions.clear(); for (const sessionId of next) boundSessions.add(sessionId)
+    boundRevision = nextRevision
+  }
   function syncAllReferences() {
     if (!registration) return
     for (const [sessionId, snapshot] of pendingReferences) {
@@ -109,14 +131,14 @@ export function createCanvasClientBridge(options: { origin: string
       try {
         if (!registration) {
           const response = await request('attach', { method: 'POST', body: JSON.stringify({ protocolVersion: 4,
-            clientId, ownershipProtocol: OWNERSHIP_PROTOCOL }) })
+            clientId, ownershipProtocol: OWNERSHIP_PROTOCOL, sessionBindingProtocol: SESSION_BINDING_PROTOCOL }) })
           if (!response.ok) throw new Error('bridge registration unavailable')
           const attached = parseClientRegistration(await response.json())
           // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- Concurrent transport work can change this state.
           if (disposed) return
           registration = attached
           endpoint = createCanvasCommandEndpoint({ connectionId: registration.connectionId,
-            getRuntime: options.getRuntime, isSessionBound: sessionId => sessions.has(sessionId), send: enqueue,
+            getRuntime: options.getRuntime, isSessionBound: sessionId => boundSessions.has(sessionId), send: enqueue,
             openCanvas: options.openCanvas })
         }
         const current = registration, stream = new AbortController(); streamController = stream
@@ -133,6 +155,7 @@ export function createCanvasClientBridge(options: { origin: string
           if (event.connectionId !== current.connectionId) throw new CanvasAgentError('INVALID_ARGUMENT', '事件属于另一连接')
           if (event.type === 'bridge.connected') { reconnectFailures = 0; streamGeneration++; connected = true
             syncSessions(); syncAllReferences(); void flush() }
+          else if (event.type === 'session.bound') acceptBoundSessions(event.revision, event.sessionIds)
           else if (event.type === 'canvas.references.consumed') {
             if (pendingReferences.get(event.sessionId)?.revision !== event.revision) return
             for (const listener of consumedListeners) { try { listener(event.sessionId) } catch {} }
@@ -154,13 +177,17 @@ export function createCanvasClientBridge(options: { origin: string
     retainSession(sessionId) {
       assertBridgeId(sessionId)
       if (disposed) throw new CanvasAgentError('CLIENT_UNAVAILABLE', '画布通信桥已卸载')
-      if (!sessions.has(sessionId) && sessions.size >= 64) throw new CanvasAgentError('BRIDGE_OVERLOADED', '画布会话登记已达上限')
+      if (!sessions.has(sessionId) && sessions.size >= MAX_BOUND_SESSIONS) throw new CanvasAgentError('BRIDGE_OVERLOADED', '画布会话登记已达上限')
       sessions.set(sessionId, (sessions.get(sessionId) ?? 0) + 1); revision++; syncSessions(); syncAllReferences()
       if (!started) { started = true; void loop() }
       let released = false
       return () => { if (released || disposed) return; released = true; const refs = (sessions.get(sessionId) ?? 1) - 1
-        if (refs) sessions.set(sessionId, refs); else { sessions.delete(sessionId)
-          endpoint?.releaseSession(sessionId) } revision++; syncSessions() }
+        if (refs) { sessions.set(sessionId, refs); revision++; syncSessions() }
+        else {
+          if (boundSessions.has(sessionId)) sessions.set(sessionId, 0)
+          else sessions.delete(sessionId)
+          revision++; syncSessions()
+        } }
     },
     syncReferences(sessionId, references) {
       assertBridgeId(sessionId)

@@ -37,6 +37,35 @@ test('Client real SSE/POST binds session without canvas, executes once, and pres
   await assert.rejects(host.ensureContext('session','2873','edit','unbound'),{code:'CLIENT_UNAVAILABLE'})
 })
 
+test('real SSE/POST keeps canvas_get available after the UI switches away until the owning Agent is idle', async t => {
+  let active = true
+  const host = createCanvasHostBridge({ isSessionActive: () => active })
+  const server = createServer(bridgeHandler({ requestRejection: () => undefined }, host))
+  server.listen(0, '127.0.0.1'); await once(server, 'listening'); const origin = 'http://127.0.0.1:' + server.address().port
+  const ready = { phase: 'ready', capabilities: { read: true, edit: true, run: false }, version: '18' }
+  let desired = false, reads = 0, stopped = 0
+  const runtime = { ensureContext: async () => ({ canvasId: '2873', contextId: 'ctx', readiness: ready }),
+    getContextInfo: () => ({ contextId: 'ctx', readiness: ready }),
+    subscribeReadiness: (_id, listener) => { listener(ready); return () => { stopped++ } },
+    execute: async input => { assert.equal(input.operation.action, 'canvas.read'); reads++; return { status: 'read',
+      canvasId: '2873', version: '18', consistency: 'confirmed', nodeCount: 0, nodes: [], missingNodeIds: [] } } }
+  const transport = async (input, init) => { const response = await fetch(input, init)
+    if (String(input).endsWith('/client-event')) { const event = JSON.parse(init.body)
+      if (event.type === 'session.sync' && response.ok) desired = event.sessionIds.includes('session') }
+    return response }
+  const client = createCanvasClientBridge({ origin, getRuntime: async () => runtime, transport, reconnectMs: 10 })
+  t.after(() => { client.dispose(); host.dispose(); server.closeAllConnections(); server.close() })
+  const unbind = client.retainSession('session'); await waitUntil(() => desired)
+  await host.ensureContext('session', '2873', 'read', 'initial')
+  unbind(); await waitUntil(() => !desired)
+  const target = await host.ensureContext('session', '2873', 'read', 'next-step')
+  assert.equal((await host.dispatch(target, 'canvas-get', { action: 'canvas.read' })).status, 'read')
+  assert.equal(reads, 1); assert.equal(stopped, 1)
+  active = false; host.reconsiderSession('session')
+  await assert.rejects(host.ensureContext('session', '2873', 'read', 'after-idle'), { code: 'CLIENT_UNAVAILABLE' })
+  await waitUntil(() => stopped === 2)
+})
+
 test('oversized comment-only SSE events are bounded and malformed UTF8 never reaches a command handler', async () => {
   for(const bytes of [new TextEncoder().encode(':'+'x'.repeat(2*1024*1024+200)+'\n\n'),Uint8Array.of(0xff,0xfe)]) {
     let calls=0
@@ -45,7 +74,111 @@ test('oversized comment-only SSE events are bounded and malformed UTF8 never rea
   }
 })
 
-test('real SSE/POST sends run once, retains task push after conversation switch, separates ACK outbox', async t => {
+test('release before the first binding snapshot and stale later snapshots cannot revoke a reacquired Session', async t => {
+  const connectionId = 'connection', posted = []
+  let stream, calls = 0, stopped = 0, overloaded = false
+  const ready = { phase: 'ready', capabilities: { read: true, edit: true, run: false }, version: '18' }
+  const runtime = { ensureContext: async () => { calls++; return { canvasId: '2873', contextId: 'ctx', readiness: ready } },
+    getContextInfo: () => ({ contextId: 'ctx', readiness: ready }),
+    subscribeReadiness: (_id, listener) => { listener(ready); return () => { stopped++ } },
+    execute: async () => { throw new Error('unexpected execution') } }
+  const transport = async (input, init) => {
+    const path = new URL(String(input)).pathname
+    if (path.endsWith('/attach')) return Response.json({ protocolVersion: 4, clientId: 'client', connectionId,
+      bridgeKey: 'a'.repeat(43), ownershipProtocol: 'web-locks-v1', sessionBindingProtocol: 'host-session-v1' })
+    if (path.endsWith('/events')) return new Response(new ReadableStream({ start(controller) {
+      stream = controller
+      init.signal.addEventListener('abort', () => controller.error(init.signal.reason), { once: true })
+    } }), { headers: { 'content-type': 'text/event-stream' } })
+    if (path.endsWith('/client-event')) { const event = JSON.parse(init.body); posted.push(event)
+      if (event.type === 'session.sync' && event.revision === 3 && !overloaded) {
+        overloaded = true; return Response.json({ code: 'BRIDGE_OVERLOADED' }, { status: 413 })
+      } }
+    return Response.json({ ok: true })
+  }
+  const client = createCanvasClientBridge({ origin: 'https://shell.test', getRuntime: async () => runtime,
+    transport, reconnectMs: 5 })
+  t.after(() => client.dispose())
+  const firstRelease = client.retainSession('session')
+  await waitUntil(() => stream !== undefined)
+  firstRelease()
+  const secondRelease = client.retainSession('session')
+  const emit = event => stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`))
+  emit({ type: 'bridge.connected', protocolVersion: 4, connectionId })
+  await waitUntil(() => posted.filter(event => event.type === 'session.sync' && event.revision === 3 &&
+    event.sessionIds[0] === 'session').length === 2)
+  emit({ type: 'session.bound', protocolVersion: 4, connectionId, revision: 1, sessionIds: ['session'] })
+  emit({ type: 'session.bound', protocolVersion: 4, connectionId, revision: 0, sessionIds: [] })
+  emit({ type: 'canvas.prepare', protocolVersion: 4, connectionId, sessionId: 'session', canvasId: '2873',
+    requestId: 'reacquired', deadline: Date.now() + 10_000, capability: 'read' })
+  await waitUntil(() => calls === 1 && posted.some(event => event.type === 'canvas.prepare.ack' &&
+    event.requestId === 'reacquired' && event.status === 'prepared'))
+  secondRelease()
+  emit({ type: 'session.bound', protocolVersion: 4, connectionId, revision: 2, sessionIds: [] })
+  emit({ type: 'session.bound', protocolVersion: 4, connectionId, revision: 1, sessionIds: ['session'] })
+  await waitUntil(() => stopped === 1)
+  emit({ type: 'canvas.prepare', protocolVersion: 4, connectionId, sessionId: 'session', canvasId: '2873',
+    requestId: 'released', deadline: Date.now() + 10_000, capability: 'read' })
+  await waitUntil(() => posted.some(event => event.type === 'canvas.prepare.ack' && event.requestId === 'released'))
+  assert.equal(calls, 1)
+  assert.equal(posted.find(event => event.type === 'canvas.prepare.ack' && event.requestId === 'released').status, 'rejected')
+})
+
+test('a terminal run receipt bypasses an overloaded Session sync and lets that revision retry', async t => {
+  const connectionId = 'connection', posted = []
+  const ready = { phase: 'ready', capabilities: { read: true, edit: true, run: true }, version: '18' }
+  let stream, runListener, terminalDelivered = false, blockedSyncs = 0, successfulSyncs = 0
+  const runtime = { ensureContext: async () => ({ canvasId: '2873', contextId: 'ctx', readiness: ready }),
+    getContextInfo: () => ({ contextId: 'ctx', readiness: ready }),
+    subscribeReadiness: (_id, listener) => { listener(ready); return () => {} },
+    subscribeRun: (_input, listener) => { runListener = listener; return () => {} },
+    execute: async () => ({ status: 'submitted', canvasId: '2873', version: '19', nodeId: 'image',
+      taskId: 'workflow', generation: { images: 1, videos: 0 } }) }
+  const transport = async (input, init) => {
+    const path = new URL(String(input)).pathname
+    if (path.endsWith('/attach')) return Response.json({ protocolVersion: 4, clientId: 'client', connectionId,
+      bridgeKey: 'a'.repeat(43), ownershipProtocol: 'web-locks-v1', sessionBindingProtocol: 'host-session-v1' })
+    if (path.endsWith('/events')) return new Response(new ReadableStream({ start(controller) {
+      stream = controller
+      init.signal.addEventListener('abort', () => controller.error(init.signal.reason), { once: true })
+    } }), { headers: { 'content-type': 'text/event-stream' } })
+    if (path.endsWith('/client-event')) { const event = JSON.parse(init.body); posted.push(event)
+      if (event.type === 'session.sync' && event.revision === 3) {
+        if (!terminalDelivered) { blockedSyncs++; return Response.json({ code: 'BRIDGE_OVERLOADED' }, { status: 413 }) }
+        successfulSyncs++
+      }
+      if (event.type === 'canvas.run.state') terminalDelivered = true
+    }
+    return Response.json({ ok: true })
+  }
+  const client = createCanvasClientBridge({ origin: 'https://shell.test', getRuntime: async () => runtime,
+    transport, reconnectMs: 5 })
+  t.after(() => client.dispose())
+  const release = client.retainSession('old')
+  await waitUntil(() => stream !== undefined)
+  const emit = event => stream.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`))
+  emit({ type: 'bridge.connected', protocolVersion: 4, connectionId })
+  await waitUntil(() => posted.some(event => event.type === 'session.sync' && event.revision === 1))
+  emit({ type: 'session.bound', protocolVersion: 4, connectionId, revision: 1, sessionIds: ['old'] })
+  emit({ type: 'canvas.prepare', protocolVersion: 4, connectionId, sessionId: 'old', canvasId: '2873',
+    requestId: 'prepare', deadline: Date.now() + 10_000, capability: 'run' })
+  await waitUntil(() => posted.some(event => event.type === 'canvas.prepare.ack' && event.status === 'prepared'))
+  emit({ type: 'canvas.command', protocolVersion: 4, connectionId, sessionId: 'old', canvasId: '2873',
+    contextId: 'ctx', requestId: 'run', deadline: Date.now() + 10_000,
+    payload: { action: 'node.run', expectedVersion: '18', nodeId: 'image',
+      approvedGeneration: { images: 1, videos: 0 } } })
+  await waitUntil(() => runListener !== undefined && posted.some(event => event.type === 'canvas.command.ack' &&
+    event.requestId === 'run' && event.phase === 'settled'))
+  release(); client.retainSession('new')
+  await waitUntil(() => blockedSyncs === 1)
+  runListener({ requestId: 'run', canvasId: '2873', nodeId: 'image', sequence: 1, phase: 'completed', version: '20',
+    workflowTaskId: 'workflow', nodeTaskId: 'node-task', generation: { images: 1, videos: 0 },
+    outputs: ['https://assets.example/new.png'] })
+  await waitUntil(() => terminalDelivered && successfulSyncs === 1)
+  assert.equal(blockedSyncs, 2)
+})
+
+test('real SSE/POST keeps a switched-away pending run available, then releases it after its terminal receipt', async t => {
   const host = createCanvasHostBridge(); const server = createServer(bridgeHandler({ requestRejection: () => undefined }, host))
   server.listen(0, '127.0.0.1'); await once(server, 'listening'); const origin = 'http://127.0.0.1:' + server.address().port
   const ready = { phase: 'ready', capabilities: { read: true, edit: true, run: true }, version: '18' }
@@ -58,10 +191,13 @@ test('real SSE/POST sends run once, retains task push after conversation switch,
   const target = await host.ensureContext('session', '2873', 'run', 'prepare-run'); const updates = []
   t.after(host.subscribeRun(target, 'run', value => updates.push(value)))
   const waiting = host.dispatch(target, 'run', { action: 'node.run', expectedVersion: '18', nodeId: 'image', approvedGeneration: { images: 1, videos: 0 } })
-  await waitUntil(() => calls === 1); unbind(); await waitUntil(() => !bound)
+  await waitUntil(() => calls === 1); unbind(); await waitUntil(() => bound)
+  await host.ensureContext('session', '2873', 'read', 'read-after-switch')
   listener({ requestId: 'run', canvasId: '2873', nodeId: 'image', sequence: 2, phase: 'completed', version: '20', workflowTaskId: 'workflow', nodeTaskId: 'different-node-task', generation: { images: 1, videos: 0 }, outputs: ['https://assets.example/new.png'] })
   releaseRun({ status: 'submitted', canvasId: '2873', version: '19', nodeId: 'image', taskId: 'workflow', generation: { images: 1, videos: 0 } })
   assert.equal((await waiting).status, 'submitted'); await waitUntil(() => updates.length === 1)
+  await waitUntil(() => !bound)
+  await assert.rejects(host.ensureContext('session', '2873', 'read', 'released'), { code: 'CLIENT_UNAVAILABLE' })
   assert.equal(updates[0].phase, 'completed'); assert.equal(updates[0].outputs[0], 'https://assets.example/new.png'); assert.equal(calls, 1)
 })
 

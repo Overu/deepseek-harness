@@ -94,12 +94,14 @@ test('real Client binds the on-screen session without input or canvas mounts, an
   const effects = new Map(), entries = [], posts = [], mounted = mountedSession()
   let opened = 0, attaches = 0
   const host = { location: { origin: 'http://127.0.0.1:3000' } }
-  const registration = { protocolVersion: 4, clientId: 'client', connectionId: 'connection', bridgeKey: 'k'.repeat(43) }
+  const registration = { protocolVersion: 4, clientId: 'client', connectionId: 'connection',
+    bridgeKey: 'k'.repeat(43), sessionBindingProtocol: 'host-session-v1' }
   const transport = async (input, init) => {
     if (input.endsWith('/attach')) { attaches++; return { ok: true, json: async () => sandbox.structuredClone(registration) } }
     if (input.endsWith('/events')) return new Response(new ReadableStream({ start(controller) {
       init.signal.addEventListener('abort', () => controller.error(new Error('disposed')), { once: true })
-      controller.enqueue(new TextEncoder().encode('data: ' + JSON.stringify({ ...registration, type: 'bridge.connected', clientId: undefined, bridgeKey: undefined }) + '\n\n'))
+      controller.enqueue(new TextEncoder().encode('data: ' + JSON.stringify({ protocolVersion: 4,
+        connectionId: registration.connectionId, type: 'bridge.connected' }) + '\n\n'))
     } }), { headers: { 'content-type': 'text/event-stream' } })
     if (input.endsWith('/client-event')) posts.push(JSON.parse(init.body))
     return Response.json({})
