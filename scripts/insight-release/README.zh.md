@@ -46,8 +46,6 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 `.github/workflows/insight-publish.yml` 是独立的手动工作流。它校验固定仓库 id、`insight` ref、当前提交、工作流身份、请求版本和请求源码提交。`scripts/insight-release/runtime/` 下的隔离运行时只安装发布器依赖，并将已审查的发布器源码和随包公钥复制到临时 loader 根目录。loader 使用显式隔离的 TypeScript 配置，防止仓库源码别名绕过轻量运行时依赖。
 
-仅发布 Windows 预发布版时，将可选 `package_run_id` 设为成功的 Windows 单目标打包 run，并通过 `source_commit` 传入该 run 的精确应用提交。工作流下载该 run 的 Windows 制品，校验可信 run 和打包 manifest，再创建公开预发布版，随后运行既有 Candidate 发布器。来源记录保留原打包 run 和应用提交。汇总步骤仅使用 Release 写权限；发布 job 保持只读仓库权限，并拥有签名密钥和 OSS 凭据。汇总失败会阻止发布。省略 `package_run_id` 时，沿用原有路径发布既有 Release。
-
 只有最终发布步骤接收 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。OSS 客户端只接受已批准的 GitHub 工作流 OIDC 身份，并向既有 Insight 后端申请短期 STS 凭据，不使用长期 OSS access key。OIDC 或 STS 请求发送与 Shell 一致的 JSON Accept header，失败时报告 HTTP 状态与限定长度的机器码，不记录 token 或响应正文。
 
 发布工作流的 target 输入决定渠道：平台目标发布 Candidate；`stable` 为全部三个目标发布 Stable。Candidate 接受 final 或 prerelease 版本。Stable 要求 final 版本，且三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。

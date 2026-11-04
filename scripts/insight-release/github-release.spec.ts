@@ -13,21 +13,19 @@ const repository = 'Overu/deepseek-harness'
 const upload = `https://uploads.github.com/repos/${repository}/releases/1/assets{?name,label}`
 const assetUrl = (id: number) => `https://api.github.com/repos/${repository}/releases/assets/${String(id)}`
 
-async function fixture(target: 'darwin-arm64' | 'win32-x64' = 'darwin-arm64', version = '1.0.10-rc.1') {
+async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), 'insight-release-'))
   onTestFinished(() => rm(directory, { recursive: true, force: true }))
-  const assetFilename = target === 'win32-x64' ? 'a.exe' : 'a.zip'
-  const manifestFilename = `insight-build-${target}.json`
-  await writeFile(join(directory, assetFilename), 'a')
-  const manifest = await createInsightDesktopBuildManifest({ artifactDirectory: directory, manifestFilename, version, runtimeVersion: '1.0.9', sourceCommit, target, qualification: 'distribution', assetFilenames: [assetFilename] })
-  await writeInsightDesktopBuildManifest(directory, manifestFilename, manifest)
-  return { directory, asset: Buffer.from('a'), assetFilename, manifestFilename, manifest: await readFile(join(directory, manifestFilename)) }
+  await writeFile(join(directory, 'a.zip'), 'a')
+  const manifest = await createInsightDesktopBuildManifest({ artifactDirectory: directory, manifestFilename: 'insight-build-darwin-arm64.json', version: '1.0.10-rc.1', runtimeVersion: '1.0.9', sourceCommit, target: 'darwin-arm64', qualification: 'distribution', assetFilenames: ['a.zip'] })
+  await writeInsightDesktopBuildManifest(directory, 'insight-build-darwin-arm64.json', manifest)
+  return { directory, asset: Buffer.from('a'), manifest: await readFile(join(directory, 'insight-build-darwin-arm64.json')) }
 }
 
 interface ReleaseAssetFixture { readonly id: number; readonly name: string; readonly size: number; readonly url: string; readonly state?: 'uploaded' | 'starter' }
 
-function release(assets: readonly ReleaseAssetFixture[] = [], target = sourceCommit, draft = true, prerelease = true) {
-  return { id: 1, draft, prerelease, target_commitish: target, upload_url: upload, assets: assets.map(asset => ({ ...asset, state: asset.state ?? 'uploaded' })) }
+function release(assets: readonly ReleaseAssetFixture[] = [], target = sourceCommit, draft = true) {
+  return { id: 1, draft, target_commitish: target, upload_url: upload, assets: assets.map(asset => ({ ...asset, state: asset.state ?? 'uploaded' })) }
 }
 
 function requestUrl(value: RequestInfo | URL): string {
@@ -46,8 +44,6 @@ it('pins a newly created release and streams each upload body', async () => {
     if (value.endsWith('/releases')) {
       if (typeof init?.body !== 'string') throw new Error('Release creation body is not JSON.')
       createdDraft = init.body.includes('"draft":true')
-      expect(init.body).toContain('"prerelease":true')
-      expect(init.body).toContain('"make_latest":"false"')
       return Response.json(release())
     }
     if (value.endsWith('/releases/1')) return Response.json(release(finalAssets, sourceCommit, init?.method === 'PATCH' ? false : true))
@@ -169,16 +165,6 @@ it('rejects a release tag that points at another commit', async () => {
   await expect(finalizeInsightGitHubRelease({ repository, token: 'x', tag: 'insight-v1.0.10-rc.1', version: '1.0.10-rc.1', sourceCommit, releaseDirectories: [data.directory], targets: ['darwin-arm64'], qualification: 'distribution', draft: false, fetch: async () => Response.json(release([], 'f'.repeat(40))) })).rejects.toThrow('different source commit')
 })
 
-it('rejects an existing RC tag that is not a prerelease before uploading attachments', async () => {
-  const data = await fixture()
-  let requests = 0
-  await expect(finalizeInsightGitHubRelease({ repository, token: 'x', tag: 'insight-v1.0.10-rc.1', version: '1.0.10-rc.1', sourceCommit, releaseDirectories: [data.directory], targets: ['darwin-arm64'], qualification: 'distribution', draft: false, fetch: async () => {
-    requests += 1
-    return Response.json(release([], sourceCommit, true, false))
-  } })).rejects.toThrow('not marked as a prerelease')
-  expect(requests).toBe(1)
-})
-
 it('rejects a foreign upload endpoint before posting installer bytes', async () => {
   const data = await fixture()
   let requests = 0
@@ -261,84 +247,4 @@ it('rejects a final release whose uploaded attachment reads back with different 
       void init
       throw new Error(`Unexpected request: ${value}`)
     } })).rejects.toThrow('attachment differs')
-})
-
-it('finalizes a verified Windows package run using that run in the build record', async () => {
-  const data = await fixture('win32-x64', '1.0.12-rc.3')
-  const remoteAssets: ReleaseAssetFixture[] = []
-  const remoteBytes = new Map<string, Uint8Array>()
-  let published = false
-  const request = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-    const value = requestUrl(url)
-    if (value.endsWith('/actions/runs/41')) return Response.json({ id: 41, event: 'workflow_dispatch', head_branch: 'insight', head_sha: sourceCommit, status: 'completed', conclusion: 'success', path: '.github/workflows/insight-package.yml@refs/heads/insight', repository: { id: 1429559776, full_name: repository } })
-    if (value.includes('/actions/runs/41/jobs?')) return Response.json({ total_count: 5, jobs: [{ name: 'aggregate-checks', conclusion: 'success' }, { name: 'windows', conclusion: 'success' }, { name: 'arm64', conclusion: 'skipped' }, { name: 'x64', conclusion: 'skipped' }, { name: 'validate-input', conclusion: 'success' }] })
-    if (value.includes('/releases/tags/')) return new Response('', { status: 404 })
-    if (value.endsWith('/releases') && init?.method === 'POST') return Response.json(release())
-    if (value.startsWith('https://uploads.github.com/')) {
-      if (!(init?.body instanceof ReadableStream)) throw new Error('release upload was not streamed')
-      const name = new URL(value).searchParams.get('name')
-      if (name === null) throw new Error('release upload has no name')
-      const bytes = new Uint8Array(await new Response(init.body).arrayBuffer())
-      const id = remoteAssets.length + 1
-      remoteAssets.push({ id, name, size: bytes.byteLength, url: assetUrl(id) })
-      remoteBytes.set(name, bytes)
-      return Response.json({})
-    }
-    if (value.endsWith('/releases/1')) {
-      if (init?.method === 'PATCH') {
-        expect(init.body).toBe(JSON.stringify({ draft: false, prerelease: true, make_latest: 'false' }))
-        published = true
-        return Response.json(release(remoteAssets, sourceCommit, false))
-      }
-      return Response.json(release(remoteAssets, sourceCommit, !published))
-    }
-    const asset = remoteAssets.find(candidate => candidate.url === value)
-    if (asset !== undefined) {
-      const bytes = remoteBytes.get(asset.name)
-      if (bytes === undefined) throw new Error('release fixture is missing asset bytes')
-      return new Response(Buffer.from(bytes))
-    }
-    throw new Error(`Unexpected request: ${value}`)
-  })
-  await runGitHubRelease({ INSIGHT_RELEASE_MODE: 'finalize-package-run', GITHUB_REPOSITORY: repository, GITHUB_TOKEN: 'x', GITHUB_RUN_ID: '999', GITHUB_SHA: 'f'.repeat(40), INSIGHT_PACKAGE_RUN_ID: '41', INSIGHT_SOURCE_COMMIT: sourceCommit, INSIGHT_DESKTOP_VERSION: '1.0.12-rc.3', INSIGHT_RELEASE_TARGETS: 'win32-x64', INSIGHT_RELEASE_DIRECTORIES: data.directory }, (url, init) => request(url, init))
-  expect(published).toBe(true)
-  expect(JSON.parse(await readFile(join(data.directory, 'insight-build-run.json'), 'utf8'))).toMatchObject({ workflowRunId: 41, headSha: sourceCommit, version: '1.0.12-rc.3', qualification: 'distribution', targets: [{ target: 'win32-x64' }] })
-})
-
-type PackageJobChange = Partial<Record<'aggregate-checks' | 'windows' | 'arm64', string>>
-const packageRunRejectionCases: readonly [string, Record<string, unknown>, PackageJobChange | undefined][] = [
-  ['a non-successful package run', { conclusion: 'failure' }, undefined],
-  ['a package run for another source', { head_sha: 'f'.repeat(40) }, undefined],
-  ['a foreign repository id', { repository: { id: 1, full_name: repository } }, undefined],
-  ['a foreign repository name', { repository: { id: 1429559776, full_name: 'other/repository' } }, undefined],
-  ['another workflow', { path: '.github/workflows/other.yml@refs/heads/insight' }, undefined],
-  ['another event', { event: 'push' }, undefined],
-  ['another branch', { head_branch: 'main' }, undefined],
-  ['a failed aggregate job', {}, { 'aggregate-checks': 'failure' }],
-  ['a failed Windows job', {}, { windows: 'failure' }],
-  ['a non-skipped macOS job', {}, { arm64: 'success' }],
-]
-it.each(packageRunRejectionCases)('rejects %s before writing a Release', async (_name, runChange, jobChange) => {
-  const data = await fixture('win32-x64', '1.0.12-rc.3')
-  const request = vi.fn(async (url: RequestInfo | URL, _init?: RequestInit) => {
-    const value = requestUrl(url)
-    if (value.endsWith('/actions/runs/41')) return Response.json({ id: 41, event: 'workflow_dispatch', head_branch: 'insight', head_sha: sourceCommit, status: 'completed', conclusion: 'success', path: '.github/workflows/insight-package.yml@refs/heads/insight', repository: { id: 1429559776, full_name: repository }, ...runChange })
-    if (value.includes('/actions/runs/41/jobs?')) return Response.json({ total_count: 5, jobs: [{ name: 'aggregate-checks', conclusion: jobChange?.['aggregate-checks'] ?? 'success' }, { name: 'windows', conclusion: jobChange?.windows ?? 'success' }, { name: 'arm64', conclusion: jobChange?.arm64 ?? 'skipped' }, { name: 'x64', conclusion: 'skipped' }, { name: 'validate-input', conclusion: 'success' }] })
-    throw new Error(`Release write or unexpected request: ${value}`)
-  })
-  await expect(runGitHubRelease({ INSIGHT_RELEASE_MODE: 'finalize-package-run', GITHUB_REPOSITORY: repository, GITHUB_TOKEN: 'x', INSIGHT_PACKAGE_RUN_ID: '41', INSIGHT_SOURCE_COMMIT: sourceCommit, INSIGHT_DESKTOP_VERSION: '1.0.12-rc.3', INSIGHT_RELEASE_TARGETS: 'win32-x64', INSIGHT_RELEASE_DIRECTORIES: data.directory }, (url, init) => request(url, init))).rejects.toThrow('package workflow')
-  expect(request).toHaveBeenCalledTimes(jobChange === undefined ? 1 : 2)
-})
-
-const invalidPackageFinalizationCases: readonly [string, string, string][] = [
-  ['win32-x64,darwin-arm64', '1.0.12-rc.3', 'inputs are invalid'],
-  ['win32-x64', '1.0.12', 'version must be a canonical'],
-]
-it.each(invalidPackageFinalizationCases)('rejects an invalid package target or final version before writing a Release', async (releaseTargets, version, message) => {
-  let requests = 0
-  await expect(runGitHubRelease({ INSIGHT_RELEASE_MODE: 'finalize-package-run', GITHUB_REPOSITORY: repository, GITHUB_TOKEN: 'x', INSIGHT_PACKAGE_RUN_ID: '41', INSIGHT_SOURCE_COMMIT: sourceCommit, INSIGHT_DESKTOP_VERSION: version, INSIGHT_RELEASE_TARGETS: releaseTargets, INSIGHT_RELEASE_DIRECTORIES: 'release/win32-x64' }, async () => {
-    requests += 1
-    return new Response()
-  })).rejects.toThrow(message)
-  expect(requests).toBe(0)
 })

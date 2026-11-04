@@ -16,11 +16,6 @@ on:
         required: true
         type: choice
         options: [darwin-arm64, darwin-x64, win32-x64, stable]
-      package_run_id:
-        description: Optional successful Windows-only package run to finalize before Candidate publication
-        required: false
-        type: string
-        default: ''
 
 permissions:
   contents: read
@@ -32,58 +27,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  finalize-release:
-    if: github.ref == 'refs/heads/insight' && inputs.package_run_id != ''
-    runs-on: ubuntu-latest
-    environment: desktop-release
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-          clean: true
-      - name: Confirm the trusted Release helper source
-        run: |
-          test "$GITHUB_REPOSITORY" = Overu/deepseek-harness
-          test "$GITHUB_REPOSITORY_ID" = 1429559776
-          test "$GITHUB_REF" = refs/heads/insight
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-      - uses: actions/setup-node@v7.0.0
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: scripts/insight-release/runtime/package-lock.json
-      - name: Install isolated release runtime
-        run: npm ci --prefix scripts/insight-release/runtime --ignore-scripts --no-audit --no-fund
-      - name: Prepare immutable Release helper
-        id: runtime
-        run: node scripts/insight-release/runtime/prepare-github-release-runtime.mjs
-      - name: Download the original Windows package
-        uses: actions/download-artifact@v8.0.1
-        with:
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ inputs.package_run_id }}
-          name: insight-package-win32-x64-${{ inputs.version }}
-          path: release/win32-x64
-      - name: Verify the package run and finalize its Windows prerelease
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          INSIGHT_RELEASE_MODE: finalize-package-run
-          INSIGHT_PACKAGE_RUN_ID: ${{ inputs.package_run_id }}
-          INSIGHT_SOURCE_COMMIT: ${{ inputs.source_commit }}
-          INSIGHT_DESKTOP_VERSION: ${{ inputs.version }}
-          INSIGHT_RELEASE_TARGETS: ${{ inputs.target }}
-          INSIGHT_RELEASE_DIRECTORIES: release/win32-x64
-        run: node --import "${{ steps.runtime.outputs.loader }}" "${{ steps.runtime.outputs.entry }}"
-
   publish:
-    needs: finalize-release
-    if: always() && !cancelled() && github.ref == 'refs/heads/insight' && (needs.finalize-release.result == 'success' || needs.finalize-release.result == 'skipped')
+    if: github.ref == 'refs/heads/insight'
     runs-on: ubuntu-latest
     environment: desktop-release
     timeout-minutes: 90

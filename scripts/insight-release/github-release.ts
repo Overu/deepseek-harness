@@ -4,17 +4,15 @@ import { createReadStream } from 'node:fs'
 import { lstat, readdir, readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { parse, valid } from 'semver'
 import { verifyInsightDesktopBuildManifest, type InsightDesktopBuildTarget } from './artifacts.ts'
 
 export interface InsightBuildRunRecord { schema: 'insight-build-run/v1'; repositoryId: 1429559776; workflowPath: '.github/workflows/insight-package.yml'; workflowRunId: number; headSha: string; version: string; qualification: 'distribution' | 'debug-signed'; targets: readonly { target: InsightDesktopBuildTarget; artifactName: string; manifestFilename: string; manifestSha512: string }[] }
 export interface FinalizeInsightGitHubReleaseInput { repository: string; token: string; tag: string; version: string; sourceCommit: string; releaseDirectories: readonly string[]; targets: readonly InsightDesktopBuildTarget[]; qualification: 'distribution' | 'debug-signed'; draft: boolean; fetch?: typeof globalThis.fetch }
 type Asset = { id: number; name: string; size: number; state: 'uploaded' | 'starter'; url: string }
-type Release = { id: number; draft: boolean; prerelease: boolean; target_commitish: string; upload_url: string; assets: Asset[] }
+type Release = { id: number; draft: boolean; target_commitish: string; upload_url: string; assets: Asset[] }
 const commit = /^[0-9a-f]{40}$/u
 const targets = new Set<InsightDesktopBuildTarget>(['darwin-arm64', 'darwin-x64', 'win32-x64'])
 const MAX_METADATA_BYTES = 4 * 1024 * 1024
-const INSIGHT_REPOSITORY = 'Overu/deepseek-harness'
 const hash = (bytes: Uint8Array) => createHash('sha512').update(bytes).digest('base64')
 function header(token: string, extra: HeadersInit = {}): Headers {
   const result = new Headers(extra)
@@ -93,8 +91,8 @@ export async function finalizeInsightGitHubRelease(input: FinalizeInsightGitHubR
   if (!commit.test(input.sourceCommit)) throw new Error('Insight GitHub Release source commit is invalid')
   const fetch = input.fetch ?? globalThis.fetch; const payloads = await files(input)
   let response = await fetch(api(input.repository, `/releases/tags/${encodeURIComponent(input.tag)}`), { headers: header(input.token), signal: AbortSignal.timeout(60_000), redirect: 'error' }); let release: Release
-  if (response.status === 404) { response = await fetch(api(input.repository, '/releases'), { method: 'POST', headers: header(input.token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ tag_name: input.tag, target_commitish: input.sourceCommit, name: input.tag, draft: true, prerelease: input.version.includes('-'), ...(input.version.includes('-') ? { make_latest: 'false' } : {}), generate_release_notes: false }), signal: AbortSignal.timeout(60_000), redirect: 'error' }); if (!response.ok) throw new Error('Insight GitHub Release creation failed'); release = releaseRecord(await jsonResponse(response)) } else { if (!response.ok) throw new Error('Insight GitHub Release lookup failed'); release = releaseRecord(await jsonResponse(response)) }
-  checkReleaseIdentity(input, release)
+  if (response.status === 404) { response = await fetch(api(input.repository, '/releases'), { method: 'POST', headers: header(input.token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ tag_name: input.tag, target_commitish: input.sourceCommit, name: input.tag, draft: true, prerelease: input.version.includes('-'), generate_release_notes: false }), signal: AbortSignal.timeout(60_000), redirect: 'error' }); if (!response.ok) throw new Error('Insight GitHub Release creation failed'); release = releaseRecord(await jsonResponse(response)) } else { if (!response.ok) throw new Error('Insight GitHub Release lookup failed'); release = releaseRecord(await jsonResponse(response)) }
+  if (release.target_commitish !== input.sourceCommit) throw new Error('Insight GitHub Release tag points at a different source commit')
   const expected = new Map(payloads.map(payload => [payload.name, payload]))
   const existing = assetsByName(input.repository, release.assets)
   if ([...existing.keys()].some(name => !expected.has(name))) throw new Error('Insight GitHub Release contains an unexpected attachment')
@@ -126,10 +124,10 @@ export async function finalizeInsightGitHubRelease(input: FinalizeInsightGitHubR
     if (await downloadAsset(fetch, input.token, asset.url, payload.size) !== payload.sha512) throw new Error(`Insight GitHub Release attachment differs: ${payload.name}`)
   }
   if (!input.draft && final.draft) {
-    const published = await fetch(api(input.repository, `/releases/${String(final.id)}`), { method: 'PATCH', headers: header(input.token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ draft: false, ...(input.version.includes('-') ? { prerelease: true, make_latest: 'false' } : {}) }), signal: AbortSignal.timeout(60_000), redirect: 'error' })
+    const published = await fetch(api(input.repository, `/releases/${String(final.id)}`), { method: 'PATCH', headers: header(input.token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ draft: false }), signal: AbortSignal.timeout(60_000), redirect: 'error' })
     if (!published.ok) throw new Error('Insight GitHub Release publication failed')
     const publishedRelease = releaseRecord(await jsonResponse(published))
-    if (publishedRelease.id !== final.id || publishedRelease.target_commitish !== input.sourceCommit || publishedRelease.draft || (input.version.includes('-') && !publishedRelease.prerelease)) {
+    if (publishedRelease.id !== final.id || publishedRelease.target_commitish !== input.sourceCommit || publishedRelease.draft) {
       throw new Error('Insight GitHub Release publication did not make the verified draft visible')
     }
   }
@@ -138,14 +136,9 @@ export async function finalizeInsightGitHubRelease(input: FinalizeInsightGitHubR
 function releaseRecord(value: unknown): Release {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error('Insight GitHub Release response is invalid')
   const record = value as Record<string, unknown>
-  const { id, draft, prerelease, target_commitish: targetCommitish, upload_url: uploadUrlValue, assets } = record
-  if (typeof id !== 'number' || !Number.isSafeInteger(id) || typeof draft !== 'boolean' || typeof prerelease !== 'boolean' || typeof targetCommitish !== 'string' || typeof uploadUrlValue !== 'string' || !Array.isArray(assets)) throw new Error('Insight GitHub Release response is invalid')
-  return { id, draft, prerelease, target_commitish: targetCommitish, upload_url: uploadUrlValue, assets: assets.map(assetRecord) }
-}
-
-function checkReleaseIdentity(input: FinalizeInsightGitHubReleaseInput, release: Release): void {
-  if (release.target_commitish !== input.sourceCommit) throw new Error('Insight GitHub Release tag points at a different source commit')
-  if (input.version.includes('-') && !release.prerelease) throw new Error('Insight GitHub Release RC tag is not marked as a prerelease')
+  const { id, draft, target_commitish: targetCommitish, upload_url: uploadUrlValue, assets } = record
+  if (typeof id !== 'number' || !Number.isSafeInteger(id) || typeof draft !== 'boolean' || typeof targetCommitish !== 'string' || typeof uploadUrlValue !== 'string' || !Array.isArray(assets)) throw new Error('Insight GitHub Release response is invalid')
+  return { id, draft, target_commitish: targetCommitish, upload_url: uploadUrlValue, assets: assets.map(assetRecord) }
 }
 
 function assetRecord(value: unknown): Asset {
@@ -212,95 +205,6 @@ async function jsonResponse(response: Response): Promise<unknown> {
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch { throw new Error('Insight GitHub Release response is invalid JSON') }
 }
 
-interface PackageRun {
-  readonly id: number
-  readonly event: string
-  readonly headBranch: string
-  readonly headSha: string
-  readonly status: string
-  readonly conclusion: string
-  readonly path: string
-  readonly repositoryId: number
-  readonly repositoryName: string
-}
-interface PackageJob { readonly name: string; readonly conclusion: string }
-
-function object(value: unknown, message: string): Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error(message)
-  return value as Record<string, unknown>
-}
-
-function packageRun(value: unknown): PackageRun {
-  const record = object(value, 'Insight package workflow response is invalid')
-  const repository = object(record.repository, 'Insight package workflow response is invalid')
-  const { id, event, head_branch: headBranch, head_sha: headSha, status, conclusion, path } = record
-  const { id: repositoryId, full_name: repositoryName } = repository
-  if (typeof id !== 'number' || !Number.isSafeInteger(id) || typeof event !== 'string' || typeof headBranch !== 'string' || typeof headSha !== 'string' || typeof status !== 'string' || typeof conclusion !== 'string' || typeof path !== 'string' || typeof repositoryId !== 'number' || !Number.isSafeInteger(repositoryId) || typeof repositoryName !== 'string') throw new Error('Insight package workflow response is invalid')
-  return { id, event, headBranch, headSha, status, conclusion, path, repositoryId, repositoryName }
-}
-
-function packageJobs(value: unknown): { total: number; jobs: PackageJob[] } {
-  const record = object(value, 'Insight package workflow jobs response is invalid')
-  if (typeof record.total_count !== 'number' || !Number.isSafeInteger(record.total_count) || record.total_count < 0 || !Array.isArray(record.jobs)) throw new Error('Insight package workflow jobs response is invalid')
-  return { total: record.total_count, jobs: record.jobs.map((value) => {
-    const job = object(value, 'Insight package workflow jobs response is invalid')
-    if (typeof job.name !== 'string' || typeof job.conclusion !== 'string') throw new Error('Insight package workflow jobs response is invalid')
-    return { name: job.name, conclusion: job.conclusion }
-  }) }
-}
-
-async function packageRunJobs(
-  repository: string, token: string, workflowRunId: number, fetch: typeof globalThis.fetch,
-): Promise<PackageJob[]> {
-  const jobs: PackageJob[] = []
-  let total: number | undefined
-  for (let page = 1; total === undefined || jobs.length < total; page += 1) {
-    const response = await fetch(api(repository, `/actions/runs/${String(workflowRunId)}/jobs?per_page=100&page=${String(page)}`), { headers: header(token), signal: AbortSignal.timeout(60_000), redirect: 'error' })
-    if (!response.ok) throw new Error('Insight package workflow jobs lookup failed')
-    const result = packageJobs(await jsonResponse(response))
-    if (total === undefined) total = result.total
-    else if (total !== result.total) throw new Error('Insight package workflow jobs changed while being verified')
-    if (result.jobs.length === 0 && jobs.length < total) throw new Error('Insight package workflow jobs pagination is incomplete')
-    jobs.push(...result.jobs)
-    if (jobs.length > total) throw new Error('Insight package workflow jobs pagination is invalid')
-  }
-  return jobs
-}
-
-function requirePackageRunSuccess(jobs: readonly PackageJob[]): void {
-  const expected: Readonly<Record<string, string>> = {
-    'aggregate-checks': 'success',
-    windows: 'success',
-    arm64: 'skipped',
-    x64: 'skipped',
-  }
-  for (const [name, conclusion] of Object.entries(expected)) {
-    if (!jobs.some(job => job.name === name && job.conclusion === conclusion)) throw new Error(`Insight package workflow job is not ${conclusion}: ${name}`)
-  }
-}
-
-/**
- * Verify one Windows package run and publish its manifest-verified release assets.
- * @param input Original package run and staged release asset details.
- * @returns Resolves after GitHub exposes the immutable published Release.
- */
-export async function finalizeInsightPackageRun(input: Omit<FinalizeInsightGitHubReleaseInput, 'tag' | 'qualification' | 'draft'> & { readonly workflowRunId: number }): Promise<void> {
-  if (input.repository !== INSIGHT_REPOSITORY || !Number.isSafeInteger(input.workflowRunId) || input.workflowRunId <= 0 || input.targets.length !== 1 || input.targets[0] !== 'win32-x64' || input.releaseDirectories.length !== 1) throw new Error('Insight package workflow finalization inputs are invalid')
-  const parsed = parse(input.version)
-  if (valid(input.version) !== input.version || parsed === null || parsed.major !== 1 || parsed.prerelease.length === 0 || parsed.build.length !== 0) throw new Error('Insight package workflow version must be a canonical 1.x prerelease')
-  if (!commit.test(input.sourceCommit)) throw new Error('Insight package workflow source commit is invalid')
-  const fetch = input.fetch ?? globalThis.fetch
-  const response = await fetch(api(input.repository, `/actions/runs/${String(input.workflowRunId)}`), { headers: header(input.token), signal: AbortSignal.timeout(60_000), redirect: 'error' })
-  if (!response.ok) throw new Error('Insight package workflow lookup failed')
-  const run = packageRun(await jsonResponse(response))
-  if (run.id !== input.workflowRunId || run.repositoryId !== 1429559776 || run.repositoryName !== INSIGHT_REPOSITORY || run.path.split('@', 1)[0] !== '.github/workflows/insight-package.yml' || run.event !== 'workflow_dispatch' || run.headBranch !== 'insight' || run.status !== 'completed' || run.conclusion !== 'success' || run.headSha !== input.sourceCommit) throw new Error('Insight package workflow does not match the requested release')
-  requirePackageRunSuccess(await packageRunJobs(input.repository, input.token, input.workflowRunId, fetch))
-  const directory = input.releaseDirectories[0]
-  if (directory === undefined) throw new Error('Insight package workflow finalization inputs are invalid')
-  await writeInsightBuildRunRecord(directory, await createInsightBuildRunRecord({ workflowRunId: input.workflowRunId, headSha: input.sourceCommit, version: input.version, qualification: 'distribution', directories: { 'win32-x64': directory } }))
-  await finalizeInsightGitHubRelease({ ...input, tag: `insight-v${input.version}`, qualification: 'distribution', draft: false, fetch })
-}
-
 function fileBody(path: string): ReadableStream<Uint8Array> {
   const stream: AsyncIterable<Buffer> = createReadStream(path)
   const iterator = stream[Symbol.asyncIterator]()
@@ -313,13 +217,8 @@ function fileBody(path: string): ReadableStream<Uint8Array> {
     async cancel() { await iterator.return?.() },
   })
 }
-/**
- * Execute workflow-controlled buildRunRecord writing or immutable Release finalization.
- * @param environment Workflow environment variables.
- * @param fetch HTTP client used for GitHub API requests.
- * @returns Resolves after the requested release operation completes.
- */
-export async function main(environment = process.env, fetch: typeof globalThis.fetch = globalThis.fetch): Promise<void> {
+/** Execute workflow-controlled buildRunRecord writing or immutable Release finalization. */
+export async function main(environment = process.env): Promise<void> {
   const mode = environment.INSIGHT_RELEASE_MODE
   const qualification = environment.INSIGHT_RELEASE_QUALIFICATION === 'debug-signed' ? 'debug-signed' : 'distribution'
   const version = environment.INSIGHT_DESKTOP_VERSION ?? ''; const targets = (environment.INSIGHT_RELEASE_TARGETS ?? '').split(',').filter(Boolean) as InsightDesktopBuildTarget[]
@@ -338,12 +237,7 @@ export async function main(environment = process.env, fetch: typeof globalThis.f
     await writeInsightBuildRunRecord(firstDirectory, buildRunRecord)
     return
   }
-  if (mode === 'finalize') { await finalizeInsightGitHubRelease({ repository: environment.GITHUB_REPOSITORY ?? '', token: environment.GITHUB_TOKEN ?? '', tag: environment.INSIGHT_RELEASE_TAG ?? '', version, sourceCommit: environment.GITHUB_SHA ?? '', releaseDirectories: directories, targets, qualification, draft: environment.INSIGHT_RELEASE_DRAFT === 'true', fetch }); return }
-  if (mode === 'finalize-package-run') {
-    const workflowRunId = Number(environment.INSIGHT_PACKAGE_RUN_ID)
-    await finalizeInsightPackageRun({ repository: environment.GITHUB_REPOSITORY ?? '', token: environment.GITHUB_TOKEN ?? '', workflowRunId, version, sourceCommit: environment.INSIGHT_SOURCE_COMMIT ?? '', releaseDirectories: directories, targets, fetch })
-    return
-  }
+  if (mode === 'finalize') { await finalizeInsightGitHubRelease({ repository: environment.GITHUB_REPOSITORY ?? '', token: environment.GITHUB_TOKEN ?? '', tag: environment.INSIGHT_RELEASE_TAG ?? '', version, sourceCommit: environment.GITHUB_SHA ?? '', releaseDirectories: directories, targets, qualification, draft: environment.INSIGHT_RELEASE_DRAFT === 'true' }); return }
   throw new Error('Insight GitHub Release requires INSIGHT_RELEASE_MODE')
 }
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main()
