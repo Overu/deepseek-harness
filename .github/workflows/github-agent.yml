@@ -88,14 +88,20 @@ jobs:
           path: ${{ runner.temp }}/issue-agent-input
       - name: Prepare isolated agent account
         run: |
-          set -x
           sudo useradd --system --create-home --home-dir /home/issueagent --shell /bin/bash issueagent
-          sudo usermod -a -G runner issueagent
+          ancestor="$GITHUB_WORKSPACE"
+          while [ "$ancestor" != / ]; do
+            sudo setfacl -m u:issueagent:x "$ancestor"
+            ancestor="$(dirname "$ancestor")"
+          done
           sudo setfacl -m u:issueagent:x "$RUNNER_TEMP"
           # Untrusted project settings cannot enable PR-provided hooks or MCP servers.
           sudo chown runner:runner /home/issueagent
           sudo chmod 1771 /home/issueagent
           sudo install -d -o runner -g runner -m 1775 /home/issueagent/.codex
+          # Hosted images can retain group::r-x behind a writable ACL mask.
+          sudo setfacl -k /home/issueagent /home/issueagent/.codex
+          sudo setfacl -m u:issueagent:rwx,m::rwx /home/issueagent /home/issueagent/.codex
           node --input-type=module <<'NODE'
           import { chmodSync, realpathSync, writeFileSync } from 'node:fs'
           const workdir = realpathSync(`${process.env.GITHUB_WORKSPACE}/work`)
@@ -104,9 +110,6 @@ jobs:
           writeFileSync(serverInfo, '', { mode: 0o666 })
           chmodSync(serverInfo, 0o666)
           NODE
-          stat -c '%a %u:%g %n' /home /home/issueagent /home/issueagent/.codex /home/issueagent/.codex/config.toml
-          getfacl -p /home/issueagent /home/issueagent/.codex /home/issueagent/.codex/config.toml
-          sudo -u issueagent id
           sudo -u issueagent test -w /home/issueagent
           sudo -u issueagent test -w /home/issueagent/.codex
           sudo -u issueagent test ! -w /home/issueagent/.codex/config.toml
@@ -114,8 +117,14 @@ jobs:
           # Sticky ownership protects .git from replacement while allowing new root-level files.
           sudo chown runner:runner "$GITHUB_WORKSPACE/work"
           sudo chmod 1770 "$GITHUB_WORKSPACE/work"
+          sudo setfacl -k "$GITHUB_WORKSPACE/work"
+          sudo setfacl -m u:issueagent:rwx,m::rwx "$GITHUB_WORKSPACE/work"
+          sudo setfacl -Rb "$GITHUB_WORKSPACE/work/.git"
           sudo chown -hR runner:runner "$GITHUB_WORKSPACE/work/.git"
           sudo chmod -R go-w "$GITHUB_WORKSPACE/work/.git"
+          sudo -u issueagent test -w "$GITHUB_WORKSPACE/work"
+          sudo -u issueagent test ! -w "$GITHUB_WORKSPACE/work/.git"
+          sudo -u issueagent test ! -w "$GITHUB_WORKSPACE"
           sudo -u issueagent git config --global --add safe.directory "$GITHUB_WORKSPACE/work"
       - name: Run GitHub Agent
         id: agent
