@@ -1,7 +1,7 @@
 /** Sign runtime code and verify that packaged macOS artifacts carry the company release identity. */
 
 import { spawn, spawnSync } from 'node:child_process'
-import { resolve } from 'node:path'
+import { basename, resolve } from 'node:path'
 import { resolveMacOSSigningEnvironment } from './desktop-release-environment.mjs'
 import { loadDesktopPackageEnvironment } from './desktop-package-environment.mjs'
 
@@ -197,10 +197,14 @@ export function verifyMacOSDiskImage(diskImagePath, expected) {
  * @returns {void}
  */
 function verifyMacOSStaplerTicket(artifactPath) {
-  const delays = [2000, 5000]
+  const delays = [2000, 5000, 15000, 30000]
+  const fileName = basename(artifactPath)
   for (let attempt = 0; attempt <= delays.length; attempt += 1) {
     try {
       runAppleCommand('/usr/bin/xcrun', ['stapler', 'validate', artifactPath], 'stapler validate')
+      if (attempt > 0) {
+        process.stderr.write(`desktop macOS signing: ${fileName} ticket validation succeeded on attempt ${String(attempt + 1)}/${String(delays.length + 1)}\n`)
+      }
       return
     } catch (error) {
       const retryableCloudKitInterruption = error instanceof AppleCommandExitError
@@ -208,7 +212,12 @@ function verifyMacOSStaplerTicket(artifactPath) {
         && error.diagnostic.includes('NSURLErrorDomain')
         && /(?:^|[^A-Za-z0-9_-])Code=-1005(?:$|[^A-Za-z0-9_-])/u.test(error.diagnostic)
         && error.diagnostic.includes('api.apple-cloudkit.com')
-      if (!retryableCloudKitInterruption || attempt === delays.length) throw error
+      if (!retryableCloudKitInterruption) throw error
+      if (attempt === delays.length) {
+        process.stderr.write(`desktop macOS signing: ${fileName} ticket validation failed after ${String(delays.length + 1)} attempts (CloudKit Code=-1005)\n`)
+        throw error
+      }
+      process.stderr.write(`desktop macOS signing: ${fileName} ticket validation attempt ${String(attempt + 1)}/${String(delays.length + 1)} failed (CloudKit Code=-1005); retrying in ${String(delays[attempt] / 1000)}s\n`)
       Atomics.wait(new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT)), 0, 0, delays[attempt])
     }
   }

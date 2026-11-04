@@ -45,16 +45,22 @@ function queueStaplerResults(...results: readonly SpawnSyncReturns<string>[]): v
   })
 }
 
-function withRetryWait(test: (delays: readonly number[]) => void): void {
+function withRetryWait(test: (delays: readonly number[], diagnostics: readonly string[]) => void): void {
   const delays: number[] = []
+  const diagnostics: string[] = []
   const spy = vi.spyOn(Atomics, 'wait').mockImplementation((_array, _index, _value, timeout) => {
     if (timeout === undefined) throw new Error('Expected a finite retry delay')
     delays.push(timeout)
     return 'timed-out'
   })
+  const diagnosticSpy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+    diagnostics.push(String(chunk))
+    return true
+  })
   try {
-    test(delays)
+    test(delays, diagnostics)
   } finally {
+    diagnosticSpy.mockRestore()
     spy.mockRestore()
   }
 }
@@ -97,15 +103,17 @@ it('still requires a stapled ticket and Gatekeeper acceptance for release DMGs',
 })
 
 describe.each([
-  { format: 'DMG', path: '/fixture/release.dmg', verify: verifyMacOSDiskImage, gatekeeperType: 'install' },
-  { format: 'App', path: '/fixture/release.app', verify: verifyMacOSNotarizedApplication, gatekeeperType: 'execute' },
-])('$format ticket validation', ({ path, verify, gatekeeperType }) => {
+  { format: 'DMG', path: '/fixture/release.dmg', fileName: 'release.dmg', verify: verifyMacOSDiskImage, gatekeeperType: 'install' },
+  { format: 'App', path: '/fixture/release.app', fileName: 'release.app', verify: verifyMacOSNotarizedApplication, gatekeeperType: 'execute' },
+])('$format ticket validation', ({ path, fileName, verify, gatekeeperType }) => {
   it.each([
     [1, []],
     [2, [2000]],
     [3, [2000, 5000]],
+    [4, [2000, 5000, 15000]],
+    [5, [2000, 5000, 15000, 30000]],
   ])('accepts CloudKit validation on attempt %i', (attempt, expectedDelays) => {
-    withRetryWait((delays) => {
+    withRetryWait((delays, diagnostics) => {
       queueStaplerResults(
         ...Array.from({ length: attempt - 1 }, () => commandResult({ status: 68, stderr: cloudKitInterruption })),
         commandResult(),
@@ -119,19 +127,29 @@ describe.each([
       ])
       expect(vi.mocked(spawnSync).mock.calls.at(-1)?.[0]).toBe('/usr/sbin/spctl')
       expect(delays).toEqual(expectedDelays)
+      expect(diagnostics).toEqual([
+        ...expectedDelays.map((delay, index) =>
+          `desktop macOS signing: ${fileName} ticket validation attempt ${String(index + 1)}/5 failed (CloudKit Code=-1005); retrying in ${String(delay / 1000)}s\n`),
+        ...(attempt === 1 ? [] : [`desktop macOS signing: ${fileName} ticket validation succeeded on attempt ${String(attempt)}/5\n`]),
+      ])
     })
   })
 
   it('preserves the final CloudKit validation error after all attempts without Gatekeeper assessment', () => {
-    withRetryWait((delays) => {
-      queueStaplerResults(...Array.from({ length: 3 }, (_, index) =>
+    withRetryWait((delays, diagnostics) => {
+      queueStaplerResults(...Array.from({ length: 5 }, (_, index) =>
         commandResult({ status: 68, stderr: `${cloudKitInterruption}; attempt ${String(index + 1)}` })))
       expect(() => { verify(path, { signingIdentity, teamId }) })
-        .toThrow(`desktop macOS signing: stapler validate exited with 68: ${cloudKitInterruption}; attempt 3`)
+        .toThrow(`desktop macOS signing: stapler validate exited with 68: ${cloudKitInterruption}; attempt 5`)
       expect(commands('/usr/bin/codesign')).toHaveLength(2)
-      expect(commands('/usr/bin/xcrun')).toHaveLength(3)
+      expect(commands('/usr/bin/xcrun')).toHaveLength(5)
       expect(commands('/usr/sbin/spctl')).toHaveLength(0)
-      expect(delays).toEqual([2000, 5000])
+      expect(delays).toEqual([2000, 5000, 15000, 30000])
+      expect(diagnostics).toEqual([
+        ...[2, 5, 15, 30].map((seconds, index) =>
+          `desktop macOS signing: ${fileName} ticket validation attempt ${String(index + 1)}/5 failed (CloudKit Code=-1005); retrying in ${String(seconds)}s\n`),
+        `desktop macOS signing: ${fileName} ticket validation failed after 5 attempts (CloudKit Code=-1005)\n`,
+      ])
     })
   })
 
@@ -145,13 +163,14 @@ describe.each([
     ['NSURLErrorDomain -1001', commandResult({ status: 68, stderr: 'NSURLErrorDomain Code=-1001 api.apple-cloudkit.com' })],
     ['NSURLErrorDomain -1009', commandResult({ status: 68, stderr: 'NSURLErrorDomain Code=-1009 api.apple-cloudkit.com' })],
   ])('does not retry ticket validation with %s', (_label, result) => {
-    withRetryWait((delays) => {
+    withRetryWait((delays, diagnostics) => {
       queueStaplerResults(result)
       expect(() => { verify(path, { signingIdentity, teamId }) })
         .toThrow('desktop macOS signing: stapler validate exited')
       expect(commands('/usr/bin/xcrun')).toHaveLength(1)
       expect(commands('/usr/sbin/spctl')).toHaveLength(0)
       expect(delays).toEqual([])
+      expect(diagnostics).toEqual([])
     })
   })
 
