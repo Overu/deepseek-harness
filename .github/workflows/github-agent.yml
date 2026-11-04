@@ -92,9 +92,9 @@ jobs:
           sudo usermod -a -G runner issueagent
           sudo setfacl -m u:issueagent:x "$RUNNER_TEMP"
           # Untrusted project settings cannot enable PR-provided hooks or MCP servers.
-          sudo chown runner:issueagent /home/issueagent
+          sudo chown runner:runner /home/issueagent
           sudo chmod 1771 /home/issueagent
-          sudo install -d -o runner -g issueagent -m 1775 /home/issueagent/.codex
+          sudo install -d -o runner -g runner -m 1775 /home/issueagent/.codex
           node --input-type=module <<'NODE'
           import { chmodSync, realpathSync, writeFileSync } from 'node:fs'
           const workdir = realpathSync(`${process.env.GITHUB_WORKSPACE}/work`)
@@ -103,9 +103,13 @@ jobs:
           writeFileSync(serverInfo, '', { mode: 0o666 })
           chmodSync(serverInfo, 0o666)
           NODE
+          id issueagent
+          sudo -u issueagent test -w /home/issueagent
+          sudo -u issueagent test -w /home/issueagent/.codex
+          sudo -u issueagent test ! -w /home/issueagent/.codex/config.toml
           sudo find "$GITHUB_WORKSPACE/work" -mindepth 1 -maxdepth 1 ! -name .git -exec chown -hR issueagent:issueagent {} +
           # Sticky ownership protects .git from replacement while allowing new root-level files.
-          sudo chown runner:issueagent "$GITHUB_WORKSPACE/work"
+          sudo chown runner:runner "$GITHUB_WORKSPACE/work"
           sudo chmod 1770 "$GITHUB_WORKSPACE/work"
           sudo chown -hR runner:runner "$GITHUB_WORKSPACE/work/.git"
           sudo chmod -R go-w "$GITHUB_WORKSPACE/work/.git"
@@ -209,7 +213,7 @@ jobs:
     permissions:
       contents: read
       issues: write
-      pull-requests: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

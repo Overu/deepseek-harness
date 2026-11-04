@@ -83,7 +83,7 @@ it('isolates the model key from publication and repository write permissions', (
   expect(workflow.permissions).toEqual({})
   expect(workflow.jobs.agent.permissions).toEqual({ contents: 'read' })
   expect(workflow.jobs.prepare.permissions.contents).toBe('read')
-  expect(workflow.jobs.failure.permissions).toEqual({ contents: 'read', issues: 'write', 'pull-requests': 'read' })
+  expect(workflow.jobs.failure.permissions).toEqual({ contents: 'read', issues: 'write', 'pull-requests': 'write' })
   expect(workflow.jobs.publish.permissions).toEqual({ contents: 'write', issues: 'write', 'pull-requests': 'write' })
   for (const [name, job] of Object.entries(workflow.jobs)) {
     for (const step of job.steps) {
@@ -121,7 +121,9 @@ it('pins trusted tooling, protects Git metadata, and treats generated files only
   expect(setup).toContain('chown -hR runner:runner "$GITHUB_WORKSPACE/work/.git"')
   expect(setup).toContain('trust_level = "untrusted"')
   expect(setup).toContain('chmodSync(serverInfo, 0o666)')
-  expect(setup).toContain('install -d -o runner -g issueagent -m 1775')
+  expect(setup).toContain('sudo -u issueagent test -w /home/issueagent')
+  expect(setup).toContain('sudo -u issueagent test ! -w /home/issueagent/.codex/config.toml')
+  expect(setup).toContain('install -d -o runner -g runner -m 1775')
   const stop = workflow.jobs.agent.steps.findIndex(step => step.name === 'Stop remaining agent processes')
   const collect = workflow.jobs.agent.steps.findIndex(step => step.name === 'Collect validated response and file changes')
   expect(stop).toBeGreaterThan(-1)
