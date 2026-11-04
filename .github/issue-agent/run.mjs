@@ -118,7 +118,7 @@ async function main(command) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   main(process.argv[2]).catch(error => {
-    console.error(error instanceof Error ? error.message : 'Issue Agent failed')
+    console.error(error instanceof Error ? error : 'Issue Agent failed')
     process.exitCode = 1
   })
 }

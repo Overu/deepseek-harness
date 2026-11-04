@@ -2,7 +2,7 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PublishError, publishResult } from '../.github/issue-agent/publish.mjs'
 import { prepareRequest } from '../.github/issue-agent/context.mjs'
 
@@ -119,14 +119,19 @@ function pullApi(initialHead: string, state: {
   status?: string
   headRepository?: string
   headRef?: string
+  pendingReads?: number
 } = {}) {
   const calls: Array<{ path: string; options?: { method?: string; body?: unknown } }> = []
   let head = initialHead
+  let readsAfterPush = 0
   const api = async (path: string, options: { method?: string; body?: unknown; allow404?: boolean } = {}) => {
     calls.push({ path, options })
     if (path.includes('/issues/comments/31')) return { id: 31, body: '/agent 修复 file.txt', created_at: '2026-11-04T00:00:00Z', updated_at: '2026-11-04T00:00:00Z', user: { login: 'alice', type: 'User' } }
     if (path.includes('/collaborators/alice/permission')) return { permission: 'write' }
-    if (path === '/repos/owner/repo/pulls/7') return { state: state.status ?? 'open', draft: false, html_url: 'https://github.com/owner/repo/pull/7', head: { ref: state.headRef ?? 'feature', sha: head, repo: { full_name: state.headRepository ?? 'owner/repo' } }, base: { ref: 'insight', sha: 'base-sha' } }
+    if (path === '/repos/owner/repo/pulls/7') {
+      const visibleHead = head !== initialHead && readsAfterPush++ < (state.pendingReads ?? 0) ? initialHead : head
+      return { state: state.status ?? 'open', draft: false, html_url: 'https://github.com/owner/repo/pull/7', head: { ref: state.headRef ?? 'feature', sha: visibleHead, repo: { full_name: state.headRepository ?? 'owner/repo' } }, base: { ref: 'insight', sha: 'base-sha' } }
+    }
     if (path.includes('/issues/7/comments?')) return []
     if (path.includes('/git/ref/heads/feature')) return { object: { sha: head } }
     if (path.includes('/branches/feature')) return Object.hasOwn(state, 'protected') ? { protected: state.protected } : { protected: false }
@@ -136,7 +141,10 @@ function pullApi(initialHead: string, state: {
   return { api, calls, setHead: (sha: string) => { head = sha } }
 }
 
-afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))) })
+afterEach(async () => {
+  vi.useRealTimers()
+  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
+})
 
 // The trusted publisher runs only in the Ubuntu Actions helper; artifacts use /usr/bin/git.
 describe.skipIf(process.platform === 'win32')('Issue Agent publisher', () => {
@@ -208,6 +216,78 @@ describe.skipIf(process.platform === 'win32')('Issue Agent publisher', () => {
     expect(pushes).toEqual([['push', 'origin', 'HEAD:refs/heads/feature', `--force-with-lease=refs/heads/feature:${sha}`]])
     expect(fixtureApi.calls.some(call => call.path.endsWith('/pulls') && ['POST', 'PATCH'].includes(call.options?.method ?? ''))).toBe(false)
     expect(fixtureApi.calls.some(call => call.path.includes('/labels'))).toBe(false)
+  })
+
+  it.each([2, 5])('bounds confirmation of a pushed head while the PR record lags for %i reads', async (pendingReads) => {
+    const { root, sha } = await fixture()
+    const fixtureApi = pullApi(sha, { pendingReads })
+    const pushes: string[][] = []
+    const git = (args: string[], options: { env: Record<string, string> }) => {
+      if (args[0] === 'push') fixtureApi.setHead(run(root, ['rev-parse', 'HEAD']).stdout.trim())
+      return gitWithPush(root, pushes)(args, options)
+    }
+    vi.useFakeTimers()
+    try {
+      const operation = publishResult({ request: pullRequest(sha), outcome: outcome(updateResult()), api: fixtureApi.api, workdir: root, token: 'token', git })
+      const assertion = pendingReads === 2
+        ? expect(operation).resolves.toMatchObject({ status: 'published' })
+        : expect(operation).rejects.toThrow(/publication is incomplete \(pull-request-head-pending\)/u)
+      await vi.waitFor(() => { expect(vi.getTimerCount()).toBe(1) })
+      await vi.runAllTimersAsync()
+      await assertion
+      expect(pushes).toHaveLength(1)
+      expect(fixtureApi.calls.filter(call => call.path === '/repos/owner/repo/pulls/7')).toHaveLength(pendingReads === 2 ? 4 : 6)
+      expect(fixtureApi.calls.filter(call => call.options?.method === 'POST')).toHaveLength(pendingReads === 2 ? 1 : 0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not retry confirmation when another commit replaces the pushed head', async () => {
+    const { root, sha } = await fixture()
+    const fixtureApi = pullApi(sha)
+    const pushes: string[][] = []
+    const git = (args: string[], options: { env: Record<string, string> }) => {
+      if (args[0] === 'push') fixtureApi.setHead('another-commit')
+      return gitWithPush(root, pushes)(args, options)
+    }
+    await expect(publishResult({ request: pullRequest(sha), outcome: outcome(updateResult()), api: fixtureApi.api, workdir: root, token: 'token', git })).rejects.toThrow(/publication is incomplete \(remote-moved\)/u)
+    expect(pushes).toHaveLength(1)
+    expect(fixtureApi.calls.filter(call => call.path === '/repos/owner/repo/pulls/7')).toHaveLength(1)
+    expect(fixtureApi.calls.some(call => call.options?.method === 'POST')).toBe(false)
+  })
+
+  it('stops confirmation if the branch advances while the PR view catches up', async () => {
+    const { root, sha } = await fixture()
+    const fixtureApi = pullApi(sha, { pendingReads: 1 })
+    const pushes: string[][] = []
+    let pushed = false
+    let confirmReads = 0
+    const git = (args: string[], options: { env: Record<string, string> }) => {
+      if (args[0] === 'push') {
+        fixtureApi.setHead(run(root, ['rev-parse', 'HEAD']).stdout.trim())
+        pushed = true
+      }
+      return gitWithPush(root, pushes)(args, options)
+    }
+    const api: typeof fixtureApi.api = async (path, options) => {
+      const value = await fixtureApi.api(path, options)
+      if (pushed && path === '/repos/owner/repo/pulls/7' && ++confirmReads === 2) fixtureApi.setHead('concurrent-commit')
+      return value
+    }
+    vi.useFakeTimers()
+    try {
+      const operation = publishResult({ request: pullRequest(sha), outcome: outcome(updateResult()), api, workdir: root, token: 'token', git })
+      const assertion = expect(operation).rejects.toThrow(/publication is incomplete \(remote-moved\)/u)
+      await vi.waitFor(() => { expect(vi.getTimerCount()).toBe(1) })
+      await vi.runAllTimersAsync()
+      await assertion
+      expect(confirmReads).toBe(2)
+      expect(pushes).toHaveLength(1)
+      expect(fixtureApi.calls.some(call => call.options?.method === 'POST')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('publishes automatic PR replies with the review idempotence marker', async () => {

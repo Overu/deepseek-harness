@@ -63,7 +63,7 @@ A first code-change request starts from a fixed default-branch commit and create
 
 A request made directly on a PR can update its existing head branch only when it belongs to this repository and is neither the default branch, the PR base branch, nor a protected branch. Fork, closed, or merged PRs cannot receive code updates. Updates preserve the existing PR title, description, labels, and draft status.
 
-The publisher rechecks authorization, comment edits, PR identity, base/head commits, and branch protection before writing. It creates a commit whose parent is the prepared commit and uses an exact Git lease; a concurrent update stops publication. User text outside the agent's generated report remains intact. Replies include the resulting PR and Actions links.
+The publisher rechecks authorization, comment edits, PR identity, base/head commits, and branch protection before writing. It creates a commit whose parent is the prepared commit and uses an exact Git lease; a concurrent update stops publication. After updating a PR branch, it rechecks a lagging PR record up to four times while confirming that the branch still points to its commit. A different commit or changed PR identity stops confirmation; an unconfirmed update is reported as incomplete. User text outside the agent's generated report remains intact. Replies include the resulting PR and Actions links.
 
 Issue-generated PRs use one canonical `kind/*` label and at least one `area/*` label from the repository's existing label catalog. The agent receives that catalog as context and cannot create labels. A missing classification requires a maintainer to configure the appropriate labels first.
 

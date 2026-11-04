@@ -4,7 +4,7 @@ import type { GitHubApi } from './github.mjs'
 /** Failure that retains publication progress for operator inspection. */
 export class PublishError extends Error {
   readonly code: string
-  constructor(code: string, message: string)
+  constructor(code: string, message: string, options?: ErrorOptions)
 }
 
 /**

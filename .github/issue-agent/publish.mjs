@@ -9,9 +9,9 @@ const MAX_PAGES = 20
 
 /** A failure whose code identifies whether any remote change may have happened. */
 export class PublishError extends Error {
-  /** @param {string} code @param {string} message */
-  constructor(code, message) {
-    super(message)
+  /** @param {string} code @param {string} message @param {ErrorOptions} [options] */
+  constructor(code, message, options) {
+    super(message, options)
     this.name = 'PublishError'
     this.code = code
   }
@@ -179,10 +179,14 @@ async function livePullRequest(request, api, writable = false, expectedHead = re
   const base = record(pull) && record(pull.base) ? pull.base : undefined
   if (!record(pull) || !head || !base
     || text(pull.state) !== 'open'
-    || text(head.ref) !== request.branch || text(head.sha) !== expectedHead
+    || text(head.ref) !== request.branch
     || !record(head.repo) || text(head.repo.full_name) !== request.headRepository
     || text(base.ref) !== request.baseBranch || text(base.sha) !== request.baseSha) {
     throw new PublishError('stale-pull-request', 'Issue Agent: pull request no longer matches the trusted snapshot.')
+  }
+  if (text(head.sha) !== expectedHead) {
+    const pending = expectedHead !== request.workSha && text(head.sha) === request.workSha
+    throw new PublishError(pending ? 'pull-request-head-pending' : 'stale-pull-request', 'Issue Agent: pull request head does not match the expected commit.')
   }
   if (request.trigger === 'review' && pull.draft === true) {
     throw new PublishError('stale-pull-request', 'Issue Agent: automatic review does not publish to a draft pull request.')
@@ -347,16 +351,25 @@ export async function publishResult({ request, outcome, api, workdir, token, git
     const enriched = { ...request, expectedSha, outcome: valid }
     const commitSha = await commitAndPush(enriched, workdir, token, git)
     try {
-      await livePullRequest(request, api, true, commitSha).then(current => {
-        const head = record(current.head) ? current.head : undefined
-        if (!head || text(head.sha) !== commitSha) throw new PublishError('partial-publication', `Issue Agent: branch ${request.branch} was pushed but pull request head is not confirmed.`)
-      })
+      // GitHub's PR record can briefly retain the old head after a successful ref push.
+      for (let attempt = 0; ; attempt++) {
+        try {
+          if (await currentRef(request, api) !== commitSha) throw new PublishError('remote-moved', 'Issue Agent: branch moved after the agent commit was pushed.')
+          await livePullRequest(request, api, true, commitSha)
+          if (await currentRef(request, api) !== commitSha) throw new PublishError('remote-moved', 'Issue Agent: branch moved during pull request confirmation.')
+          break
+        } catch (error) {
+          if (!(error instanceof PublishError) || error.code !== 'pull-request-head-pending' || attempt === 4) throw error
+          await new Promise(resolve => setTimeout(resolve, 1000 * 2 ** attempt))
+        }
+      }
       await api(`/repos/${request.repository}/issues/${request.issueNumber}/comments`, {
         method: 'POST',
         body: { body: `${valid.result.reply}\n\nPull request: ${text(pull.html_url)}\n\n${completionMarker(request)}\n[Actions 日志](${request.runUrl})` },
       })
     } catch (error) {
-      throw new PublishError('partial-publication', `Issue Agent: branch ${request.branch} was pushed but publication is incomplete; PR ${text(pull.html_url)}. Check the branch and run log before retrying.`)
+      const reason = error instanceof PublishError ? error.code : 'api-failed'
+      throw new PublishError('partial-publication', `Issue Agent: branch ${request.branch} was pushed but publication is incomplete (${reason}); PR ${text(pull.html_url)}. Check the branch and run log before retrying.`, { cause: error })
     }
     return { status: 'published', pullRequest: text(pull.html_url) }
   }
