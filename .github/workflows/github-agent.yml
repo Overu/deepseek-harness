@@ -88,6 +88,7 @@ jobs:
           path: ${{ runner.temp }}/issue-agent-input
       - name: Prepare isolated agent account
         run: |
+          set -x
           sudo useradd --system --create-home --home-dir /home/issueagent --shell /bin/bash issueagent
           sudo usermod -a -G runner issueagent
           sudo setfacl -m u:issueagent:x "$RUNNER_TEMP"
@@ -103,7 +104,9 @@ jobs:
           writeFileSync(serverInfo, '', { mode: 0o666 })
           chmodSync(serverInfo, 0o666)
           NODE
-          id issueagent
+          stat -c '%a %u:%g %n' /home /home/issueagent /home/issueagent/.codex /home/issueagent/.codex/config.toml
+          getfacl -p /home/issueagent /home/issueagent/.codex /home/issueagent/.codex/config.toml
+          sudo -u issueagent id
           sudo -u issueagent test -w /home/issueagent
           sudo -u issueagent test -w /home/issueagent/.codex
           sudo -u issueagent test ! -w /home/issueagent/.codex/config.toml
