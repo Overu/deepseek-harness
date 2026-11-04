@@ -1,6 +1,10 @@
 /** Fixed Insight Gateway model registration and Main-token request isolation. */
 import { Context } from '@deepseek-ai/cordis'
-import LlmRuntime, { LlmError } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { createUserMessage, expandAssistantStream, LlmError, ProviderRequestId } from '@deepseek-ai/dsh-llm'
+import type { StreamChunk } from '@deepseek-ai/dsh-llm'
+import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
+import { SessionId } from '@deepseek-ai/dsh-session'
+import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { ShellEnvRegistry } from '@deepseek-ai/dsh-shell-env'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { WebRuntime } from '@deepseek-ai/dsh-web'
@@ -41,6 +45,10 @@ class AccountTransport implements InsightAccountTransport {
   respond(requestId: InsightAccountRequestId, token: string): void {
     this.listener?.({ kind: 'insight-account-response', requestId, result: { ok: true, accessToken: token } })
   }
+
+  fail(requestId: InsightAccountRequestId, reason: 'unavailable' | 'expired' | 'cancelled' | 'failed'): void {
+    this.listener?.({ kind: 'insight-account-response', requestId, result: { ok: false, reason } })
+  }
 }
 
 /** Bind the production Account transport seam to the test process for one test. */
@@ -71,10 +79,11 @@ function installUnavailableProcessTransport(): () => void {
   }
 }
 
-async function fixture() {
+async function fixture(agentLoop = false) {
   const context = new Context()
   contexts.push(context)
-  await context.plugin(LlmRuntime)
+  if (agentLoop) await mountAgentLoopTestDependencies(context)
+  else await context.plugin(LlmRuntime)
   const transport = new AccountTransport()
   let adapter!: ReturnType<typeof createInsightModelGatewayAdapter>
   let gatewayFiber!: ReturnType<Context['inject']>
@@ -117,6 +126,52 @@ function accountRequests(transport: AccountTransport): Extract<InsightAccountHos
 }
 
 describe('Insight Gateway model adapter', () => {
+  it.each(['transport', 'sdk', 'finish'] as const)('persists %s diagnostics through the real Agent request', async (mode) => {
+    const privateCause = Object.assign(new Error('https://private.example/?token=secret-token cookie=private-cookie'), {
+      code: 'ECONNRESET', errno: 'ECONNRESET', syscall: 'connect',
+    })
+    const failure = new LlmError('provider transport failure', 'TRANSPORT', {
+      cause: privateCause, status: 503, providerRetryAfterMs: 125, requestId: ProviderRequestId('provider-request'),
+    })
+    const stream = vi.spyOn(PiAiAdapter.prototype, 'stream').mockImplementation(() => ({
+      async *[Symbol.asyncIterator](): AsyncGenerator<StreamChunk> {
+        if (mode === 'transport') throw failure
+        if (mode === 'sdk') throw new Error('provider transport failure', { cause: privateCause })
+        yield { type: 'finish', reason: { kind: 'error', failure: failure.failure } }
+      },
+    }))
+    try {
+      const { context } = await fixture(true)
+      const harness = await mountAgentLoopTestHarness(context)
+      const agent = await harness.create(SessionId(`gateway-diagnostic-${mode}`), {
+        provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID,
+      })
+      const routed: unknown[] = []
+      context.on('agent/request-error', ({ failure: routedFailure }, next) => {
+        routed.push(routedFailure)
+        return next()
+      }, { global: true })
+      agent.followup(createUserMessage({ content: [{ type: 'text', text: 'test request' }], source: { kind: 'user' } }))
+      await agent.whenIdle()
+      const attempt = agent.session.snapshotEvents().find(event => event.type === 'assistant/attempt')
+      expect(attempt).toBeDefined()
+      if (attempt?.type !== 'assistant/attempt') throw new Error('failed request did not persist its stream')
+      const finish = expandAssistantStream(attempt.data.stream).map(member => member.chunk)
+        .find(chunk => chunk.type === 'finish')
+      if (finish?.type !== 'finish' || finish.reason.kind !== 'error') throw new Error('failed request did not persist its failure')
+      const message = 'provider transport failure [Insight Gateway source=model-stream'
+        + (mode === 'finish' ? ']' : ' causeCode=ECONNRESET errno=ECONNRESET syscall=connect]')
+      expect(finish.reason.failure).toEqual(mode === 'sdk'
+        ? { code: 'UNKNOWN', message }
+        : { ...failure.failure, message })
+      expect(routed).toEqual([finish.reason.failure])
+      const exported = JSON.stringify(attempt)
+      for (const secret of ['private.example', 'secret-token', 'private-cookie']) expect(exported).not.toContain(secret)
+    } finally {
+      stream.mockRestore()
+    }
+  })
+
   it('advertises only the fixed model after Main supplies the account token', async () => {
     const { adapter, transport } = await fixture()
     const listed = adapter.listModels(INSIGHT_MODEL_PROVIDER)
@@ -129,7 +184,8 @@ describe('Insight Gateway model adapter', () => {
   })
 
   it('binds each pending stream token request to its own abort signal', async () => {
-    const { adapter, transport } = await fixture()
+    const { adapter, context, transport } = await fixture()
+    const warn = vi.spyOn(context.logger, 'warn').mockImplementation(() => undefined)
     const first = new AbortController()
     const second = new AbortController()
     const pendingFirst = adapter.stream({ provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID, messages: [], signal: first.signal })
@@ -144,6 +200,108 @@ describe('Insight Gateway model adapter', () => {
     expect(transport.sent.some(message => message.kind === 'insight-account-cancel' && message.requestId === secondRequest!.requestId)).toBe(false)
     second.abort()
     await expect(pendingSecond).rejects.toMatchObject({ name: 'LlmError', code: 'ABORTED' } satisfies Partial<LlmError>)
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('adds a redacted account-token diagnostic without changing its LLM failure', async () => {
+    const { adapter, transport } = await fixture()
+    const pending = adapter.stream({
+      provider: INSIGHT_MODEL_PROVIDER,
+      model: INSIGHT_MODEL_ID,
+      messages: [],
+      sessionId: 'session-diagnostic' as never,
+    })[Symbol.asyncIterator]().next()
+    await vi.waitFor(() => { expect(accountRequests(transport)).toHaveLength(1) })
+    transport.fail(accountRequests(transport)[0]!.requestId, 'unavailable')
+
+    await expect(pending).rejects.toMatchObject({ code: 'TRANSPORT' } satisfies Partial<LlmError>)
+    await expect(pending).rejects.toThrow('source=account-token')
+  })
+
+  it('adds a redacted diagnostic to PiAi in-band failures', async () => {
+    const privateRequestValue = 'https://private.example/stream?token=private-token'
+    const stream = vi.spyOn(PiAiAdapter.prototype, 'stream').mockImplementation(() => ({
+      async *[Symbol.asyncIterator](): AsyncGenerator<StreamChunk> {
+        yield {
+          type: 'finish',
+          reason: {
+            kind: 'error',
+            failure: {
+              code: 'TRANSPORT',
+              message: 'provider failed',
+              status: 503,
+            },
+          },
+        }
+      },
+    }))
+    try {
+      const { adapter } = await fixture()
+      const iterator = adapter.stream({
+        provider: privateRequestValue,
+        model: privateRequestValue,
+        messages: [],
+        sessionId: privateRequestValue as never,
+      })[Symbol.asyncIterator]()
+
+      const result = await iterator.next()
+      expect(result).toMatchObject({
+        done: false,
+        value: { type: 'finish', reason: { kind: 'error', failure: { code: 'TRANSPORT', status: 503 } } },
+      })
+      const output = JSON.stringify(result)
+      expect(output).toContain('source=model-stream')
+      for (const privateValue of [privateRequestValue, 'private-token']) {
+        expect(output).not.toContain(privateValue)
+      }
+    } finally {
+      stream.mockRestore()
+    }
+  })
+
+  it('does not replace a provider failure when diagnostic fields throw', async () => {
+    const failure = new Error('provider failure')
+    Object.defineProperty(failure, 'cause', { get: () => { throw new Error('diagnostic getter') } })
+    const stream = vi.spyOn(PiAiAdapter.prototype, 'stream').mockImplementation(() => ({
+      async *[Symbol.asyncIterator](): AsyncGenerator<StreamChunk> {
+        throw failure
+      },
+    }))
+    try {
+      const { adapter } = await fixture()
+      const pending = adapter.stream({ provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID, messages: [] })
+        [Symbol.asyncIterator]().next()
+      await expect(pending).rejects.toMatchObject({ code: 'UNKNOWN', message: 'provider failure' } satisfies Partial<LlmError>)
+    } finally {
+      stream.mockRestore()
+    }
+  })
+
+  it('keeps in-band and thrown provider outcomes without a logger', async () => {
+    const failure = new Error('provider failure')
+    let calls = 0
+    const stream = vi.spyOn(PiAiAdapter.prototype, 'stream').mockImplementation(() => ({
+      async *[Symbol.asyncIterator](): AsyncGenerator<StreamChunk> {
+        calls += 1
+        if (calls === 2) throw failure
+        yield { type: 'finish', reason: { kind: 'error', failure: { code: 'TRANSPORT', message: 'provider failure' } } }
+      },
+    }))
+    try {
+      const { adapter } = await fixture()
+      const first = adapter.stream({ provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID, messages: [] })
+        [Symbol.asyncIterator]().next()
+      await expect(first).resolves.toMatchObject({
+        done: false,
+        value: { type: 'finish', reason: { kind: 'error' } },
+      })
+      const second = adapter.stream({ provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID, messages: [] })
+        [Symbol.asyncIterator]().next()
+      await expect(second).rejects.toMatchObject({ code: 'UNKNOWN' } satisfies Partial<LlmError>)
+      await expect(second).rejects.toThrow('source=model-stream')
+    } finally {
+      stream.mockRestore()
+    }
   })
 
   it('uses the dispatched stream signal after model preparation', async () => {

@@ -1,6 +1,6 @@
 /** Fixed Insight Gateway model route backed by the Desktop Main-owned account token. */
 import type { Context } from '@deepseek-ai/cordis'
-import { LlmAdapter, LlmError, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
+import { HarnessError, LlmAdapter, LlmError, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions,
   LlmModelInfo,
@@ -34,19 +34,71 @@ export const INSIGHT_MODEL_ID = 'deepseek-flash'
 /** Historical Gateway IDs accepted when replay opens an existing saved selection. */
 const COMPATIBLE_MODEL_IDS = [INSIGHT_MODEL_ID, 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'] as const
 
-/** Map a Main-owned account-token failure into the LLM failure taxonomy. */
-function credentialFailure(error: unknown, signal: AbortSignal): never {
-  if (signal.aborted) throw new LlmError('模型请求已取消', 'ABORTED', { cause: error instanceof Error ? error : undefined })
-  if (error instanceof InsightAccountAccessError) {
-    if (error.reason === 'cancelled') throw new LlmError('模型请求已取消', 'ABORTED', { cause: error })
-    if (error.reason === 'expired' || error.reason === 'disposed') {
-      throw new LlmError('登录已失效，请重新登录后继续会话', 'AUTH', { cause: error })
+/** Fixed diagnostic fields which do not include provider response text or request contents. */
+interface GatewayFailureDiagnostic {
+  readonly source: 'account-token' | 'model-request' | 'model-stream'
+  readonly status?: number
+  readonly causeCode?: string
+  readonly causeErrno?: string
+  readonly causeSyscall?: string
+}
+
+/** Return a provider error field only when it is a bounded machine-readable identifier. */
+function diagnosticCode(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(value) ? value : undefined
+}
+
+/** Return a syscall label only when it cannot contain a path, URL, or request data. */
+function diagnosticSyscall(value: unknown): string | undefined {
+  return typeof value === 'string' && /^[a-z][a-z0-9_]{0,31}$/.test(value) ? value : undefined
+}
+
+/** Read only safe, structured facts from a bounded Error cause chain. */
+function diagnosticCause(error: unknown): Pick<GatewayFailureDiagnostic, 'causeCode' | 'causeErrno' | 'causeSyscall' | 'status'> {
+  const seen = new Set<Error>()
+  let current = error instanceof Error ? error : undefined
+  let facts: Pick<GatewayFailureDiagnostic, 'causeCode' | 'causeErrno' | 'causeSyscall' | 'status'> = {}
+  for (let depth = 0; current !== undefined && depth < 4 && !seen.has(current); depth += 1) {
+    seen.add(current)
+    const details = current as Error & {
+      readonly code?: unknown
+      readonly errno?: unknown
+      readonly syscall?: unknown
+      readonly status?: unknown
     }
-    throw new LlmError('暂时无法验证登录，请检查网络后重试', 'TRANSPORT', { cause: error })
+    const code = diagnosticCode(details.code)
+    const errno = diagnosticCode(details.errno)
+    const syscall = diagnosticSyscall(details.syscall)
+    facts = {
+      ...facts,
+      ...code === undefined ? {} : { causeCode: code },
+      ...errno === undefined ? {} : { causeErrno: errno },
+      ...syscall === undefined ? {} : { causeSyscall: syscall },
+      ...facts.status === undefined && typeof details.status === 'number' && Number.isInteger(details.status) && details.status >= 100 && details.status <= 599
+        ? { status: details.status }
+        : {},
+    }
+    current = current.cause instanceof Error ? current.cause : undefined
   }
-  throw new LlmError('暂时无法验证登录，请检查网络后重试', 'TRANSPORT', {
-    cause: error instanceof Error ? error : undefined,
-  })
+  return facts
+}
+
+/** Append only structured, bounded facts to the Session-visible LLM failure text. */
+function diagnosticMessage(message: string, source: GatewayFailureDiagnostic['source'], error?: unknown): string {
+  try {
+    const { status, ...cause } = diagnosticCause(error)
+    const fields = [
+      `source=${source}`,
+      ...cause.causeCode === undefined ? [] : [`causeCode=${cause.causeCode}`],
+      ...cause.causeErrno === undefined ? [] : [`errno=${cause.causeErrno}`],
+      ...cause.causeSyscall === undefined ? [] : [`syscall=${cause.causeSyscall}`],
+      ...status === undefined ? [] : [`status=${status}`],
+    ]
+    return `${message} [Insight Gateway ${fields.join(' ')}]`
+  } catch (_error) {
+    // Diagnostics must not replace the provider outcome.
+    return message
+  }
 }
 
 /**
@@ -69,6 +121,7 @@ interface ActiveGatewayStream {
 export class InsightGatewayAdapter extends LlmAdapter {
   private readonly profiles: ReadonlyMap<string, ResolvedPiAiProviderProfile>
   private readonly options: Omit<PiAiAdapterOptions, 'profiles' | 'resolveApiKey'>
+  private readonly accountFailures = new WeakSet<Error>()
   private readonly lifetime = new AbortController()
   private readonly activeStreams = new Set<ActiveGatewayStream>()
   private readonly operations = new Set<Promise<void>>()
@@ -158,7 +211,12 @@ export class InsightGatewayAdapter extends LlmAdapter {
   private async * streamWithLifetime(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.assertOpen()
     const signal = this.requestSignal(options.signal)
-    const upstream = this.delegate(signal).stream({ ...options, signal })[Symbol.asyncIterator]()
+    let upstream: AsyncIterator<StreamChunk>
+    try {
+      upstream = this.delegate(signal).stream({ ...options, signal })[Symbol.asyncIterator]()
+    } catch (error) {
+      throw this.modelFailure('model-request', error, signal)
+    }
     let close: Promise<void> | undefined
     const active: ActiveGatewayStream = {
       close: () => {
@@ -169,9 +227,17 @@ export class InsightGatewayAdapter extends LlmAdapter {
     this.activeStreams.add(active)
     try {
       while (true) {
-        const next = await upstream.next()
+        let next: IteratorResult<StreamChunk>
+        try {
+          next = await upstream.next()
+        } catch (error) {
+          if (!(error instanceof Error && this.accountFailures.has(error))) {
+            throw this.modelFailure('model-stream', error, signal)
+          }
+          throw error
+        }
         if (next.done) return
-        yield next.value
+        yield this.withFinishDiagnostic(next.value, signal)
       }
     } finally {
       try {
@@ -221,10 +287,58 @@ export class InsightGatewayAdapter extends LlmAdapter {
         try {
           return await this.account.getAccessToken(signal)
         } catch (error) {
-          return credentialFailure(error, signal)
+          return this.credentialFailure(error, signal)
         }
       },
     })
+  }
+
+  /** Identify account-token failures without copying private IPC details into the Session. */
+  private credentialFailure(error: unknown, signal: AbortSignal): never {
+    if (signal.aborted) throw new LlmError('模型请求已取消', 'ABORTED', { cause: error instanceof Error ? error : undefined })
+    if (error instanceof InsightAccountAccessError) {
+      if (error.reason === 'cancelled') throw new LlmError('模型请求已取消', 'ABORTED', { cause: error })
+      const failure = error.reason === 'expired' || error.reason === 'disposed'
+        ? new LlmError(diagnosticMessage('登录已失效，请重新登录后继续会话', 'account-token', error), 'AUTH', { cause: error })
+        : new LlmError(diagnosticMessage('暂时无法验证登录，请检查网络后重试', 'account-token', error), 'TRANSPORT', { cause: error })
+      this.accountFailures.add(failure)
+      throw failure
+    }
+    const failure = new LlmError(diagnosticMessage('暂时无法验证登录，请检查网络后重试', 'account-token', error), 'TRANSPORT', {
+      cause: error instanceof Error ? error : undefined,
+    })
+    this.accountFailures.add(failure)
+    throw failure
+  }
+
+  /** Preserve an adapter failure's routing fields while adding Session-visible diagnostics. */
+  private modelFailure(source: 'model-request' | 'model-stream', error: unknown, signal: AbortSignal): unknown {
+    if (signal.aborted || error instanceof LlmError && error.code === 'ABORTED') return error
+    try {
+      if (error instanceof LlmError) {
+        const failure = error.failure
+        return new LlmError(diagnosticMessage(error.message, source, error), error.code, { cause: error, ...failure })
+      }
+      const code = error instanceof HarnessError ? error.code : 'UNKNOWN'
+      return new LlmError(diagnosticMessage(error instanceof Error ? error.message : '模型请求失败', source, error), code, {
+        cause: error instanceof Error ? error : undefined,
+      })
+    } catch (_diagnosticError) {
+      return error
+    }
+  }
+
+  /** Add a diagnostic to PiAi's in-band terminal error without changing its retry fields. */
+  private withFinishDiagnostic(chunk: StreamChunk, signal: AbortSignal): StreamChunk {
+    if (signal.aborted || chunk.type !== 'finish' || chunk.reason.kind !== 'error') return chunk
+    try {
+      const { failure } = chunk.reason
+      return { ...chunk, reason: { kind: 'error', failure: {
+        ...failure, message: diagnosticMessage(failure.message, 'model-stream'),
+      } } }
+    } catch (_diagnosticError) {
+      return chunk
+    }
   }
 }
 
