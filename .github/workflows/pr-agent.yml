@@ -1,0 +1,52 @@
+name: PR Agent
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Code review
+    if: >-
+      (github.event_name == 'pull_request_target' && !github.event.pull_request.draft) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+      github.event.comment.body == '/review' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check OpenAI key
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+        run: |
+          if [ -z "$OPENAI_KEY" ]; then
+            echo '::error::Add the OPENAI_KEY repository secret under Settings > Secrets and variables > Actions.'
+            exit 1
+          fi
+
+      # No checkout: pull_request_target must not execute pull-request code with credentials.
+      - name: Review pull request
+        # PR-Agent v0.49.0; pin the runtime image as well as its implementation.
+        uses: docker://pragent/pr-agent@sha256:b1ed6e8de56eb4d6e4169ee0d5c209bb5ed1ef071a01c0c042c64b80192a785c
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          CONFIG__MODEL: ${{ vars.PR_AGENT_MODEL || 'gpt-5.4-mini' }}
+          CONFIG__FALLBACK_MODELS: '[]'
+          CONFIG__ENABLE_AUTO_APPROVAL: 'false'
+          CONFIG__RESTRICTED_MODE: 'true'
+          CONFIG__LOG_LEVEL: INFO
+          GITHUB_ACTION_CONFIG__AUTO_REVIEW: 'true'
+          GITHUB_ACTION_CONFIG__AUTO_DESCRIBE: 'false'
+          GITHUB_ACTION_CONFIG__AUTO_IMPROVE: 'false'
