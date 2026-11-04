@@ -395,7 +395,6 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-tool ToolCallTree key \'tool-call\'',
       'client-ui-user-questions QuestionReplyView key \'question-reply\'',
       'client-ui-workflow-run WorkflowRunPanel key \'workflow-run\'',
-      '@insight-ai/desktop-canvas-plugin View key \'assistant-step\'',
       '@insight-ai/desktop-canvas-plugin View',
     ],
     replaceRisk: 'shadows-shipped-ui',

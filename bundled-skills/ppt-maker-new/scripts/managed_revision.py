@@ -108,6 +108,8 @@ def revise(project, numbers, instruction, *, run_id, model_fn=None):
         verify_receipt(project)
     bp_path=project/'reports/blueprint.json'; bp=read(bp_path)
     brief=read(project/'reports/brief.json')
+    from asset_registry import attach_assets
+    brief=attach_assets(brief,project)
     original_hash=sha256_file(bp_path)
     pages={p['no']:p for p in bp['pages']}
     if not set(numbers) <= set(pages): raise ValueError('revision page outside blueprint')

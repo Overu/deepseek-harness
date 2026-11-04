@@ -107,6 +107,38 @@ def _retain_external_findings(findings, authoring):
             and e.get('sml_sha256') == digest and identity(e) in reproduced)]
 
 
+def omit_unavailable_images(xml, page, findings):
+    """Working copy only: remove named failed img nodes, retain exact text/layout.
+
+    Never synthesize a normal page, remove unknown/global evidence, or promote
+    this selection to validated authoring. A pure picture page needs a placeholder.
+    """
+    import copy
+    declared = {i['src'] for i in page.get('images', [])}
+    omitted = {e.get('src') for e in findings
+               if e.get('code') == 'asset_consumer_error' and e.get('src') in declared}
+    if not omitted:
+        return None
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return None
+    if not any(n.tag.split('}')[-1] == 'content' and n.get('textType') not in
+               {'title','headline','caption','footer','source','page-number','eyebrow'} and
+               ''.join(n.itertext()).strip() for n in root.iter()):
+        return None
+    removed = set()
+    for parent in root.iter():
+        for child in list(parent):
+            if child.tag.split('}')[-1] == 'img' and child.get('src') in omitted:
+                removed.add(child.get('src')); parent.remove(child)
+    if removed != omitted:
+        return None
+    reduced = copy.deepcopy(page)
+    reduced['images'] = [i for i in page.get('images', []) if i['src'] not in omitted]
+    return ET.tostring(root, encoding='unicode'), reduced, sorted(omitted)
+
+
 def export_best_effort(project: Path, output: Path, *, run_id: str,
                        extra_findings: list[dict] | None = None,
                        candidate_overrides: dict[int, str] | None = None,
@@ -198,6 +230,7 @@ def export_best_effort(project: Path, output: Path, *, run_id: str,
         state = _prepare_render_state(project,blueprint,page,style,not blocked_asset,current_skill_hash,current_render_hash)
         cached_xml = state['output'].read_text(encoding='utf-8') if state['cached'] else None
         options = []
+        omitted_sources = []
         if not blocked_asset:
             override = (candidate_overrides or {}).get(page['no'])
             if override:
@@ -225,11 +258,36 @@ def export_best_effort(project: Path, output: Path, *, run_id: str,
             _, xml, errors, quality_warnings, source = min(ranked, key=lambda row: row[0])
         else:
             xml, source, quality_warnings = None, 'technical_placeholder', []
-            errors.append({'code':'missing_slide','message':'No current usable model-authored page'})
+            if blocked_asset:
+                # Saved exact candidates may contain useful body content even
+                # when an image is absent. Remove only the known failed images.
+                drafts = load_candidates(state)
+                if state['output'].is_file():
+                    draft = state['output'].read_text(encoding='utf-8')
+                    evidence = read(state['cache_path'])
+                    if (evidence.get('prompt_sha256') == state['prompt_hash']
+                            and evidence.get('output_sha256') == sha256_text(draft)):
+                        drafts.append(draft)
+                for draft in drafts:
+                    omission = omit_unavailable_images(draft, page, errors)
+                    if omission is None:
+                        continue
+                    candidate, reduced_page, omitted = omission
+                    remaining = [e for e in errors if not (e.get('code') == 'asset_consumer_error'
+                                                           and e.get('src') in omitted)]
+                    reduced_state = dict(state, page=reduced_page)
+                    candidate, candidate_errors, _ = _validate_batch_candidate(reduced_state, candidate)
+                    if blocking(remaining + candidate_errors):
+                        continue
+                    xml, source, omitted_sources = candidate, 'model_draft_missing_images', omitted
+                    quality_warnings = reduced_state.get('quality_warnings') or []
+                    break
+            if xml is None:
+                errors.append({'code':'missing_slide','message':'No current usable model-authored page'})
         errors, advisory = partition(errors)
         quality_warnings += advisory
         status = 'validated' if xml and not errors else 'imperfect'
-        if not xml or errors and not usable_imperfect(xml, errors):
+        if not xml or errors and not omitted_sources and not usable_imperfect(xml, errors):
             status = 'placeholder'
             xml = placeholder_xml(page)
         if status == 'validated' and xml != cached_xml and promote_candidates:
@@ -237,8 +295,9 @@ def export_best_effort(project: Path, output: Path, *, run_id: str,
             _write_render_success(state,xml)
         row = {'page_no':page['no'], 'status':status, 'source':source if status!='placeholder' else 'technical_placeholder',
                'prompt_sha256':state['prompt_hash'], 'sml_sha256':sha256_text(xml), 'errors':errors, 'quality_warnings':quality_warnings,
+               'omitted_asset_srcs':omitted_sources,
                'assets':({i['src']:sha256_file(resolve_asset_target(project/'assets',i['src']))
-                          for i in page.get('images',[])} if status!='placeholder' else {})}
+                          for i in page.get('images',[]) if i['src'] not in omitted_sources} if status!='placeholder' else {})}
         rows.append(row); chosen.append(xml)
     selection = run/'delivery_slides'
     selection.mkdir(parents=True, exist_ok=True)
@@ -377,7 +436,8 @@ def main():
     project=Path(args.project).resolve()
     if args.delivery_policy=='strict': raise RuntimeError('strict mode requires normal successful build')
     from blueprint_validation import static_findings
-    findings=static_findings(read(project/'reports/blueprint.json'),read(project/'reports/brief.json'))
+    from asset_registry import attach_assets
+    findings=static_findings(read(project/'reports/blueprint.json'),attach_assets(read(project/'reports/brief.json'),project))
     if findings: raise RuntimeError('blueprint is incomplete or invalid: '+str(findings))
     from sol_build import _claim_run_id
     _claim_run_id(project,args.run_id)

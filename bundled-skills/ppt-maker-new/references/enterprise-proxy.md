@@ -1,5 +1,10 @@
 # Enterprise proxy runtime
 
+The rc18 asset-registration update runs locally before paid stages. `register-assets`
+and automatic handoff synchronization preserve original receipts, source hashes,
+accepted pages and call budgets; they do not require vendor keys or make model calls.
+The generic archive's local credential loader is not distributed in this enterprise build.
+
 Python business scripts invoke the bundled `enterprise_proxy.py` adapter and
 `enterprise_proxy.mjs` using the client's Node runtime. The plugin supplies
 DSH_HOME and DSH_SKILL_PROXY_NODE and attaches the logged-in user identity.

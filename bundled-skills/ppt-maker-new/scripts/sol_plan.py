@@ -57,14 +57,8 @@ class PlanOutputError(RuntimeError):
 
 def attach_available_assets(brief: dict, project: Path) -> dict:
     """Attach the exact deterministic asset records used by downstream mapping."""
-    enriched = dict(brief)
-    manifest_path = project / "reports" / "assets_manifest.json"
-    if manifest_path.exists():
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-        enriched["available_assets"] = manifest.get("assets", [])
-    else:
-        enriched.setdefault("available_assets", [])
-    return enriched
+    from asset_registry import attach_assets
+    return attach_assets(brief, project)
 
 
 def select_style_reference(brief: dict, skill_root: Path) -> Path:
@@ -691,7 +685,7 @@ def generate_blueprint(
     reports = root / "reports"
     reports.mkdir(parents=True, exist_ok=True)
     from brief_capacity import planning_brief
-    brief = planning_brief(brief)
+    brief = planning_brief(attach_available_assets(brief, root))
     if brief.get('source_page_contract') and len(brief['source_page_contract']['source_pages']) != pages:
         raise ValueError('preserve-pages requested count differs from original source count')
     prompt = build_prompt(topic, pages, extra, brief, style_text)

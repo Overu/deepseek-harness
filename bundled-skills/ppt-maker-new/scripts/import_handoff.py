@@ -42,7 +42,7 @@ def snapshot_asset(project, source, expected):
     return target.resolve()
 
 
-def verified_asset_sources(project):
+def _base_verified_asset_sources(project):
     """Resolve only receipt-bound, exact-byte source relocations."""
     project = Path(project)
     manifest = project / 'reports/assets_manifest.json'
@@ -76,6 +76,11 @@ def verified_asset_sources(project):
             raise ValueError('asset source binding hash/path mismatch')
         sources[aid] = target
     return sources
+
+
+def verified_asset_sources(project):
+    from asset_registry import available_assets
+    return {a['asset_id']: Path(a['staged_path']) for a in available_assets(project)}
 
 
 def recover_asset_sources(project):
@@ -173,7 +178,8 @@ def _import_package(package, project):
         raise ValueError('project_input_conflict: existing project inputs/outputs must not be silently replaced; use a separate project for a new task')
     if prior:
         verify_receipt(project)
-        return {'source_count':len(package['sources']),'asset_count':len(package.get('assets',[])), 'sha256':key, 'reused':True}
+        from asset_registry import available_assets
+        return {'source_count':len(package['sources']),'asset_count':len(available_assets(project)), 'sha256':key, 'reused':True}
     sources, turns, artifacts, assets, sections = [], [], [], [], []
     artifact_ids = {}
     for s in package['sources']:
@@ -197,7 +203,8 @@ def _import_package(package, project):
                 if structure:
                     sections.append('\n[原始结构元数据]\n' + json.dumps(structure, ensure_ascii=False))
     by_id = {s['source_id']: s for s in sources}
-    for a in package.get('assets', []):
+    from asset_registry import discover_assets
+    for a in discover_assets(package):
         p = Path(a['path'])
         width, height = _image_size(p)
         staged = snapshot_asset(project, p, a['sha256'])

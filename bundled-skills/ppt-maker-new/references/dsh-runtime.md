@@ -1,6 +1,9 @@
 # DSH managed runtime
 
 New tasks start with `ppt.py init --project NEW_DIRECTORY`; normal resumes do not.
+Raster inputs register automatically. Offline `ppt.py register-assets --project PROJECT`
+repairs omitted image inventory; `--asset-package FILE` supplies exact missing mappings.
+See asset-recovery.md. It preserves original inputs/receipts and paid work.
 Do not mix a new handoff with an existing blueprint/assets directory. Identical
 handoffs remain reusable. Read [asset-recovery.md](asset-recovery.md) for image
 lineage and `ppt.py reconcile` after an interrupted/cancelled worker has stopped.

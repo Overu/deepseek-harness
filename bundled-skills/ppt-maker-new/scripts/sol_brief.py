@@ -107,7 +107,8 @@ def generate_brief(
     reports = project / "reports"
     material = (reports / "material.md").read_text(encoding="utf-8")
     sources = json.loads((reports / "source_manifest.json").read_text(encoding="utf-8"))
-    assets = json.loads((reports / "assets_manifest.json").read_text(encoding="utf-8"))
+    from asset_registry import available_assets
+    assets = {'assets': available_assets(project)}
     turns_path = reports / "conversation_turns.json"
     artifacts_path = reports / "artifact_manifest.json"
     request_path = reports / "current_request.json"

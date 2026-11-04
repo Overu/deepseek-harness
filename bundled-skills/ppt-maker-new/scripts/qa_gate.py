@@ -220,6 +220,8 @@ def evaluate(
 ) -> dict:
     if selected_dir is not None and require_render_provenance:
         raise ValueError('selection QA is not strict pipeline provenance certification')
+    from asset_registry import attach_assets
+    brief = attach_assets(brief, root)
     errors: list[dict] = []
     warnings: list[dict] = []
     pages = blueprint.get("pages", [])

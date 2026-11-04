@@ -598,6 +598,8 @@ def run_pipeline(
     verify_plan_request(project)
     from blueprint_validation import static_findings
     brief = json.loads((project / 'reports/brief.json').read_text(encoding='utf-8')) if (project / 'reports/brief.json').exists() else {}
+    from asset_registry import attach_assets
+    brief = attach_assets(brief, project)
     findings = static_findings(blueprint, brief)
     atomic_write_json(project / 'reports/runs' / run_id / 'blueprint_preflight.json', {
         'status': 'failed' if findings else 'success', 'errors': findings,

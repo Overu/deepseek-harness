@@ -136,4 +136,4 @@ python3 <skill>/generate.py text_to_ppt "人工智能发展趋势报告"
 python3 <skill>/generate.py image_parsing "" --image-url "<图片URL>"
 ```
 
-生成结果首先是远端 URL，不代表已落盘。后续工具接受 URL 时可直接交接；需要本地文件时再用 web 能力或 curl 受控下载。不要宣称尚未发生的下载已完成。
+生成结果 URL 到手后，用 web 能力或 curl 下载到本地供后续使用。

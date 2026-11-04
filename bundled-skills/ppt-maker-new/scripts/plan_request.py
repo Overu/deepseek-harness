@@ -68,7 +68,8 @@ def adopt_plan(project, topic=None, pages=None, extra=None):
     from import_handoff import verify_receipt
     if (project/'reports/handoff_receipt.json').exists(): verify_receipt(project)
     bp = read(project/'reports/blueprint.json')
-    findings = blocking(static_findings(bp, read(project/'reports/brief.json')))
+    from asset_registry import attach_assets
+    findings = blocking(static_findings(bp, attach_assets(read(project/'reports/brief.json'), project)))
     if findings: raise ValueError('cannot adopt invalid blueprint: '+json.dumps(findings, ensure_ascii=False))
     prior = read(project/'reports/plan_acceptance.json')
     request = resolve_request(project, topic, pages or len(bp.get('pages', [])), extra)

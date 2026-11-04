@@ -59,7 +59,11 @@ For history each unit additionally requires role and message_id; timestamp is re
 when supplied by the original export. For tables attach structured cells/formulas to
 each unit as additional fields; text must also preserve the row's values and blanks.
 An asset entry is {asset_id, source_id, path, sha256}; path is an absolute raster file.
-Register original and extracted images explicitly, not only their descriptions.
+The importer automatically registers raster `sources[].original_path` and actual
+extracted figures in `units[].image_path`, retaining explicit asset IDs when supplied.
+List/archive-extract the actual input members; descriptions alone are not images.
+Use explicit entries for other extracted figures or desired IDs; no local directory
+scan or model call is needed to register known images. Hash/source-derived IDs stay stable.
 Do not stage originals into the project's output `assets/` directory. The importer
 creates hash-verified, byte-identical source snapshots under `inputs/assets/`;
 SOL image `src` is a derivative path relative to `assets/`, e.g. `photo.jpg`, not

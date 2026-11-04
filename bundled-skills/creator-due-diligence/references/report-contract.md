@@ -1,6 +1,6 @@
 # 报告与交接契约
 
-报告呈现规范：1.5；结构化 JSON schema：1.2。完整任务默认保存 `report.md`、`evidence.md` 和 `due-diligence.json` 到本次任务输出目录；不写入技能目录。三个文件来自同一证据集。只回答局部问题时可缩减交付，未调查模块在结构化记录中注明。旧版报告不追溯补填；缺少新版字段代表未记录，不能解释成零样本。
+报告呈现规范：1.6；结构化 JSON schema：1.2。完整任务默认交付合作报告、证据册和结构化记录，来自同一证据集。宿主支持文件时命名为 `report.md`、`evidence.md`、`due-diligence.json`；支持文档/附件时保存等价内容。没有本地文件系统不阻断背调，报告在对话返回，证据和结构化记录保存在宿主可恢复的任务资料中；未创建附件不虚构下载链接。不写入技能目录。只回答局部问题时可缩减交付，未调查模块在结构化记录中注明。旧版报告不追溯补填；缺少新版字段代表未记录，不能解释成零样本。
 
 ## 结果报告与审计记录分层
 
@@ -62,7 +62,7 @@
 `evidence_id, platform, creator_key, content_id, source_url, source_type, origin_cluster_id, published_at, event_at, captured_at, quote, context, media_timestamp, extraction_method, review_scope, identity_status, raw_artifact_ref, supports_claim, contradicts_claim, limitations`。
 
 - 缺失时间/原文链接可为 null，但需说明无法独立回溯的影响，不能作为已独立核验的唯一证据。
-- `source_url` 使用无令牌公开永久链接；受控授权资料用本地脱敏引用，不公开合同或个人资料。
+- `source_url` 使用无令牌公开永久链接；受控授权资料用受控脱敏引用，不公开合同或个人资料。
 - `quote` 仅保留支持判断所需短摘录；完整内容留在获准的受控存储中。评论者不输出多余 ID、个人主页或私人信息。
 - `review_scope`：`title_only / excerpt / full_text / full_media_review`；不能把模型概括当原话。
 - API 文档是能力证据，不是达人行为证据；两者不要混列成同一事件支持材料。

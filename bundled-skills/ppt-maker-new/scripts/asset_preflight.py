@@ -127,7 +127,8 @@ def preflight_project(project: Path) -> dict:
         try:
             source = lookup.get(spec['asset_id'])
             if source is None:
-                raise AssetConsumerError('unknown asset_id')
+                raise AssetConsumerError('unknown asset_id; run ppt.py register-assets in this project; '
+                                         'provide source_id/path/sha256 for an explicit mapping, not a render retry')
             target = resolve_asset_target(project / 'assets', spec['src'])
             prior = cached.get(spec['src'])
             if target.exists() and not prior and sha256_file(target) != sha256_file(source):
@@ -153,9 +154,9 @@ def preflight_project(project: Path) -> dict:
 
 
 def _normalize(source: str, target: str, max_edge: int):
-    import resource
     # Finite resource ceiling: this is a decoder worker, not an unbounded bypass.
     if sys.platform.startswith('linux'):
+        import resource
         resource.setrlimit(resource.RLIMIT_AS, (3 * 1024**3, 3 * 1024**3))
         resource.setrlimit(resource.RLIMIT_CPU, (75, 75))
     # macOS sandbox may reject setrlimit; pixel ceiling and parent timeout

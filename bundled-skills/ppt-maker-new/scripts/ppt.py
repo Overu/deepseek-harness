@@ -120,6 +120,7 @@ def capabilities():
             'user_revision_action':'revise','revision_stage':'revise',
             'new_project_action':'init','request_reconciliation_action':'reconcile',
             'offline_asset_recovery_action':'recover-assets','pilot_repairs_deferred':True,
+            'asset_registration_action':'register-assets','automatic_raster_registration':True,
             'generated_image_lineage':True,'unknown_outcome_acknowledgement':True,
             'terminal_statuses':['success','needs_attention','failed','aborted','interrupted'],
             'native_job_command':'ppt.py execute --stage brief|plan|build|revise',
@@ -236,6 +237,11 @@ def start_managed(project, workers, call_budget, stage='build', topic=None, page
         ensure_reconciliation_idle(project)
         from request_journal import reconcile_all
         reconcile_all(project)
+        # Existing imports may have omitted raster assets. Repair registration
+        # before freezing/dispatch, leaving paid work and original receipts intact.
+        if (project / 'reports/handoff_receipt.json').exists():
+            from asset_registry import synchronize
+            synchronize(project)
     finally:
         handle.close()
     previous = read_json(project / 'reports/dsh_status.json')
@@ -320,6 +326,9 @@ def run(project, action, workers=4, call_budget=None, stage='build', topic=None,
         ensure_reconciliation_idle(project)
         from request_journal import reconcile_all
         reconcile_all(project)
+        if (project / 'reports/handoff_receipt.json').exists():
+            from asset_registry import synchronize
+            synchronize(project)
     except Exception:
         handle.close()
         raise
@@ -490,7 +499,8 @@ def run(project, action, workers=4, call_budget=None, stage='build', topic=None,
 def main():
     configure_console()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['doctor', 'build', 'resume', 'status', 'metrics', 'start', 'cancel', 'execute','deliver','wait','capabilities','adopt-plan','revise','reconcile','init','recover-assets'])
+    parser.add_argument('action', choices=['doctor', 'build', 'resume', 'status', 'metrics', 'start', 'cancel', 'execute','deliver','wait','capabilities','adopt-plan','revise','reconcile','init','recover-assets','register-assets'])
+    parser.add_argument('--asset-package', help='register-assets: explicit missing-image source_id/path/sha256 mappings')
     parser.add_argument('--stage', choices=['build', 'brief', 'plan','revise'], default='build')
     parser.add_argument('--topic', default=None)
     parser.add_argument('--pages', help='plan: total count; revise: comma-separated target pages')
@@ -516,6 +526,14 @@ def main():
     parser.add_argument('--image-request-id',help='exact unresolved image request ID from reconcile')
     args = parser.parse_args()
     project = Path(args.project).resolve()
+    if args.asset_package and args.action != 'register-assets':
+        parser.error('asset-package requires register-assets')
+    if args.action == 'register-assets':
+        from asset_registry import register_assets
+        additions = json.loads(Path(args.asset_package).read_text(encoding='utf-8-sig')) if args.asset_package else None
+        result = register_assets(project, additions)
+        print(json.dumps(result, ensure_ascii=False))
+        return 0 if result['status'] == 'success' else 1
     if args.action=='init':
         print(json.dumps(initialize_project(project),ensure_ascii=False));return 0
     if args.action=='recover-assets':

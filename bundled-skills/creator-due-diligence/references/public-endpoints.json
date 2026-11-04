@@ -2,7 +2,7 @@
   "schema_version": "1.0",
   "source": "https://api.tikhub.io/openapi.json",
   "source_checked_at": "2026-10-19",
-  "transport": "enterprise_proxy",
+  "transport": "host_api_tool",
   "connection_id": "tikhub",
   "pricing_note": "price_usd为内置USD/请求单价，随技能维护更新；业务执行直接据此累计预留，不逐次联网查价，不将快照估算冒充实际账单。",
   "status_note": "全部为文档已核对，未声称本版本逐条实测；线上调用返回仍需人工核对身份、结构和分页",

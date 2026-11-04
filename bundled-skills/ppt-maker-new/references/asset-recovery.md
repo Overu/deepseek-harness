@@ -9,9 +9,52 @@ can live in an input directory. Do not run init again for ordinary resume.
 
 Importer holds the project lock. An identical handoff is reused after receipt
 verification. A different handoff or old project without a matching receipt raises
-project_input_conflict before writes. Intentional input replacement/migration is
-not automated in this candidate. Use the existing revision entry for page edits;
+project_input_conflict before writes. Replacement of the original handoff is not
+automated. Missing image registration can be appended as below. Use revision for page edits;
 do not create a new project to reset usage or repair limits.
+
+## Automatic registration and same-project additions
+
+The importer registers raster sources and extracted figures explicitly referenced
+by `units[].image_path`, preserving supplied IDs. DSH still lists/extracts archive
+members; no other project directories are scanned. Registration preserves source
+class/artifact identity; it does not mark historical work accepted or certify copyright.
+
+On managed start/resume, known omitted images from the retained handoff are registered
+locally before paid stages. For diagnosis or explicit mappings use:
+
+```bash
+python3 <skill>/scripts/ppt.py register-assets --project <project>
+python3 <skill>/scripts/ppt.py register-assets --project <project> --asset-package <additions.json>
+```
+
+`additions.json` is UTF-8 JSON: `{"version":1,"assets":[{"asset_id":"A001",
+"source_id":"S001","path":"/absolute/extracted-photo.png","sha256":"actual-file-sha256"}]}`.
+The source ID must already belong to the project. The caller supplies an actual
+user-provided/extracted image, never a guessed path. This entry supplements image
+bookkeeping, not source text, claims, approvals or a new business input. Existing
+asset IDs cannot be rebound. New business sources require their own supported import workflow.
+
+`reports/asset_registry.json` atomically appends source/hash-bound records to the
+immutable import inventory. Original manifests/receipt, Brief, blueprint, accepted
+pages and call ledger remain unchanged. Failed commits can be repeated; no half
+inventory is visible. All stages consume the same effective inventory.
+An unknown reference can acquire an alias only from a unique registered source/hash
+match (explicit digest or exact existing output bytes); a similar filename or one
+available picture is insufficient. Ambiguity remains an actionable finding.
+
+The result reports `affected_pages` and unresolved mappings with zero model calls.
+Resume the same project after registration. Unaffected validated pages retain
+their cache identity; only previously unresolved/changed consumers need work.
+This does not reset a prior layout repair stop. Sources still require actual files
+and matching hashes. `recover-assets` below relocates existing source bindings;
+`register-assets` fills missing inventory and can preserve a mistaken ID as a verified alias.
+
+In best-effort delivery, a saved model draft with otherwise valid body content can
+omit only named failed `<img>` instances in its working selection. Missing images
+remain blocking findings listed in `delivery_issues.md`; no new text/layout is authored
+locally and the draft is not promoted to accepted authoring. A pure-image page or
+page without a usable saved draft still needs a placeholder. Strict delivery is unchanged.
 
 ## Source/derivative separation and legacy recovery
 
@@ -124,8 +167,9 @@ and incomplete coverage. Authority/ownership/hash writes are not optional. Previ
 submitted/unknown records without proof of non-submission are not silently unlocked.
 
 Limitations: no provider-side query/cancel/idempotency adapter; no exactly-once
-billing guarantee. Image-generator-internal bounded retry/fallback is inherited,
-not redesigned here; this change prevents blind outer-stage resubmission of an
+billing guarantee. This enterprise build preserves its gateway stop policy: proxy
+errors and unknown image outcomes do not automatically retry or switch models.
+This change prevents blind outer-stage resubmission of an
 ambiguous child result. Provider output/diagnostics are retained locally, and may
 contain private URLs; do not publish logs or bundle project transactions. macOS/Linux
 locking is covered; native DSH job retention and remote gateway behavior still need

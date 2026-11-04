@@ -3,7 +3,7 @@ name: ppt-maker-new-new
 description: Use when creating, rebuilding, or materially editing a PowerPoint, slide deck, PPTX, or presentation, including source materials, exported chat histories, intermediate artifacts, or an existing deck.
 ---
 
-# PPT Maker — 5.5.8-rc17 GPT-6.1 model-update candidate
+# PPT Maker — 5.5.8-rc18 asset-registration recovery candidate
 
 ## Enterprise runtime
 
@@ -129,6 +129,12 @@ Brief/plan stage), then retain the job ID. Wait at most 60 seconds per poll; no 
 foreground builds, tail pipelines, unmanaged nohup or blind restart loops.
 
 Importer isolates source image bytes under `inputs/assets/`; `assets/` holds derivatives.
+Raster sources and explicitly extracted `units[].image_path` figures register automatically;
+archive members must first be listed/extracted by DSH. Existing IDs are preserved.
+All stages read the effective source inventory, including hash-bound additions.
+For omitted images or wrong references use offline `ppt.py register-assets --project <project>`;
+an explicit mapping can use `--asset-package <additions.json>`. See asset recovery.
+This preserves the original handoff, blueprint, accepted pages and usage ledger.
 For a legacy source/target collision, use offline `ppt.py recover-assets --project <project>`
 then resume the SAME project; see asset recovery. Never recreate the deck to fix images.
 Reusable assets pass consumer/ownership preflight. New pilot images precede a first-pass
@@ -176,6 +182,10 @@ Read [quality policy](references/quality-policy.md) and [semantic contract](refe
 Warnings remain visible but never buy repairs, require approval or create placeholders
 on their own. Unknown errors, content loss, source/asset failures and serious overflow
 remain blocking. Native save/reopen checks structural compatibility, not screenshots.
+If a saved page has valid body content but a named image dependency fails, best-effort
+may omit only that image from its working copy and list it in delivery issues. It
+never promotes that copy to accepted authoring. Pure-picture/no-usable-draft pages
+still need placeholders; missing evidence must not be presented as complete.
 
 - Fix the owning layer: Brief authority, blueprint design, asset mapping or page SML.
   Local dependency/transport failures do not buy repeated SML repairs.
