@@ -1,1 +1,1 @@
-console.log('issue-agent-smoke-v1')
+console.log('issue-agent-smoke-v2')
