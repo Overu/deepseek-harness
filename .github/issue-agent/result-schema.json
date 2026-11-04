@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["mode", "reply", "pr_title", "pr_body", "kind", "areas"],
+  "properties": {
+    "mode": { "type": "string", "enum": ["reply", "change"] },
+    "reply": { "type": "string" },
+    "pr_title": { "type": "string" },
+    "pr_body": { "type": "string" },
+    "kind": {
+      "type": "string",
+      "enum": ["", "kind/feature", "kind/bug-fix", "kind/doc", "kind/testing", "kind/cleanup", "kind/dependency"]
+    },
+    "areas": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

@@ -1,0 +1,199 @@
+name: Issue Agent
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+concurrency:
+  group: >-
+    issue-agent-${{ !github.event.issue.pull_request && github.event.comment.user.type == 'User' &&
+    contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+    startsWith(github.event.comment.body, '/agent') && format('issue-{0}', github.event.issue.number) || format('ignored-{0}', github.run_id) }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  prepare:
+    if: >-
+      !github.event.issue.pull_request && github.event.comment.user.type == 'User' &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association) &&
+      startsWith(github.event.comment.body, '/agent')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      run: ${{ steps.prepare.outputs.run }}
+      default_sha: ${{ steps.prepare.outputs.default_sha }}
+      work_sha: ${{ steps.prepare.outputs.work_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/issue-agent
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: '24'
+      - name: Authorize and prepare Issue context
+        id: prepare
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_AGENT_STATE: ${{ runner.temp }}/issue-agent-input
+        run: node .github/issue-agent/run.mjs prepare
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        if: steps.prepare.outputs.run == 'true'
+        with:
+          name: issue-agent-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/issue-agent-input/
+          retention-days: 1
+          if-no-files-found: error
+
+  agent:
+    needs: prepare
+    if: needs.prepare.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+          sparse-checkout: .github/issue-agent
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.work_sha }}
+          path: work
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: issue-agent-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/issue-agent-input
+      - name: Prepare isolated agent account
+        run: |
+          sudo useradd --system --create-home --home-dir /home/issueagent --shell /bin/bash issueagent
+          sudo usermod -a -G runner issueagent
+          sudo setfacl -m u:issueagent:x "$RUNNER_TEMP"
+          sudo find "$GITHUB_WORKSPACE/work" -mindepth 1 -maxdepth 1 ! -name .git -exec chown -hR issueagent:issueagent {} +
+          # Sticky ownership protects .git from replacement while allowing new root-level files.
+          sudo chown runner:issueagent "$GITHUB_WORKSPACE/work"
+          sudo chmod 1770 "$GITHUB_WORKSPACE/work"
+          sudo chown -hR runner:runner "$GITHUB_WORKSPACE/work/.git"
+          sudo chmod -R go-w "$GITHUB_WORKSPACE/work/.git"
+          sudo -u issueagent git config --global --add safe.directory "$GITHUB_WORKSPACE/work"
+      - name: Run Issue Agent
+        id: agent
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
+        with:
+          openai-api-key: ${{ secrets.OPENAI_KEY }}
+          codex-version: '0.166.0'
+          model: ${{ vars.ISSUE_AGENT_MODEL || 'gpt-5.4-mini' }}
+          effort: medium
+          safety-strategy: unprivileged-user
+          codex-user: issueagent
+          permission-profile: ':workspace'
+          working-directory: ${{ github.workspace }}/work
+          prompt-file: ${{ runner.temp }}/issue-agent-input/prompt.md
+          output-schema-file: ${{ github.workspace }}/trusted/.github/issue-agent/result-schema.json
+          output-file: /home/issueagent/result.json
+      - name: Stop remaining agent processes
+        if: always()
+        run: |
+          if ! id issueagent >/dev/null 2>&1; then exit 0; fi
+          sudo usermod --expiredate 1 issueagent
+          for attempt in $(seq 1 10); do
+            sudo pkill -KILL -u issueagent || test "$?" -eq 1
+            if ! pgrep -u issueagent >/dev/null; then
+              sudo chmod 0711 /home/issueagent
+              if sudo test -f /home/issueagent/result.json && ! sudo test -L /home/issueagent/result.json; then
+                sudo chmod 0644 /home/issueagent/result.json
+              fi
+              exit 0
+            fi
+            sleep 0.2
+          done
+          echo '::error::Issue Agent processes did not stop; no result will be published.'
+          exit 1
+      - name: Collect validated response and file changes
+        env:
+          ISSUE_AGENT_STATE: ${{ runner.temp }}/issue-agent-output
+          ISSUE_AGENT_WORKDIR: ${{ github.workspace }}/work
+        run: node trusted/.github/issue-agent/run.mjs collect
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: issue-agent-output-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/issue-agent-output/outcome.json
+          retention-days: 1
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, agent]
+    if: needs.prepare.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          persist-credentials: false
+          sparse-checkout: .github/issue-agent
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.prepare.outputs.work_sha }}
+          path: work
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: issue-agent-input-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/issue-agent/input
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: issue-agent-output-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/issue-agent/output
+      # Only trusted orchestration executes in this job; generated files remain data.
+      - name: Publish Issue reply or draft PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_AGENT_STATE: ${{ runner.temp }}/issue-agent
+          ISSUE_AGENT_WORKDIR: ${{ github.workspace }}/work
+        run: node trusted/.github/issue-agent/run.mjs publish
+
+  failure:
+    needs: [prepare, agent, publish]
+    if: >-
+      always() && !cancelled() &&
+      (needs.prepare.result == 'failure' || needs.agent.result == 'failure' || needs.publish.result == 'failure')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/issue-agent
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: '24'
+      - name: Report incomplete request
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ISSUE_AGENT_STATE: ${{ runner.temp }}/issue-agent
+        run: node .github/issue-agent/run.mjs failure
