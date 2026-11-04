@@ -4,5 +4,5 @@
  * @returns {boolean} Whether the page size is a strictly positive integer.
  */
 export function isPositivePageSize(value) {
-  return Number.isInteger(value) && value >= 0
+  return Number.isInteger(value) && value > 0
 }
