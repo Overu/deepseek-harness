@@ -185,7 +185,7 @@ Before starting the Host, Desktop removes every case variant of `DSH_PRODUCT_REQ
 
 <a id="insight-bundled-skills"></a>
 
-Insight also replaces inherited case variants of `DSH_BUNDLED_SKILL_DIR` with the product asset directory: the repository's root `bundled-skills` in development, or `resources/bundled-skills` in an installed application. Before starting the Host, Desktop opens, enumerates, and closes that directory; a failure stops startup without reading skill files. Insight packaging copies the root directory through `extraResources`, preserving its internal structure separately from plugin packages. The official product retains its existing skill-directory environment.
+Insight does not package a `bundled-skills` directory. Signed-in users install, update, and remove platform skills from [Skill center](../../packages/insight/skill-center/README.md); committed skills remain in the current account's local data and appear under Expert skills → Platform presets.
 
 <a id="develop"></a>
 

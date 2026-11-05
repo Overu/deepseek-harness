@@ -26,9 +26,6 @@
       "path": "../../client/ui-sidebar/tsconfig.json"
     },
     {
-      "path": "../../client/ui-conversation/tsconfig.client.json"
-    },
-    {
       "path": "../../client/ui-slots"
     },
     {
@@ -36,9 +33,6 @@
     },
     {
       "path": "../../client/ui-settings/tsconfig.client.json"
-    },
-    {
-      "path": "../../client/connection/tsconfig.client.json"
     }
   ]
 }

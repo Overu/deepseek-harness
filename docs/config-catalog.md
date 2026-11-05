@@ -4814,13 +4814,28 @@ export interface Config {
 
 ## `@insight-ai/skill-center`
 
+- `inject`: `skills`
 - `source`: [`packages/insight/skill-center/src/config.ts:5`](../packages/insight/skill-center/src/config.ts)
 
 ```ts config-catalog
 /** Deployment policy for OSS directory requests. */
 export interface Config {
+  /** Catalogue IDs for first installation, or technical names for catalogue entries without an ID. */
+  presetSkillIds: string[]
+  /** Absolute previous application skill directories discovered read-only for compatibility. */
+  legacySkillDirs: string[]
   /** Maximum time for the response headers and JSON body, in milliseconds. */
   catalogRequestTimeoutMs: number
+  /** Maximum time for downloading one skill archive, in milliseconds. */
+  packageRequestTimeoutMs: number
+  /** Maximum compressed bytes accepted for one skill archive. */
+  packageMaxDownloadBytes: number
+  /** Maximum files and directories accepted from one skill archive. */
+  packageMaxEntries: number
+  /** Maximum uncompressed bytes accepted from one skill archive. */
+  packageMaxExtractedBytes: number
+  /** HTTPS origins from which the Host may download skill archives. */
+  packageAllowedOrigins: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@insight-ai/skill-center -->

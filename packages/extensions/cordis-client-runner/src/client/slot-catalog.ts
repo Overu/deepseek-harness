@@ -1297,7 +1297,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     slotInject: '',
     declaredBy: 'an entry in \'conversation.composer.bar\' (client-ui-conversation), so it exists while that entry is mounted',
     occupants: [
-      '@insight-ai/desktop-integration InsightSkillPicker id \'insight-skills\'',
+      '@insight-ai/skill-center InsightSkillPicker id \'insight-skills\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.input.left\', () => ctx.slots.register(\n      { name: \'conversation.input.left\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
@@ -3639,6 +3639,8 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'experimental-client-ui-forge ActionToast id \'forge-panel.toast\'',
       'cua PermissionToast id \'cua-permission-outcome\'',
       '@insight-ai/skill-center SkillCenterToast id \'insight-skill-center.feedback\'',
+      '@insight-ai/skill-center SkillInstallOverlay id \'insight-skill-center.installation\'',
+      '@insight-ai/skill-center PresetSkillBootstrap id \'insight-skill-center.presets\'',
       'session-log-export SessionMarkdownCopyToast id \'session-log-download.copy-toast\'',
     ],
     replaceRisk: 'none',

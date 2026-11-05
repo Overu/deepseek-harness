@@ -54,7 +54,7 @@ Host bundle 挂载 `ctx.insightAccount`。可信 Host 消费方通过私有子�
 
 每个固定业务包在 `upstream.json` 中记录上游仓库、提交和版本；工作区版本跟随 DSH 根版本。源码改动提交到父仓，`patches/insight` 记录相对固定输入的可回放差异。正常构建不会给已安装文件打补丁。[产品清单](../../scripts/insight-package-policy.ts) 中的精确标识保持私有，并排除于公开 npm 基线。
 
-`bundled-skills` 保持为外部同步的根目录，内部结构不变。运行时从该目录发现技能，并读取每个已安装技能说明旁可选的 `ui.json` 展示信息。Insight Desktop 传入 `DSH_BUNDLED_SKILL_DIR`，打包时将目录作为独立资源复制；[Desktop Host 环境](../../apps/desktop/README.zh.md#insight-bundled-skills) 负责说明开发和安装后的路径。技能内容、脚本和业务正确性由来源仓库负责，不属于本次迁移。
+Insight 技能中心读取已发布目录，并将平台技能安装到当前账号的本地数据中。已提交的安装技能会作为“平台预置”被发现；每个已安装技能说明旁可选的 `ui.json` 提供展示信息。[技能中心包](../../packages/insight/skill-center/README.zh.md)负责安装、更新、移除及账号本地持久化规则。
 
 [Desktop Integration 包](../../packages/insight/desktop-integration/README.zh.md#desktop-updates) 在唯一 DSH updater 之上负责已签名正式版和内测版发现。GitHub 打包构建与 OSS 渠道发布保持为相互独立的操作。
 

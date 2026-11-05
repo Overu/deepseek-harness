@@ -5,9 +5,12 @@
     "outDir": "lib/types",
     "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
   },
-  "files": [
+  "include": [
     "src/index.ts",
-    "src/config.ts"
+    "src/config.ts",
+    "src/types.ts",
+    "src/host",
+    "src/shared"
   ],
   "references": [
     {
@@ -18,6 +21,36 @@
     },
     {
       "path": "../../host/webserver"
+    },
+    {
+      "path": "../../skill/skill"
+    },
+    {
+      "path": "../../skill/skill-filesystem"
+    },
+    {
+      "path": "../../util/home-paths"
+    },
+    {
+      "path": "../../session-query/session-query"
+    },
+    {
+      "path": "../../session/working-directory"
+    },
+    {
+      "path": "../../preset/agent-preset-registry"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../util/atomic-write"
+    },
+    {
+      "path": "../../util/brand"
     }
   ]
 }

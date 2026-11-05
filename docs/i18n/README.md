@@ -67,7 +67,7 @@ Generated English sources omit the language switcher that ordinary authored sour
 
 **Universal requirement**: every current or future document in scope must merge as a complete bilingual pair. [scripts/translation-pairing.manifest.json](../../scripts/translation-pairing.manifest.json) contains only explicit exclusions; there is no per-file rollout list, date cutoff, or README-specific policy class.
 
-Externally synchronized root `bundled-skills` is outside the bilingual source corpus; its source repository owns the files and this repository preserves their directory structure.
+Account-local platform skills installed by Insight Skill center are product data, not documentation sources, and do not enter the bilingual source corpus.
 
 ## Division of labor
 

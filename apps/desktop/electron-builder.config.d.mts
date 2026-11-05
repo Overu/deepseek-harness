@@ -25,7 +25,7 @@ export interface DesktopElectronBuilderConfig {
   readonly extraResources: readonly [
     { readonly from: string, readonly to: 'runtime' },
     { readonly from: string, readonly to: 'icon.png' },
-    ...({ readonly from: string, readonly to: 'branding' | 'bundled-skills' } | { readonly from: string, readonly to: 'tray.ico' })[],
+    ...({ readonly from: string, readonly to: 'branding' } | { readonly from: string, readonly to: 'tray.ico' })[],
   ]
   readonly mac: {
     readonly icon?: string
@@ -57,6 +57,7 @@ export interface DesktopElectronBuilderConfig {
   }
   readonly nsis: {
     readonly uninstallDisplayName: '${productName}'
+    readonly deleteAppDataOnUninstall: false
     readonly include: string
     readonly oneClick: false
     readonly perMachine: false

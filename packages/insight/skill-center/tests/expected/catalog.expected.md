@@ -12,40 +12,34 @@
     - text: v1.2.0
     - paragraph: 匹配合适的创作者，并整理可执行的达人合作方案。
     - button "查看详情"
-    - button "下载 ZIP"
-    - button "复制安装指令"
+    - button "安装"
   - article:
     - heading "品牌策略分析" [level=3]
     - text: v1.0.0
     - paragraph: 从品类、竞品与用户洞察中形成清晰的品牌策略起点。
     - button "查看详情"
-    - button "下载 ZIP"
-    - button "复制安装指令"
+    - button "安装"
   - article:
     - heading "品类竞品洞察" [level=3]
     - text: v1.1.0
     - paragraph: 快速归纳品类机会、竞品策略与值得关注的市场信号。
     - button "查看详情"
-    - button "下载 ZIP"
-    - button "复制安装指令"
+    - button "安装"
   - article:
     - heading "创作者推荐" [level=3]
     - text: v1.0.0
     - paragraph: 根据品牌调性和传播需求，推荐适合合作的创作者组合。
     - button "查看详情"
-    - button "下载 ZIP"
-    - button "复制安装指令"
+    - button "安装"
   - article:
     - heading "创意工作流搭建与评估" [level=3]
     - text: v1.3.0
     - paragraph: 设计从需求拆解到创意交付的 AI 协作流程，并评估其效果。
     - button "查看详情"
-    - button "下载 ZIP"
-    - button "复制安装指令"
+    - button "安装"
   - article:
     - heading "整合营销战役规划" [level=3]
     - text: v1.0.0
     - paragraph: 把品牌目标转化为跨渠道、可执行的整合营销战役规划。
     - button "查看详情"
-    - button "下载 ZIP"
-    - button "复制安装指令"
+    - button "安装"

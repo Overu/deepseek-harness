@@ -71,6 +71,8 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
 
 /** Runtime exports that require every consumer to resolve the provider's shared peer instance. */
 const PEER_REQUIRED_HOST_EXPORTS = {
+  // Product skill providers share the Host's filesystem implementation and lifecycle.
+  '@deepseek-ai/dsh-skill-filesystem': ['FileSystemSkillProvider'],
   // The managed Gateway shares the Host's adapter classes, errors, and model-profile resolution.
   '@deepseek-ai/dsh-llm': ['LlmAdapter', 'LlmError', 'resolveImageAttachmentAccess'],
   '@deepseek-ai/dsh-llm-deepseek': ['resolveAdapterOptions'],

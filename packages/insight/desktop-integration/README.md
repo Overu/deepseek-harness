@@ -55,8 +55,6 @@ Desktop Main selects the Insight product before Electron reads `userData`, compl
 
 This package is both the selected profile bundle and the owner of its Host plugin. Its `cordis.patch.yml` must mount that plugin as `./lib/index.js`; bundle patch parsing anchors the relative path beside the patch file. DSH runtime package lookup excludes a selected bundle package itself, so the row must never use the self-package name `@insight-ai/desktop-integration`. This is a package-resolution requirement, not a Loader ordering requirement.
 
-Client activation mounts this package's generated Remote contribution before installing the product slots. The skill namespace is created by that mount and retires with the Client plugin.
-
 The Host service validates request and response fields, limits concurrent token requests, applies a deadline, and cancels pending requests when the caller aborts or the IPC channel closes. Desktop Main accepts requests only from the current Host child and discards late responses after shutdown or replacement. Sign-out revokes new account access, hides the workspace, stops account-owned resources, clears authentication, and relaunches into the login gate only after shutdown completes.
 
 Non-cancelled Gateway failures retain a redacted diagnostic in their existing Session-visible LLM failure message. It distinguishes Main account-token retrieval from model request or stream failures and includes only structured source, code, errno, syscall, or HTTP-status facts when available. It excludes credentials, headers, prompts, request and response bodies, URLs, and Session identifiers. PiAi may discard an upstream cause, so a generic transport failure cannot always be narrowed further.
@@ -71,7 +69,7 @@ Update discovery verifies an Ed25519-signed rollout, release or target manifest,
 | [`src/desktop.ts`](src/desktop.ts) | Main-process authentication, credential storage, account scope, and Home preparation exports |
 | [`src/protocol.ts`](src/protocol.ts) | Renderer-safe Desktop APIs and validated parent/Host IPC messages |
 | [`src/host/`](src/host/) | Host-only `ctx.insightAccount` provider and managed Gateway adapter |
-| [`src/client/`](src/client/) | Workspace brand, account-footer occupants, and categorized skill picker |
+| [`src/client/`](src/client/) | Workspace brand and account-footer occupants |
 | [`src/desktop/update/`](src/desktop/update/) | Signed rollout verification, source resolution, durable local choices, and product update policy |
 | [`src/client/update/`](src/client/update/) | Renderer-safe native update-window presentation |
 
@@ -84,13 +82,8 @@ Update discovery verifies an Ed25519-signed rollout, release or target manifest,
 
 The Host mounts an Insight enterprise search provider through DSH's public Web registry. Each search sends the current Insight account token as `Authorization: Bearer` and `x-api-key` to the enterprise Gateway's `/messages` endpoint. Each search creates an isolated upstream provider whose token request receives that search's cancellation signal. Shutdown unregisters the provider, aborts admitted work, and waits for it before the account service is released.
 
-Bundled skills call a loopback proxy through an account-local descriptor at `$DSH_HOME/skill-proxy/connection.json`. The descriptor has a one-launch capability and contains no account token. The proxy accepts only capability-authenticated JSON POST requests, forwards only the fixed Insight skill service route, streams NDJSON with backpressure, and removes only the descriptor it owns during shutdown. It uses the bundled primary-runtime Node binary selected by Desktop Main. Admission bounds are eight active requests, 16 MiB buffered request bodies, and a 1,250-second request deadline. A transport or stream failure after forwarding is reported as an unknown outcome and is never retried automatically.
+Installed platform skills call a loopback proxy through an account-local descriptor at `$DSH_HOME/skill-proxy/connection.json`. The descriptor has a one-launch capability and contains no account token. The proxy accepts only capability-authenticated JSON POST requests, forwards only the fixed Insight skill service route, streams NDJSON with backpressure, and removes only the descriptor it owns during shutdown. It uses the bundled primary-runtime Node binary selected by Desktop Main. Admission bounds are eight active requests, 16 MiB buffered request bodies, and a 1,250-second request deadline. A transport or stream failure after forwarding is reported as an unknown outcome and is never retried automatically.
 
-The Insight skill picker reads the three supported skill locations: the bundled directory, `$DSH_HOME/skills`, and `$DSH_AGENTS_HOME/skills`. It delegates precedence to DSH's active Session skill registry, so shadowed, disabled, unavailable, and temporarily invalid entries remain visible but cannot be selected. It refreshes while open and after browser focus, retains only its current Session's last successful directory after a refresh failure, and marks retained entries unconfirmed and unselectable. Selection calls the native input action, which writes or removes a visible `/name` token without replacing reference, quote, command, or attachment state; it never creates hidden prompt context. The regular DSH slash picker remains available for project-local skills.
-
-The picker groups bundled skills under Platform presets and account/shared skills under User custom skills. Its compact trigger opens a search field, two source tabs, and a separately scrolling list with skill titles, short descriptions, and selection marks. Optional `ui.json` beside each installed instruction supplies `displayName` and `shortDescription`; missing or unreadable presentation falls back to the native name and description without changing invocation identity or instruction content.
-
-The inventory Remote is generated from the decorated `InsightSkillInventory` service and is consumed through the package's `./remote` entry. Do not replace it with a hand-maintained Typert descriptor.
 
 -----
 

@@ -185,7 +185,7 @@ macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的�
 
 <a id="insight-bundled-skills"></a>
 
-Insight 还会将继承的所有大小写变体 `DSH_BUNDLED_SKILL_DIR` 替换为产品资源目录：开发时使用仓库根 `bundled-skills`，安装后使用 `resources/bundled-skills`。Host 启动前，Desktop 会打开、枚举并关闭该目录；失败时阻止启动，不读取技能文件。Insight 打包通过 `extraResources` 复制根目录，保持内部结构，并与插件包分离。官方产品保留既有技能目录环境。
+Insight 不再打包 `bundled-skills` 目录。已登录用户可在[技能中心](../../packages/insight/skill-center/README.zh.md)安装、更新和移除平台技能；已提交技能保留在当前账号的本地数据中，并显示在“专家技能 → 平台预置”。
 
 <a id="develop"></a>
 

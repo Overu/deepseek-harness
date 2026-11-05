@@ -1,0 +1,35 @@
+.modal {
+  width: min(420px, 100%);
+}
+
+.body {
+  display: grid;
+  gap: 14px;
+}
+
+.title {
+  margin: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 26px;
+}
+
+.phase {
+  margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--dsw-alias-state-business-primary);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}

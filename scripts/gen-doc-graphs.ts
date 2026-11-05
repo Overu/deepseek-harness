@@ -108,6 +108,14 @@ const GROUP_ORDER = [
 
 const SERVICE_ROLES: ServiceRole[] = [
   {
+    key: 'insightPlatformSkills',
+    pkg: '@insight-ai/skill-center',
+    title: 'Account platform skill installations',
+    mode: 'service',
+    consumers: ['@insight-ai/desktop-integration'],
+    note: 'Owns account-local installation records and cancellable skill management; registers only committed payloads with the skill registry.',
+  },
+  {
     key: 'insightAccount',
     pkg: '@insight-ai/desktop-integration',
     title: 'Insight account credential access',

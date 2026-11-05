@@ -1,3 +1,9 @@
 - insert:
     - id: insight-skill-center
       name: ./lib/index.js
+      config:
+        presetSkillIds:
+          - '1'
+          - '2'
+          - '3'
+        legacySkillDirs: []

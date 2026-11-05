@@ -2,6 +2,9 @@
 # section, a hash of its English and Chinese blocks outside code blocks and generated regions.
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write docs/subsystems/insight.md
-/insight-account-service-api:
-  en: 9aa5300f375072fa
-  zh: 27593736a18bfd2e
+/insight-service-api:
+  en: d3e8cbfa98fd11a6
+  zh: bcf6aa2c3d22e65c
+/insight-service-api/platform-skill-installation-types:
+  en: 19a85256c60865c0
+  zh: fde4a0cb6bb07081

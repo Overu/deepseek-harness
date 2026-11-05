@@ -1,6 +1,6 @@
 /** A compact overview card for one published skill. */
 import type { ReactNode } from 'react'
-import { Button, IconCopyOutlineRegular, IconDownloadOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SkillCatalogItem } from './skill-catalog-resource.ts'
 import type { SkillCenterLocaleKey } from './types.ts'
 import styles from './SkillCard.module.css'
@@ -10,16 +10,16 @@ export interface SkillCardProps {
   readonly skill: SkillCatalogItem
   readonly t: (key: SkillCenterLocaleKey) => string
   readonly onDetail: (skill: SkillCatalogItem) => void
-  readonly onCopy: (skill: SkillCatalogItem) => void
-  readonly onDownload: () => void
+  readonly state: 'install' | 'installed' | 'update' | 'loading' | 'conflict'
+  readonly onInstall: (skill: SkillCatalogItem) => void
 }
 
 /**
- * Render a skill card with secondary exploration and primary copy actions.
+ * Render a skill card with detail navigation and the current install action.
  * @param props - The skill, localized text, and card actions.
  * @returns the skill's catalogue card.
  */
-export function SkillCard({ skill, t, onDetail, onCopy, onDownload }: SkillCardProps): ReactNode {
+export function SkillCard({ skill, t, onDetail, state, onInstall }: SkillCardProps): ReactNode {
   const { name } = skill
   return (
     <article className={styles.card}>
@@ -32,9 +32,8 @@ export function SkillCard({ skill, t, onDetail, onCopy, onDownload }: SkillCardP
       <div className={styles.actions}>
         <div className={styles.secondary}>
           <Button variant="ghost" size="sm" onClick={() => { onDetail(skill) }}>{t('detail')}</Button>
-          <Button variant="ghost" size="sm" icon={<IconDownloadOutlineRegular size={14} />} onClick={onDownload}>{t('download')}</Button>
         </div>
-        <Button variant="primary" size="sm" icon={<IconCopyOutlineRegular size={14} />} onClick={() => { onCopy(skill) }}>{t('copy')}</Button>
+        <Button variant="primary" size="sm" disabled={state === 'installed' || state === 'loading' || state === 'conflict'} onClick={() => { onInstall(skill) }}>{t(state === 'loading' ? 'installStateLoading' : state === 'conflict' ? 'identityConflict' : state)}</Button>
       </div>
     </article>
   )

@@ -21,7 +21,7 @@ P6 closed on 2026-11-03, and migration work is now at rest. Insight runs its pro
 | Authentication and models | Main-owned authentication and account Home; controlled Host credential requests; managed model route without user token configuration |
 | Required components | Integration, Canvas, Memory, and Prompt are product-required and update with the client; internal feature switches remain available |
 | Business source | Canvas is inside packages/insight; Memory and Prompt use pinned snapshots with replayable parent-repository patches, without submodules or independent git updates |
-| Skills | Root bundled-skills structure and synchronization remain; runtime discovery and packaged directory delivery are integrated; skill business correctness was not assessed |
+| Skills | Skill center installs published platform skills into the current account data; committed skills appear as Platform presets and remain local to that device |
 | Historical data | Reuse the Shell userData and account harness directory; no import, conversion, merge, or separate migration state machine |
 | Packaging and publishing | DSH packaging and one updater; separate GitHub Release construction and OSS/CDN publication; final and rc Candidate support |
 

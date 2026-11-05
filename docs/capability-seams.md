@@ -7,6 +7,8 @@ A service can be a core spine service, a swappable capability seam, a bundle/com
 
 ```mermaid
 flowchart LR
+  pkg__insight_ai_skill_center["@insight-ai/skill-center"]
+  svc_insightPlatformSkills["ctx.insightPlatformSkills<br/>Account platform skill installations"]
   pkg__insight_ai_desktop_integration["@insight-ai/desktop-integration"]
   svc_insightAccount["ctx.insightAccount<br/>Insight account credential access"]
   pkg_action_cards["action-cards"]
@@ -317,6 +319,7 @@ flowchart LR
   pkg_experimental_liveshare["experimental-liveshare"]
   svc_liveshareShares["ctx.liveshareShares<br/>Owner share management Remote"]
   pkg__insight_ai_desktop_integration --> svc_insightAccount
+  pkg__insight_ai_skill_center --> svc_insightPlatformSkills
   pkg_action_cards --> svc_actionCards
   pkg_agent --> svc_agents
   pkg_agent_default_model --> svc_agentDefaultModel
@@ -530,6 +533,7 @@ flowchart LR
   svc_fs --> pkg_tool_fs
   svc_headlessStartup --> pkg_headless
   svc_hmr --> pkg_app_boot
+  svc_insightPlatformSkills --> pkg__insight_ai_desktop_integration
   svc_jobs --> pkg_api_job_controller
   svc_jobs --> pkg_tool_bash
   svc_jobs --> pkg_tool_jobs
@@ -651,6 +655,7 @@ flowchart LR
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.insightPlatformSkills` | `service` | `@insight-ai/skill-center` | - | `@insight-ai/desktop-integration` | - | Owns account-local installation records and cancellable skill management; registers only committed payloads with the skill registry. |
 | `ctx.insightAccount` | `service` | `@insight-ai/desktop-integration` | - | - | - | Provides bounded, cancellable access to the Desktop Main-owned token for trusted Host plugins without a Remote, browser, or HTTP surface. |
 | `ctx.actionCards` | `service` | [`action-cards`](../packages/experimental/action-cards) | - | [`creation-recommendations`](../packages/experimental/creation-recommendations), [`client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | Owns the card tool, card state, user actions and status notices; card kinds register their actions and handlers. |
 | `ctx.pluginRecommendations` | `service` | [`plugin-recommendations`](../packages/experimental/plugin-recommendations) | - | [`client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | - | Reads the current catalog text of an official plugin card and enables the plugin through the profile plugin manager after a click. |

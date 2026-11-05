@@ -22,7 +22,7 @@ P6 已于 2026-11-03 完成收口，迁移任务暂告一段落。Insight 已将
 | 认证和模型 | Main 持有认证和账号 Home；Host 受控请求凭据；托管模型路由不要求用户配置 token |
 | 必需组件 | Integration、Canvas、Memory、Prompt 均作为产品必需，随客户端统一更新；保留内部功能开关 |
 | 业务源码 | Canvas 放入 packages/insight；Memory、Prompt 使用固定快照和父仓可回放补丁，不用 submodule 或独立 git 更新 |
-| 技能 | 保留根 bundled-skills 结构和同步形式，接入运行时发现及打包目录资源；未评估技能业务正确性 |
+| 技能 | 技能中心将已发布的平台技能安装到当前账号数据中；已提交技能显示为“平台预置”，并仅保留在当前设备 |
 | 历史数据 | 复用 Shell userData 和账号 harness 目录，不导入、转换、合并或另建迁移状态机 |
 | 打包与发布 | DSH 打包和唯一 updater；GitHub Release 构建与 OSS/CDN 发布分开；支持 final 和 rc Candidate |
 

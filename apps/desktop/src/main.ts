@@ -2,7 +2,7 @@ import type { ProductEventMap, ProductEvent } from '@deepseek-ai/dsh-client-prod
 import { WINDOWS_TITLEBAR_HEIGHT } from './windows-layout.ts'
 /** Electron shell: desktop project ownership, custom protocol, windows, and lifecycle. */
 
-import { access, opendir, readFile, writeFile } from 'node:fs/promises'
+import { access, readFile, writeFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -428,23 +428,15 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
       .filter(([key]) => {
         const normalized = key.toUpperCase()
         return normalized !== 'DSH_PRODUCT_REQUIRED_BUNDLES' && normalized !== 'DSH_INSIGHT_SKILL_PROXY_NODE'
-          && !(insight !== undefined && normalized === 'DSH_BUNDLED_SKILL_DIR')
+          && !(insight !== undefined && (normalized === 'DSH_BUNDLED_SKILL_DIR' || normalized === 'DSH_INSIGHT_LEGACY_SKILL_DIR'))
       }))
     const skillProxyNode = join(primaryRuntime, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
-    const bundledSkillDir = development ? fileURLToPath(new URL('../../../bundled-skills', import.meta.url))
-      : join(process.resourcesPath, 'bundled-skills')
-    if (insight !== undefined) {
-      try {
-        const directory = await opendir(bundledSkillDir)
-        try { await directory.read() } finally { await directory.close() }
-      } catch (error) {
-        throw new Error(`Insight bundled skills directory is unavailable: ${bundledSkillDir}`, { cause: error })
-      }
-    }
     hostEnvironment = insight === undefined ? productEnvironment : { ...productEnvironment,
       DSH_HOME: insight.dshHome, DSH_INSIGHT_SERVICE_ENVIRONMENT: insight.info.environment,
       DSH_PRODUCT_REQUIRED_BUNDLES: JSON.stringify(INSIGHT_REQUIRED_BUNDLES), DSH_INSIGHT_SKILL_PROXY_NODE: skillProxyNode,
-      DSH_BUNDLED_SKILL_DIR: bundledSkillDir }
+      DSH_INSIGHT_LEGACY_SKILL_DIR: development ? fileURLToPath(new URL('../../../bundled-skills', import.meta.url))
+        : join(process.resourcesPath, 'bundled-skills'),
+    }
   }
   let quitting = false
   let startup: Promise<void> | undefined

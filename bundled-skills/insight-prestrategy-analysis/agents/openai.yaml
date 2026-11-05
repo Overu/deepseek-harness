@@ -1,4 +1,0 @@
-interface:
-  display_name: "INSIGHT 前策分析"
-  short_description: "按任务选用研究方法，形成可复用证据与适配不同下游的分析成果"
-  default_prompt: "使用 $insight-prestrategy-analysis，根据当前问题和已有材料开展前策研究，并按我的用途组织交付。"

@@ -55,8 +55,6 @@ Desktop Main 在 Electron 读取 `userData` 前选择 Insight 产品，完成登
 
 本包既是被选中的 profile bundle，也是其 Host 插件的所有者。`cordis.patch.yml` 必须以 `./lib/index.js` 挂载该插件；bundle patch 解析会把相对路径锚定到 patch 文件旁。DSH 运行时包查找会排除被选中的 bundle 包本身，因此该条目绝不能使用自身包名 `@insight-ai/desktop-integration`。这是包解析要求，不是 Loader 排序要求。
 
-Client 激活时先挂载本包生成的 Remote contribution，再安装产品插槽。技能 namespace 由此次挂载创建，并随 Client 插件卸载。
-
 Host 服务校验请求与响应字段、限制并发令牌请求、应用截止时间，并在调用方取消或 IPC 通道关闭时取消待处理请求。Desktop Main 只接受当前 Host 子进程的请求，关停或替换后丢弃迟到响应。退出会撤销新的账号访问、隐藏工作区、停止账号自有资源、清除认证，并且只在关停完成后重启回登录门。
 
 未取消的 Gateway 失败会在既有、可被 Session 查看的 LLM 失败消息中保留脱敏诊断。该诊断区分 Main 账号令牌获取失败与模型请求或流失败，并且只在可得时包含结构化的 source、错误码、errno、syscall 或 HTTP 状态；不包含凭据、请求头、提示词、请求和响应正文、URL 或 Session 标识。PiAi 可能丢弃上游原因，因此通用传输失败不一定能进一步定位。
@@ -71,7 +69,7 @@ Host 服务校验请求与响应字段、限制并发令牌请求、应用截止
 | [`src/desktop.ts`](src/desktop.ts) | Main 进程认证、凭据存储、账号 scope 和 Home 准备导出 |
 | [`src/protocol.ts`](src/protocol.ts) | 渲染器安全 Desktop API 与经校验的父进程/Host IPC 消息 |
 | [`src/host/`](src/host/) | 仅 Host 使用的 `ctx.insightAccount` 提供方与托管网关适配器 |
-| [`src/client/`](src/client/) | 工作区品牌、账号页脚 occupant 与分类技能选择器 |
+| [`src/client/`](src/client/) | 工作区品牌与账号页脚 occupant |
 | [`src/desktop/update/`](src/desktop/update/) | 已签名投放校验、来源解析、持久化本地选择和产品更新策略 |
 | [`src/client/update/`](src/client/update/) | 渲染器安全的原生更新窗口呈现 |
 
@@ -82,13 +80,8 @@ Host 服务校验请求与响应字段、限制并发令牌请求、应用截止
 
 Host 通过 DSH 的公开 Web 注册表挂载 Insight 企业搜索提供方。每次搜索均将当前 Insight 账号令牌通过 `Authorization: Bearer` 和 `x-api-key` 发送至企业 Gateway 的 `/messages` 端点。每次搜索均创建独立的上游提供方，并将该次搜索的取消信号传给令牌请求。停机时先注销提供方，再中止并等待已接收工作结束，最后才释放账号服务。
 
-内置技能通过 `$DSH_HOME/skill-proxy/connection.json` 中账号隔离的回环代理描述文件调用服务。该描述文件带有单次启动能力令牌，不包含账号令牌。代理仅接受携带能力令牌的 JSON POST 请求，只能转发到固定的 Insight 技能服务路由，以背压方式流式转发 NDJSON，并且停机时只删除自身创建的描述文件。它使用 Desktop Main 选定的主运行时内置 Node 二进制文件；准入上限为 8 个活动请求、16 MiB 请求体缓冲和 1,250 秒请求截止时间。转发后的传输或流失败会报告为结果未知，绝不自动重试。
+已安装的平台技能通过 `$DSH_HOME/skill-proxy/connection.json` 中账号隔离的回环代理描述文件调用服务。该描述文件带有单次启动能力令牌，不包含账号令牌。代理仅接受携带能力令牌的 JSON POST 请求，只能转发到固定的 Insight 技能服务路由，以背压方式流式转发 NDJSON，并且停机时只删除自身创建的描述文件。它使用 Desktop Main 选定的主运行时内置 Node 二进制文件；准入上限为 8 个活动请求、16 MiB 请求体缓冲和 1,250 秒请求截止时间。转发后的传输或流失败会报告为结果未知，绝不自动重试。
 
-Insight 技能选择器读取三个受支持位置：内置目录、`$DSH_HOME/skills` 和 `$DSH_AGENTS_HOME/skills`。它把优先级交给 DSH 当前 Session 的技能注册表，因此被覆盖、禁用、未启用和暂时失效的条目仍会显示，但不可选择。菜单打开期间和浏览器重新获得焦点后会刷新；刷新失败时只保留当前 Session 最近成功的目录，并将保留条目标为未确认且不可选择。选择会调用原生输入动作，以普通草稿中可见的 `/name` 写入或移除，不替换引用、quote、command 或附件状态，也不创建隐藏提示词上下文。原生斜杠选择器继续支持项目本地技能。
-
-选择器将内置技能归入“平台预置”，将账号和共享技能归入“用户自定义”。紧凑触发器打开搜索框、两个来源标签和独立滚动的列表，展示技能名称、短简介及选中标记。每个已安装技能说明旁可选的 `ui.json` 提供 `displayName` 和 `shortDescription`；展示信息缺失或不可读时回退到原生名称与描述，不改变调用名称或技能内容。
-
-技能目录 Remote 由带装饰器的 `InsightSkillInventory` 服务生成，并经由本包的 `./remote` 入口供客户端使用；不得改用手写 Typert 描述符。
 
 -----
 

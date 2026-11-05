@@ -21,8 +21,8 @@ index 0000000..14c8045
 +  en: 76368b6b1da79c80
 +  zh: 8d96a89a79ec4a89
 +/insight-ai-desktop-canvas-plugin/use-this-package:
-+  en: ac58c6f6587f5e58
-+  zh: 88b84920b9ec2f69
++  en: 7b4b189b49a6fad3
++  zh: 7fb40a960941d4b7
 +/insight-ai-desktop-canvas-plugin/understand-the-implementation:
 +  en: cbb058874065e5c1
 +  zh: dfd988da9f0883ca
@@ -81,7 +81,7 @@ index 0000000..ef576ca
 +
 +The package's [bundle patch](cordis.patch.yml) contributes the existing Host plugin. Its Client manifest declares the dynamic browser entry. Desktop build dependencies deliver the package without adding it to the official default profile.
 +
-+The iframe builds from `canvas-app`; guidance remains package-owned rather than part of the root `bundled-skills` synchronization directory. [upstream.json](upstream.json) records the source input and retained identity.
++The iframe builds from `canvas-app`; its guidance remains package-owned. [upstream.json](upstream.json) records the source input and retained identity.
 +
 +<a id="understand-the-implementation"></a>
 +## Understand the implementation
@@ -158,7 +158,7 @@ index 0000000..8c7cf11
 +
 +本包的 [bundle patch](cordis.patch.yml) 提供已有 Host 插件，Client manifest 声明动态浏览器入口。桌面构建依赖交付本包，但不把它加入官方默认 profile。
 +
-+iframe 从 `canvas-app` 构建；guidance 归本包拥有，不属于根目录 `bundled-skills` 同步资产。[upstream.json](upstream.json) 记录源码输入和保留的标识。
++iframe 从 `canvas-app` 构建；guidance 归本包拥有。[upstream.json](upstream.json) 记录源码输入和保留的标识。
 +
 +<a id="understand-the-implementation"></a>
 +## 理解实现

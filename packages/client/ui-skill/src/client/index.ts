@@ -20,8 +20,9 @@
  * prewarms the session's key; a preset switch drops that one key (the
  * catalog is the preset's, and a blank session may switch after the warm);
  * plugin-manager/changed clears everything — a manager operation may add or
- * remove providers any session's catalog reads; connection/reset clears
- * everything — the host catalog may differ across generations. A shared
+ * remove providers any session's catalog reads; skills/change immediately
+ * refreshes each live catalog; connection/reset clears everything — the host
+ * catalog may differ across generations. A shared
  * in-flight fetch deliberately outlives any single menu interaction: closing
  * the menu must not kill the prewarm other consumers will hit, so it carries
  * its own abort (fired only on invalidation/teardown) while a candidates
@@ -36,8 +37,9 @@
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { SkillEntry } from '@deepseek-ai/dsh-api-remotes/client'
+import type {} from '@deepseek-ai/dsh-api-remotes/types'
 import type {} from '@deepseek-ai/dsh-api-session-controller/client'
-// Type-only: the forwarded `plugin-manager/changed` declaration.
+// Type-only: forwarded event declarations not owned by api-remotes.
 import type {} from '@deepseek-ai/dsh-plugin-manager/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { InputTriggerServiceContract, InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
@@ -137,6 +139,10 @@ export function apply(ctx: ClientContext): void {
     promise.then(
       // Settled snapshot backs the synchronous lexicon reads.
       (skills) => {
+        // An invalidated request may complete despite aborting (for example,
+        // a transport that already received its response). It must not notify
+        // consumers of its obsolete snapshot after a replacement began.
+        if (fetches.get(sessionId) !== entry) return
         entry.settled = skills
         notifyLexicon(sessionId)
       },
@@ -158,6 +164,23 @@ export function apply(ctx: ClientContext): void {
 
   const clearAll = (): void => {
     for (const key of [...fetches.keys()]) invalidate(key)
+  }
+
+  const refreshAll = (): void => {
+    // A listener can outlive a failed fetch, so include it even when no cache
+    // entry remains. This makes an open historical editor re-resolve its
+    // existing /name text as soon as the Host announces a catalog change.
+    const keys = new Set([...fetches.keys(), ...lexiconListeners.keys()])
+    for (const key of keys) invalidate(key)
+    for (const key of keys) {
+      if (sessions.subagentAddress(key) === undefined) {
+        fetchCatalog(key).promise.catch((error: unknown) => {
+          // A later menu interaction retries; this background refresh has no
+          // user action to surface, and fetchCatalog already evicts failures.
+          void error
+        })
+      }
+    }
   }
 
   // The bound translate resolves against the registered dictionaries with the
@@ -253,6 +276,10 @@ export function apply(ctx: ClientContext): void {
   // naming what changed, and a switched plugin may register providers in the
   // global layer every session reads, so each one drops every cached catalog.
   ctx.remote.$on('plugin-manager/changed', clearAll)
+  // Platform skill install, update, and removal all invalidate the Host
+  // registry. Re-fetch now so subscribed input lexicons redraw without a
+  // keystroke or page reload.
+  ctx.remote.$on('skills/change', refreshAll)
   ctx.on('connection/reset', clearAll)
   ctx.effect(() => {
     const unregister = inputTriggers.registerSource(source)

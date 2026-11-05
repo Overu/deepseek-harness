@@ -2,6 +2,7 @@
 export const CATALOG_FIXTURE = {
   'skills': [
     {
+      'id': 1,
       'skill_id': 'influencer-integration',
       'name': '达人整合',
       'skill_desc': '匹配合适的创作者，并整理可执行的达人合作方案。',
@@ -12,6 +13,7 @@ export const CATALOG_FIXTURE = {
       'sort': 10,
     },
     {
+      'id': 2,
       'skill_id': 'insight-prestrategy-analysis',
       'name': '品牌策略分析',
       'skill_desc': '从品类、竞品与用户洞察中形成清晰的品牌策略起点。',
@@ -22,6 +24,7 @@ export const CATALOG_FIXTURE = {
       'sort': 20,
     },
     {
+      'id': 3,
       'skill_id': 'category-competitor-insight',
       'name': '品类竞品洞察',
       'skill_desc': '快速归纳品类机会、竞品策略与值得关注的市场信号。',
@@ -32,6 +35,7 @@ export const CATALOG_FIXTURE = {
       'sort': 30,
     },
     {
+      'id': 4,
       'skill_id': 'creator-recommendation',
       'name': '创作者推荐',
       'skill_desc': '根据品牌调性和传播需求，推荐适合合作的创作者组合。',
@@ -42,6 +46,7 @@ export const CATALOG_FIXTURE = {
       'sort': 40,
     },
     {
+      'id': 5,
       'skill_id': 'canvas-workflow-builder',
       'name': '创意工作流搭建与评估',
       'skill_desc': '设计从需求拆解到创意交付的 AI 协作流程，并评估其效果。',
@@ -52,6 +57,7 @@ export const CATALOG_FIXTURE = {
       'sort': 50,
     },
     {
+      'id': 6,
       'skill_id': 'marketing-integrated',
       'name': '整合营销战役规划',
       'skill_desc': '把品牌目标转化为跨渠道、可执行的整合营销战役规划。',

@@ -4,7 +4,6 @@ import Schema from '@deepseek-ai/schemastery'
 import { InsightAccount } from '../host.ts'
 import type { AuthEnvironment } from '../shared/auth-contracts.ts'
 import { startInsightBusinessServices } from './business-services.ts'
-import { InsightSkillInventory } from './skill-inventory.ts'
 import { createInsightModelGatewayAdapter, INSIGHT_MODEL_PROVIDER } from './model-gateway.ts'
 
 /** Stable Cordis plugin identity used by the Insight desktop profile. */
@@ -37,7 +36,7 @@ export const Config = Schema.object({
 })
 
 /**
- * Register the Host-only account service, managed model, authenticated Web and skill inventory.
+ * Register the Host-only account service, managed model, and authenticated Web services.
  * @param ctx - Host context that owns the composed integration lifecycle.
  * @param config - Validated product deployment settings.
  * @returns when all child providers are active, or rejects after rolling back their resources.
@@ -46,7 +45,6 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   let accountFiber!: ReturnType<Context['plugin']>
   let gatewayFiber!: ReturnType<Context['inject']>
   let businessFiber!: ReturnType<Context['inject']>
-  let inventoryFiber!: ReturnType<Context['plugin']>
   const dispose = ctx.effect(function* () {
     accountFiber = ctx.plugin((accountCtx) => {
       new InsightAccount(accountCtx, { requestTimeoutMs: config.requestTimeoutMs })
@@ -73,14 +71,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       businessCtx.effect(() => () => services.dispose(), 'insight-desktop: authenticated business services')
     })
     yield businessFiber.dispose
-    inventoryFiber = ctx.plugin(InsightSkillInventory)
-    yield inventoryFiber.dispose
   }, 'insight-desktop: account and business consumers')
   try {
     await accountFiber
     await gatewayFiber
     await businessFiber
-    await inventoryFiber
   } catch (error) {
     await dispose()
     throw error

@@ -6,9 +6,7 @@ import { WINDOWS_TITLEBAR_HEIGHT } from '../src/windows-layout.ts'
 import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi, type Mock } from 'vitest'
 import type { IpcMainInvokeEvent } from 'electron'
 import { join } from 'node:path'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, type Dir } from 'node:fs'
-import { opendir } from 'node:fs/promises'
-import { fileURLToPath } from 'node:url'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import type { MenuItemConstructorOptions, MessageBoxOptions } from 'electron'
 import { DESKTOP_IPC, type DesktopUpdateState } from '../src/ipc.ts'
@@ -377,9 +375,7 @@ vi.mock('../src/background-notice.ts', () => ({ DesktopBackgroundNotice: class {
 } }))
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof import('node:fs/promises')>()
-  return { ...original, opendir: vi.fn((path: Parameters<typeof original.opendir>[0]) =>
-    original.opendir(path === join('desktop-test-resources', 'bundled-skills') ? harness.app.getPath('userData') : path)),
-  readFile: vi.fn((path: Parameters<typeof original.readFile>[0], encoding?: 'utf8') => {
+  return { ...original, readFile: vi.fn((path: Parameters<typeof original.readFile>[0], encoding?: 'utf8') => {
     if (path === join('desktop-test-app', 'package.json')) {
       return Promise.resolve(JSON.stringify({ ...harness.applicationManifest, dshMandatoryUpdatePolicy: harness.embeddedPolicy }))
     }
@@ -1380,7 +1376,7 @@ describe('desktop main startup', () => {
     await harness.preparing.promise
     expect(harness.desktopPathCalls).toEqual(['insight-account-home'])
     expect(harness.projectManagerArguments[0]).toMatchObject([
-      { profile: 'desktop-test-profile' }, expect.anything(), ['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance'],
+      { profile: 'desktop-test-profile' }, expect.anything(), ['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance', '@insight-ai/skill-center'],
     ])
     harness.prepared.resolve()
     await harness.hostStarted.promise
@@ -1413,19 +1409,21 @@ describe('desktop main startup', () => {
     harness.loginShell.mockResolvedValueOnce({ environment: {
       dSh_PrOdUcT_ReQuIrEd_BuNdLeS: '["untrusted"]', dSh_InSiGhT_sKiLl_PrOxY_nOdE: 'untrusted-node',
       DSH_BUNDLED_SKILL_DIR: 'untrusted-skills', dsh_bundled_skill_dir: 'also-untrusted-skills',
+      dsh_insight_legacy_skill_dir: 'untrusted-legacy-skills',
     }, failures: [] })
     await import('../src/main.ts')
     await harness.preparing.promise
     harness.prepared.resolve()
     await harness.hostStarted.promise
     expect(harness.hosts[0]!.environment?.DSH_PRODUCT_REQUIRED_BUNDLES)
-      .toBe(JSON.stringify(['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance']))
+      .toBe(JSON.stringify(['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance', '@insight-ai/skill-center']))
     expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_PRODUCT_REQUIRED_BUNDLES')).toEqual(['DSH_PRODUCT_REQUIRED_BUNDLES'])
     expect(harness.hosts[0]!.environment?.DSH_INSIGHT_SKILL_PROXY_NODE)
       .toBe(join('desktop-test-resources', 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin', 'node.exe'))
-    expect(harness.hosts[0]!.environment?.DSH_BUNDLED_SKILL_DIR).toBe(join('desktop-test-resources', 'bundled-skills'))
-    expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_BUNDLED_SKILL_DIR'))
-      .toEqual(['DSH_BUNDLED_SKILL_DIR'])
+    expect(Object.keys(harness.hosts[0]!.environment ?? {}).some(key => key.toUpperCase() === 'DSH_BUNDLED_SKILL_DIR')).toBe(false)
+    expect(harness.hosts[0]!.environment?.DSH_INSIGHT_LEGACY_SKILL_DIR).toBe(join('desktop-test-resources', 'bundled-skills'))
+    expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_INSIGHT_LEGACY_SKILL_DIR'))
+      .toEqual(['DSH_INSIGHT_LEGACY_SKILL_DIR'])
   })
 
   it('uses the prepared development primary-runtime Node for the Insight skill proxy', async () => {
@@ -1439,58 +1437,6 @@ describe('desktop main startup', () => {
     await harness.hostStarted.promise
     expect(harness.hosts[0]!.environment?.DSH_INSIGHT_SKILL_PROXY_NODE)
       .toBe(join('test-primary-runtime', 'dependencies', 'node', 'bin', 'node.exe'))
-    expect(harness.hosts[0]!.environment?.DSH_BUNDLED_SKILL_DIR)
-      .toBe(fileURLToPath(new URL('../../../bundled-skills', import.meta.url)))
-  })
-
-  it.each(['missing', 'file'] as const)('reports invalid Insight bundled resources before starting a Host: %s', async (kind) => {
-    selectInsightProduct()
-    insightStartup.prepare.mockResolvedValueOnce(insightContext())
-    if (kind === 'missing') vi.mocked(opendir).mockRejectedValueOnce(new Error('missing bundled resources'))
-    else {
-      const target = join(harness.app.getPath('userData'), 'wrong-resource-file')
-      writeFileSync(target, 'ordinary file')
-      const realFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
-      vi.mocked(opendir).mockImplementationOnce(() => realFs.opendir(target))
-    }
-    harness.dialog.showMessageBox.mockImplementation(() => {
-      harness.dialogShown.resolve()
-      return Promise.resolve({ response: 0 })
-    })
-    await import('../src/main.ts')
-    await harness.preparing.promise
-    harness.prepared.resolve()
-    await harness.dialogShown.promise
-    expect(harness.hosts).toHaveLength(0)
-    expect((harness.dialog.showMessageBox.mock.calls[0]![0] as MessageBoxOptions).detail)
-      .toContain('Insight bundled skills directory is unavailable')
-  })
-
-  it('settles an account expiry while bundled resource discovery is pending without starting a Host', async () => {
-    selectInsightProduct()
-    const context = insightContext()
-    let expire: (() => void) | undefined
-    context.onExpired.mockImplementation((listener) => { expire = listener; return () => {} })
-    insightStartup.prepare.mockResolvedValueOnce(context)
-    const opening = Promise.withResolvers<Dir>()
-    const started = Promise.withResolvers<undefined>()
-    vi.mocked(opendir).mockImplementationOnce(() => { started.resolve(undefined); return opening.promise })
-    await import('../src/main.ts')
-    await harness.preparing.promise
-    await vi.waitFor(() => { expect(context.onExpired).toHaveBeenCalledOnce() })
-    await started.promise
-    expect(harness.hosts).toHaveLength(0)
-    if (expire === undefined) throw new Error('account expiry listener missing')
-    expire()
-    expect(context.closeAdmission).toHaveBeenCalledOnce()
-    expect(harness.hosts).toHaveLength(0)
-    const realFs = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises')
-    const directory = await realFs.opendir(harness.app.getPath('userData'))
-    opening.resolve(directory)
-    harness.prepared.resolve()
-    await vi.waitFor(() => { expect(harness.app.relaunch).toHaveBeenCalledOnce() })
-    expect(harness.hosts).toHaveLength(0)
-    await expect(directory.read()).rejects.toMatchObject({ code: 'ERR_DIR_CLOSED' })
   })
 
   it('enters the Insight workspace without connecting official welcome and scopes account IPC to the workspace frame', async () => {

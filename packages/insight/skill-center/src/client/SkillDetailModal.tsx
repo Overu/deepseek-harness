@@ -1,7 +1,7 @@
 /** Skill detail dialog using the shared modal behavior. */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
-import { Button, IconCopyOutlineRegular, IconDownloadOutlineRegular, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SkillCatalogItem } from './skill-catalog-resource.ts'
 import type { SkillCenterLocaleKey } from './types.ts'
 import styles from './SkillDetailModal.module.css'
@@ -11,8 +11,9 @@ export interface SkillDetailModalProps {
   readonly skill: SkillCatalogItem | null
   readonly t: (key: SkillCenterLocaleKey) => string
   readonly onClose: () => void
-  readonly onCopy: (skill: SkillCatalogItem) => void
-  readonly onDownload: () => void
+  readonly state: 'install' | 'installed' | 'update' | 'loading' | 'conflict'
+  readonly onInstall: (skill: SkillCatalogItem) => void
+  readonly onRemove: (skill: SkillCatalogItem) => void
 }
 
 /**
@@ -20,7 +21,7 @@ export interface SkillDetailModalProps {
  * @param props - The selected skill, localized text, and user actions.
  * @returns the shared detail modal, or null without a selected skill.
  */
-export function SkillDetailModal({ skill, t, onClose, onCopy, onDownload }: SkillDetailModalProps): ReactNode {
+export function SkillDetailModal({ skill, t, onClose, state, onInstall, onRemove }: SkillDetailModalProps): ReactNode {
   if (skill === null) return null
   const paragraphs = descriptionParagraphs(skill.descriptionMarkdown)
   const name = skill.name
@@ -29,7 +30,7 @@ export function SkillDetailModal({ skill, t, onClose, onCopy, onDownload }: Skil
       className={clsx(styles.modal)} contentClassName={clsx(styles.content)}>
       <p className={styles.summary}>{skill.summary}</p>
       <dl className={styles.meta}>
-        <div><dt>{t('skillId')}</dt><dd>{skill.id}</dd></div>
+        <div><dt>{t('skillId')}</dt><dd>{skill.id ?? skill.skillName}</dd></div>
         <div><dt>{t('version')}</dt><dd>{t('versionValue').replace('{version}', skill.version)}</dd></div>
       </dl>
       <section aria-labelledby="skill-detail-description">
@@ -39,8 +40,8 @@ export function SkillDetailModal({ skill, t, onClose, onCopy, onDownload }: Skil
           : paragraphs.map(paragraph => <p key={paragraph.id} className={styles.paragraph}>{paragraph.text}</p>)}
       </section>
       <div className={styles.actions}>
-        <Button variant="outline" icon={<IconDownloadOutlineRegular size={16} />} onClick={onDownload}>{t('download')}</Button>
-        <Button variant="primary" icon={<IconCopyOutlineRegular size={16} />} onClick={() => { onCopy(skill) }}>{t('copy')}</Button>
+        {(state === 'installed' || state === 'update') && <Button variant="outline" onClick={() => { onRemove(skill) }}>{t('remove')}</Button>}
+        <Button variant="primary" disabled={state === 'installed' || state === 'loading' || state === 'conflict'} onClick={() => { onInstall(skill) }}>{t(state === 'loading' ? 'installStateLoading' : state === 'conflict' ? 'identityConflict' : state)}</Button>
       </div>
     </Modal>
   )

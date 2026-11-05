@@ -16,11 +16,9 @@ describe('OSS catalog', () => {
   it('keeps enabled skills with IDs, sorts them, and maps remote display fields', () => {
     const first = CATALOG_FIXTURE.skills[0]!
     const second = CATALOG_FIXTURE.skills[1]!
-    const skills = normalizeCatalog({ skills: [
-      second, { ...first, enabled: 0 }, { ...first, skill_id: ' ' }, first,
-    ] })
+    const skills = normalizeCatalog({ skills: [second, { ...first, enabled: 0 }, first] })
     expect(skills).toHaveLength(2)
-    expect(skills.map(skill => skill.id)).toEqual([first.skill_id, second.skill_id])
+    expect(skills.map(skill => skill.id)).toEqual([String(first.id), String(second.id)])
     expect(skills[0]).toMatchObject({
       name: first.name, summary: first.skill_desc, version: first.version,
       descriptionMarkdown: first.description_markdown,
@@ -29,7 +27,7 @@ describe('OSS catalog', () => {
 
   it('uses catalog defaults for absent names, summaries, and versions', () => {
     expect(normalizeCatalog({ skills: [{ skill_id: ' demo ', enabled: '1' }] })).toMatchObject([
-      { id: 'demo', name: 'demo', summary: '', version: '1.0.0' },
+      { skillName: 'demo', name: 'demo', summary: '', version: '1.0.0' },
     ])
   })
 
@@ -39,6 +37,22 @@ describe('OSS catalog', () => {
 
   it('rejects duplicate enabled skill IDs', () => {
     expect(() => normalizeCatalog({ skills: [CATALOG_FIXTURE.skills[0], CATALOG_FIXTURE.skills[0]] })).toThrow()
+  })
+
+  it('keeps opaque OSS IDs and requires a technical name', () => {
+    expect(normalizeCatalog({ skills: [{ ...CATALOG_FIXTURE.skills[0], id: '../other-skill' }] })[0]).toMatchObject({ id: '../other-skill' })
+    expect(() => normalizeCatalog({ skills: [{ ...CATALOG_FIXTURE.skills[0], skill_id: ' ' }] })).toThrow()
+  })
+
+  it('rejects duplicate IDs but allows distinct IDs with one technical name', () => {
+    const first = CATALOG_FIXTURE.skills[0]!
+    expect(() => normalizeCatalog({ skills: [first, { ...first, name: 'Duplicate' }] })).toThrow()
+    expect(normalizeCatalog({ skills: [first, { ...first, id: 99, name: 'Replacement' }] })).toHaveLength(2)
+  })
+
+  it('rejects duplicate technical names only when both entries omit an ID', () => {
+    const first = CATALOG_FIXTURE.skills[0]!
+    expect(() => normalizeCatalog({ skills: [{ ...first, id: undefined }, { ...first, id: undefined, name: 'Duplicate' }] })).toThrow()
   })
 
   it('requests the fixed OSS JSON with a cache-busting query, Accept header, and resource signal', async () => {
@@ -129,5 +143,5 @@ it('contains non-Error transport failures and cancellation rejections', async ()
 it('places invalid sort values with the default order and skips non-record entries', () => {
   const first = CATALOG_FIXTURE.skills[0]!
   const skills = normalizeCatalog({ skills: [null, 1, { ...first, sort: 'not a number' }, CATALOG_FIXTURE.skills[1]] })
-  expect(skills.map(skill => skill.id)).toEqual([first.skill_id, CATALOG_FIXTURE.skills[1]!.skill_id])
+  expect(skills.map(skill => skill.id)).toEqual([String(first.id), String(CATALOG_FIXTURE.skills[1]!.id)])
 })

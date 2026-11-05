@@ -9,6 +9,8 @@
 
 ```mermaid
 flowchart LR
+  pkg__insight_ai_skill_center["@insight-ai/skill-center"]
+  svc_insightPlatformSkills["ctx.insightPlatformSkills<br/>Account platform skill installations"]
   pkg__insight_ai_desktop_integration["@insight-ai/desktop-integration"]
   svc_insightAccount["ctx.insightAccount<br/>Insight account credential access"]
   pkg_action_cards["action-cards"]
@@ -319,6 +321,7 @@ flowchart LR
   pkg_experimental_liveshare["experimental-liveshare"]
   svc_liveshareShares["ctx.liveshareShares<br/>Owner share management Remote"]
   pkg__insight_ai_desktop_integration --> svc_insightAccount
+  pkg__insight_ai_skill_center --> svc_insightPlatformSkills
   pkg_action_cards --> svc_actionCards
   pkg_agent --> svc_agents
   pkg_agent_default_model --> svc_agentDefaultModel
@@ -532,6 +535,7 @@ flowchart LR
   svc_fs --> pkg_tool_fs
   svc_headlessStartup --> pkg_headless
   svc_hmr --> pkg_app_boot
+  svc_insightPlatformSkills --> pkg__insight_ai_desktop_integration
   svc_jobs --> pkg_api_job_controller
   svc_jobs --> pkg_tool_bash
   svc_jobs --> pkg_tool_jobs
@@ -653,6 +657,7 @@ flowchart LR
 
 | ctx 键 | 角色 | 所属包 | 实现 | 直接消费方 | 配套插件 | 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
+| `ctx.insightPlatformSkills` | `service` | `@insight-ai/skill-center` | - | `@insight-ai/desktop-integration` | - | 管理账号本地安装记录和可取消的技能操作，仅向技能注册表注册已提交的内容。 |
 | `ctx.insightAccount` | `service` | `@insight-ai/desktop-integration` | - | - | - | 为可信 Host 插件提供有界且可取消的 Desktop Main 令牌访问，不暴露 Remote、浏览器或 HTTP 接口。 |
 | `ctx.actionCards` | `service` | [`action-cards`](../packages/experimental/action-cards) | - | [`creation-recommendations`](../packages/experimental/creation-recommendations), [`client-ui-action-cards`](../packages/experimental/client-ui-action-cards) | - | 负责卡片工具、卡片状态、用户操作和状态通知；各卡片种类注册自己的动作和处理器。 |
 | `ctx.pluginRecommendations` | `service` | [`plugin-recommendations`](../packages/experimental/plugin-recommendations) | - | [`client-ui-plugin-recommendations`](../packages/experimental/client-ui-plugin-recommendations) | - | 读取官方插件卡片的当前目录文本，并在用户点击后通过配置插件管理器启用该插件。 |

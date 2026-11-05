@@ -6,7 +6,8 @@ import { es, fr, de, ru, pt } from '../src/client/locales.ts'
  * the source behavior contract driven directly on the captured source with
  * real ClientSessionContext projections — sessionId addressing, the
  * session-keyed catalog cache (single-flight per key, scope-birth warm
- * prewarm, plugin-manager/changed and connection/reset clears), shared fuzzy
+ * prewarm, forwarded catalog-change refreshes, plugin-manager/changed and
+ * connection/reset clears), shared fuzzy
  * name ranking, RPC-failure
  * rejection, pick → plain-text outcome (the plain-text-reference decision:
  * .agents/notes/archived/architecture/2026-07-25-web-input-machine-and-slash-pipeline.md),
@@ -287,9 +288,11 @@ describe('candidates: sessionId addressing', () => {
 
   it('does not fetch Agent-bound skills for an addressed child', async () => {
     const { list, payloads } = countingList()
-    const { source } = await bench(list, sid('child'))
+    const { source, remote } = await bench(list, sid('child'))
     await expect(source.candidates(proj('child'), req(''))).resolves.toEqual([])
     source.warm!(proj('child'))
+    source.subscribeLexicon!(proj('child'), vi.fn())
+    remote.emit('skills/change', [])
     expect(payloads).toEqual([])
   })
 })
@@ -400,6 +403,66 @@ describe('catalog cache', () => {
     await source.candidates(proj('s1'), req(''))
     await source.candidates(proj('s2'), req(''))
     expect(payloads).toHaveLength(4)
+  })
+
+  it('refreshes cached historical catalogs after platform skill install, update, and removal', async () => {
+    let catalog: SkillRow[] = []
+    const list = vi.fn<ListFn>(() => listOk(catalog)({}))
+    const { source, remote, openResource } = await bench(list)
+    const historical = proj('s1')
+    const other = proj('s2')
+    const lexiconChanged = vi.fn()
+    source.subscribeLexicon!(historical, lexiconChanged)
+    await source.candidates(historical, req(''))
+    await source.candidates(other, req(''))
+    expect(list).toHaveBeenCalledTimes(2)
+
+    // Installing a platform skill changes a registry that both retained
+    // sessions read. The historical editor's subscribed lexicon re-fetches
+    // immediately, so its existing /review text can become interactive.
+    catalog = [{ name: 'review', description: 'Review', path: '/platform/review-v1/SKILL.md' }]
+    remote.emit('skills/change', [])
+    await vi.waitFor(() => { expect(list).toHaveBeenCalledTimes(4) })
+    await vi.waitFor(() => { expect(source.lexicon!(historical)).toEqual(['review']) })
+    expect(source.openReference!(historical, { ref: '/review' })).toBe(true)
+    expect(openResource).toHaveBeenLastCalledWith('dsh-resource://file/session/s1//platform/review-v1/SKILL.md')
+
+    // An update retains its name but changes the preview target; use the
+    // refreshed entry instead of the former settled path.
+    catalog = [{ name: 'review', description: 'Review', path: '/platform/review-v2/SKILL.md' }]
+    remote.emit('skills/change', [])
+    await vi.waitFor(() => { expect(list).toHaveBeenCalledTimes(6) })
+    await vi.waitFor(() => { expect(source.lexicon!(historical)).toEqual(['review']) })
+    expect(source.openReference!(historical, { ref: '/review' })).toBe(true)
+    expect(openResource).toHaveBeenLastCalledWith('dsh-resource://file/session/s1//platform/review-v2/SKILL.md')
+
+    // Removal empties the same cached lexicon and prevents a stale preview.
+    catalog = []
+    remote.emit('skills/change', [])
+    await vi.waitFor(() => { expect(list).toHaveBeenCalledTimes(8) })
+    await vi.waitFor(() => { expect(source.lexicon!(historical)).toEqual([]) })
+    expect(source.openReference!(historical, { ref: '/review' })).toBe(false)
+    expect(lexiconChanged).toHaveBeenCalledTimes(7)
+  })
+
+  it('retains the refreshed catalog when an invalidated request completes late', async () => {
+    const stale = Promise.withResolvers<ListResult>()
+    const fresh: SkillRow[] = [{ name: 'installed', description: 'Fresh' }]
+    const list = vi.fn<ListFn>()
+      .mockReturnValueOnce(stale.promise)
+      .mockImplementation(listOk(fresh))
+    const { source, remote } = await bench(list)
+    const session = proj('s1')
+    const pending = source.candidates(session, req(''))
+    await vi.waitFor(() => { expect(list).toHaveBeenCalledTimes(1) })
+
+    remote.emit('skills/change', [])
+    await vi.waitFor(() => { expect(list).toHaveBeenCalledTimes(2) })
+    await vi.waitFor(() => { expect(source.lexicon!(session)).toEqual(['installed']) })
+
+    stale.resolve({ ok: true, value: { skills: [{ name: 'removed', description: 'Stale' }] } })
+    await expect(pending).rejects.toThrow()
+    expect(source.lexicon!(session)).toEqual(['installed'])
   })
 })
 

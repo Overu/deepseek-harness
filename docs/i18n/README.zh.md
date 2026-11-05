@@ -69,7 +69,7 @@
 
 **统一要求**：当前及今后纳入范围的每篇文档，合并时都必须构成完整的双语配对。[scripts/translation-pairing.manifest.json](../../scripts/translation-pairing.manifest.json) 只包含显式排除项；不存在逐文件推进清单、日期分界或 README 专用政策类别。
 
-从外部同步的根目录 `bundled-skills` 不属于双语源码文档范围；文件由其源仓库维护，本仓库保留目录结构。
+Insight 技能中心安装的账号本地平台技能属于产品数据，不是文档源码，也不会进入双语源码文档范围。
 
 ## 分工
 

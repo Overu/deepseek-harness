@@ -1,0 +1,6 @@
+- insert:
+    - id: skill-download-fixture
+      name: ./download-service.mjs
+
+- id: insight-skill-center
+  inject: [skillDownloadFixture]

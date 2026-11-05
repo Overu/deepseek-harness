@@ -189,9 +189,6 @@ export function createElectronBuilderConfig(
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       ...(insight === undefined ? [] : [{ from: INSIGHT_BRANDING_ROOT, to: 'branding' }]),
       ...(insight === undefined ? [] : [{ from: INSIGHT_UPDATE_RESOURCE_ROOT, to: 'insight-update' }]),
-      ...(insight === undefined ? [] : [{
-        from: fileURLToPath(new URL('../../../bundled-skills/', import.meta.url)), to: 'bundled-skills',
-      }]),
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],
@@ -294,6 +291,7 @@ export function createElectronBuilderConfig(
     },
     nsis: {
       uninstallDisplayName: '${productName}',
+      deleteAppDataOnUninstall: false,
       installerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       uninstallerSidebar: join(buildPaths.root, 'installer-ui', 'uninstaller-sidebar.bmp'),
       include: fileURLToPath(new URL('./installer.nsh', import.meta.url)),

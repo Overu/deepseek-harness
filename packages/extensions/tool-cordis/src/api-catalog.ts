@@ -1732,6 +1732,77 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'insightPlatformSkills',
+    summary: 'Host service owning committed platform skills for the current account.',
+    description: 'Host service owning committed platform skills for the current account.',
+    methods: [
+      {
+        signature: 'readonly root: string',
+        description: 'Account-owned directory containing platform skill state.',
+        parameters: [],
+      },
+      {
+        signature: 'initialize(): Promise<void>',
+        description: 'Wait until interrupted staging and unreferenced payload recovery completes.',
+        parameters: [],
+      },
+      {
+        signature: '@Remote listInstalled(): Promise<PlatformSkillSnapshot>',
+        description: 'List installed versions selected by complete atomic records.',
+        parameters: [],
+        returns: 'Current account installation state.',
+      },
+      {
+        signature: '@Remote listPendingPresets(catalogue: readonly SkillIdentity[]): Promise<readonly SkillIdentity[]>',
+        description: 'List configured platform skills eligible for this account\'s first automatic installation.',
+        parameters: [{ name: 'catalogue', description: 'Published identities used to resolve configured selectors.' }],
+        returns: 'Identities absent from both installed records and account installation history.',
+      },
+      {
+        signature: '@Remote async waitForInstallation(identity: SkillIdentity, signal: AbortSignal): Promise<PlatformSkillSnapshot>',
+        description: 'Observe another client\'s admitted installation without cancelling its work.',
+        parameters: [{ name: 'identity', description: 'Skill identity whose admitted install or update must settle.' }, { name: 'signal', description: 'Cancels only this observer\'s wait.' }],
+        returns: 'Account installation state after the observed operations settle.',
+      },
+      {
+        signature: 'async listLegacyCandidates(options: SkillLookupOptions): Promise<readonly SkillCandidate[] | SkillProviderObservation>',
+        description: 'Discover previous application directories without modifying their files.',
+        parameters: [{ name: 'options', description: 'Lookup cancellation and working-directory context.' }],
+        returns: 'Legacy candidates ranked after managed platform releases.',
+      },
+      {
+        signature: '@Remote({ name: \'installSkill\', mode: \'stream\' }) async *install( request: PlatformSkillInstallRequest, signal: AbortSignal, ): AsyncIterable<PlatformSkillInstallProgress>',
+        description: 'Install or update one catalogue release and stream work through final settlement.',
+        parameters: [{ name: 'request', description: 'Published release and client-generated operation identity.' }, { name: 'signal', description: 'Remote stream lifetime; disconnect requests cancellation and drains rollback.' }],
+        returns: 'progress followed by exactly one committed or cancelled terminal frame.',
+      },
+      {
+        signature: '@Remote async cancel(operationId: PlatformSkillOperationId): Promise<PlatformSkillOperationSettlement>',
+        description: 'Request cancellation without closing the progress stream and wait for rollback or commit.',
+        parameters: [{ name: 'operationId', description: 'Identity supplied when installation started.' }],
+        returns: 'the actual terminal outcome; a commit that won the race remains successful.',
+      },
+      {
+        signature: '@Remote(\'removeSkill\') async remove(request: PlatformSkillRemovalRequest, signal: AbortSignal): Promise<PlatformSkillSnapshot>',
+        description: 'Remove one committed skill selection and then reclaim its immutable payload.',
+        parameters: [{ name: 'request', description: 'Local key and current catalogue identity of the installation to remove.' }, { name: 'signal', description: 'Cancellation is honored before record removal commits.' }],
+        returns: 'current committed installation state.',
+      },
+      {
+        signature: 'async listCandidates(options: SkillLookupOptions): Promise<readonly SkillCandidate[] | SkillProviderObservation>',
+        description: 'List effective candidates from only payloads selected by committed records.',
+        parameters: [{ name: 'options', description: 'Lookup cancellation and working-directory context.' }],
+        returns: 'Complete candidates, or an explicitly incomplete observation.',
+      },
+      {
+        signature: 'getCandidate(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined>',
+        description: 'Load one candidate previously returned by listCandidates.',
+        parameters: [{ name: 'candidate', description: 'Candidate carrying the filesystem locator.' }, { name: 'options', description: 'Lookup cancellation and working-directory context.' }],
+        returns: 'The complete parsed skill, or undefined when its file was removed.',
+      },
+    ],
+  },
+  {
     key: 'inspector',
     summary: 'Shared Host/Client service façade over the realm\'s source publisher.',
     description: 'Shared Host/Client service façade over the realm\'s source publisher.',
@@ -6581,6 +6652,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type IndexInjectionPlacement = \'head\' | \'body\';',
   },
   {
+    name: 'InsightSkillId',
+    declaration: 'export type InsightSkillId = Branded<\'InsightSkillId\'>;',
+  },
+  {
     name: 'InspectOptions',
     declaration: 'export interface InspectOptions {\n    readonly registry?: Registry;\n}',
   },
@@ -6603,6 +6678,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'InstallBundleOptions',
     declaration: 'export interface InstallBundleOptions {\n    enabled?: boolean;\n    saveExact?: boolean;\n    requestId?: PluginInstallRequestId;\n    approvedBuilds?: string[];\n    registry?: Registry;\n}',
+  },
+  {
+    name: 'InstalledPlatformSkill',
+    declaration: 'export interface InstalledPlatformSkill extends SkillIdentity {\n    readonly key: PlatformSkillKey;\n    readonly version: string;\n}',
   },
   {
     name: 'InstallSpecKind',
@@ -7327,6 +7406,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PlatformSession',
     declaration: 'export interface PlatformSession {\n    readonly origin: string;\n    readonly token: string;\n    readonly userId: AccountUserId | null;\n    readonly embeddedPageDist?: string;\n    readonly requestHeaders?: Readonly<Record<string, string>>;\n}',
+  },
+  {
+    name: 'PlatformSkillInstallProgress',
+    declaration: 'export type PlatformSkillInstallProgress = {\n    readonly kind: \'progress\';\n    readonly operationId: PlatformSkillOperationId;\n    readonly phase: \'download\';\n    readonly receivedBytes: number;\n    readonly totalBytes?: number;\n} | {\n    readonly kind: \'progress\';\n    readonly operationId: PlatformSkillOperationId;\n    readonly phase: \'validate\' | \'commit\';\n} | PlatformSkillOperationSettlement;',
+  },
+  {
+    name: 'PlatformSkillInstallRequest',
+    declaration: 'export interface PlatformSkillInstallRequest extends SkillIdentity {\n    readonly key?: PlatformSkillKey;\n    readonly version: string;\n    readonly operationId: PlatformSkillOperationId;\n    readonly downloadUrl: string;\n}',
+  },
+  {
+    name: 'PlatformSkillKey',
+    declaration: 'export type PlatformSkillKey = Branded<\'PlatformSkillKey\'>;',
+  },
+  {
+    name: 'PlatformSkillOperationId',
+    declaration: 'export type PlatformSkillOperationId = Branded<\'PlatformSkillOperationId\'>;',
+  },
+  {
+    name: 'PlatformSkillOperationSettlement',
+    declaration: 'export type PlatformSkillOperationSettlement = {\n    readonly kind: \'complete\';\n    readonly operationId: PlatformSkillOperationId;\n    readonly skill: InstalledPlatformSkill;\n} | {\n    readonly kind: \'cancelled\';\n    readonly operationId: PlatformSkillOperationId;\n};',
+  },
+  {
+    name: 'PlatformSkillRemovalRequest',
+    declaration: 'export interface PlatformSkillRemovalRequest extends SkillIdentity {\n    readonly key: PlatformSkillKey;\n}',
+  },
+  {
+    name: 'PlatformSkillSnapshot',
+    declaration: 'export interface PlatformSkillSnapshot {\n    readonly skills: readonly InstalledPlatformSkill[];\n}',
   },
   {
     name: 'PluginChange',
@@ -8799,6 +8906,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SkillEntry',
     declaration: 'export interface SkillEntry {\n    readonly path?: string;\n    readonly name: string;\n    readonly description: string;\n    readonly whenToUse?: string;\n    readonly modelInvocable: boolean;\n}',
+  },
+  {
+    name: 'SkillIdentity',
+    declaration: 'export interface SkillIdentity {\n    readonly id?: InsightSkillId;\n    readonly skillName: string;\n}',
   },
   {
     name: 'SkillInvocationPolicy',

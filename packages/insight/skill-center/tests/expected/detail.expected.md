@@ -3,12 +3,11 @@
   - button "关闭"
   - paragraph: 匹配合适的创作者，并整理可执行的达人合作方案。
   - term: 技能 ID
-  - definition: influencer-integration
+  - definition: "1"
   - term: 版本
   - definition: v1.2.0
   - region "技能描述":
     - heading "技能描述" [level=3]
     - paragraph: 根据品牌、目标人群和传播目标，梳理达人筛选、合作分层与内容方向。
     - paragraph: 输出可继续完善的整合营销提案。
-  - button "下载 ZIP"
-  - button "复制安装指令"
+  - button "安装"

@@ -1,7 +1,8 @@
 /** Read and normalize the published Insight skill catalogue. */
-import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
 import type { ResourceProvider } from '@deepseek-ai/dsh-client-resources/client'
 import type { Config } from '../config.ts'
+import type { InsightSkillId, SkillIdentity } from '../shared/skill-installation.ts'
+import { normalizeSkillId } from '../shared/skill-identity.ts'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 
@@ -9,11 +10,10 @@ import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 export const SKILL_CATALOG_URL = 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json'
 
 /** A published skill identifier admitted by the catalogue parser. */
-export type InsightSkillId = Branded<'InsightSkillId'>
+export type { InsightSkillId } from '../shared/skill-installation.ts'
 
 /** One enabled skill shown in the marketplace. */
-export interface SkillCatalogItem {
-  readonly id: InsightSkillId
+export interface SkillCatalogItem extends SkillIdentity {
   readonly name: string
   readonly summary: string
   readonly version: string
@@ -70,18 +70,32 @@ export function normalizeCatalog(payload: unknown): readonly SkillCatalogItem[] 
   }
   const skills: Array<SkillCatalogItem & { readonly sort: number }> = []
   const ids = new Set<string>()
+  const namesWithoutIds = new Set<string>()
   for (const entry of payload.skills) {
     if (!isRecord(entry) || Number(entry.enabled) !== 1) continue
-    const rawId = stringField(entry, 'skill_id').trim()
-    if (rawId === '') continue
-    if (ids.has(rawId)) {
-      throw new InvalidCatalogError(`The skill catalogue repeats the skill id ${rawId}.`)
+    const skillName = stringField(entry, 'skill_id').trim()
+    if (skillName === '') throw new InvalidCatalogError('The skill catalogue contains an enabled skill without a technical name.')
+    let id: InsightSkillId | undefined
+    try {
+      id = normalizeSkillId(entry.id)
+    } catch (error) {
+      throw new InvalidCatalogError(error instanceof Error ? error.message : String(error))
     }
-    ids.add(rawId)
-    const name = stringField(entry, 'name').trim() || rawId
+    if (id === undefined) {
+      if (namesWithoutIds.has(skillName)) {
+        throw new InvalidCatalogError(`The skill catalogue repeats the technical name ${skillName} without an ID.`)
+      }
+      namesWithoutIds.add(skillName)
+    } else if (ids.has(id)) {
+      throw new InvalidCatalogError(`The skill catalogue repeats the skill ID ${id}.`)
+    } else {
+      ids.add(id)
+    }
+    const name = stringField(entry, 'name').trim() || skillName
     const version = stringField(entry, 'version').trim() || '1.0.0'
+    const identity: SkillIdentity = id === undefined ? { skillName } : { id, skillName }
     skills.push({
-      id: brandString<InsightSkillId>(rawId),
+      ...identity,
       name,
       summary: stringField(entry, 'skill_desc').trim(),
       version,

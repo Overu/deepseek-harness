@@ -19,6 +19,7 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/insight/canvas': { category: 'insight-product', reason: 'Required by the Insight distribution; the official Desktop composition remains unchanged.' },
   'packages/insight/memory-evolve': { category: 'insight-product', reason: 'Fixed private memory source for the Insight distribution.' },
   'packages/insight/prompt-enhance': { category: 'insight-product', reason: 'Fixed private composer enhancement source for the Insight distribution.' },
+  'packages/insight/skill-center': { category: 'insight-product', reason: 'Required account platform skill management for the Insight distribution.' },
   'packages/core/agent-tool-presentation': { category: 'optional', reason: 'Deprecated selector retained for existing executor configurations.' },
   'packages/browser-use/browser-use': { category: 'optional', reason: 'Service definition used by explicitly selected browser providers.' },
   'packages/computer-use/computer-use': { category: 'optional', reason: 'Service definition used by explicitly selected computer providers.' },
