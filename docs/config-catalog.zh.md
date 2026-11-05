@@ -4811,6 +4811,22 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@insight-ai/skill-center -->
+<a id="insight-aiskill-center"></a>
+
+## `@insight-ai/skill-center`
+
+- `source`: [`packages/insight/skill-center/src/config.ts:5`](../packages/insight/skill-center/src/config.ts)
+
+```ts config-catalog
+/** Deployment policy for OSS directory requests. */
+export interface Config {
+  /** Maximum time for the response headers and JSON body, in milliseconds. */
+  catalogRequestTimeoutMs: number
+}
+```
+<!-- END GENERATED config-catalog:@insight-ai/skill-center -->
+
 <!-- BEGIN GENERATED config-catalog:dsh-memory-evolve -->
 <a id="dsh-memory-evolve"></a>
 

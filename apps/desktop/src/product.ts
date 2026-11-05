@@ -10,6 +10,7 @@ export const INSIGHT_REQUIRED_BUNDLES: readonly string[] = [
   '@insight-ai/desktop-canvas-plugin',
   'dsh-memory-evolve',
   'dsh-prompt-enhance',
+  '@insight-ai/skill-center',
 ]
 
 /** Environment variable that selects the Insight product for development. */

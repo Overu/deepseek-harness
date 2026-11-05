@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/insight/skill-center/README.md
+/:
+  en: fc9ee719815eb580
+  zh: dac268f841b953f8
+/insight-ai-skill-center:
+  en: e1ce6d2ecb35ab97
+  zh: fbd17cf75958174d
+/insight-ai-skill-center/summary:
+  en: ced1cd61c7a3cf06
+  zh: d030ead0b4e87662
+/insight-ai-skill-center/table-of-contents:
+  en: 122f0d41696980b1
+  zh: 90be2e0d6818a83c
+/insight-ai-skill-center/use-this-package:
+  en: aee552ab46611f87
+  zh: 8bd3df92b8fe6a91
+/insight-ai-skill-center/understand-the-implementation:
+  en: 9941a10e7394db13
+  zh: b83709270c049f3c
+/insight-ai-skill-center/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/insight-ai-skill-center/model-experience/skill-center-page:
+  en: ec5f9917c58bd565
+  zh: e7a8209bb6452038
+/insight-ai-skill-center/model-experience/skill-center-page/what-the-model-sees:
+  en: 25434341262fcc0d
+  zh: dfdd17bba4ae3c4e
+/insight-ai-skill-center/model-experience/skill-center-page/token-effect:
+  en: 84cda41de0230fbf
+  zh: c5c91d8ce257e4e4
+/insight-ai-skill-center/model-experience/skill-center-page/kv-cache-effect:
+  en: 27a3ebd2613beaf3
+  zh: 1f289e63ff5359f3
+/insight-ai-skill-center/known-limitations-and-deferred-work:
+  en: 26f5e62ba5e44842
+  zh: 3ae5d0b500d353f4
+/insight-ai-skill-center/known-limitations-and-deferred-work/dev-note:
+  en: 5d6e70dbffd66f87
+  zh: 214554ac2a77e257

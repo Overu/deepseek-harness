@@ -36,6 +36,7 @@
     "packages/*/*/tests/**/*.client.spec.tsx",
     "packages/*/*/tests/**/*.client.tsx",
     "packages/*/*/tests/**/*.client.ts",
+    "packages/insight/skill-center/tests/fixtures/catalog.ts",
     // Client package outside packages/client with a local CSS module face.
     "packages/extensions/ui-cordis/src/css-modules.d.ts",
     "packages/client/tsdown.client.ts",
@@ -60,6 +61,7 @@
     { "path": "packages/insight/memory-evolve/tsconfig.client.json" },
     { "path": "packages/insight/prompt-enhance/tsconfig.client.json" },
     { "path": "packages/insight/canvas/tsconfig.client.json" },
+    { "path": "packages/insight/skill-center/tsconfig.client.json" },
     { "path": "./packages/experimental/client-ui-action-cards" },
     { "path": "./packages/experimental/client-ui-creation-recommendations" },
     { "path": "./packages/experimental/client-ui-plugin-recommendations" },

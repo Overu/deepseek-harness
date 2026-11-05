@@ -28,6 +28,8 @@
     // not declaration path aliases, keep each package/vendor source compiled
     // under its own tsconfig boundary.
     "paths": {
+      "@insight-ai/skill-center": ["./packages/insight/skill-center/src/index.ts"],
+      "@insight-ai/skill-center/client": ["./packages/insight/skill-center/src/client/index.ts"],
       "@insight-ai/desktop-integration": ["./packages/insight/desktop-integration/src/index.ts"],
       "@insight-ai/desktop-integration/desktop": ["./packages/insight/desktop-integration/src/desktop.ts"],
       "@insight-ai/desktop-integration/host": ["./packages/insight/desktop-integration/src/host.ts"],

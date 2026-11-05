@@ -1,0 +1,3 @@
+- insert:
+    - id: insight-skill-center
+      name: ./lib/index.js

@@ -295,6 +295,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@insight-ai/skill-center` | yes | Insight skill market reading the published OSS catalog |
 | `dsh-memory-evolve` | yes | Layered memory, skill and task management for Insight workspaces |
 | `dsh-prompt-enhance` | yes | Prompt enhancement for the DSH composer |
 

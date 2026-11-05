@@ -6,4 +6,5 @@ export const INSIGHT_PRODUCT_PACKAGES: Readonly<Record<string, string>> = {
   'packages/insight/canvas': '@insight-ai/desktop-canvas-plugin',
   'packages/insight/memory-evolve': 'dsh-memory-evolve',
   'packages/insight/prompt-enhance': 'dsh-prompt-enhance',
+  'packages/insight/skill-center': '@insight-ai/skill-center',
 }
