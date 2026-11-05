@@ -5,6 +5,7 @@ import type { ComponentProps } from 'react'
 import type { InputActions, InputState, TokenSpan } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { InsightSkillPicker, type InsightSkillInventoryLoader } from '../src/client/InsightSkillPicker.tsx'
 import type { InsightSkillInventorySnapshot } from '../src/shared/skill-inventory.ts'
+import { zh } from '../src/client/locales.ts'
 
 afterEach(() => {
   cleanup()
@@ -45,15 +46,38 @@ function inputActions(toggleSkill = vi.fn()): InputActions {
 }
 
 function props(input: PickerProps['useInput'] = inputHook(), actions = inputActions(), loadInventory: InsightSkillInventoryLoader = async () => ({ complete: true, entries: [] })): PickerProps {
+  const copy: Readonly<Record<string, string>> = zh
   return {
     sessionId: 'session-1' as PickerProps['sessionId'],
     useInput: input,
     inputActions: actions,
     loadInventory,
+    openSkillCenter: vi.fn(),
+    t: key => copy[key] ?? key,
   }
 }
 
 describe('InsightSkillPicker', () => {
+  it('opens the skill center from the empty scroll area and closes the picker', async () => {
+    const initial = props()
+    render(<InsightSkillPicker {...initial} />)
+    fireEvent.click(screen.getByRole('button', { name: '技能' }))
+    expect(screen.queryByRole('button', { name: '去技能中心' })).toBeNull()
+    const action = await screen.findByRole('button', { name: '去技能中心' })
+    expect(action.parentElement?.parentElement).toBe(screen.getByRole('listbox').parentElement)
+    expect(screen.getByRole('listbox').contains(action)).toBe(false)
+    fireEvent.click(action)
+    expect(initial.openSkillCenter).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog', { name: '选择技能' })).toBeNull()
+  })
+
+  it('does not offer installation while the empty inventory is incomplete', async () => {
+    render(<InsightSkillPicker {...props(inputHook(), inputActions(), async () => ({ complete: false, entries: [] }))} />)
+    fireEvent.click(screen.getByRole('button', { name: '技能' }))
+    await screen.findByText('没有匹配的技能')
+    expect(screen.queryByRole('button', { name: '去技能中心' })).toBeNull()
+  })
+
   it('uses the Shell outlined four-point star in the trigger', () => {
     render(<InsightSkillPicker {...props()} />)
     const star = screen.getByRole('button', { name: '技能' }).querySelector('svg path')

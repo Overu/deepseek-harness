@@ -1,6 +1,7 @@
 /** Typed copy for the Insight skill center. */
 export const zh = {
   title: '技能中心',
+  goToSkillCenter: '去技能中心',
   eyebrow: '以专业为引擎，让团队与 AI 共成长',
   heroTitlePrefix: '找到适合你的',
   heroTitleAccent: 'AI 技能',
@@ -41,6 +42,7 @@ export const zh = {
 
 /** English copy; other languages use the locale registry's English fallback. */
 export const en: Record<keyof typeof zh, string> = {
+  goToSkillCenter: 'Go to skill center',
   versionValue: 'v{version}',
   title: 'Skill center', eyebrow: 'Put expertise at the heart of how teams work with AI', heroTitlePrefix: 'Find the right', heroTitleAccent: 'AI skill', searchPlaceholder: 'Search skill names or summaries', search: 'Search', directoryEyebrow: 'Skill directory', directoryTitle: 'All skills', resultCount: '{count} skills', catalogLoading: 'Loading skill directory', catalogLoadFailed: 'The skill directory is unavailable. Try again', retry: 'Retry', catalogEmpty: 'No skills have been published yet', noResults: 'No skills match “{query}”', detail: 'View details', install: 'Install', installStateLoading: 'Loading installation status', installStateLoadFailed: 'Installed skills are unavailable. Try again', identityConflict: 'Skill identity conflict', removedCatalogSkill: 'This installed skill is no longer in the skill directory. You can still remove it', installed: 'Installed', update: 'Update', remove: 'Remove', installing: 'Installing', updating: 'Updating', installProgressDownload: 'Downloading skill', installProgressValidate: 'Validating skill', installProgressCommit: 'Installing skill', installCancel: 'Cancel', installCancelling: 'Cancelling; waiting for the operation to finish', installFailure: 'The skill could not be installed. Try again', installSuccess: 'Skill installed', updateSuccess: 'Skill updated', removeSuccess: 'Skill removed', removeFailure: 'The skill could not be removed. Try again', skillId: 'Skill ID', version: 'Version', description: 'Description', noDescription: 'No skill description is available', close: 'Close',
 }

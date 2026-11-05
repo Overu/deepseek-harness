@@ -40,6 +40,7 @@ async function mountMarket(
 ) {
   vi.stubGlobal('fetch', fetchImplementation)
   const runtime = await SlotTestRuntime.create()
+  runtime.ctx.provide('layout', { selectPanel: vi.fn() })
   vi.spyOn(runtime.remote, '$mount').mockImplementation(async () => {
     runtime.remote.provideNamespaces({
       insightPlatformSkills: platform.remote.insightPlatformSkills,

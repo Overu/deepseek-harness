@@ -29,7 +29,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required browser services for localized slot registrations. */
-export const inject = ['slots', 'locale', 'resources', 'remote']
+export const inject = ['slots', 'locale', 'resources', 'remote', 'layout']
 
 /**
  * Register the skill center immediately after Plugins and its matching main panel.
@@ -89,8 +89,9 @@ function registerSkillCenter(ctx: Context): void {
     }, PresetSkillBootstrap))
   }
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
-    name: 'conversation.input.left', id: 'insight-skills', order: -100,
+    name: 'conversation.input.left', id: 'insight-skills', order: -100, locale: namespace,
     inject: (): InsightSkillPickerInjected => ({
+      openSkillCenter: () => { ctx.layout.selectPanel(panelId) },
       loadInventory: async (sessionId, signal) => {
         const result = await ctx.remote.insightSkills.list({ sessionId }, signal)
         if (!result.ok) throw new Error(result.error.message)

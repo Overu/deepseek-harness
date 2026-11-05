@@ -215,10 +215,35 @@ it('refreshes skill references in an open historical conversation after installa
       await market.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await updatedReference.waitFor({ state: 'detached' })
       await updatedOption.waitFor({ state: 'detached' })
-      await page.getByRole('dialog', { name: '选择技能' }).getByText('没有匹配的技能', { exact: true }).waitFor()
-      await page.keyboard.press('Escape')
+      const emptyPicker = page.getByRole('dialog', { name: '选择技能' })
+      await emptyPicker.getByText('没有匹配的技能', { exact: true }).waitFor()
+      const openSkillCenter = emptyPicker.getByRole('button', { name: 'Go to skill center', exact: true })
+      await openSkillCenter.waitFor()
+      await compareOrRefreshGolden(fileURLToPath(new URL('expected/picker-empty.expected.md', import.meta.url)),
+        await emptyPicker.ariaSnapshot(), webSnapshotMode())
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate(value => document.body.toggleAttribute('data-ds-dark-theme', value === 'dark'), theme)
+        for (const width of [1440, 390]) {
+          await page.setViewportSize({ width, height: 1000 })
+          await expect.poll(() => openSkillCenter.evaluate((element) => {
+            const scroll = element.parentElement?.parentElement
+            if (scroll === null || scroll === undefined || getComputedStyle(scroll).overflowY !== 'auto') return false
+            const action = element.getBoundingClientRect()
+            const area = scroll.getBoundingClientRect()
+            return action.x >= area.x && action.right <= area.right && action.y >= area.y && action.bottom <= area.bottom
+              && area.x >= 0 && area.right <= innerWidth
+          })).toBe(true)
+        }
+      }
       expect(await input.textContent()).toBe(draft)
+      await page.setViewportSize({ width: 1440, height: 1000 })
+      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
+        route => route.fulfill({ json: CATALOG_FIXTURE, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await openSkillCenter.click()
+      await emptyPicker.waitFor({ state: 'detached' })
+      await page.getByRole('region', { name: 'Skill center', exact: true }).waitFor()
       await page.reload({ waitUntil: 'load' })
+      await page.locator('[role="treeitem"]').last().click()
       await page.getByText('Historical skill conversation.', { exact: true }).waitFor()
       expect(await input.locator('[data-composer-text-ref]').filter({ hasText: '/browser-installed-expert' }).count()).toBe(0)
       expect(await input.locator('[data-composer-text-ref]').filter({ hasText: '/browser-updated-expert' }).count()).toBe(0)

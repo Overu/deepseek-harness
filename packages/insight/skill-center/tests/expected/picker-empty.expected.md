@@ -1,0 +1,8 @@
+- dialog "选择技能":
+  - combobox "搜索技能" [expanded]
+  - tablist "技能来源":
+    - tab "平台预置" [selected]
+    - tab "用户自定义"
+  - listbox "可选技能"
+  - status: 没有匹配的技能
+  - button "Go to skill center"
