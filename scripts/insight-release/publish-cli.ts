@@ -12,6 +12,7 @@ import { verifyInsightDesktopBuildManifest, type InsightDesktopBuildManifest, ty
 import { createAliOssTransport, createGithubStsProvider, type InsightOssTransport } from './oss.ts'
 import { publishInsightCandidate, type InsightReleaseCompatibility } from './publish.ts'
 import { publishInsightStable } from './publish-stable.ts'
+import { assertInsightPackageSource } from './package-source.ts'
 
 const REPOSITORY = 'Overu/deepseek-harness'
 const REPOSITORY_ID = 1_429_559_776
@@ -52,7 +53,7 @@ const runSchema = z.looseObject({
   id: z.number().int().positive(),
   run_attempt: z.number().int().positive(),
   event: z.literal('workflow_dispatch'),
-  head_branch: z.literal(BRANCH),
+  head_branch: z.string().min(1),
   head_sha: commitSchema,
   status: z.literal('completed'),
   conclusion: z.literal('success'),
@@ -139,9 +140,11 @@ export async function publishVerifiedInsightRelease(input: PublishVerifiedInsigh
     input.sourceCommit,
   )
   const run = runSchema.parse(await api.json(`/actions/runs/${String(buildRunRecord.workflowRunId)}`))
-  if (run.id !== buildRunRecord.workflowRunId || run.head_sha !== input.sourceCommit || run.path.split('@', 1)[0] !== WORKFLOW_PATH) {
+  if (run.id !== buildRunRecord.workflowRunId || run.head_sha !== input.sourceCommit
+    || (run.path !== WORKFLOW_PATH && run.path !== `${WORKFLOW_PATH}@refs/heads/${run.head_branch}`)) {
     throw new Error('GitHub Actions run does not match the Release buildRunRecord.')
   }
+  assertInsightPackageSource(input.version, `refs/heads/${run.head_branch}`)
   const listed = artifactListSchema.parse(await api.json(`/actions/runs/${String(run.id)}/artifacts?per_page=100`))
   if (listed.total_count !== listed.artifacts.length || listed.total_count > 100) throw new Error('GitHub Actions artifact listing is incomplete.')
   const runArtifacts = new Map(listed.artifacts.map(artifact => [artifact.name, artifact]))

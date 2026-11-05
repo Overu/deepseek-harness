@@ -21,7 +21,7 @@ function requestUrl(input: RequestInfo | URL): string {
   return input instanceof URL ? input.href : input.url
 }
 
-async function fixture(releaseVersion = version) {
+async function fixture(releaseVersion = version, branch = 'insight') {
   const root = await mkdtemp(join(tmpdir(), 'insight-stage-two-'))
   onTestFinished(() => rm(root, { recursive: true, force: true }))
   const original = join(root, 'original')
@@ -54,8 +54,8 @@ async function fixture(releaseVersion = version) {
       return Response.json({ tag_name: `insight-v${releaseVersion}`, draft: false, assets })
     }
     if (url.endsWith(`/git/ref/tags/insight-v${releaseVersion}`)) return Response.json({ object: { type: 'commit', sha: sourceCommit } })
-    if (url.endsWith('/actions/runs/41')) return Response.json({ id: 41, run_attempt: 2, event: 'workflow_dispatch', head_branch: 'insight',
-      head_sha: sourceCommit, status: 'completed', conclusion: 'success', path: '.github/workflows/insight-package.yml@refs/heads/insight',
+    if (url.endsWith('/actions/runs/41')) return Response.json({ id: 41, run_attempt: 2, event: 'workflow_dispatch', head_branch: branch,
+      head_sha: sourceCommit, status: 'completed', conclusion: 'success', path: `.github/workflows/insight-package.yml@refs/heads/${branch}`,
       repository: { id: 1_429_559_776, full_name: 'Overu/deepseek-harness' } })
     if (url.endsWith('/actions/runs/41/artifacts?per_page=100')) return Response.json({ total_count: 1, artifacts: [{ id: 99, name: artifactName,
       size_in_bytes: artifactBytes.byteLength, expired: false,
@@ -92,8 +92,8 @@ it('rejects forged, duplicated, or mismatched Release buildRunRecord', () => {
   expect(() => parseInsightBuildRunRecord(Buffer.from(JSON.stringify({ ...base, targets: [base.targets[0], base.targets[0]] })), version, sourceCommit)).toThrow('duplicate')
 })
 
-it('binds the tag, successful source run, original artifact, Release bytes, and candidate publisher', async () => {
-  const f = await fixture()
+it.each(['insight', 'feature/rc-packaging'])('binds RC Candidate publication to a successful %s package run and its exact bytes', async (branch) => {
+  const f = await fixture(version, branch)
   const published: Parameters<typeof publishInsightCandidate>[0][] = []
   const publishCandidate: typeof import('./publish.ts').publishInsightCandidate = async (input) => {
     expect((await readdir(dirname(input.directory))).filter(name => name.endsWith('.zip') || name.startsWith('original-'))).toEqual([])
@@ -129,6 +129,30 @@ it('uses the selected target rather than prerelease syntax to route final Candid
   })
   expect(published).toHaveLength(1)
   expect(published[0]).toMatchObject({ version: finalVersion, target })
+})
+
+it.each(['1.0.10', '1.0.10-alpha.1', '1.0.10-beta.1'])('refuses %s Candidate artifacts from another branch', async (releaseVersion) => {
+  const f = await fixture(releaseVersion, 'feature/rc-packaging')
+  const extractArtifact = vi.fn()
+  const publishCandidate = vi.fn()
+  await expect(publishVerifiedInsightRelease({
+    version: releaseVersion, sourceCommit, candidateTarget: target, githubToken: 'token', privateKeyPem: 'private', publicKeyPem: 'public',
+    temporaryDirectory: f.root, transport, fetch: f.fetch, extractArtifact, publishCandidate,
+  })).rejects.toThrow(/Only canonical/u)
+  expect(extractArtifact).not.toHaveBeenCalled()
+  expect(publishCandidate).not.toHaveBeenCalled()
+})
+
+it('refuses final Stable artifacts from another branch before extracting or publishing them', async () => {
+  const f = await fixture('1.0.10', 'feature/rc-packaging')
+  const extractArtifact = vi.fn()
+  const publishStable = vi.fn()
+  await expect(publishVerifiedInsightRelease({
+    version: '1.0.10', sourceCommit, githubToken: 'token', privateKeyPem: 'private', publicKeyPem: 'public',
+    temporaryDirectory: f.root, transport, fetch: f.fetch, extractArtifact, publishStable,
+  })).rejects.toThrow(/Only canonical/u)
+  expect(extractArtifact).not.toHaveBeenCalled()
+  expect(publishStable).not.toHaveBeenCalled()
 })
 
 it('rejects a prerelease Stable request before reading GitHub', async () => {
@@ -209,6 +233,9 @@ it.each([
   ['run ID', { id: 42 }],
   ['head SHA', { head_sha: 'f'.repeat(40) }],
   ['workflow path', { path: '.github/workflows/other.yml@refs/heads/insight' }],
+  ['workflow ref', { path: '.github/workflows/insight-package.yml@refs/heads/other' }],
+  ['tag ref', { path: '.github/workflows/insight-package.yml@refs/tags/insight' }],
+  ['missing branch', { head_branch: null }],
 ] as const)('refuses a source run with a changed %s', async (_label, override) => {
   const f = await fixture()
   const originalFetch = f.fetch

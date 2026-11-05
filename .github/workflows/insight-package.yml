@@ -34,9 +34,19 @@ concurrency:
 
 jobs:
   validate-input:
-    if: github.ref == 'refs/heads/insight'
     runs-on: ubuntu-24.04
     steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Validate the package source
+        env:
+          INSIGHT_DESKTOP_VERSION: ${{ inputs.version }}
+        run: node scripts/insight-release/package-source.ts
       - name: Reject unsupported debug target
         env:
           INSIGHT_TARGET: ${{ inputs.target }}
@@ -68,7 +78,7 @@ jobs:
 
   arm64:
     needs: validate-input
-    if: github.ref == 'refs/heads/insight' && (inputs.target == 'all' || inputs.target == 'arm64')
+    if: inputs.target == 'all' || inputs.target == 'arm64'
     runs-on: macos-15
     environment: desktop-release
     timeout-minutes: 180
@@ -87,8 +97,8 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           clean: true
-      - name: Confirm the trusted Insight source
-        run: test "$GITHUB_REF" = refs/heads/insight && test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Confirm the Insight package commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - uses: pnpm/action-setup@v5.0.0
       - uses: actions/setup-node@v7.0.0
         with:
@@ -173,7 +183,7 @@ jobs:
 
   x64:
     needs: validate-input
-    if: github.ref == 'refs/heads/insight' && (inputs.target == 'all' || inputs.target == 'x64')
+    if: inputs.target == 'all' || inputs.target == 'x64'
     runs-on: macos-15-intel
     environment: desktop-release
     timeout-minutes: 180
@@ -192,8 +202,8 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           clean: true
-      - name: Confirm the trusted Insight source
-        run: test "$GITHUB_REF" = refs/heads/insight && test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - name: Confirm the Insight package commit
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - uses: pnpm/action-setup@v5.0.0
       - uses: actions/setup-node@v7.0.0
         with:
@@ -278,7 +288,7 @@ jobs:
 
   windows:
     needs: validate-input
-    if: github.ref == 'refs/heads/insight' && !inputs.debug_skip_notarization && (inputs.target == 'all' || inputs.target == 'windows')
+    if: ${{ !inputs.debug_skip_notarization && (inputs.target == 'all' || inputs.target == 'windows') }}
     runs-on: windows-latest
     timeout-minutes: 180
     defaults:
@@ -295,9 +305,8 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
           clean: true
-      - name: Confirm the trusted Insight source
+      - name: Confirm the Insight package commit
         run: |
-          if ($env:GITHUB_REF -ne 'refs/heads/insight') { throw 'Insight packages must originate from refs/heads/insight' }
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'Checkout does not match the workflow commit' }
       - uses: pnpm/action-setup@v5.0.0
       - uses: actions/setup-node@v7.0.0
@@ -384,7 +393,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
-      - run: test "$GITHUB_REF" = refs/heads/insight && test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+      - run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'

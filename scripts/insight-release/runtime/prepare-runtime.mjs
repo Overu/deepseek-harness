@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path'
 
 const repository = resolve(import.meta.dirname, '../../..')
 const work = await mkdtemp(join(import.meta.dirname, 'work-'))
-for (const name of ['artifacts.ts', 'oss.ts', 'publish-common.ts', 'publish.ts', 'publish-stable.ts', 'publish-cli.ts']) {
+for (const name of ['artifacts.ts', 'package-source.ts', 'oss.ts', 'publish-common.ts', 'publish.ts', 'publish-stable.ts', 'publish-cli.ts']) {
   await cp(join(repository, 'scripts', 'insight-release', name), join(work, name))
 }
 await cp(join(repository, 'packages/insight/desktop-integration/src/desktop/update/contract.ts'), join(import.meta.dirname, 'contract.ts'))

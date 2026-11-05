@@ -11,8 +11,8 @@ const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insig
     target: { options: string[] }
     create_release: { type: string; default: boolean; required: boolean }
   } } }
-  jobs: Record<'aggregate-checks' | 'arm64' | 'x64' | 'windows' | 'finalize-release', {
-    if: string
+  jobs: Record<'validate-input' | 'aggregate-checks' | 'arm64' | 'x64' | 'windows' | 'finalize-release', {
+    if?: string
     needs: string | string[]
     'runs-on': string
     permissions?: { contents?: string }
@@ -27,6 +27,25 @@ const workflow = yaml.load(await readFile(resolve(root, '.github/workflows/insig
     }>
   }>
 }
+
+it('validates branch and version before any platform package or Release job', () => {
+  const validation = workflow.jobs['validate-input']
+  expect(validation.if).toBeUndefined()
+  expect(validation.steps.find(step => step.uses?.startsWith('actions/checkout@'))?.with?.ref).toBe('${{ github.sha }}')
+  const source = validation.steps.find(step => step.name === 'Validate the package source')
+  expect(source?.env).toEqual({ INSIGHT_DESKTOP_VERSION: '${{ inputs.version }}' })
+  expect(source?.run).toBe('node scripts/insight-release/package-source.ts')
+  for (const name of ['aggregate-checks', 'arm64', 'x64', 'windows', 'finalize-release'] as const) {
+    const job = workflow.jobs[name]
+    expect(job.needs).toContain('validate-input')
+    expect(job.if ?? '').not.toContain('refs/heads/insight')
+    expect(job.steps.some(step => step.run?.includes('refs/heads/insight'))).toBe(false)
+  }
+  expect(workflow.jobs['finalize-release'].if).toContain("needs.validate-input.result == 'success'")
+  for (const name of ['arm64', 'x64', 'windows', 'finalize-release'] as const) {
+    expect(workflow.jobs[name].steps.some(step => step.run?.includes('git rev-parse HEAD'))).toBe(true)
+  }
+})
 
 it('keeps verified platform artifacts when Release creation is disabled', () => {
   expect(workflow.permissions).toEqual({ contents: 'read' })

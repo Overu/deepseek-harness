@@ -12,14 +12,14 @@
   en: da93cb96173ecf53
   zh: 43b27e0ed5716bca
 /insight-desktop-release-pipeline/release-flow:
-  en: 62333f94824ed435
-  zh: 35c4cfb928188830
+  en: 41bd9be1f5bf3d7f
+  zh: 39676ec6e6b5f974
 /insight-desktop-release-pipeline/package-workflow:
-  en: 60149598f6a05d07
-  zh: 5ac4ad5ee64c9093
+  en: 6c06e9ebeef0f9c5
+  zh: 356482befd5d0d58
 /insight-desktop-release-pipeline/publish-workflow:
-  en: 0b42ef9c05a82024
-  zh: 1a678f1b2b9520e5
+  en: c2196215a7b4d25f
+  zh: da4ebedcac6c725e
 /insight-desktop-release-pipeline/signed-update-formats:
   en: a290c4e16bf91c47
   zh: 213fe5967036f7d5

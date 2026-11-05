@@ -20,7 +20,7 @@
 <a id="release-flow"></a>
 ## 发布流程
 
-打包工作流固定 `insight` 分支的一个提交，使用 DSH 构建选定平台包，收集目标唯一的附件，并在来源记录附件中记录构建运行和产物摘要。该记录绑定仓库、workflow path、可信 ref、事件、head 提交、run id、目标和 manifest 摘要；随后创建不可变的 `insight-v<version>` GitHub Release。发布工作流下载该 Release 和原始工作流产物，按来源记录校验两者，签名更新文档，写入 OSS 不可变对象并校验远端字节，随后由单一发布者在替换前核对指针，并在写入后回读。
+打包工作流固定来源分支的一个提交，使用 DSH 构建选定平台包，收集目标唯一的附件，并在来源记录附件中记录构建运行和产物摘要。该记录绑定仓库、workflow path、可信 ref、事件、head 提交、run id、目标和 manifest 摘要；随后创建不可变的 `insight-v<version>` GitHub Release。发布工作流下载该 Release 和原始工作流产物，按来源记录校验两者，签名更新文档，写入 OSS 不可变对象并校验远端字节，随后由单一发布者在替换前核对指针，并在写入后回读。
 
 应用产品版本和内嵌 DSH 运行时版本保持独立。Candidate 接受规范的 1.x final 或 prerelease 版本。Stable 接受 final 版本，并需要 `darwin-arm64`、`darwin-x64` 和 `win32-x64` 三个目标。经过 Candidate 验证的 final 版本可以使用相同 GitHub Release、应用字节和已签名目标 manifest 晋升 Stable。
 
@@ -29,9 +29,9 @@
 <a id="package-workflow"></a>
 ## 打包工作流
 
-`.github/workflows/insight-package.yml` 是仅允许 `insight` 分支使用的手动工作流。它的三个目标 job 使用 DSH 桌面入口打包 macOS arm64、macOS x64 和 Windows x64。每个 job 执行对应平台既有的 DSH 打包命令，然后收集并上传所选目标。Windows 通过既有 DSH NSIS 路径使用 Insight 品牌。
+`.github/workflows/insight-package.yml` 是手动工作流。规范的 `1.x.y-rc.N` 版本可从任意分支打包；其他版本必须来自 `insight` 分支。标签不能作为打包来源。来源校验先于平台构建和 Release 创建执行；每次 checkout 仍固定为工作流提交。它的三个目标 job 使用 DSH 桌面入口打包 macOS arm64、macOS x64 和 Windows x64。每个 job 执行对应平台既有的 DSH 打包命令，然后收集并上传所选目标。Windows 通过既有 DSH NSIS 路径使用 Insight 品牌。
 
-签名准备步骤接收 P12 密码和 Apple API 值，在 `RUNNER_TEMP` 下写入私有文件，只向后续步骤导出文件路径，并在 `always()` 清理步骤删除该私有目录。正常构建必须完成 DSH 签名、公证和打包检查，收集器之后才能记录 `distribution`。显式调试选项记录 `debug-signed`，只创建 draft 调试 Release，不能通过 OSS 发布器。
+GitHub 的 `desktop-release` environment 必须允许 RC 打包使用的来源分支；这些分支会接收既有 macOS 签名和公证凭据。签名准备步骤接收 P12 密码和 Apple API 值，在 `RUNNER_TEMP` 下写入私有文件，只向后续步骤导出文件路径，并在 `always()` 清理步骤删除该私有目录。正常构建必须完成 DSH 签名、公证和打包检查，收集器之后才能记录 `distribution`。显式调试选项记录 `debug-signed`，只创建 draft 调试 Release，不能通过 OSS 发布器。
 
 Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode。它仍执行既有 DSH runtime 与打包检查，并生成精确目标 manifest、大小和 SHA-512 输入，后续由已签名更新文档覆盖。正常正式版 Release 要求三个 job 都成功产生制品，工作流不会伪造缺失的 Windows 目标。
 
@@ -48,7 +48,7 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 只有最终发布步骤接收 `DESKTOP_UPDATE_SIGNING_PRIVATE_KEY`。OSS 客户端只接受已批准的 GitHub 工作流 OIDC 身份，并向既有 Insight 后端申请短期 STS 凭据，不使用长期 OSS access key。OIDC 或 STS 请求发送与 Shell 一致的 JSON Accept header，失败时报告 HTTP 状态与限定长度的机器码，不记录 token 或响应正文。
 
-发布工作流的 target 输入决定渠道：平台目标发布 Candidate；`stable` 为全部三个目标发布 Stable。Candidate 接受 final 或 prerelease 版本。Stable 要求 final 版本，且三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。
+发布工作流的 target 输入决定渠道：平台目标发布 Candidate；`stable` 为全部三个目标发布 Stable。Candidate 接受 final 或 prerelease 版本；只有规范的 `1.x.y-rc.N` 构建可来自 `insight` 以外的分支。发布器自身始终从 `insight` 运行。Stable 要求从 `insight` 构建的 final 版本，且三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。
 
 第二阶段在读取或发布附件前拒绝 draft Release。其轻量运行时不会重新构建、打包、公证或安装应用。Actions artifact 下载请求 GitHub JSON 媒体类型以获取归档重定向；Release 附件下载请求 octet-stream 字节。
 
