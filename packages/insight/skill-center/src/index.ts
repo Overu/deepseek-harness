@@ -16,7 +16,6 @@ export type {
   PlatformSkillOperationId,
   PlatformSkillOperationSettlement,
   PlatformSkillSnapshot,
-  PlatformSkillKey,
   SkillIdentity,
   PlatformSkillRemovalRequest,
 } from './shared/skill-installation.ts'

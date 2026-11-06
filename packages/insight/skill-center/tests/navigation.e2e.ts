@@ -1,6 +1,6 @@
 /** Keyless real-Loader coverage of the skill market, shared overlays, and theme inheritance. */
 import { fileURLToPath } from 'node:url'
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { expect, it } from 'vitest'
@@ -11,11 +11,7 @@ import { CATALOG_FIXTURE } from './fixtures/catalog.ts'
 import { compareOrRefreshGolden, launchWebScaffold, webSnapshotMode } from '../../../../apps/web/tests/scaffold.ts'
 import { newEnglishPage, writeComposerDraft } from '../../../../apps/web/tests/support.ts'
 
-function fixtureId() {
-  const id = normalizeSkillId(CATALOG_FIXTURE.skills[0]?.id)
-  if (id === undefined) throw new Error('The fixture requires a catalogue ID')
-  return id
-}
+const influencerIntegration = normalizeSkillId('influencer-integration')
 
 it('installs configured presets before opening the market and respects removal after reload', async () => {
   const scaffold = await launchWebScaffold({
@@ -37,7 +33,7 @@ it('installs configured presets before opening the market and respects removal a
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await expect.poll(() => scaffold.ctx.insightPlatformSkills.listInstalled()).toEqual({
         skills: [expect.objectContaining({
-          id: fixtureId(), skillName: 'influencer-integration', version: '1.2.0',
+          id: influencerIntegration, version: '1.2.0',
         })],
       })
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
@@ -50,7 +46,7 @@ it('installs configured presets before opening the market and respects removal a
       await page.getByRole('button', { name: 'Install', exact: true }).waitFor()
       expect(await scaffold.ctx.insightPlatformSkills.listInstalled()).toEqual({ skills: [] })
       expect(await scaffold.ctx.insightPlatformSkills.listPendingPresets([{
-        id: fixtureId(), skillName: 'influencer-integration',
+        id: influencerIntegration,
       }])).toEqual([])
     } finally {
       await browser.close()
@@ -60,57 +56,125 @@ it('installs configured presets before opening the market and respects removal a
   }
 })
 
-it('matches a name-only installation after the catalogue gains an ID and retains its key through update and removal', async () => {
+it('continues preset installation after a package name mismatch and reports one final failure', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
       fileURLToPath(new URL('fixtures/download-service.overlay.yml', import.meta.url)),
-      fileURLToPath(new URL('fixtures/preset-skills.overlay.yml', import.meta.url)),
+      fileURLToPath(new URL('fixtures/partial-preset-skills.overlay.yml', import.meta.url)),
+    ],
+    profile: { packages: [{ dir: fileURLToPath(new URL('..', import.meta.url)), enabled: true }] },
+  })
+  try {
+    const browser = await chromium.launch()
+    try {
+      const page = await newEnglishPage(browser)
+      const skills = [14, 15, 16].map(id => ({
+        ...CATALOG_FIXTURE.skills[0]!, id, skill_id: `preset-${id}`, name: `Preset ${id}`,
+        download_url: `https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/preset-${id}-fixture.zip`,
+      }))
+      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
+        route => route.fulfill({ json: { skills }, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
+      await expect.poll(async () => (await scaffold.ctx.insightPlatformSkills.listInstalled()).skills.map(skill => skill.id).sort())
+        .toEqual(['preset-15', 'preset-16'])
+      await page.getByRole('alert').getByText('Preset skill installation did not finish. Try again in skill center', { exact: true }).waitFor()
+      expect(await page.getByRole('dialog', { name: 'Installing preset skills' }).count()).toBe(0)
+      expect(await scaffold.ctx.insightPlatformSkills.listPendingPresets(skills.map(skill => ({
+        id: normalizeSkillId(skill.skill_id),
+      })))).toEqual([{ id: 'preset-14' }])
+    } finally {
+      await browser.close()
+    }
+  } finally {
+    await scaffold.close()
+  }
+})
+
+it('uses the technical name despite OSS numeric ID changes, absence, or invalid values', async () => {
+  const scaffold = await launchWebScaffold({
+    extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/download-service.overlay.yml', import.meta.url)),
+      fileURLToPath(new URL('fixtures/manual-skills.overlay.yml', import.meta.url)),
     ],
     profile: { packages: [{ dir: fileURLToPath(new URL('..', import.meta.url)), enabled: true }] },
   })
   try {
     const store = join(scaffold.harnessHome, 'platform-skills')
-    const key = 'name-only-installation'
     const skillName = 'influencer-integration'
-    const payload = `payloads/${key}/first-release`
-    const installedPath = join(store, 'installed', `${key}.json`)
-    const historyPath = join(store, 'auto-install-history', `${key}.json`)
-    const initialRecord = `${JSON.stringify({ key, skillName, version: '1.0.0', payload })}\n`
+    const payload = `payloads/${skillName}/first-release`
+    const installedPath = join(store, 'installed', `${skillName}.json`)
+    const historyPath = join(store, 'auto-install-history', `${skillName}.json`)
+    const initialRecord = `${JSON.stringify({ id: skillName, version: '1.0.0', payload })}\n`
     await mkdir(join(store, payload), { recursive: true })
-    await writeFile(join(store, payload, 'SKILL.md'), '---\nname: influencer-integration\ndescription: Name-only account installation\n---\n\nRetained installed content.\n')
+    await writeFile(join(store, payload, 'SKILL.md'), '---\nname: influencer-integration\ndescription: Existing account installation\n---\n\nRetained installed content.\n')
     await writeFile(installedPath, initialRecord)
-    await writeFile(historyPath, JSON.stringify({ key, skillName }))
+    await writeFile(historyPath, `${JSON.stringify({ id: skillName })}\n`)
     const browser = await chromium.launch()
     try {
       const page = await newEnglishPage(browser)
+      let catalogueId: unknown = 999
+      let technicalName = skillName
       await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: { skills: [{
-          ...CATALOG_FIXTURE.skills[0],
+        route => route.fulfill({ json: { skills: technicalName === skillName ? [{
+          ...CATALOG_FIXTURE.skills[0], id: catalogueId, skill_id: skillName,
           download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
-        }] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
+        }] : [
+          {
+            ...CATALOG_FIXTURE.skills[0], id: catalogueId, skill_id: skillName,
+            download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
+          },
+          {
+            ...CATALOG_FIXTURE.skills[0], id: catalogueId, skill_id: technicalName, name: 'Renamed skill', sort: 11,
+            download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
+          },
+        ] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
       await page.getByRole('button', { name: 'Update', exact: true }).waitFor()
       expect(await readFile(installedPath, 'utf8')).toBe(initialRecord)
+      expect(JSON.parse(await readFile(historyPath, 'utf8'))).toEqual({ id: skillName })
+      await stat(join(store, payload, 'SKILL.md'))
+      catalogueId = undefined
+      await page.reload({ waitUntil: 'load' })
+      await page.getByRole('button', { name: 'Skill center', exact: true }).click()
+      await page.getByRole('button', { name: 'Update', exact: true }).waitFor()
+      catalogueId = 'not-a-technical-name'
+      await page.reload({ waitUntil: 'load' })
+      await page.getByRole('button', { name: 'Skill center', exact: true }).click()
+      await page.getByRole('button', { name: 'Update', exact: true }).waitFor()
       await page.getByRole('button', { name: 'Update', exact: true }).click()
       await page.getByRole('button', { name: 'Installed', exact: true }).waitFor()
       const upgraded: unknown = JSON.parse(await readFile(installedPath, 'utf8'))
       expect(upgraded).toMatchObject({
-        key, id: fixtureId(), skillName, version: '1.2.0',
+        id: skillName, version: '1.2.0',
       })
-      await page.getByRole('button', { name: 'View details', exact: true }).click()
+      technicalName = 'influencer-integration-renamed'
+      catalogueId = 1000
+      await page.reload({ waitUntil: 'load' })
+      await page.getByRole('button', { name: 'Skill center', exact: true }).click()
+      await page.getByRole('article').filter({ hasText: 'Renamed skill' })
+        .getByRole('button', { name: 'Install', exact: true }).waitFor()
+      expect(await scaffold.ctx.insightPlatformSkills.listInstalled()).toEqual({
+        skills: [{ id: influencerIntegration, version: '1.2.0' }],
+      })
+      const installedCard = page.getByRole('article').filter({
+        has: page.getByRole('button', { name: 'Installed', exact: true }),
+      })
+      await installedCard.getByRole('button', { name: 'View details', exact: true }).click()
       await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
       await page.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await expect(stat(installedPath)).rejects.toMatchObject({ code: 'ENOENT' })
-      expect(JSON.parse(await readFile(historyPath, 'utf8'))).toMatchObject({
-        key, id: fixtureId(), skillName,
-      })
+      expect(JSON.parse(await readFile(historyPath, 'utf8'))).toEqual({ id: skillName })
       await page.reload({ waitUntil: 'load' })
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
-      await page.getByRole('button', { name: 'Install', exact: true }).waitFor()
+      const originalCard = page.getByRole('article').filter({ hasText: CATALOG_FIXTURE.skills[0]!.name })
+      const renamedCard = page.getByRole('article').filter({ hasText: 'Renamed skill' })
+      await originalCard.getByRole('button', { name: 'Install', exact: true }).waitFor()
+      await renamedCard.getByRole('button', { name: 'Install', exact: true }).waitFor()
+      await expect.poll(() => page.getByRole('button', { name: 'Install', exact: true }).count()).toBe(2)
       expect(await scaffold.ctx.insightPlatformSkills.listInstalled()).toEqual({ skills: [] })
       expect(await scaffold.ctx.insightPlatformSkills.listPendingPresets([{
-        id: fixtureId(), skillName,
+        id: influencerIntegration,
       }])).toEqual([])
     } finally {
       await browser.close()
@@ -158,11 +222,10 @@ it('refreshes skill references in an open historical conversation after installa
       await page.locator('[role="treeitem"]').last().click()
       await page.getByText('Historical skill conversation.', { exact: true }).waitFor()
       const input = page.locator('[data-composer-input]').first()
-      const draft = '/history-catalog-sentinel /browser-installed-expert /browser-updated-expert review this draft'
+      const draft = '/history-catalog-sentinel /browser-installed-expert review this draft'
       await writeComposerDraft(page, input, draft)
       await input.locator('[data-composer-text-ref]').filter({ hasText: '/history-catalog-sentinel' }).waitFor()
       const reference = input.locator('[data-composer-text-ref]').filter({ hasText: '/browser-installed-expert' })
-      const updatedReference = input.locator('[data-composer-text-ref]').filter({ hasText: '/browser-updated-expert' })
       await expect.poll(() => reference.count()).toBe(0)
 
       const market = await newEnglishPage(browser)
@@ -170,7 +233,7 @@ it('refreshes skill references in an open historical conversation after installa
       await market.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
         route => route.fulfill({ json: { skills: [{
           ...CATALOG_FIXTURE.skills[0], version,
-          skill_id: version === '1.0.0' ? 'browser-installed-expert' : 'browser-updated-expert',
+          skill_id: 'browser-installed-expert',
           download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip',
         }] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
       const openMarket = async (): Promise<void> => {
@@ -192,29 +255,58 @@ it('refreshes skill references in an open historical conversation after installa
       await expect.poll(() => preview.textContent()).toContain('Archive release 1.')
       expect(await input.textContent()).toBe(draft)
 
+      const customSkill = join(scaffold.harnessHome, 'skills', 'browser-installed-expert')
+      await mkdir(customSkill, { recursive: true })
+      await writeFile(join(customSkill, 'SKILL.md'),
+        '---\nname: browser-installed-expert\ndescription: Same-name user skill\n---\n\nUser-maintained content.\n')
+      await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
+      await picker.getByText('已被更高优先级版本覆盖', { exact: true }).waitFor()
+      const platformRow = picker.getByRole('option', { name: /browser-installed-expert/u })
+      await expect.poll(() => installedOption.isEnabled()).toBe(true)
+      await expect.poll(() => platformRow.getAttribute('aria-selected')).toBe('true')
+      await installedOption.click()
+      await expect.poll(() => platformRow.getAttribute('aria-selected')).toBe('false')
+      await reference.waitFor({ state: 'detached' })
+      await page.getByRole('tab', { name: '用户自定义', exact: true }).click()
+      const customOption = picker.getByRole('button', { name: 'browser-installed-expert', exact: true })
+      await customOption.click()
+      const customRow = picker.getByRole('option', { name: /browser-installed-expert/u })
+      await expect.poll(() => customRow.getAttribute('aria-selected')).toBe('true')
+      await reference.waitFor()
+      expect((await input.textContent())?.match(/\/browser-installed-expert\b/gu)).toHaveLength(1)
+      await page.keyboard.press('Escape')
+      await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
+      await expect.poll(() => platformRow.getAttribute('aria-selected')).toBe('true')
+      await installedOption.click()
+      await expect.poll(() => platformRow.getAttribute('aria-selected')).toBe('false')
+      await page.getByRole('combobox', { name: '搜索技能' }).press('Enter')
+      await expect.poll(() => platformRow.getAttribute('aria-selected')).toBe('true')
+      expect((await input.textContent())?.match(/\/browser-installed-expert\b/gu)).toHaveLength(1)
+      await rm(customSkill, { recursive: true })
+      await picker.getByText('已被更高优先级版本覆盖', { exact: true }).waitFor({ state: 'detached' })
+      await page.keyboard.press('Escape')
+      await writeComposerDraft(page, input, draft)
+
       version = '1.1.0'
       await openMarket()
       await market.getByRole('button', { name: 'Update', exact: true }).click()
       await market.getByRole('button', { name: 'Installed', exact: true }).waitFor()
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
-      const updatedOption = picker.getByRole('button', { name: /browser-updated-expert/u })
-      await updatedOption.waitFor()
-      await installedOption.waitFor({ state: 'detached' })
-      await expect.poll(() => updatedOption.isEnabled()).toBe(true)
+      await installedOption.waitFor()
+      await expect.poll(() => installedOption.isEnabled()).toBe(true)
       await page.keyboard.press('Escape')
-      await reference.waitFor({ state: 'detached' })
-      await updatedReference.waitFor()
-      await updatedReference.click()
+      await reference.waitFor()
+      await reference.click()
       await expect.poll(() => preview.textContent()).toContain('Archive release 2.')
       expect(await input.textContent()).toBe(draft)
 
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
-      await updatedOption.waitFor()
+      await installedOption.waitFor()
       await market.getByRole('button', { name: 'View details', exact: true }).click()
       await market.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
       await market.getByRole('button', { name: 'Install', exact: true }).waitFor()
-      await updatedReference.waitFor({ state: 'detached' })
-      await updatedOption.waitFor({ state: 'detached' })
+      await reference.waitFor({ state: 'detached' })
+      await installedOption.waitFor({ state: 'detached' })
       const emptyPicker = page.getByRole('dialog', { name: '选择技能' })
       await emptyPicker.getByText('没有匹配的技能', { exact: true }).waitFor()
       const openSkillCenter = emptyPicker.getByRole('button', { name: 'Go to skill center', exact: true })
@@ -246,7 +338,6 @@ it('refreshes skill references in an open historical conversation after installa
       await page.locator('[role="treeitem"]').last().click()
       await page.getByText('Historical skill conversation.', { exact: true }).waitFor()
       expect(await input.locator('[data-composer-text-ref]').filter({ hasText: '/browser-installed-expert' }).count()).toBe(0)
-      expect(await input.locator('[data-composer-text-ref]').filter({ hasText: '/browser-updated-expert' }).count()).toBe(0)
     } finally {
       await browser.close()
     }
@@ -272,7 +363,7 @@ it('installs, updates and removes a skill through the real Remote API', async ()
       await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
         route => route.fulfill({ json: { skills: [{
           ...CATALOG_FIXTURE.skills[0], version,
-          skill_id: version === '1.0.0' ? 'browser-installed-expert' : 'browser-updated-expert',
+          skill_id: 'browser-installed-expert',
           download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip',
         }] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
       const openMarket = async (): Promise<void> => {

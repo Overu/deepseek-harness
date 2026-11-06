@@ -25,6 +25,10 @@ export const zh = {
   update: '更新',
   remove: '移除',
   installing: '正在安装',
+  presetInstalling: '正在安装预置技能',
+  presetSuccess: '预置技能安装完成',
+  presetFailure: '预置技能安装未完成，可在技能中心重试',
+  presetCancelled: '已停止安装预置技能',
   updating: '正在更新',
   installProgressDownload: '正在下载技能',
   installProgressValidate: '正在校验技能',
@@ -42,6 +46,10 @@ export const zh = {
 
 /** English copy; other languages use the locale registry's English fallback. */
 export const en: Record<keyof typeof zh, string> = {
+  presetInstalling: 'Installing preset skills',
+  presetSuccess: 'Preset skills installed',
+  presetFailure: 'Preset skill installation did not finish. Try again in skill center',
+  presetCancelled: 'Preset skill installation stopped',
   goToSkillCenter: 'Go to skill center',
   versionValue: 'v{version}',
   title: 'Skill center', eyebrow: 'Put expertise at the heart of how teams work with AI', heroTitlePrefix: 'Find the right', heroTitleAccent: 'AI skill', searchPlaceholder: 'Search skill names or summaries', search: 'Search', directoryEyebrow: 'Skill directory', directoryTitle: 'All skills', resultCount: '{count} skills', catalogLoading: 'Loading skill directory', catalogLoadFailed: 'The skill directory is unavailable. Try again', retry: 'Retry', catalogEmpty: 'No skills have been published yet', noResults: 'No skills match “{query}”', detail: 'View details', install: 'Install', installStateLoading: 'Loading installation status', installStateLoadFailed: 'Installed skills are unavailable. Try again', identityConflict: 'Skill identity conflict', removedCatalogSkill: 'This installed skill is no longer in the skill directory. You can still remove it', installed: 'Installed', update: 'Update', remove: 'Remove', installing: 'Installing', updating: 'Updating', installProgressDownload: 'Downloading skill', installProgressValidate: 'Validating skill', installProgressCommit: 'Installing skill', installCancel: 'Cancel', installCancelling: 'Cancelling; waiting for the operation to finish', installFailure: 'The skill could not be installed. Try again', installSuccess: 'Skill installed', updateSuccess: 'Skill updated', removeSuccess: 'Skill removed', removeFailure: 'The skill could not be removed. Try again', skillId: 'Skill ID', version: 'Version', description: 'Description', noDescription: 'No skill description is available', close: 'Close',

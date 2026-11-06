@@ -30,7 +30,7 @@ export function SkillDetailModal({ skill, t, onClose, state, onInstall, onRemove
       className={clsx(styles.modal)} contentClassName={clsx(styles.content)}>
       <p className={styles.summary}>{skill.summary}</p>
       <dl className={styles.meta}>
-        <div><dt>{t('skillId')}</dt><dd>{skill.id ?? skill.skillName}</dd></div>
+        <div><dt>{t('skillId')}</dt><dd>{skill.id}</dd></div>
         <div><dt>{t('version')}</dt><dd>{t('versionValue').replace('{version}', skill.version)}</dd></div>
       </dl>
       <section aria-labelledby="skill-detail-description">

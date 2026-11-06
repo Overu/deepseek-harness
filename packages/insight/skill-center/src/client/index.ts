@@ -76,15 +76,20 @@ function registerSkillCenter(ctx: Context): void {
   }, SkillCenterToast))
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'insight-skill-center.installation', locale: namespace,
-    inject: () => ({ cancel: () => { installations.cancel() }, hooks: { active: installations.hooks.active } }),
+    inject: () => ({
+      cancel: () => { installations.cancel() }, hooks: { active: installations.hooks.active, presets: installations.hooks.presets },
+    }),
   }, SkillInstallOverlay))
   if (config.presetSkillIds.length > 0) {
     ctx.slots.inject('shell.overlay', () => ctx.slots.register({
       name: 'shell.overlay', id: 'insight-skill-center.presets',
       inject: () => ({
         installations,
-        listPendingPresets: (catalogue: readonly SkillIdentity[]) => ctx.remote.insightPlatformSkills.listPendingPresets(catalogue),
-        waitForInstallation: (identity: SkillIdentity) => ctx.remote.insightPlatformSkills.waitForInstallation(identity),
+        claim: () => ctx.remote.insightPlatformSkills.claimPresetInstallation(),
+        listPendingPresets: (catalogue: readonly SkillIdentity[], signal?: AbortSignal) =>
+          ctx.remote.insightPlatformSkills.listPendingPresets(catalogue, signal),
+        waitForInstallation: (identity: SkillIdentity, signal?: AbortSignal) =>
+          ctx.remote.insightPlatformSkills.waitForInstallation(identity, signal),
       }),
     }, PresetSkillBootstrap))
   }

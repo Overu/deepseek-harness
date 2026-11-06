@@ -29,10 +29,10 @@ it('defaults the request budget and rejects invalid timer values', () => {
   }
 })
 
-it('accepts opaque catalogue IDs and technical names while rejecting empty selectors', () => {
-  expect(Config({ presetSkillIds: ['1', 'REMOTE/ID', 'influencer-integration'], legacySkillDirs: ['/old/skills'] }))
-    .toMatchObject({ presetSkillIds: ['1', 'REMOTE/ID', 'influencer-integration'], legacySkillDirs: ['/old/skills'] })
-  for (const id of ['', ' ', '\n']) {
+it('accepts technical preset names and rejects malformed names', () => {
+  expect(Config({ presetSkillIds: ['activity-search', 'influencer-integration'], legacySkillDirs: ['/old/skills'] }))
+    .toMatchObject({ presetSkillIds: ['activity-search', 'influencer-integration'], legacySkillDirs: ['/old/skills'] })
+  for (const id of ['', ' ', '\n', 'REMOTE/ID', '../skill', 'Skill_Name']) {
     expect(() => Config({ presetSkillIds: [id] })).toThrow()
   }
   for (const directory of ['', ' ', 'relative/skills']) {

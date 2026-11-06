@@ -13,12 +13,12 @@ async function collect<T>(source: AsyncIterable<T>): Promise<T[]> {
 }
 
 describe('OSS catalog', () => {
-  it('keeps enabled skills with IDs, sorts them, and maps remote display fields', () => {
+  it('keeps enabled skills by technical name, sorts them, and maps remote display fields', () => {
     const first = CATALOG_FIXTURE.skills[0]!
     const second = CATALOG_FIXTURE.skills[1]!
     const skills = normalizeCatalog({ skills: [second, { ...first, enabled: 0 }, first] })
     expect(skills).toHaveLength(2)
-    expect(skills.map(skill => skill.id)).toEqual([String(first.id), String(second.id)])
+    expect(skills.map(skill => skill.id)).toEqual([first.skill_id, second.skill_id])
     expect(skills[0]).toMatchObject({
       name: first.name, summary: first.skill_desc, version: first.version,
       descriptionMarkdown: first.description_markdown,
@@ -27,7 +27,7 @@ describe('OSS catalog', () => {
 
   it('uses catalog defaults for absent names, summaries, and versions', () => {
     expect(normalizeCatalog({ skills: [{ skill_id: ' demo ', enabled: '1' }] })).toMatchObject([
-      { skillName: 'demo', name: 'demo', summary: '', version: '1.0.0' },
+      { id: 'demo', name: 'demo', summary: '', version: '1.0.0' },
     ])
   })
 
@@ -35,24 +35,32 @@ describe('OSS catalog', () => {
     expect(() => normalizeCatalog(payload)).toThrow()
   })
 
-  it('rejects duplicate enabled skill IDs', () => {
+  it('rejects duplicate enabled technical names', () => {
     expect(() => normalizeCatalog({ skills: [CATALOG_FIXTURE.skills[0], CATALOG_FIXTURE.skills[0]] })).toThrow()
   })
 
-  it('keeps opaque OSS IDs and requires a technical name', () => {
-    expect(normalizeCatalog({ skills: [{ ...CATALOG_FIXTURE.skills[0], id: '../other-skill' }] })[0]).toMatchObject({ id: '../other-skill' })
+  it('ignores opaque OSS IDs and requires a technical name', () => {
+    expect(normalizeCatalog({ skills: [{ ...CATALOG_FIXTURE.skills[0], id: '../other-skill' }] })[0]).toMatchObject({ id: CATALOG_FIXTURE.skills[0]!.skill_id })
     expect(() => normalizeCatalog({ skills: [{ ...CATALOG_FIXTURE.skills[0], skill_id: ' ' }] })).toThrow()
   })
 
-  it('rejects duplicate IDs but allows distinct IDs with one technical name', () => {
+  it('ignores missing, changed, duplicate, and invalid OSS ids', () => {
     const first = CATALOG_FIXTURE.skills[0]!
-    expect(() => normalizeCatalog({ skills: [first, { ...first, name: 'Duplicate' }] })).toThrow()
-    expect(normalizeCatalog({ skills: [first, { ...first, id: 99, name: 'Replacement' }] })).toHaveLength(2)
+    const second = CATALOG_FIXTURE.skills[1]!
+    const skills = normalizeCatalog({ skills: [
+      { ...first, id: undefined },
+      { ...second, id: '../invalid-id' },
+      { ...second, id: undefined, skill_id: 'replacement-skill' },
+      { ...second, id: '../invalid-id', skill_id: 'another-skill' },
+    ] })
+    expect(skills.map(skill => skill.id)).toEqual([
+      first.skill_id, second.skill_id, 'replacement-skill', 'another-skill',
+    ])
   })
 
-  it('rejects duplicate technical names only when both entries omit an ID', () => {
+  it('rejects duplicate technical names even when OSS ids differ', () => {
     const first = CATALOG_FIXTURE.skills[0]!
-    expect(() => normalizeCatalog({ skills: [{ ...first, id: undefined }, { ...first, id: undefined, name: 'Duplicate' }] })).toThrow()
+    expect(() => normalizeCatalog({ skills: [first, { ...first, id: 99, name: 'Duplicate' }] })).toThrow()
   })
 
   it('requests the fixed OSS JSON with a cache-busting query, Accept header, and resource signal', async () => {
@@ -143,5 +151,5 @@ it('contains non-Error transport failures and cancellation rejections', async ()
 it('places invalid sort values with the default order and skips non-record entries', () => {
   const first = CATALOG_FIXTURE.skills[0]!
   const skills = normalizeCatalog({ skills: [null, 1, { ...first, sort: 'not a number' }, CATALOG_FIXTURE.skills[1]] })
-  expect(skills.map(skill => skill.id)).toEqual([String(first.id), String(CATALOG_FIXTURE.skills[1]!.id)])
+  expect(skills.map(skill => skill.id)).toEqual([first.skill_id, CATALOG_FIXTURE.skills[1]!.skill_id])
 })

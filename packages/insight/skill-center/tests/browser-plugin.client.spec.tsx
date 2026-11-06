@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, waitFor, within } from '@testing-libra
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { RemoteMock, ok, openStream } from '@deepseek-ai/dsh-remote-mock'
 import { brandString } from '@deepseek-ai/dsh-brand'
-import type { PlatformSkillOperationId } from '../src/types.ts'
+import type { InsightSkillId, PlatformSkillOperationId } from '../src/types.ts'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import * as plugin from '../src/client/index.ts'
@@ -16,8 +16,8 @@ import { zh } from '../src/client/locales.ts'
 usePinnedBrowserLanguages('zh-CN')
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
-function installed(skills: readonly { id?: string; key?: string; skillName: string; version: string }[] = []) {
-  return { skills: skills.map(skill => ({ ...skill, key: skill.key ?? skill.skillName })) as never }
+function installed(skills: readonly { id: string; version: string }[] = []) {
+  return { skills: skills as never }
 }
 
 function platformRemote(snapshot = installed()) {
@@ -138,6 +138,51 @@ it('keeps the install operation modal blocking while cancellation settles', () =
   expect(cancel).not.toHaveBeenCalled()
 })
 
+it.each([null, 14])('retains one progress dialog and final toast through sixteen presets with failure %s', async (failedId) => {
+  const skills = Array.from({ length: 16 }, (_, index) => ({
+    ...CATALOG_FIXTURE.skills[0]!, id: index + 1, skill_id: `preset-skill-${index + 1}`, name: `预置技能 ${index + 1}`,
+  }))
+  vi.stubGlobal('__INSIGHT_SKILL_CENTER_CONFIG__', { presetSkillIds: skills.map(skill => skill.skill_id) })
+  let completed = 0
+  let snapshot = installed()
+  const platform = RemoteMock.create()
+    .unary('insightPlatformSkills/claimPresetInstallation', ok(true))
+    .unary('insightPlatformSkills/listPendingPresets', () => ok(skills.filter(skill =>
+      skill.id > completed || skill.id === failedId).map(skill => ({
+      id: brandString<InsightSkillId>(skill.skill_id),
+    }))))
+    .unary('insightPlatformSkills/listInstalled', () => ok(snapshot))
+    .unary('insightPlatformSkills/waitForInstallation', () => ok(snapshot))
+    .unary('insightPlatformSkills/removeSkill', ok(snapshot))
+    .unary('insightPlatformSkills/cancel', ok({ kind: 'cancelled', operationId: 'unused' } as never))
+    .stream('insightPlatformSkills/installSkill', openStream())
+  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json({ skills })), true, platform, undefined, 16)
+  const dialog = await view.findByRole('dialog', { name: '正在安装预置技能' })
+  for (let index = 0; index < skills.length; index++) {
+    await platform.streams.opened('insightPlatformSkills/installSkill', index + 1)
+    expect(view.getByRole('dialog', { name: '正在安装预置技能' })).toBe(dialog)
+    expect(view.queryByRole('alert')).toBeNull()
+    const request = platform.remote.insightPlatformSkills.installSkill.mock.calls[index]?.[0]
+    if (request === undefined) throw new Error('Missing preset install request')
+    completed++
+    snapshot = installed(skills.slice(0, completed).filter(skill => skill.id !== failedId).map(skill => ({
+      id: skill.skill_id, version: skill.version,
+    })))
+    if (completed === failedId) {
+      platform.streams.fail('insightPlatformSkills/installSkill', new Error('invalid package'))
+      continue
+    }
+    platform.streams.push('insightPlatformSkills/installSkill', {
+      kind: 'complete', operationId: request.operationId,
+      skill: { id: request.id, version: request.version },
+    })
+    platform.streams.end('insightPlatformSkills/installSkill')
+  }
+  await waitFor(() => { expect(view.queryByRole('dialog', { name: '正在安装预置技能' })).toBeNull() })
+  expect(view.getByRole('alert').textContent).toContain(failedId === null ? '预置技能安装完成' : '预置技能安装未完成')
+  expect(view.getAllByRole('button', { name: '已安装' })).toHaveLength(failedId === null ? 16 : 15)
+})
+
 it('waits for Host admission before cancelling, then closes only after a cancelled terminal frame', async () => {
   const platform = platformRemote()
   const { view } = await mountMarket(undefined, true, platform)
@@ -162,7 +207,7 @@ it('treats a late cancel that reaches a committed terminal frame as an installed
   const platform = RemoteMock.create()
     .unary('insightPlatformSkills/listInstalled', () => ok(snapshot))
     .unary('insightPlatformSkills/removeSkill', ok(snapshot))
-    .unary('insightPlatformSkills/cancel', () => ok({ kind: 'complete', operationId: 'operation', skill: { key: 'influencer-integration', id: '1', skillName: 'influencer-integration', version: '1.2.0' } } as never))
+    .unary('insightPlatformSkills/cancel', () => ok({ kind: 'complete', operationId: 'operation', skill: { id: 'influencer-integration', version: '1.2.0' } } as never))
     .stream('insightPlatformSkills/installSkill', openStream())
   const { view } = await mountMarket(undefined, true, platform)
   fireEvent.click(within(view.getAllByRole('article')[0]!).getByRole('button', { name: '安装' }))
@@ -172,8 +217,8 @@ it('treats a late cancel that reaches a committed terminal frame as an installed
   platform.streams.push('insightPlatformSkills/installSkill', { kind: 'progress', operationId: request.operationId, phase: 'commit' })
   await waitFor(() => { expect(view.getByRole('button', { name: '取消' }).getAttribute('disabled')).toBeNull() })
   fireEvent.click(view.getByRole('button', { name: '取消' }))
-  snapshot = installed([{ id: '1', skillName: 'influencer-integration', version: '1.2.0' }])
-  platform.streams.push('insightPlatformSkills/installSkill', { kind: 'complete', operationId: request.operationId, skill: { key: 'influencer-integration', id: '1', skillName: 'influencer-integration', version: '1.2.0' } })
+  snapshot = installed([{ id: 'influencer-integration', version: '1.2.0' }])
+  platform.streams.push('insightPlatformSkills/installSkill', { kind: 'complete', operationId: request.operationId, skill: { id: 'influencer-integration', version: '1.2.0' } })
   platform.streams.end('insightPlatformSkills/installSkill')
   await waitFor(() => { expect(within(view.getAllByRole('article')[0]!).getByRole('button', { name: '已安装' }).getAttribute('disabled')).not.toBeNull() })
 })
@@ -195,16 +240,16 @@ it('keeps completed installation feedback when a late cancel request rejects', a
   await waitFor(() => { expect(view.getByRole('button', { name: '取消' }).getAttribute('disabled')).toBeNull() })
   fireEvent.click(view.getByRole('button', { name: '取消' }))
   await waitFor(() => { expect(platform.remote.insightPlatformSkills.cancel.mock.calls).toHaveLength(1) })
-  snapshot = installed([{ id: '1', skillName: 'influencer-integration', version: '1.2.0' }])
-  platform.streams.push('insightPlatformSkills/installSkill', { kind: 'complete', operationId: request.operationId, skill: { key: 'influencer-integration', id: '1', skillName: 'influencer-integration', version: '1.2.0' } })
+  snapshot = installed([{ id: 'influencer-integration', version: '1.2.0' }])
+  platform.streams.push('insightPlatformSkills/installSkill', { kind: 'complete', operationId: request.operationId, skill: { id: 'influencer-integration', version: '1.2.0' } })
   platform.streams.end('insightPlatformSkills/installSkill')
   await waitFor(() => { expect(view.getByRole('alert').textContent).toContain('技能已安装') })
   await act(async () => { cancellation.reject(new Error('operation already settled')) })
   await waitFor(() => { expect(view.getByRole('alert').textContent).toContain('技能已安装') })
 })
 
-it('matches an ID-less installed technical name and removes its local key', async () => {
-  let snapshot = installed([{ key: 'legacy-local-key', skillName: 'influencer-integration', version: '0.0.1' }])
+it('matches an installed technical name and removes it by the same name', async () => {
+  let snapshot = installed([{ id: 'influencer-integration', version: '0.0.1' }])
   const platform = RemoteMock.create()
     .unary('insightPlatformSkills/listInstalled', () => ok(snapshot))
     .unary('insightPlatformSkills/removeSkill', () => { snapshot = installed(); return ok(snapshot) })
@@ -217,52 +262,35 @@ it('matches an ID-less installed technical name and removes its local key', asyn
   const dialog = view.getByRole('dialog')
   expect(within(dialog).getByRole('button', { name: '更新' })).toBeTruthy()
   fireEvent.click(within(dialog).getByRole('button', { name: '移除' }))
-  expect(platform.remote.insightPlatformSkills.removeSkill).toHaveBeenCalledWith({ key: 'legacy-local-key', id: '1', skillName: 'influencer-integration' }, undefined)
+  expect(platform.remote.insightPlatformSkills.removeSkill).toHaveBeenCalledWith({ id: 'influencer-integration' }, undefined)
   await waitFor(() => { expect(within(view.getAllByRole('article')[0]!).getByRole('button', { name: '安装' })).toBeTruthy() })
 })
 
-it('recognizes an installed skill when its OSS ID survives a technical-name rename', async () => {
+it('treats a technical-name rename as a new skill', async () => {
   const catalogue = { skills: [{ ...CATALOG_FIXTURE.skills[0], skill_id: 'renamed-integration' }] }
-  const platform = platformRemote(installed([{ id: '1', skillName: 'influencer-integration', version: '1.2.0' }]))
+  const platform = platformRemote(installed([{ id: 'influencer-integration', version: '1.2.0' }]))
+  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, platform, undefined, 2)
+  expect(within(view.getAllByRole('article')[0]!).getByRole('button', { name: '安装' })).toBeTruthy()
+})
+
+it.each([undefined, 'changed-id', 'duplicated-id', {}, 1])('ignores external OSS id %j for installation matching', async (id) => {
+  const catalogue = { skills: [{ ...CATALOG_FIXTURE.skills[0], id }] }
+  const platform = platformRemote(installed([{ id: 'influencer-integration', version: '1.2.0' }]))
   const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, platform, undefined, 1)
   expect(within(view.getByRole('article')).getByRole('button', { name: '已安装' }).getAttribute('disabled')).not.toBeNull()
 })
 
-it('disables an ambiguous technical-name match with different OSS IDs', async () => {
+it('accepts duplicate external OSS ids when technical names are distinct', async () => {
   const catalogue = { skills: [
-    CATALOG_FIXTURE.skills[0],
-    { ...CATALOG_FIXTURE.skills[0], id: 99, name: '不同版本' },
+    { ...CATALOG_FIXTURE.skills[0], id: 'duplicated-id' },
+    { ...CATALOG_FIXTURE.skills[1], id: 'duplicated-id' },
   ] }
-  const platform = platformRemote(installed([{ id: '1', skillName: 'influencer-integration', version: '1.2.0' }]))
-  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, platform, undefined, 2)
-  expect(within(view.getAllByRole('article')[0]!).getByRole('button', { name: '已安装' }).getAttribute('disabled')).not.toBeNull()
-  const conflict = within(view.getAllByRole('article')[1]!).getByRole('button', { name: '技能标识冲突' })
-  expect(conflict.getAttribute('disabled')).not.toBeNull()
-  expect(platform.remote.insightPlatformSkills.installSkill).not.toHaveBeenCalled()
-  expect(platform.remote.insightPlatformSkills.removeSkill).not.toHaveBeenCalled()
-})
-
-it('does not match one ID-less installation to two catalogue IDs with the same technical name', async () => {
-  const catalogue = { skills: [
-    CATALOG_FIXTURE.skills[0],
-    { ...CATALOG_FIXTURE.skills[0], id: 99, name: '不同版本' },
-  ] }
-  const platform = platformRemote(installed([{ key: 'name-only', skillName: 'influencer-integration', version: '1.2.0' }]))
-  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, platform, undefined, 3)
-  for (const card of view.getAllByRole('article').slice(0, 2)) {
-    const action = within(card).getByRole('button', { name: '技能标识冲突' })
-    expect(action.getAttribute('disabled')).not.toBeNull()
-  }
-  const installedCard = view.getAllByRole('article')[2]!
-  expect(within(installedCard).getByRole('button', { name: '已安装' }).getAttribute('disabled')).not.toBeNull()
-  fireEvent.click(within(installedCard).getByRole('button', { name: '查看详情' }))
-  fireEvent.click(within(view.getByRole('dialog')).getByRole('button', { name: '移除' }))
-  expect(platform.remote.insightPlatformSkills.removeSkill).toHaveBeenCalledWith({ key: 'name-only', skillName: 'influencer-integration' }, undefined)
-  expect(platform.remote.insightPlatformSkills.installSkill).not.toHaveBeenCalled()
+  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, undefined, undefined, 2)
+  expect(view.getAllByRole('article')).toHaveLength(2)
 })
 
 it('keeps an installed skill missing from the catalogue removable', async () => {
-  let snapshot = installed([{ skillName: 'retired-platform-skill', version: '1.0.0' }])
+  let snapshot = installed([{ id: 'retired-platform-skill', version: '1.0.0' }])
   const platform = RemoteMock.create()
     .unary('insightPlatformSkills/listInstalled', () => ok(snapshot))
     .unary('insightPlatformSkills/removeSkill', () => { snapshot = installed(); return ok(snapshot) })
@@ -278,7 +306,7 @@ it('keeps an installed skill missing from the catalogue removable', async () => 
 })
 
 it('keeps installed skills removable while the catalogue is unavailable', async () => {
-  let snapshot = installed([{ skillName: 'retired-platform-skill', version: '1.0.0' }])
+  let snapshot = installed([{ id: 'retired-platform-skill', version: '1.0.0' }])
   const platform = RemoteMock.create()
     .unary('insightPlatformSkills/listInstalled', () => ok(snapshot))
     .unary('insightPlatformSkills/removeSkill', () => { snapshot = installed(); return ok(snapshot) })

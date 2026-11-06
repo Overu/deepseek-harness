@@ -6,14 +6,14 @@ import { randomUUID } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import { withFileLock, writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import { open as openZip, validateFileName, type Entry, type ZipFile } from 'yauzl'
-import type { InstalledPlatformSkill, PlatformSkillInstallProgress, PlatformSkillInstallRequest, PlatformSkillKey, PlatformSkillOperationSettlement, PlatformSkillRemovalRequest, PlatformSkillSnapshot, SkillIdentity } from '../shared/skill-installation.ts'
-import { PLATFORM_SKILL_KEY_PATTERN } from '../shared/skill-installation.ts'
-import { matchSkillIdentity, skillIdentityKey } from '../shared/skill-identity.ts'
+import type { InsightSkillId, InstalledPlatformSkill, PlatformSkillInstallProgress, PlatformSkillInstallRequest, PlatformSkillOperationSettlement, PlatformSkillRemovalRequest, PlatformSkillSnapshot, SkillIdentity } from '../shared/skill-installation.ts'
+import { PLATFORM_SKILL_ID_PATTERN } from '../shared/skill-installation.ts'
+import { matchSkillIdentity, normalizeSkillId } from '../shared/skill-identity.ts'
 
 const RECORD = '.json'
 const archiveClosures = new WeakMap<ZipFile, Promise<void>>()
 interface StoredRecord extends InstalledPlatformSkill { readonly payload: string }
-interface StoredHistory extends SkillIdentity { readonly key: PlatformSkillKey }
+type StoredHistory = SkillIdentity
 
 /** Download and extraction limits applied before a payload can be committed. */
 export interface PlatformSkillStoreLimits {
@@ -36,7 +36,7 @@ export type PlatformSkillProgress = (value: Exclude<PlatformSkillInstallProgress
 export type PlatformSkillCleanupReporter = (message: string, error: unknown) => void
 
 /** Parser that must accept a staged root before its installation record commits. */
-export type PlatformSkillPayloadValidator = (payload: string, skillName: string, signal: AbortSignal) => Promise<void>
+export type PlatformSkillPayloadValidator = (payload: string, id: InsightSkillId, signal: AbortSignal) => Promise<void>
 
 /** Own installed releases for a single account. A record rename is the sole visibility commit. */
 export class PlatformSkillStore {
@@ -83,12 +83,12 @@ export class PlatformSkillStore {
    * @returns Installed identities and versions sorted by identity.
    */
   async list(signal?: AbortSignal): Promise<PlatformSkillSnapshot> {
-    return { skills: (await this.records(signal)).map(({ key, id, skillName, version }) => installedSkill(key, id, skillName, version)) }
+    return { skills: (await this.records(signal)).map(({ id, version }) => ({ id, version })) }
   }
   /**
    * Select configured IDs that have never been installed or explicitly removed.
    * @param catalogue - Published identities used to resolve configured selectors.
-   * @param selectors - Configured IDs, or technical names for entries without IDs, in installation order.
+   * @param selectors - Configured technical names in installation order.
    * @param signal - Cancellation while reading account state.
    * @returns Distinct identities eligible for automatic installation.
    */
@@ -99,21 +99,20 @@ export class PlatformSkillStore {
   ): Promise<readonly SkillIdentity[]> {
     const selected = [...new Map(selectors.map((selector) => {
       const identity = selectPreset(selector, catalogue)
-      return [skillIdentityKey(identity), identity] as const
+      return [identity.id, identity] as const
     })).values()]
     const installed = await this.records(signal)
     const histories = await this.histories(signal)
     return selected.filter((identity) => {
       signal.throwIfAborted()
-      const installedMatch = matchSkillIdentity(identity, installed, catalogue)
-      if (installedMatch.kind === 'conflict') throw new Error(`Platform skill preset ${identity.skillName} has conflicting installed identities.`)
+      const installedMatch = matchSkillIdentity(identity, installed)
+      if (installedMatch.kind === 'conflict') throw new Error(`Platform skill preset ${identity.id} has conflicting installed identities.`)
       if (installedMatch.kind === 'match') return false
       const historyMatch = matchSkillIdentity(
         identity,
-        histories.filter(history => !installed.some(record => record.key === history.key)),
-        catalogue,
+        histories.filter(history => !installed.some(record => record.id === history.id)),
       )
-      if (historyMatch.kind === 'conflict') throw new Error(`Platform skill preset ${identity.skillName} has conflicting installation history.`)
+      if (historyMatch.kind === 'conflict') throw new Error(`Platform skill preset ${identity.id} has conflicting installation history.`)
       return historyMatch.kind === 'missing'
     })
   }
@@ -143,7 +142,7 @@ export class PlatformSkillStore {
   }
   /**
    * Atomically stop selecting a release and reclaim its immutable payload.
-   * @param request - Local key and identity that must match the installed record.
+   * @param request - Technical name that must match the installed record.
    * @param signal - Optional cancellation honored before record removal.
    * @returns Installation state computed before the removal commit with the target omitted.
    */
@@ -154,17 +153,17 @@ export class PlatformSkillStore {
       join(this.root, '.mutations'),
       async () => {
         const records = await this.records(signal)
-        const record = records.find(record => record.key === request.key)
+        const record = records.find(record => record.id === request.id)
         if (record === undefined) throw new Error('Platform skill is not installed.')
         const matched = matchSkillIdentity(request, [record])
         if (matched.kind !== 'match') throw new Error('Platform skill removal identity does not match the installed skill.')
         signal?.throwIfAborted()
-        await this.writeHistory(historyIdentity(record.key, request.id ?? record.id, request.skillName))
-        await rm(join(this.installed, `${record.key}${RECORD}`), { force: true })
-        await this.cleanup(join(this.payloads, record.key), `Platform skill directory cleanup failed for ${record.key}.`)
+        await this.writeHistory({ id: record.id })
+        await rm(join(this.installed, `${record.id}${RECORD}`), { force: true })
+        await this.cleanup(join(this.payloads, record.id), `Platform skill directory cleanup failed for ${record.id}.`)
         return {
-          skills: records.filter(candidate => candidate.key !== record.key)
-            .map(({ key, id, skillName, version }) => installedSkill(key, id, skillName, version)),
+          skills: records.filter(candidate => candidate.id !== record.id)
+            .map(({ id, version }) => ({ id, version })),
         }
       },
       {
@@ -182,19 +181,13 @@ export class PlatformSkillStore {
     const previousMatch = matchSkillIdentity(input, records)
     if (previousMatch.kind === 'conflict') throw new Error('Platform skill installation identity conflicts with an installed skill.')
     const previous = previousMatch.kind === 'match' ? previousMatch.value : undefined
-    if (records.some(record => record.key !== previous?.key && record.skillName === input.skillName)) {
-      throw new Error('Platform skill technical name is already used by another installation.')
-    }
-    if (input.key !== undefined && input.key !== previous?.key) {
-      throw new Error('Platform skill update key does not identify the matching installed skill.')
-    }
-    const key = previous?.key ?? randomUUID() as PlatformSkillKey
-    const id = input.id ?? previous?.id
+    const id = input.id
+    await this.assertPayloadDirectory(id)
     const token = randomUUID()
-    const stage = join(this.staging, `${key}-${token}`)
+    const stage = join(this.staging, `${id}-${token}`)
     const archive = join(stage, 'archive.zip')
     const unpacked = join(stage, 'unpacked')
-    const payload = join(this.payloads, key, token)
+    const payload = join(this.payloads, id, token)
     let committed = false
     try {
       await mkdir(stage, { recursive: true, mode: 0o700 })
@@ -203,27 +196,28 @@ export class PlatformSkillStore {
       progress({ kind: 'progress', operationId: input.operationId, phase: 'validate' })
       await unzip(archive, unpacked, this.limits, signal)
       signal.throwIfAborted()
-      await mkdir(join(this.payloads, key), { recursive: true, mode: 0o700 })
+      await mkdir(join(this.payloads, id), { recursive: true, mode: 0o700 })
+      await this.assertPayloadDirectory(id)
       await movePayload(unpacked, payload)
       await readFile(join(payload, 'SKILL.md'), 'utf8')
-      await this.validatePayload(payload, input.skillName, signal)
+      await this.validatePayload(payload, input.id, signal)
       signal.throwIfAborted()
       progress({ kind: 'progress', operationId: input.operationId, phase: 'commit' })
-      await this.writeRecord(storedRecord(key, id, input.skillName, input.version, relative(this.root, payload)))
+      await this.writeRecord({ id, version: input.version, payload: relative(this.root, payload) })
       committed = true
       try {
-        await this.writeHistory(historyIdentity(key, id, input.skillName))
+        await this.writeHistory({ id })
       } catch (error) {
         this.reportCleanupFailure('Platform skill installation history could not be saved; the installed record remains authoritative.', error)
       }
       if (previous !== undefined) await this.removePayload(previous)
-      return installedSkill(key, id, input.skillName, input.version)
+      return { id, version: input.version }
     } finally {
       await this.cleanup(stage, 'Platform skill staging cleanup failed.')
       await this.pruneEmptyDirectory(this.staging)
       if (!committed) {
         await this.cleanup(payload, 'Platform skill unpublished payload cleanup failed.')
-        await this.pruneEmptyDirectory(join(this.payloads, key))
+        await this.pruneEmptyDirectory(join(this.payloads, id))
       }
     }
   }
@@ -248,7 +242,7 @@ export class PlatformSkillStore {
       const record = await this.readRecord(entry.name.slice(0, -RECORD.length))
       if (record !== undefined) {
         selected.add(resolve(this.root, record.payload))
-        await this.rememberHandled(record)
+        await this.rememberHandled({ id: record.id })
       }
     }
     const skillDirectories = await opendir(this.payloads)
@@ -276,14 +270,14 @@ export class PlatformSkillStore {
       const record = await this.readRecord(entry.name.slice(0, -RECORD.length))
       if (record !== undefined) records.push(record)
     }
-    records.sort((a, b) => a.key.localeCompare(b.key))
+    records.sort((a, b) => a.id.localeCompare(b.id))
     return records
   }
-  private async readRecord(key: string): Promise<StoredRecord | undefined> {
-    validateKey(key)
+  private async readRecord(id: string): Promise<StoredRecord | undefined> {
+    validateId(id)
     let text: string
     try {
-      text = await readFile(join(this.installed, `${key}${RECORD}`), 'utf8')
+      text = await readFile(join(this.installed, `${id}${RECORD}`), 'utf8')
     } catch (error) {
       if (isMissing(error)) return undefined
       throw error
@@ -292,27 +286,28 @@ export class PlatformSkillStore {
     try {
       value = JSON.parse(text)
     } catch (error) {
-      throw new Error(`Platform skill record for ${key} is not valid JSON.`, { cause: error })
+      throw new Error(`Platform skill record for ${id} is not valid JSON.`, { cause: error })
     }
     if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-      throw new Error(`Platform skill record for ${key} is invalid.`)
+      throw new Error(`Platform skill record for ${id} is invalid.`)
     }
-    const record = value as { key?: unknown; id?: unknown; skillName?: unknown; version?: unknown; payload?: unknown }
-    if (record.key !== key || !validIdentity(record.id, record.skillName)
-      || typeof record.version !== 'string' || record.version === '' || typeof record.payload !== 'string') throw new Error(`Platform skill record for ${key} is invalid.`)
+    const record = value as { id?: unknown; version?: unknown; payload?: unknown; key?: unknown; skillName?: unknown }
+    if (record.key !== undefined || record.skillName !== undefined || record.id !== id || !validId(record.id)
+      || typeof record.version !== 'string' || record.version === '' || typeof record.payload !== 'string') throw new Error(`Platform skill record for ${id} is invalid.`)
     const path = resolve(this.root, record.payload)
-    const payloadRelative = relative(join(this.payloads, key), path)
+    const payloadRelative = relative(join(this.payloads, id), path)
     if (isAbsolute(record.payload) || payloadRelative === '' || payloadRelative === '..'
       || payloadRelative.startsWith(`..${sep}`) || relative(this.root, path) !== record.payload) {
-      throw new Error(`Platform skill record for ${key} selects an invalid payload.`)
+      throw new Error(`Platform skill record for ${id} selects an invalid payload.`)
     }
     try {
+      if ((await lstat(path)).isSymbolicLink()) throw new Error(`Platform skill record for ${id} selects a symbolic-link payload.`)
       await readFile(join(path, 'SKILL.md'), 'utf8')
     } catch (error) {
       if (isMissing(error)) return undefined
       throw error
     }
-    return storedRecord(key as PlatformSkillKey, record.id as StoredRecord['id'], record.skillName as string, record.version, record.payload)
+    return { id: record.id as StoredRecord['id'], version: record.version, payload: record.payload }
   }
   private async histories(signal?: AbortSignal): Promise<StoredHistory[]> {
     await this.recover(signal)
@@ -326,11 +321,11 @@ export class PlatformSkillStore {
     }
     return histories
   }
-  private async readHistory(key: string): Promise<StoredHistory | undefined> {
-    validateKey(key)
+  private async readHistory(id: string): Promise<StoredHistory | undefined> {
+    validateId(id)
     let text: string
     try {
-      text = await readFile(join(this.history, `${key}${RECORD}`), 'utf8')
+      text = await readFile(join(this.history, `${id}${RECORD}`), 'utf8')
     } catch (error) {
       if (isMissing(error)) return undefined
       throw error
@@ -339,34 +334,46 @@ export class PlatformSkillStore {
     try {
       value = JSON.parse(text)
     } catch (error) {
-      throw new Error(`Platform skill installation history for ${key} is not valid JSON.`, { cause: error })
+      throw new Error(`Platform skill installation history for ${id} is not valid JSON.`, { cause: error })
     }
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`Platform skill installation history for ${key} is invalid.`)
-    const history = value as { key?: unknown; id?: unknown; skillName?: unknown }
-    if (history.key !== key || !validIdentity(history.id, history.skillName)) {
-      throw new Error(`Platform skill installation history for ${key} is invalid.`)
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error(`Platform skill installation history for ${id} is invalid.`)
+    const history = value as { id?: unknown; key?: unknown; skillName?: unknown }
+    if (history.key !== undefined || history.skillName !== undefined || history.id !== id || !validId(history.id)) {
+      throw new Error(`Platform skill installation history for ${id} is invalid.`)
     }
-    return historyIdentity(key as PlatformSkillKey, history.id as StoredHistory['id'], history.skillName as string)
+    return { id: history.id as StoredHistory['id'] }
   }
   private async writeRecord(record: StoredRecord): Promise<void> {
     await writeFileAtomic(
-      join(this.installed, `${record.key}${RECORD}`),
+      join(this.installed, `${record.id}${RECORD}`),
       `${JSON.stringify(record)}\n`,
       { mode: 0o600, dirMode: 0o700 },
     )
   }
+  /** Reject linked or non-directory payload parents before installation writes or cleanup can follow them. */
+  private async assertPayloadDirectory(id: InstalledPlatformSkill['id']): Promise<void> {
+    try {
+      const entry = await lstat(join(this.payloads, id))
+      if (entry.isSymbolicLink() || !entry.isDirectory()) {
+        throw new Error(`Platform skill directory for ${id} is not a regular directory.`)
+      }
+    } catch (error) {
+      if (isMissing(error)) return
+      throw error
+    }
+  }
   private async removePayload(record: StoredRecord): Promise<void> {
     await this.cleanup(
       join(this.root, record.payload),
-      `Platform skill payload cleanup failed for ${record.key}.`,
+      `Platform skill payload cleanup failed for ${record.id}.`,
     )
-    await this.pruneEmptyDirectory(join(this.payloads, record.key))
+    await this.pruneEmptyDirectory(join(this.payloads, record.id))
   }
   private async rememberHandled(identity: StoredHistory): Promise<void> {
-    if (await this.readHistory(identity.key) === undefined) await this.writeHistory(identity)
+    if (await this.readHistory(identity.id) === undefined) await this.writeHistory(identity)
   }
   private async writeHistory(history: StoredHistory): Promise<void> {
-    await writeFileAtomic(join(this.history, `${history.key}${RECORD}`), `${JSON.stringify(history)}\n`, { mode: 0o600, dirMode: 0o700 })
+    await writeFileAtomic(join(this.history, `${history.id}${RECORD}`), `${JSON.stringify(history)}\n`, { mode: 0o600, dirMode: 0o700 })
   }
   private async pruneEmptyDirectory(path: string): Promise<void> {
     try {
@@ -658,45 +665,28 @@ async function movePayload(source: string, destination: string): Promise<void> {
 }
 
 function validate(input: PlatformSkillInstallRequest, limits: PlatformSkillStoreLimits): void {
-  if (!validIdentity(input.id, input.skillName)) throw new Error('Skill identity is invalid.')
-  if (input.key !== undefined) validateKey(input.key)
+  if (!validId(input.id)) throw new Error('Skill identity is invalid.')
   if (input.version.trim() === '') throw new Error('Skill version must not be empty.')
   assertAllowedUrl(input.downloadUrl, limits)
 }
 
 function validateRemoval(input: PlatformSkillRemovalRequest): void {
-  validateKey(input.key)
-  if (!validIdentity(input.id, input.skillName)) throw new Error('Skill identity is invalid.')
+  if (!validId(input.id)) throw new Error('Skill identity is invalid.')
 }
 
-function validateKey(key: string): void {
-  if (!PLATFORM_SKILL_KEY_PATTERN.test(key)) throw new Error('Platform skill key is invalid.')
+function validateId(id: string): void {
+  if (!PLATFORM_SKILL_ID_PATTERN.test(id)) throw new Error('Platform skill technical name is invalid.')
 }
 
-function validIdentity(id: unknown, skillName: unknown): boolean {
-  return (id === undefined || typeof id === 'string' && id !== '' && id === id.trim())
-    && typeof skillName === 'string' && skillName !== '' && skillName === skillName.trim()
+function validId(id: unknown): id is string {
+  return typeof id === 'string' && PLATFORM_SKILL_ID_PATTERN.test(id)
 }
 
 function selectPreset(selector: string, catalogue: readonly SkillIdentity[]): SkillIdentity {
-  const byId = catalogue.filter(skill => skill.id === selector)
-  const candidates = byId.length === 0 ? catalogue.filter(skill => skill.id === undefined && skill.skillName === selector) : byId
-  if (candidates.length !== 1) throw new Error(`Configured platform skill preset ${selector} does not identify exactly one catalogue skill.`)
+  const candidates = catalogue.filter(skill => skill.id === selector)
+  if (candidates.length > 1) throw new Error(`Configured platform skill preset ${selector} does not identify exactly one catalogue skill.`)
   const [candidate] = candidates
-  if (candidate === undefined) throw new Error(`Configured platform skill preset ${selector} is unavailable.`)
-  return candidate
-}
-
-function installedSkill(key: PlatformSkillKey, id: InstalledPlatformSkill['id'], skillName: string, version: string): InstalledPlatformSkill {
-  return id === undefined ? { key, skillName, version } : { key, id, skillName, version }
-}
-
-function storedRecord(key: PlatformSkillKey, id: StoredRecord['id'], skillName: string, version: string, payload: string): StoredRecord {
-  return id === undefined ? { key, skillName, version, payload } : { key, id, skillName, version, payload }
-}
-
-function historyIdentity(key: PlatformSkillKey, id: StoredHistory['id'], skillName: string): StoredHistory {
-  return id === undefined ? { key, skillName } : { key, id, skillName }
+  return candidate ?? { id: normalizeSkillId(selector) }
 }
 
 function assertAllowedUrl(value: string, limits: PlatformSkillStoreLimits): void {

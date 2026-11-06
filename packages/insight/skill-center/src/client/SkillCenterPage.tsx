@@ -15,7 +15,7 @@ import type { SkillCenterLocaleKey } from './types.ts'
 import type {
   InstalledPlatformSkill, PlatformSkillRemovalRequest, PlatformSkillSnapshot,
 } from '../shared/skill-installation.ts'
-import { matchSkillIdentity, skillIdentityKey } from '../shared/skill-identity.ts'
+import { matchSkillIdentity } from '../shared/skill-identity.ts'
 import styles from './SkillCenterPage.module.css'
 
 type SkillCenterPageProps = PropsRuntime<'main'> & PropsLocale<'insight.skillCenter'>
@@ -48,17 +48,17 @@ export function SkillCenterPage({ t, report, installations, remove, useResource,
   const catalogSkills = catalogue.value ?? []
   const installed = installedResource.value?.skills ?? []
   const allSkills: readonly ListedSkill[] = [
-    ...catalogSkills.map(skill => ({ skill, key: skillIdentityKey(skill) })),
+    ...catalogSkills.map(skill => ({ skill, key: skill.id })),
     ...installed
       .filter(installedSkill => matchSkillIdentity(installedSkill, catalogSkills).kind !== 'match')
       .map(installedSkill => ({
         skill: retiredCatalogItem(installedSkill, text('removedCatalogSkill')),
-        key: `installed:${installedSkill.key}`,
-        installationKey: installedSkill.key,
+        key: `installed:${installedSkill.id}`,
+        installationKey: installedSkill.id,
       })),
   ]
-  const skills = value === '' ? allSkills : allSkills.filter(({ skill }) => [skill.id, skill.skillName, skill.name, skill.summary]
-    .some(candidate => candidate?.toLocaleLowerCase('zh-CN').includes(value)))
+  const skills = value === '' ? allSkills : allSkills.filter(({ skill }) => [skill.id, skill.name, skill.summary]
+    .some(candidate => candidate.toLocaleLowerCase('zh-CN').includes(value)))
   const selected = allSkills.find(skill => skill.key === selectedKey) ?? null
   useEffect(() => {
     const timer = window.setTimeout(() => { setQuery(draft) }, 250)
@@ -69,7 +69,7 @@ export function SkillCenterPage({ t, report, installations, remove, useResource,
     if (installedResource.status !== 'live') return 'loading'
     if (listed.installationKey !== undefined) return 'installed'
     const skill = listed.skill
-    const matched = matchSkillIdentity(skill, installed, catalogSkills)
+    const matched = matchSkillIdentity(skill, installed)
     if (matched.kind === 'conflict') return 'conflict'
     if (matched.kind === 'missing') return 'install'
     return matched.value.version === skill.version ? 'installed' : 'update'
@@ -78,20 +78,15 @@ export function SkillCenterPage({ t, report, installations, remove, useResource,
     const state = stateOf(listed)
     if (state !== 'install' && state !== 'update') return
     const skill = listed.skill
-    const matched = matchSkillIdentity(skill, installed, catalogSkills)
-    void installations.install(skill, state === 'update', matched.kind === 'match' ? matched.value.key : undefined)
+    void installations.install(skill, state === 'update')
   }
   const removeSkill = async (listed: ListedSkill): Promise<void> => {
-    const direct = listed.installationKey === undefined ? undefined : installed.find(skill => skill.key === listed.installationKey)
-    const resolved = direct === undefined ? matchSkillIdentity(listed.skill, installed, catalogSkills) : { kind: 'match' as const, value: direct }
+    const direct = listed.installationKey === undefined ? undefined : installed.find(skill => skill.id === listed.installationKey)
+    const resolved = direct === undefined ? matchSkillIdentity(listed.skill, installed) : { kind: 'match' as const, value: direct }
     if (resolved.kind !== 'match') return
     const matched = resolved.value
-    const identity = listed.installationKey === undefined ? listed.skill : matched
     try {
-      const result = await remove({
-        key: matched.key,
-        ...(identity.id === undefined ? { skillName: identity.skillName } : { id: identity.id, skillName: identity.skillName }),
-      })
+      const result = await remove({ id: matched.id })
       if (!result.ok) throw new Error(result.error.message)
       setInstallationAttempt(current => current + 1)
       setSelectedKey(null)
@@ -117,8 +112,8 @@ export function SkillCenterPage({ t, report, installations, remove, useResource,
 /** Represent an installed skill removed from the currently published catalogue. */
 function retiredCatalogItem(skill: InstalledPlatformSkill, removedMessage: string): SkillCatalogItem {
   return {
-    ...(skill.id === undefined ? { skillName: skill.skillName } : { id: skill.id, skillName: skill.skillName }),
-    name: skill.skillName,
+    id: skill.id,
+    name: skill.id,
     summary: removedMessage,
     version: skill.version,
     descriptionMarkdown: removedMessage,

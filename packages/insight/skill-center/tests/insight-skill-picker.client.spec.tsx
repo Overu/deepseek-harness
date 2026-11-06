@@ -256,9 +256,61 @@ describe('InsightSkillPicker', () => {
     fireEvent.click(await screen.findByRole('button', { name: '✓ tikhub' }))
     expect(toggleSkill).toHaveBeenCalledWith('tikhub')
     fireEvent.click(screen.getByRole('tab', { name: '用户自定义' }))
-    expect(screen.queryByRole('button', { name: '✓ tikhub' })).toBeNull()
+    expect(screen.getByRole('button', { name: '✓ tikhub' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /tikhub/ }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('option', { name: /tikhub/ }).id).not.toBe(platformOption.id)
   })
+
+  it.each(['platform', 'account'] as const)('shares selection across same-name entries when %s is shadowed', async (shadowed) => {
+    const loadInventory: InsightSkillInventoryLoader = async () => ({ complete: true, entries: [
+      { name: 'same-skill', description: '预置技能', origin: 'platform', availability: shadowed === 'platform' ? 'shadowed' : 'callable' },
+      { name: 'same-skill', description: '自定义技能', origin: 'account', availability: shadowed === 'account' ? 'shadowed' : 'callable' },
+    ] })
+    const toggleSkill = vi.fn()
+    const initial = props(inputHook(), inputActions(toggleSkill), loadInventory)
+    const view = render(<InsightSkillPicker {...initial} />)
+    fireEvent.click(screen.getByRole('button', { name: '技能' }))
+    const platform = await screen.findByRole<HTMLButtonElement>('button', { name: 'same-skill' })
+    expect(platform.disabled).toBe(false)
+    fireEvent.click(platform)
+    expect(toggleSkill).toHaveBeenLastCalledWith('same-skill')
+    view.rerender(<InsightSkillPicker {...initial} useInput={inputHook(['same-skill'])} />)
+    expect(screen.getByRole('option').getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('button', { name: '✓ same-skill' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: '用户自定义' }))
+    const custom = screen.getByRole<HTMLButtonElement>('button', { name: '✓ same-skill' })
+    expect(custom.disabled).toBe(false)
+    expect(screen.getByRole('option').getAttribute('aria-selected')).toBe('true')
+    fireEvent.click(custom)
+    expect(toggleSkill).toHaveBeenCalledTimes(2)
+    view.rerender(<InsightSkillPicker {...initial} />)
+    expect(screen.getByRole('option').getAttribute('aria-selected')).toBe('false')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: '技能' }))
+    const search = screen.getByRole('combobox', { name: '搜索技能' })
+    fireEvent.keyDown(search, { key: 'ArrowDown' })
+    expect(search.getAttribute('aria-activedescendant')).toBe(screen.getByRole('option').id)
+    fireEvent.keyDown(search, { key: 'Enter' })
+    expect(toggleSkill).toHaveBeenCalledTimes(3)
+    expect(toggleSkill).toHaveBeenLastCalledWith('same-skill')
+  })
+
+  it.each(['invalid', 'disabled', 'unavailable', 'unconfirmed'] as const)(
+    'keeps a %s entry unselectable even when another entry has a callable name', async (availability) => {
+      const toggleSkill = vi.fn()
+      render(<InsightSkillPicker {...props(inputHook(['same-skill']), inputActions(toggleSkill), async () => ({ complete: true, entries: [
+        { name: 'same-skill', description: '预置技能', origin: 'platform', availability },
+        { name: 'same-skill', description: '自定义技能', origin: 'account', availability: 'callable' },
+      ] }))} />)
+      fireEvent.click(screen.getByRole('button', { name: '技能 (1)' }))
+      const option = await screen.findByRole<HTMLButtonElement>('button', { name: 'same-skill' })
+      expect(option.disabled).toBe(true)
+      expect(screen.getByRole('option').getAttribute('aria-selected')).toBe('false')
+      fireEvent.click(option)
+      fireEvent.keyDown(screen.getByRole('combobox', { name: '搜索技能' }), { key: 'Enter' })
+      expect(toggleSkill).not.toHaveBeenCalled()
+    },
+  )
 
   it('retains a failed current directory as unconfirmed and keeps it unselectable', async () => {
     const successful = vi.fn(async (): Promise<InsightSkillInventorySnapshot> => ({ complete: true, entries: [{

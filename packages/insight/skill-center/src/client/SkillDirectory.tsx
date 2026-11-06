@@ -5,13 +5,12 @@ import type { ResourceStatus } from '@deepseek-ai/dsh-client-resources/client'
 import { SkillCard } from './SkillCard.tsx'
 import type { SkillCatalogItem } from './skill-catalog-resource.ts'
 import type { SkillCenterTranslate } from './types.ts'
-import type { PlatformSkillKey } from '../shared/skill-installation.ts'
 
 /** One catalogue or independently removable local skill row. */
 export interface ListedSkill {
   readonly skill: SkillCatalogItem
   readonly key: string
-  readonly installationKey?: PlatformSkillKey
+  readonly installationKey?: string
 }
 import styles from './SkillCenterPage.module.css'
 

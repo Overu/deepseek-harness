@@ -1,0 +1,3 @@
+- id: insight-skill-center
+  config:
+    presetSkillIds: ['preset-14', 'preset-15', 'preset-16']

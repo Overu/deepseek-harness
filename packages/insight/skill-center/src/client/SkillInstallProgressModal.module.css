@@ -1,5 +1,6 @@
 .modal {
   width: min(420px, 100%);
+  padding: 24px;
 }
 
 .body {
@@ -31,5 +32,4 @@
 .actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 20px;
 }

@@ -70,32 +70,20 @@ export function normalizeCatalog(payload: unknown): readonly SkillCatalogItem[] 
   }
   const skills: Array<SkillCatalogItem & { readonly sort: number }> = []
   const ids = new Set<string>()
-  const namesWithoutIds = new Set<string>()
   for (const entry of payload.skills) {
     if (!isRecord(entry) || Number(entry.enabled) !== 1) continue
-    const skillName = stringField(entry, 'skill_id').trim()
-    if (skillName === '') throw new InvalidCatalogError('The skill catalogue contains an enabled skill without a technical name.')
-    let id: InsightSkillId | undefined
+    let id: InsightSkillId
     try {
-      id = normalizeSkillId(entry.id)
+      id = normalizeSkillId(stringField(entry, 'skill_id'))
     } catch (error) {
       throw new InvalidCatalogError(error instanceof Error ? error.message : String(error))
     }
-    if (id === undefined) {
-      if (namesWithoutIds.has(skillName)) {
-        throw new InvalidCatalogError(`The skill catalogue repeats the technical name ${skillName} without an ID.`)
-      }
-      namesWithoutIds.add(skillName)
-    } else if (ids.has(id)) {
-      throw new InvalidCatalogError(`The skill catalogue repeats the skill ID ${id}.`)
-    } else {
-      ids.add(id)
-    }
-    const name = stringField(entry, 'name').trim() || skillName
+    if (ids.has(id)) throw new InvalidCatalogError(`The skill catalogue repeats the technical name ${id}.`)
+    ids.add(id)
+    const name = stringField(entry, 'name').trim() || id
     const version = stringField(entry, 'version').trim() || '1.0.0'
-    const identity: SkillIdentity = id === undefined ? { skillName } : { id, skillName }
     skills.push({
-      ...identity,
+      id,
       name,
       summary: stringField(entry, 'skill_desc').trim(),
       version,
@@ -162,7 +150,7 @@ export function skillCatalogResourceProvider(
       } catch (_error) {
         yield {
           ok: false,
-          error: new RemoteError('gateway/bad-request', 'The skill catalogue must contain a skills array with distinct skill IDs.', {}),
+          error: new RemoteError('gateway/bad-request', 'The skill catalogue must contain a skills array with distinct technical names.', {}),
         }
       }
     },
