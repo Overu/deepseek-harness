@@ -283,7 +283,7 @@ it('keeps the publishing key in the final isolated-runtime step', async () => {
   expect(install?.run).toContain('npm ci --prefix scripts/insight-release/runtime --ignore-scripts')
   const publish = workflow.jobs.publish.steps.find(step => step.name === 'Publish verified GitHub Release bytes to OSS')
   expect(publish?.env?.DESKTOP_UPDATE_SIGNING_PRIVATE_KEY).toBe('${{ secrets.DESKTOP_UPDATE_SIGNING_PRIVATE_KEY }}')
-  expect(publish?.env?.INSIGHT_RELEASE_TARGET).toBe('${{ inputs.target }}')
+  expect(publish?.env?.INSIGHT_RELEASE_TARGET).toBe('${{ matrix.target }}')
 })
 
 it('does not expose workflow credentials to archive subprocesses', () => {
