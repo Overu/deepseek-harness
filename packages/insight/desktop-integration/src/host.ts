@@ -16,3 +16,5 @@ export {
   type InsightAccountServiceOptions,
   type InsightAccountTransport,
 } from './host/account-service.ts'
+/** Fixed service bases shared by authenticated Host integrations. */
+export { skillProxyServiceBaseUrl, uploadCenterServiceBaseUrl } from './shared/service-environment.ts'

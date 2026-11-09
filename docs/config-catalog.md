@@ -497,6 +497,23 @@ export interface ConnectionRecoveryConfig {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-connection -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-file-upload -->
+<a id="deepseek-aidsh-client-file-upload"></a>
+
+## `@deepseek-ai/dsh-client-file-upload`
+
+- `inject`: `agents` · `attachments` · `commands` · `connection`
+- `source`: [`packages/client/file-upload/src/index.ts:21`](../packages/client/file-upload/src/index.ts)
+
+```ts config-catalog
+/** Host upload options; the default keeps only normalized prompt images. */
+export interface FileUploadConfig {
+  /** Persist exact uploaded image bytes alongside normalized prompt images. */
+  retainOriginalImage: boolean
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-client-file-upload -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-client-hmr -->
 <a id="deepseek-aidsh-client-hmr"></a>
 
@@ -4809,6 +4826,27 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->
+<a id="insight-aidesktop-media-upload-plugin"></a>
+
+## `@insight-ai/desktop-media-upload-plugin`
+
+- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `agents` · `sessionProjections`
+- `source`: [`packages/insight/media-upload/src/index.ts:18`](../packages/insight/media-upload/src/index.ts)
+
+```ts config-catalog
+/** Product environment and bounded network deadlines. */
+export interface Config {
+  /** Selected fixed enterprise service environment. */
+  serviceEnvironment: 'test' | 'production'
+  /** Deadline for each enterprise JSON request. */
+  requestTimeoutMs: number
+  /** Deadline for the OSS PUT. */
+  ossTimeoutMs: number
+}
+```
+<!-- END GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->
+
 <!-- BEGIN GENERATED config-catalog:@insight-ai/skill-center -->
 <a id="insight-aiskill-center"></a>
 
@@ -4934,7 +4972,6 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-api-remotes` | `typertGateway` | [`packages/api/remotes/src/index.ts`](../packages/api/remotes/src/index.ts) |
 | `@deepseek-ai/dsh-authorization` | `credentials` | [`packages/credentials/authorization/src/index.ts`](../packages/credentials/authorization/src/index.ts) |
 | `@deepseek-ai/dsh-browser-use` | — | [`packages/browser-use/browser-use/src/index.ts`](../packages/browser-use/browser-use/src/index.ts) |
-| `@deepseek-ai/dsh-client-file-upload` | `agents` · `attachments` · `commands` · `connection` | [`packages/client/file-upload/src/index.ts`](../packages/client/file-upload/src/index.ts) |
 | `@deepseek-ai/dsh-client-locale` | — | [`packages/client/locale/src/index.ts`](../packages/client/locale/src/index.ts) |
 | `@deepseek-ai/dsh-client-modules` | `loader` | [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts) |
 | `@deepseek-ai/dsh-client-resources` | — | [`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts) |

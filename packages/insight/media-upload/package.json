@@ -1,0 +1,39 @@
+{
+  "name": "@insight-ai/desktop-media-upload-plugin",
+  "version": "0.2.2-alpha.2",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "description": "Insight Desktop user attachment upload to OSS",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": { "types": "./lib/types/index.d.ts", "default": "./lib/index.js" },
+    "./package.json": "./package.json"
+  },
+  "dsh": { "bundle": { "patch": "./cordis.patch.yml" } },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-attachment": "workspace:*",
+    "@deepseek-ai/dsh-session-projection": "workspace:*",
+    "@deepseek-ai/dsh-user-approval": "workspace:*",
+    "@insight-ai/desktop-integration": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-agent": "workspace:*",
+    "@deepseek-ai/dsh-attachment": "workspace:*",
+    "@deepseek-ai/dsh-llm": "workspace:*",
+    "@deepseek-ai/dsh-session": "workspace:*",
+    "@deepseek-ai/dsh-session-projection": "workspace:*",
+    "@deepseek-ai/dsh-tools": "workspace:*",
+    "@deepseek-ai/dsh-user-approval": "workspace:*",
+    "@insight-ai/desktop-integration": "workspace:*",
+    "@types/node": "24.10.1",
+    "typescript": "5.9.2"
+  },
+  "dependencies": { "@deepseek-ai/schemastery": "workspace:~", "ali-oss": "6.20.0", "zod": "4.4.3" },
+  "files": ["lib/index.js", "lib/types/**/*.d.ts", "cordis.patch.yml", "README.md", "README.zh.md"],
+  "scripts": { "bundle": "tsdown", "typecheck": "tsc -b tsconfig.json" }
+}

@@ -3451,6 +3451,9 @@ importers:
 
   packages/client/file-upload:
     dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
       '@deepseek-ai/dsh-brand':
         specifier: workspace:*
         version: link:../../util/brand
@@ -13068,6 +13071,52 @@ importers:
       vite:
         specifier: ^6.4.3
         version: 6.4.3(@types/node@22.20.1)(jiti@2.7.0)(less@4.4.1)(lightningcss@1.33.0)(tsx@4.23.13)(yaml@2.9.0)
+
+  packages/insight/media-upload:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+      ali-oss:
+        specifier: 6.20.0
+        version: 6.20.0(supports-color@9.4.0)
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:~
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:*
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-attachment':
+        specifier: workspace:*
+        version: link:../../attachment/attachment
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:*
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:*
+        version: link:../../core/session
+      '@deepseek-ai/dsh-session-projection':
+        specifier: workspace:*
+        version: link:../../session/session-projection
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:*
+        version: link:../../core/tools
+      '@deepseek-ai/dsh-user-approval':
+        specifier: workspace:*
+        version: link:../../interaction/user-approval
+      '@insight-ai/desktop-integration':
+        specifier: workspace:*
+        version: link:../desktop-integration
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
 
   packages/insight/memory-evolve:
     devDependencies:

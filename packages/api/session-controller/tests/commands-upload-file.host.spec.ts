@@ -43,7 +43,8 @@ async function* chunks(...parts: readonly number[][]): AsyncIterable<Uint8Array>
   for (const part of parts) yield Uint8Array.from(part)
 }
 
-async function uploadHarness(origin?: 'subagent', imageLimits: ImageAttachmentLimits = IMAGE_LIMITS): Promise<{
+async function uploadHarness(origin?: 'subagent', imageLimits: ImageAttachmentLimits = IMAGE_LIMITS,
+  retainOriginalImage = false): Promise<{
   ctx: Context
   controller: SessionCommandController
   uploads: FileUploads
@@ -129,7 +130,7 @@ async function uploadHarness(origin?: 'subagent', imageLimits: ImageAttachmentLi
   } as never)
   const agents = new ApiSessionAgentController(ctx)
   vi.spyOn(agents, 'resolveAgent').mockResolvedValue({ agent })
-  const uploads = new FileUploads(ctx)
+  const uploads = new FileUploads(ctx, { retainOriginalImage })
   if (uploadRoute === undefined) throw new Error('file upload route was not registered')
   return {
     ctx,
@@ -262,6 +263,30 @@ describe('Session file uploads', () => {
       { type: 'text', text: 'look' },
     ])
     expect(saveImages).toHaveBeenCalledTimes(1)
+  })
+
+  it('retains exact image upload bytes only when the Host option is enabled', async () => {
+    const { controller, uploads, agent, followup, saveFile, saveImages } = await uploadHarness(undefined, IMAGE_LIMITS, true)
+    saveImages.mockResolvedValueOnce([STAGED_IMAGE])
+    const receipt = await uploads.uploadImageStream({
+      sessionId: SESSION, data: chunks([1, 2], [3, 4]), mediaType: 'image/png', name: 'shot.png',
+    })
+    expect(saveFile).toHaveBeenCalledWith({ data: Uint8Array.of(1, 2, 3, 4), name: 'shot.png' })
+    const originalFile = await saveFile.mock.results[0]?.value
+    expect(uploads.resolve(agent, receipt.receiptId)).toEqual({ type: 'image', attachment: STAGED_IMAGE,
+      encodedBytes: 4, originalFile })
+    await controller.prompt(promptRequest([{ type: 'file', receiptId: receipt.receiptId }]), USER_SOURCE)
+    expect((followup.mock.calls[0]?.[0] as UserMessage).content).toEqual([
+      { type: 'image', attachment: STAGED_IMAGE, originalFile },
+    ])
+  })
+
+  it('does not issue an image receipt when retaining its original bytes fails', async () => {
+    const { uploads, saveFile, saveImages } = await uploadHarness(undefined, IMAGE_LIMITS, true)
+    saveImages.mockResolvedValueOnce([STAGED_IMAGE])
+    saveFile.mockRejectedValueOnce(new Error('original storage unavailable'))
+    await expect(uploads.uploadImageStream({ sessionId: SESSION, data: chunks([1, 2, 3, 4]),
+      mediaType: 'image/png', name: 'shot.png' })).rejects.toThrow('original storage unavailable')
   })
 
   it('refuses an uploaded image for a model without image input', async () => {

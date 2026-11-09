@@ -803,6 +803,19 @@
       }
     },
     {
+      "name": "upload_attachment",
+      "description": "Upload one file attached by the user in the current turn to OSS. Use when the user requests an image, video, audio, or other file upload. Ask for transfer approval. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "attachmentIndex": {
+            "type": "integer",
+            "description": "1-based position among direct-user attachments in this turn. Required when there is more than one."
+          }
+        }
+      }
+    },
+    {
       "name": "web_fetch",
       "description": "Fetch the content of a specific HTTP(S) URL and return it decoded to text.",
       "parameters": {

@@ -5453,7 +5453,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AdmittedPromptContentPart',
-    declaration: 'export type AdmittedPromptContentPart = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n} | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n};',
+    declaration: 'export type AdmittedPromptContentPart = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly originalFile?: FileAttachmentRef;\n} | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n};',
   },
   {
     name: 'AfterScheduleRecord',
@@ -5637,7 +5637,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AttachmentAdmissionPart',
-    declaration: 'export type AttachmentAdmissionPart = PromptContentPart | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n};',
+    declaration: 'export type AttachmentAdmissionPart = PromptContentPart | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n    readonly originalFile?: FileAttachmentRef;\n};',
   },
   {
     name: 'AttachmentError',
@@ -6621,7 +6621,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ImageBlock',
-    declaration: 'export interface ImageBlock {\n    type: \'image\';\n    attachment: ImageAttachmentRef;\n    offloaded?: true;\n}',
+    declaration: 'export interface ImageBlock {\n    type: \'image\';\n    attachment: ImageAttachmentRef;\n    originalFile?: FileAttachmentRef;\n    offloaded?: true;\n}',
   },
   {
     name: 'ImageMediaType',
@@ -9061,7 +9061,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'StagedAttachment',
-    declaration: 'export type StagedAttachment = {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n};',
+    declaration: 'export type StagedAttachment = {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n    readonly originalFile?: FileAttachmentRef;\n};',
   },
   {
     name: 'StopShareRequest',

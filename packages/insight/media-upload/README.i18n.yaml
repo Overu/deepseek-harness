@@ -1,0 +1,55 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/insight/media-upload/README.md
+/:
+  en: bd5c87674acf87b3
+  zh: 77080ed93b5b44b2
+/insight-ai-desktop-media-upload-plugin:
+  en: 6c2823da4fd55b25
+  zh: 7c273e3a0b55ffdc
+/insight-ai-desktop-media-upload-plugin/summary:
+  en: cf122f7f89143e98
+  zh: 8889671378ee8ab4
+/insight-ai-desktop-media-upload-plugin/table-of-contents:
+  en: 9d5b4170e54be3d0
+  zh: 607a289e15bb75d1
+/insight-ai-desktop-media-upload-plugin/use-this-package:
+  en: c9198612bdf4eb16
+  zh: b602071d36c24d28
+/insight-ai-desktop-media-upload-plugin/implementation:
+  en: 88e24eceb409273c
+  zh: a06bbdecc373545c
+/insight-ai-desktop-media-upload-plugin/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/insight-ai-desktop-media-upload-plugin/model-experience/attachment-upload-tool:
+  en: 076fdf190080312a
+  zh: 7481227af08e7aa1
+/insight-ai-desktop-media-upload-plugin/model-experience/attachment-upload-tool/what-the-model-sees:
+  en: b87ce7dd276e1b3f
+  zh: 605da6c559b71fb1
+/insight-ai-desktop-media-upload-plugin/model-experience/attachment-upload-tool/token-effect:
+  en: 2f046355ff77015a
+  zh: c0d4acb53c4330bf
+/insight-ai-desktop-media-upload-plugin/model-experience/attachment-upload-tool/kv-cache-effect:
+  en: 4eac81af412af0b3
+  zh: e72fc8417bd33443
+/insight-ai-desktop-media-upload-plugin/model-experience/upload-result:
+  en: 8adb65e6cf6aae93
+  zh: a8c06dd14b39ff14
+/insight-ai-desktop-media-upload-plugin/model-experience/upload-result/what-the-model-sees:
+  en: 356a257dabe1049a
+  zh: 1626beb3531bf680
+/insight-ai-desktop-media-upload-plugin/model-experience/upload-result/token-effect:
+  en: 142ce99137d12ffd
+  zh: 0e95328b0fe20825
+/insight-ai-desktop-media-upload-plugin/model-experience/upload-result/kv-cache-effect:
+  en: f70eeb378e30c523
+  zh: 138af38ea69ccccb
+/insight-ai-desktop-media-upload-plugin/known-limitations-and-deferred-work:
+  en: 5f628477dfb22e6d
+  zh: ff53817a1cd4f807
+/insight-ai-desktop-media-upload-plugin/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914

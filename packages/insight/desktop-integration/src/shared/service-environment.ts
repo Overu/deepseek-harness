@@ -25,7 +25,18 @@ export function desktopServiceEnvironment(name: AuthEnvironment): DesktopService
   return ENVIRONMENTS[name]
 }
 
-/** Return the skill proxy origin associated with an authentication environment. */
+/** Return the fixed enterprise gateway base for authenticated Host services.
+ * @param name - Product-selected authentication environment.
+ * @returns HTTPS service base including the enterprise gateway path.
+ */
 export function skillProxyServiceBaseUrl(name: AuthEnvironment): string {
   return `${desktopServiceEnvironment(name).authOrigin}/insight-harness-service`
+}
+
+/** Return the fixed upload-center gateway base for direct Desktop uploads.
+ * @param name - Product-selected authentication environment.
+ * @returns HTTPS service base including the upload-center gateway path.
+ */
+export function uploadCenterServiceBaseUrl(name: AuthEnvironment): string {
+  return `${desktopServiceEnvironment(name).authOrigin}/game-ai-editor-center`
 }

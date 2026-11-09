@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" },
+    { "path": "../../util/brand" },
+    { "path": "../../core/agent" },
+    { "path": "../../attachment/attachment" },
+    { "path": "../../core/session" },
+    { "path": "../../session/session-projection" },
+    { "path": "../../core/tools" },
+    { "path": "../../interaction/user-approval" },
+    { "path": "../desktop-integration/tsconfig.host.json" }
+  ],
+  "include": ["src/**/*.ts"]
+}
