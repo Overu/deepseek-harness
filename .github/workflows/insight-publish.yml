@@ -12,22 +12,27 @@ on:
         required: true
         type: string
       target:
-        description: Candidate target, or stable for an all-target final release
+        description: Candidate target, all for three-platform Candidate, or stable for final release
         required: true
         type: choice
-        options: [darwin-arm64, darwin-x64, win32-x64, stable]
+        options: [darwin-arm64, darwin-x64, win32-x64, all, stable]
 
 permissions:
   contents: read
   actions: read
   id-token: write
 
-concurrency:
-  group: insight-oss-${{ inputs.target }}
-  cancel-in-progress: false
-
 jobs:
   publish:
+    name: Publish ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(inputs.target == 'all' && '["darwin-arm64","darwin-x64","win32-x64"]' || format('["{0}"]', inputs.target)) }}
+    concurrency:
+      group: insight-oss-${{ matrix.target }}
+      cancel-in-progress: false
+      queue: max
     if: github.ref == 'refs/heads/insight'
     runs-on: ubuntu-latest
     environment: desktop-release
@@ -60,7 +65,34 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           INSIGHT_RELEASE_VERSION: ${{ inputs.version }}
           INSIGHT_SOURCE_COMMIT: ${{ inputs.source_commit }}
-          INSIGHT_RELEASE_TARGET: ${{ inputs.target }}
+          INSIGHT_RELEASE_TARGET: ${{ matrix.target }}
           INSIGHT_UPDATE_PUBLIC_KEY_FILE: ${{ steps.runtime.outputs.public_key }}
           DESKTOP_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.DESKTOP_UPDATE_SIGNING_PRIVATE_KEY }}
         run: node --import "${{ steps.runtime.outputs.loader }}" "${{ steps.runtime.outputs.entry }}"
+
+  notify:
+    name: Notify Feishu
+    needs: publish
+    if: always() && inputs.target == 'all' && github.ref == 'refs/heads/insight'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Send one publication summary
+        env:
+          FEISHU_BOT_WEBHOOK: ${{ secrets.FEISHU_BOT_WEBHOOK }}
+          FEISHU_BOT_SIGNING_SECRET: ${{ secrets.FEISHU_BOT_SIGNING_SECRET }}
+          INSIGHT_RELEASE_VERSION: ${{ inputs.version }}
+          INSIGHT_SOURCE_COMMIT: ${{ inputs.source_commit }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/insight-release/notify-feishu.ts
