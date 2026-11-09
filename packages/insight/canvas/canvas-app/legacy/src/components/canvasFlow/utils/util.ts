@@ -797,8 +797,12 @@ const getSourceMap = (nodes: Node[], edges: Edge[], nodeId: string) => {
     }
   });
   valueArray.sort((a, b) => a.index - b.index);
-  // 根据value拆分为image和text类型
+  // 按类型计数（不要求 value，供媒体节点切模式）；有 value 才入列（供执行/展示）
+  const mediaByTypeCounts = { images: 0, videos: 0, audios: 0 }
   valueArray.forEach(item => {
+    if (getImageNodeType.includes(item.type)) mediaByTypeCounts.images += 1
+    if (getVideoNodeType.includes(item.type)) mediaByTypeCounts.videos += 1
+    if (getAudioNodeType.includes(item.type)) mediaByTypeCounts.audios += 1
     if (item.value) {
       if (getImageNodeType.includes(item.type)) {
         // 需要edgeId作为后续的拖拽调整连线顺序
@@ -844,6 +848,8 @@ const getSourceMap = (nodes: Node[], edges: Edge[], nodeId: string) => {
     videos,
     audios,
     mediaInputs,
+    /** 连入媒体节点按 type 计数（含无 value），仅用于切 modelType */
+    mediaByTypeCounts,
   };
 };
 

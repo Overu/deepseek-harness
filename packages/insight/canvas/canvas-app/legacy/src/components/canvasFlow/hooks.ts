@@ -1787,6 +1787,9 @@ const useHandleSend = (id: string, setIsSingleExcute?: (singleExcute: boolean) =
   };
 };
 
+type MediaByTypeCounts = { images: number; videos: number; audios: number }
+const EMPTY_MEDIA_BY_TYPE_COUNTS: MediaByTypeCounts = { images: 0, videos: 0, audios: 0 }
+
 // 获取节点输入物
 const useGetNodeInput = (id: string, nodes: Node[], edges: Edge[]) => {
   const [textMap, setTextMap] = useState<TextInputItem[]>([]);
@@ -1794,13 +1797,15 @@ const useGetNodeInput = (id: string, nodes: Node[], edges: Edge[]) => {
   const [videoMap, setVideoMap] = useState<ImageMapItem[]>([]);
   const [audioMap, setAudioMap] = useState<ImageMapItem[]>([]);
   const [mediaInputs, setMediaInputs] = useState<MediaInputItem[]>([]);
+  const [mediaByTypeCounts, setMediaByTypeCounts] = useState<MediaByTypeCounts>(EMPTY_MEDIA_BY_TYPE_COUNTS)
   useEffect(() => {
-    const { texts, images, videos, audios, mediaInputs: media } = getSourceMap(nodes, edges, id);
+    const { texts, images, videos, audios, mediaInputs: media, mediaByTypeCounts: typeCounts } = getSourceMap(nodes, edges, id)
     setTextMap(texts);
     setImageMap(images);
     setVideoMap(videos);
     setAudioMap(audios);
     setMediaInputs(media);
+    setMediaByTypeCounts(typeCounts)
   }, [edges, nodes, id]);
   return {
     textMap,
@@ -1808,6 +1813,8 @@ const useGetNodeInput = (id: string, nodes: Node[], edges: Edge[]) => {
     videoMap,
     audioMap,
     mediaInputs,
+    /** 连入媒体按 type 计数（含无 value），切 modelType 用 */
+    mediaByTypeCounts,
   };
 };
 

@@ -1,6 +1,6 @@
 diff --git a/README.i18n.yaml b/README.i18n.yaml
 new file mode 100644
-index 0000000..14c8045
+index 0000000..4290fcf
 --- /dev/null
 +++ b/README.i18n.yaml
 @@ -0,0 +1,43 @@
@@ -21,11 +21,11 @@ index 0000000..14c8045
 +  en: 76368b6b1da79c80
 +  zh: 8d96a89a79ec4a89
 +/insight-ai-desktop-canvas-plugin/use-this-package:
-+  en: 7b4b189b49a6fad3
-+  zh: 7fb40a960941d4b7
++  en: 79a884ad49e6a160
++  zh: e384b674c6976144
 +/insight-ai-desktop-canvas-plugin/understand-the-implementation:
-+  en: cbb058874065e5c1
-+  zh: dfd988da9f0883ca
++  en: c0b9367478fdc9c6
++  zh: 4b4fa68b6c68b233
 +/insight-ai-desktop-canvas-plugin/model-experience:
 +  en: 215e7ba838619b7b
 +  zh: a311da3843709f90
@@ -49,10 +49,10 @@ index 0000000..14c8045
 +  zh: 9f56528562c7c914
 diff --git a/README.md b/README.md
 new file mode 100644
-index 0000000..ef576ca
+index 0000000..89e1988
 --- /dev/null
 +++ b/README.md
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,77 @@
 +---
 +description: "Canvas tools and its embedded business page for an Insight-authenticated desktop profile."
 +kind: "package-bundle"
@@ -81,6 +81,10 @@ index 0000000..ef576ca
 +
 +The package's [bundle patch](cordis.patch.yml) contributes the existing Host plugin. Its Client manifest declares the dynamic browser entry. Desktop build dependencies deliver the package without adding it to the official default profile.
 +
++Text nodes support two independent edits: `changes.prompt` updates the generation instruction, and `changes.text` writes the native `data.value` body. `canvas_run` generates text through the native workflow and returns the body in Job `outputs`; media result cards remain media-only.
++
++Canvas uses connected media nodes to select generation modes even before those nodes produce content. Prompt references and generation inputs require actual media.
++
 +The iframe builds from `canvas-app`; its guidance remains package-owned. [upstream.json](upstream.json) records the source input and retained identity.
 +
 +<a id="understand-the-implementation"></a>
@@ -93,7 +97,9 @@ index 0000000..ef576ca
 +
 +Authenticated bridge requests admit the exact `dsh-app://app` origin alongside existing Web origins. Connection authentication and Canvas ownership checks still apply. Shutdown stops admission, cancels consumers, waits for dispatch and result writes, then drains OSS uploads before closing bridge and storage resources. Stopping local tracking does not promise cancellation of an accepted cloud operation.
 +
-+Historical user and steering messages parse the existing `<node-refs version="1">` protocol for node thumbnails, previews, and navigation. The Client sends the remaining display content through Chat’s complete `conversation.chat.user.message` Factory, preserving native message actions and source decoration without rewriting recorded content. Invalid or unknown tags remain visible.
++The Client reports UI-requested Sessions separately from the Host's effective bindings. After the UI switches conversations, the Host keeps the original Client bound while that Session's Agent, inbox, Canvas Job, or submitted run can still issue Canvas work, then sends a revisioned binding snapshot when the Session becomes idle. The attach handshake requires the matching Host-session capability, so an outdated page must reload instead of accepting retention events it cannot interpret.
++
++Historical user and steering messages parse the existing `<node-refs version="1">` protocol for node thumbnails, previews, and navigation. The Client sends the remaining display content through Chat’s complete `conversation.chat.user.message` Factory, preserving native message actions and source decoration without rewriting recorded content. Invalid or unknown tags remain visible. Concise assistant Canvas-ID answers add a clickable Canvas link in the existing reply footer. The plugin leaves assistant-message rendering to Chat, preserving native prose, reasoning, images, and presentation settings.
 +
 +</details>
 +
@@ -126,10 +132,10 @@ index 0000000..ef576ca
 +None.
 diff --git a/README.zh.md b/README.zh.md
 new file mode 100644
-index 0000000..8c7cf11
+index 0000000..ee83ad9
 --- /dev/null
 +++ b/README.zh.md
-@@ -0,0 +1,71 @@
+@@ -0,0 +1,77 @@
 +---
 +description: "为已完成 Insight 桌面认证的 profile 提供画布工具和嵌入业务页面。"
 +kind: "package-bundle"
@@ -158,6 +164,10 @@ index 0000000..8c7cf11
 +
 +本包的 [bundle patch](cordis.patch.yml) 提供已有 Host 插件，Client manifest 声明动态浏览器入口。桌面构建依赖交付本包，但不把它加入官方默认 profile。
 +
++文本节点支持分别编辑：`changes.prompt` 更新生成要求，`changes.text` 写入原生 `data.value` 正文。`canvas_run` 通过原生工作流生成文本，并在 Job 的 `outputs` 中返回正文；媒体结果卡仍只处理媒体。
++
++画布根据已连线的媒体节点判断生成模式，空节点也参与判断。提示词引用和实际生成输入需要已有内容的素材。
++
 +iframe 从 `canvas-app` 构建；guidance 归本包拥有。[upstream.json](upstream.json) 记录源码输入和保留的标识。
 +
 +<a id="understand-the-implementation"></a>
@@ -170,7 +180,9 @@ index 0000000..8c7cf11
 +
 +已认证的桥接请求在已有 Web 来源外接受精确的 `dsh-app://app` 来源，仍执行 Connection 认证和 Canvas 所有权检查。关闭时先停止接入、取消消费者并等待分发与结果写入，再等待 OSS 上传结束，最后关闭桥接和存储资源。停止本地跟踪不承诺取消已被云端接受的操作。
 +
-+历史 user 与 steering 消息沿用 `<node-refs version="1">` 协议渲染节点缩略图、预览与定位。Client 将剩余显示内容交给 Chat 的完整 `conversation.chat.user.message` Factory，保留原生消息操作及来源装饰，不改写记录内容。无效或未知标签仍按原文显示。
++Client 分别报告 UI 请求的 Session，Host 维护实际绑定。UI 切换会话后，只要该 Session 的 Agent、inbox、Canvas Job 或已提交运行仍可能继续访问画布，Host 就保留原 Client；Session 空闲后，Host 再发送带修订号的绑定快照。attach 握手要求匹配的 Host Session capability，因此旧页面必须重新加载，不会接收其无法解释的保留事件。
++
++历史 user 与 steering 消息沿用 `<node-refs version="1">` 协议渲染节点缩略图、预览与定位。Client 将剩余显示内容交给 Chat 的完整 `conversation.chat.user.message` Factory，保留原生消息操作及来源装饰，不改写记录内容。无效或未知标签仍按原文显示。简短的助手画布 ID 回答在现有回复末尾扩展位增加可点击的画布链接。插件由 Chat 原生渲染助手消息，保留正文、思考内容、图片和展示设置。
 +
 +</details>
 +
@@ -854,6 +866,155 @@ index f9f5fc5..c398f23 100644
  
 -export default withReadOnlyNodeGuard;
 +export default withReadOnlyNodeGuard
+diff --git a/canvas-app/legacy/src/components/canvasFlow/customNode/audio/AudioPromptModel.tsx b/canvas-app/legacy/src/components/canvasFlow/customNode/audio/AudioPromptModel.tsx
+index eab63fd..e54118e 100644
+--- a/canvas-app/legacy/src/components/canvasFlow/customNode/audio/AudioPromptModel.tsx
++++ b/canvas-app/legacy/src/components/canvasFlow/customNode/audio/AudioPromptModel.tsx
+@@ -49,9 +49,10 @@ const AudioPromptModel = ({ isExcute, props, status, onChangePrompt, onSelectCha
+   const category = String(type);
+   const edges = useFlowStore(state => state.edges);
+   const nodes = useFlowStore(state => state.nodes);
+-  const { textMap, imageMap, mediaInputs } = useGetNodeInput(id, nodes, edges);
++  const { textMap, imageMap, mediaInputs, mediaByTypeCounts } = useGetNodeInput(id, nodes, edges)
+   const nonTextInputs = mediaInputs;
+   const audioInputs = mediaInputs.filter(item => item.kind === 'audio');
++  const mediaByTypeCount = mediaByTypeCounts.images + mediaByTypeCounts.videos + mediaByTypeCounts.audios
+   const textValues = useMemo(() => textMap.map(t => t.value), [textMap]);
+   const previousNonTextInputCountRef = useRef(0);
+   const [selectedStyleIds, setSelectedStyleIds] = useState<Record<string, number[]>>({});
+@@ -120,9 +121,9 @@ const AudioPromptModel = ({ isExcute, props, status, onChangePrompt, onSelectCha
+ 
+   useEffect(() => {
+     const previousCount = previousNonTextInputCountRef.current;
+-    if (previousCount === 0 && nonTextInputs.length > 0 && params.modelType !== AudioModelType.MUSIC_COVER) handleChange('modelType', AudioModelType.MUSIC_COVER);
+-    previousNonTextInputCountRef.current = nonTextInputs.length;
+-  }, [nonTextInputs.length, handleChange, params.modelType]);
++    if (previousCount === 0 && mediaByTypeCount > 0 && params.modelType !== AudioModelType.MUSIC_COVER) handleChange('modelType', AudioModelType.MUSIC_COVER)
++    previousNonTextInputCountRef.current = mediaByTypeCount
++  }, [mediaByTypeCount, handleChange, params.modelType])
+ 
+   const modelTypeTabs = useMemo(() => modelTypes.map(item => ({ key: item.value, label: item.label })), [modelTypes]);
+ 
+diff --git a/canvas-app/legacy/src/components/canvasFlow/customNode/image/index.tsx b/canvas-app/legacy/src/components/canvasFlow/customNode/image/index.tsx
+index 525b0aa..84c012f 100644
+--- a/canvas-app/legacy/src/components/canvasFlow/customNode/image/index.tsx
++++ b/canvas-app/legacy/src/components/canvasFlow/customNode/image/index.tsx
+@@ -171,16 +171,17 @@ const ImageNode = (props: any) => {
+       const node = nodes.find(n => n.id === id);
+       if (!node) return;
+ 
+-      const { images } = getSourceMap(nodes, edges, id);
+-      const countKey = String(images.length);
++      const { images, mediaByTypeCounts } = getSourceMap(nodes, edges, id)
++      const imageTypeCount = mediaByTypeCounts.images
++      const countKey = `${imageTypeCount}-${images.length}`
+       if (prevImageCountRef.current !== null && prevImageCountRef.current === countKey) return;
+       prevImageCountRef.current = countKey;
+ 
+       const nodeData = node.data as typeof data;
+       const { params } = nodeData;
+       const newPrompt = clearTemplatesByValue(params.prompt, images.length);
+-      const newModelType = transformImageType(images.length);
+-      const mismatch = getImageModelTypeMismatchReason(String(params.modelType || ''), images.length);
++      const newModelType = transformImageType(imageTypeCount)
++      const mismatch = getImageModelTypeMismatchReason(String(params.modelType || ''), imageTypeCount)
+       const switchModel = mismatch && newModelType !== params.modelType;
+       if (!switchModel && newPrompt === params.prompt) return;
+ 
+diff --git a/canvas-app/legacy/src/components/canvasFlow/customNode/video/index.tsx b/canvas-app/legacy/src/components/canvasFlow/customNode/video/index.tsx
+index dd1f2bd..2068314 100644
+--- a/canvas-app/legacy/src/components/canvasFlow/customNode/video/index.tsx
++++ b/canvas-app/legacy/src/components/canvasFlow/customNode/video/index.tsx
+@@ -127,8 +127,9 @@ const VideoNode = (props: any) => {
+       const node = nodes.find(n => n.id === id);
+       if (!node) return;
+ 
+-      const { images, videos, audios } = getSourceMap(nodes, edges, id);
+-      const countsKey = `${images.length}-${videos.length}-${audios.length}`;
++      const { images, videos, audios, mediaByTypeCounts } = getSourceMap(nodes, edges, id)
++      const { images: imageTypeCount, videos: videoTypeCount, audios: audioTypeCount } = mediaByTypeCounts
++      const countsKey = `${imageTypeCount}-${videoTypeCount}-${audioTypeCount}-${images.length}-${videos.length}-${audios.length}`
+       if (prevMediaCountsRef.current !== null && prevMediaCountsRef.current === countsKey) return;
+       prevMediaCountsRef.current = countsKey;
+ 
+@@ -139,8 +140,8 @@ const VideoNode = (props: any) => {
+         视频: videos.length,
+         音频: audios.length,
+       });
+-      const newModelType = resolveVideoModelTypeOnInputChange(images.length, videos.length, audios.length);
+-      const mismatch = getVideoModelTypeMismatchReason(String(params.modelType || ''), images.length, videos.length > 0 || audios.length > 0);
++      const newModelType = resolveVideoModelTypeOnInputChange(imageTypeCount, videoTypeCount, audioTypeCount)
++      const mismatch = getVideoModelTypeMismatchReason(String(params.modelType || ''), imageTypeCount, videoTypeCount > 0 || audioTypeCount > 0)
+       const switchModel = mismatch && newModelType !== params.modelType;
+       if (!switchModel && newPrompt === params.prompt) return;
+ 
+diff --git a/canvas-app/legacy/src/components/canvasFlow/hooks.ts b/canvas-app/legacy/src/components/canvasFlow/hooks.ts
+index 30aa8fc..4906944 100644
+--- a/canvas-app/legacy/src/components/canvasFlow/hooks.ts
++++ b/canvas-app/legacy/src/components/canvasFlow/hooks.ts
+@@ -1787,6 +1787,9 @@ const useHandleSend = (id: string, setIsSingleExcute?: (singleExcute: boolean) =
+   };
+ };
+ 
++type MediaByTypeCounts = { images: number; videos: number; audios: number }
++const EMPTY_MEDIA_BY_TYPE_COUNTS: MediaByTypeCounts = { images: 0, videos: 0, audios: 0 }
++
+ // 获取节点输入物
+ const useGetNodeInput = (id: string, nodes: Node[], edges: Edge[]) => {
+   const [textMap, setTextMap] = useState<TextInputItem[]>([]);
+@@ -1794,13 +1797,15 @@ const useGetNodeInput = (id: string, nodes: Node[], edges: Edge[]) => {
+   const [videoMap, setVideoMap] = useState<ImageMapItem[]>([]);
+   const [audioMap, setAudioMap] = useState<ImageMapItem[]>([]);
+   const [mediaInputs, setMediaInputs] = useState<MediaInputItem[]>([]);
++  const [mediaByTypeCounts, setMediaByTypeCounts] = useState<MediaByTypeCounts>(EMPTY_MEDIA_BY_TYPE_COUNTS)
+   useEffect(() => {
+-    const { texts, images, videos, audios, mediaInputs: media } = getSourceMap(nodes, edges, id);
++    const { texts, images, videos, audios, mediaInputs: media, mediaByTypeCounts: typeCounts } = getSourceMap(nodes, edges, id)
+     setTextMap(texts);
+     setImageMap(images);
+     setVideoMap(videos);
+     setAudioMap(audios);
+     setMediaInputs(media);
++    setMediaByTypeCounts(typeCounts)
+   }, [edges, nodes, id]);
+   return {
+     textMap,
+@@ -1808,6 +1813,8 @@ const useGetNodeInput = (id: string, nodes: Node[], edges: Edge[]) => {
+     videoMap,
+     audioMap,
+     mediaInputs,
++    /** 连入媒体按 type 计数（含无 value），切 modelType 用 */
++    mediaByTypeCounts,
+   };
+ };
+ 
+diff --git a/canvas-app/legacy/src/components/canvasFlow/utils/util.ts b/canvas-app/legacy/src/components/canvasFlow/utils/util.ts
+index 022d04e..0049119 100644
+--- a/canvas-app/legacy/src/components/canvasFlow/utils/util.ts
++++ b/canvas-app/legacy/src/components/canvasFlow/utils/util.ts
+@@ -797,8 +797,12 @@ const getSourceMap = (nodes: Node[], edges: Edge[], nodeId: string) => {
+     }
+   });
+   valueArray.sort((a, b) => a.index - b.index);
+-  // 根据value拆分为image和text类型
++  // 按类型计数（不要求 value，供媒体节点切模式）；有 value 才入列（供执行/展示）
++  const mediaByTypeCounts = { images: 0, videos: 0, audios: 0 }
+   valueArray.forEach(item => {
++    if (getImageNodeType.includes(item.type)) mediaByTypeCounts.images += 1
++    if (getVideoNodeType.includes(item.type)) mediaByTypeCounts.videos += 1
++    if (getAudioNodeType.includes(item.type)) mediaByTypeCounts.audios += 1
+     if (item.value) {
+       if (getImageNodeType.includes(item.type)) {
+         // 需要edgeId作为后续的拖拽调整连线顺序
+@@ -844,6 +848,8 @@ const getSourceMap = (nodes: Node[], edges: Edge[], nodeId: string) => {
+     videos,
+     audios,
+     mediaInputs,
++    /** 连入媒体节点按 type 计数（含无 value），仅用于切 modelType */
++    mediaByTypeCounts,
+   };
+ };
+ 
 diff --git a/canvas-app/legacy/src/components/common/filePreview/VideoPreviewStage.tsx b/canvas-app/legacy/src/components/common/filePreview/VideoPreviewStage.tsx
 index 0852f57..58250a9 100644
 --- a/canvas-app/legacy/src/components/common/filePreview/VideoPreviewStage.tsx
@@ -18823,6 +18984,42 @@ index f9c4144..f77ef5f 100644
    throw Error('Unexpected import: ' + name);
  } });
  const View = module.exports.CanvasCreatedLinks;
+diff --git a/canvas-app/test/agent-media-inputs.test.ts b/canvas-app/test/agent-media-inputs.test.ts
+new file mode 100644
+index 0000000..29e3ca3
+--- /dev/null
++++ b/canvas-app/test/agent-media-inputs.test.ts
+@@ -0,0 +1,30 @@
++import type { Node } from '@xyflow/react'
++import { expect, it, vi } from 'vitest'
++import util from '../legacy/src/components/canvasFlow/utils/util'
++
++vi.mock('@/api/asset', () => ({ getAvailableCapacity: vi.fn() }))
++vi.mock('@/utils', () => ({ isSvgImageUrl: () => false, compressImage: vi.fn() }))
++
++it('keeps reference video mode compatible with connected empty media', () => {
++  const modelType = 'reference_image_to_video'
++  const nodes: Node[] = ['image', 'video', 'audio'].map(type => ({
++    id: type,
++    type,
++    position: { x: 0, y: 0 },
++    data: { title: type, value: '' },
++  }))
++  const edges = nodes.map(node => ({ id: node.id, source: node.id, target: 'target' }))
++
++  const emptyInputs = util.getSourceMap(nodes, edges, 'target')
++  const counts = emptyInputs.mediaByTypeCounts
++  expect(counts).toEqual({ images: 1, videos: 1, audios: 1 })
++  expect(emptyInputs.mediaInputs).toEqual([])
++  expect(util.resolveVideoModelTypeOnInputChange(counts.images, counts.videos, counts.audios)).toBe(modelType)
++  expect(util.getVideoModelTypeMismatchReason(modelType, counts.images, counts.videos > 0 || counts.audios > 0)).toBeUndefined()
++
++  nodes[0].data.value = 'https://assets.example/reference.png'
++  const readyInputs = util.getSourceMap(nodes, edges, 'target')
++  expect(readyInputs.mediaByTypeCounts).toEqual(counts)
++  expect(readyInputs.mediaInputs).toEqual([{ kind: 'image', edgeId: 'image', title: 'image', value: nodes[0].data.value }])
++  expect(util.getSourceMap(nodes, [], 'target').mediaByTypeCounts).toEqual({ images: 0, videos: 0, audios: 0 })
++})
 diff --git a/canvas-app/test/agent-model-policy.test.ts b/canvas-app/test/agent-model-policy.test.ts
 index 8f13d6d..d32bea3 100644
 --- a/canvas-app/test/agent-model-policy.test.ts
