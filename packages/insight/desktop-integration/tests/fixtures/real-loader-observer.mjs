@@ -1,5 +1,5 @@
 /** Observe the built Insight composition after the real profile Loader activates it. */
-export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientModules']
+export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientModules', 'agents', 'tools']
 
 const requiredBundleNames = [
   '@insight-ai/desktop-integration',
@@ -75,6 +75,88 @@ function changeObservation(change) {
   }
 }
 
+/** Replay malformed Gateway replies through the loaded Agent and capture its request history and tool effects. */
+async function observeToolArgumentRetry(ctx) {
+  const name = 'insight_retry_probe'
+  const good = '{"ops":[{"params":{"gen_count":1}}]}'
+  const malformed = '{"ops":[{"params":{"gen_count":1}}}},{"params":{"gen_count":1}}]}'
+  const gateway = 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1/chat/completions'
+  const results = []
+  let executions = []
+  const unregister = ctx.tools.register({
+    name,
+    description: 'Record a test write.',
+    parameters: { type: 'object', properties: { ops: { type: 'array' } }, required: ['ops'] },
+    output: { schema: { type: 'string' }, render: (_args, text) => [{ type: 'text', text }] },
+    async execute(args) { executions.push(args); return 'recorded' },
+  })
+  const fetch = globalThis.fetch
+  try {
+    for (const retrySucceeds of [true, false]) {
+      const requests = []
+      const countAtRequest = []
+      executions = []
+      globalThis.fetch = async (input, init) => {
+        if (String(input instanceof Request ? input.url : input) !== gateway) return fetch(input, init)
+        const request = JSON.parse(init.body)
+        const call = (index, id, args) => ({ index, id, type: 'function', function: { name, arguments: args } })
+        const replies = [
+          [call(0, 'call_sibling', good), call(1, 'call_invalid', malformed)],
+          [call(0, 'call_retry', retrySucceeds ? good : malformed)],
+        ]
+        let calls
+        if (request.tools?.some(tool => tool.function?.name === name)) {
+          requests.push(request)
+          countAtRequest.push(executions.length)
+          calls = replies[requests.length - 1]
+        }
+        const chunk = (delta, finish_reason) => ({ id: 'chatcmpl-fixture', model: 'deepseek-flash',
+          object: 'chat.completion.chunk', created: 0, choices: [{ index: 0, delta, finish_reason }] })
+        const frames = [
+          chunk(calls ? { role: 'assistant', tool_calls: calls } : { role: 'assistant', content: 'Done.' }, null),
+          chunk({}, calls ? 'tool_calls' : 'stop'),
+        ]
+        return new Response(frames.map(frame => `data: ${JSON.stringify(frame)}\n\n`).join('') + 'data: [DONE]\n\n', {
+          headers: { 'content-type': 'text/event-stream' },
+        })
+      }
+      const handle = await ctx.agents.create({
+        sessionId: crypto.randomUUID(),
+        meta: { cwd: process.cwd() },
+        agentOptions: { provider: 'yinsai-gateway', model: 'deepseek-flash' },
+      })
+      const { agent } = handle
+      const events = []
+      const observe = ctx.on('session/event', (session, event) => {
+        if (session === agent.session) events.push(event)
+      }, { global: true })
+      try {
+        agent.followup({ id: crypto.randomUUID(), role: 'user', source: { kind: 'user' },
+          content: [{ type: 'text', text: 'Record one test write.' }] })
+        await agent.whenIdle()
+        results.push({
+          feedbackAtRequest: requests.map(request => request.messages.map(message => JSON.stringify(message.content))
+            .findLast(content => content?.includes('Current runtime context'))?.includes('The previous tool call arguments could not be parsed as JSON.') ?? false),
+          countAtRequest,
+          executions,
+          calls: events.filter(event => event.type === 'tool/call').map(event => event.data.callId),
+          attempts: events.filter(event => event.type === 'assistant/attempt').length,
+          context: events.filter(event => event.type === 'user/message' && event.data.source.kind === 'runtime-context')
+            .flatMap(event => event.data.source.sections ?? []).filter(section => section.name === 'insight-tool-argument-retry'),
+          turnEnd: events.findLast(event => event.type === 'turn/end')?.data.reason,
+        })
+      } finally {
+        observe()
+        await handle.dispose()
+      }
+    }
+  } finally {
+    globalThis.fetch = fetch
+    unregister()
+  }
+  return results
+}
+
 /**
  * Receive explicit parent test commands after the complete profile reaches its ready state.
  * @param {import('@deepseek-ai/cordis').Context} ctx - the loaded profile context.
@@ -103,6 +185,12 @@ export function apply(ctx) {
     if (message === 'observe-insight-composition') {
       void observeComposition(ctx).then(
         observation => { process.send?.({ kind: 'insight-loader-composition', observation }) },
+        error => { process.send?.({ kind: 'insight-loader-error', message: String(error) }) },
+      )
+    }
+    if (message === 'observe-tool-argument-retry') {
+      void observeToolArgumentRetry(ctx).then(
+        observation => { process.send?.({ kind: 'insight-loader-tool-argument-retry', observation }) },
         error => { process.send?.({ kind: 'insight-loader-error', message: String(error) }) },
       )
     }

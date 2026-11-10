@@ -65,6 +65,7 @@ async function launch(): Promise<{
   readonly composition: Promise<CompositionObservation>
   readonly token: Promise<undefined>
   readonly request: Promise<string>
+  readonly toolArgumentRetry: Promise<unknown>
 }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-insight-real-loader-'))
   roots.push(root)
@@ -110,6 +111,8 @@ async function launch(): Promise<{
   const composition = Promise.withResolvers<CompositionObservation>()
   const token = Promise.withResolvers<undefined>()
   const request = Promise.withResolvers<string>()
+  const toolArgumentRetry = Promise.withResolvers<unknown>()
+  void Promise.allSettled([active.promise, composition.promise, token.promise, request.promise, toolArgumentRetry.promise])
   let output = ''
   const capture = (stream: 'stdout' | 'stderr') => (chunk: string): void => {
     const line = `${stream}: ${chunk}`
@@ -117,18 +120,20 @@ async function launch(): Promise<{
   }
   child.stdout?.setEncoding('utf8').on('data', capture('stdout'))
   child.stderr?.setEncoding('utf8').on('data', capture('stderr'))
-  child.once('error', (error) => { rejectSignals(error, active, composition, token, request) })
+  child.once('error', (error) => { rejectSignals(error, active, composition, token, request, toolArgumentRetry) })
   child.once('close', (code, signal) => {
-    rejectSignals(new Error(`Insight Loader child exited before completion (code ${String(code)}, signal ${String(signal)}): ${output}`), active, composition, token, request)
+    rejectSignals(new Error(`Insight Loader child exited before completion (code ${String(code)}, signal ${String(signal)}): ${output}`), active, composition, token, request, toolArgumentRetry)
   })
   child.on('message', (message: unknown) => {
     if (!record(message) || typeof message.kind !== 'string') return
     if (message.kind === 'insight-loader-active') active.resolve(undefined)
     if (message.kind === 'insight-loader-composition' && compositionRecord(message.observation)) composition.resolve(message.observation)
+    if (message.kind === 'insight-loader-tool-argument-retry') toolArgumentRetry.resolve(message.observation)
     if (message.kind === 'insight-loader-error') {
       const error = new Error(typeof message.message === 'string' ? message.message : 'Insight Loader observer rejected the observation')
       composition.reject(error)
       token.reject(error)
+      toolArgumentRetry.reject(error)
     }
     if (message.kind === 'insight-account-request' && typeof message.requestId === 'string' && message.operation === 'access-token') {
       request.resolve(message.requestId)
@@ -136,7 +141,8 @@ async function launch(): Promise<{
     }
     if (message.kind === 'insight-loader-token') token.resolve(undefined)
   })
-  return { child, active: active.promise, composition: composition.promise, token: token.promise, request: request.promise }
+  return { child, active: active.promise, composition: composition.promise, token: token.promise, request: request.promise,
+    toolArgumentRetry: toolArgumentRetry.promise }
 }
 
 /** Remove inherited secrets and Node loader settings before starting the fixture child. */
@@ -151,7 +157,7 @@ function childEnvironment(extra: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 /** Reject every pending signal when the profile process cannot complete the observation. */
 function rejectSignals(
   error: Error,
-  ...signals: Array<PromiseWithResolvers<undefined> | PromiseWithResolvers<CompositionObservation> | PromiseWithResolvers<string>>
+  ...signals: Array<Pick<PromiseWithResolvers<unknown>, 'reject'>>
 ): void {
   for (const signal of signals) signal.reject(error)
 }
@@ -198,7 +204,7 @@ function compositionRecord(value: unknown): value is CompositionObservation {
 }
 
 it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
-  'loads the built required Insight composition, protects its bundles, and serves their dynamic client entries',
+  'loads the built Insight composition and retries malformed tool arguments once',
   async () => {
     const loader = await launch()
     await expect(loader.active).resolves.toBeUndefined()
@@ -235,6 +241,30 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
     loader.child.send('request-insight-token')
     await expect(loader.request).resolves.toMatch(/^[0-9a-f-]{36}$/iu)
     await expect(loader.token).resolves.toBeUndefined()
+
+    loader.child.send('observe-tool-argument-retry')
+    const feedback = { name: 'insight-tool-argument-retry',
+      text: 'The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.' }
+    await expect(loader.toolArgumentRetry).resolves.toMatchObject([
+      {
+        feedbackAtRequest: [false, true, false],
+        countAtRequest: [0, 0, 1],
+        executions: [{ ops: [{ params: { gen_count: 1 } }] }],
+        calls: ['call_retry'],
+        attempts: 1,
+        context: [feedback],
+        turnEnd: { kind: 'completed' },
+      },
+      {
+        feedbackAtRequest: [false, true],
+        countAtRequest: [0, 0],
+        executions: [],
+        calls: [],
+        attempts: 2,
+        context: [feedback],
+        turnEnd: { kind: 'error', error: { code: 'MALFORMED_RESPONSE' } },
+      },
+    ])
   },
   45_000,
 )

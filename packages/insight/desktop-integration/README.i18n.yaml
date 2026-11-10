@@ -53,6 +53,21 @@
 /insight-ai-desktop-integration/model-experience/account-credential/kv-cache-effect:
   en: cd327d2f5da4c276
   zh: 42bc182aa24b232c
+/insight-ai-desktop-integration/model-experience/tool-argument-recovery:
+  en: 94b9a28f33688799
+  zh: bf23c61821f16def
+/insight-ai-desktop-integration/model-experience/tool-argument-recovery/what-the-model-sees:
+  en: d9476dfc2e9c9fe8
+  zh: d2922239229fbf95
+/insight-ai-desktop-integration/model-experience/tool-argument-recovery/what-the-model-sees/retry-prompt:
+  en: e38162062bd8ffd2
+  zh: eccdd2313581ce85
+/insight-ai-desktop-integration/model-experience/tool-argument-recovery/token-effect:
+  en: 7cfa876fff570a24
+  zh: 96ebf5ef91008473
+/insight-ai-desktop-integration/model-experience/tool-argument-recovery/kv-cache-effect:
+  en: c470cb668c789613
+  zh: f5d10ec82f6ed605
 /insight-ai-desktop-integration/known-limitations-and-deferred-work:
   en: dd4831749eb724d6
   zh: 498a17f259835d37
