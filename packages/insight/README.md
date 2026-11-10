@@ -28,7 +28,7 @@ The components belong to one Insight product distribution.
 | --- | --- |
 | [desktop-integration](desktop-integration/README.md) | Login, account-isolated Home, managed models, product settings, and workspace branding |
 | [canvas](canvas/README.md) | Canvas tools, result presentation, and its embedded business page |
-| [media-upload](media-upload/README.md) | Approved current-turn attachment uploads directly to OSS |
+| [media-upload](media-upload/README.md) | Approved attachment uploads to OSS and authenticated image-layer generation tools |
 | [memory-evolve](memory-evolve/README.md) | Fixed memory, skills, and task-management source |
 | [prompt-enhance](prompt-enhance/README.md) | Composer prompt enhancement |
 

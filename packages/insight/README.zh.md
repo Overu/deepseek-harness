@@ -28,7 +28,7 @@ kind: "package-group"
 | --- | --- |
 | [desktop-integration](desktop-integration/README.zh.md) | 登录、账号隔离 Home、托管模型、产品设置与工作区品牌 |
 | [canvas](canvas/README.zh.md) | 画布工具、结果呈现与嵌入业务页面 |
-| [media-upload](media-upload/README.zh.md) | 经审批将当前轮次附件直接上传至 OSS |
+| [media-upload](media-upload/README.zh.md) | 经审批将当前轮次附件上传至 OSS，并提供登录态图像分层工具 |
 | [memory-evolve](memory-evolve/README.zh.md) | 固定的记忆、技能和任务管理源码 |
 | [prompt-enhance](prompt-enhance/README.zh.md) | 输入区提示词增强 |
 

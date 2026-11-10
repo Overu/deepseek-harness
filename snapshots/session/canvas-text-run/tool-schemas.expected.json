@@ -463,6 +463,26 @@
       }
     },
     {
+      "name": "get_image_layering",
+      "description": "Read an image-layer task using its enterprise taskHandle. Set watch=true to resume local tracking without resubmission.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskHandle": {
+            "type": "string",
+            "description": "Opaque taskHandle returned by submit_image_layering."
+          },
+          "watch": {
+            "type": "boolean",
+            "description": "Resume asynchronous tracking while the task is running."
+          }
+        },
+        "required": [
+          "taskHandle"
+        ]
+      }
+    },
+    {
       "name": "glob",
       "description": "Find files, not directories, whose paths match a glob pattern, including hidden and ignored files. Returns up to 100 paths in modification-time order; a larger result keeps the first paths and reports where the complete list was saved.",
       "parameters": {
@@ -715,6 +735,30 @@
         "required": [
           "description",
           "prompt"
+        ]
+      }
+    },
+    {
+      "name": "submit_image_layering",
+      "description": "Submit one image uploaded by upload_attachment in this turn. Keep taskHandle to query status; never retry an uncertain submission.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "imageUrl": {
+            "type": "string",
+            "description": "OSS URL from a successful upload_attachment in this turn."
+          },
+          "prompt": {
+            "type": "string",
+            "description": "User processing instructions; empty when absent."
+          },
+          "numLayers": {
+            "type": "integer",
+            "description": "Requested layer count; 0 when unspecified."
+          }
+        },
+        "required": [
+          "imageUrl"
         ]
       }
     },

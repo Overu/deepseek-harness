@@ -9,7 +9,7 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { uploadCenterServiceBaseUrl } from '@insight-ai/desktop-integration/host'
 import { apply } from '../src/index.ts'
-import { currentTurnUploadsProjection, selectUploadSource } from '../src/upload-source.ts'
+import { currentTurnUploadsProjection, selectUploadSource, uploadTurnSeq } from '../src/upload-source.ts'
 import { objectFileType, requestUploadSession, type UploadSession } from '../src/upload-center.ts'
 import { putOssObject } from '../src/oss-put.ts'
 
@@ -137,9 +137,14 @@ describe('current-turn attachment authority', () => {
       expect(selectUploadSource(agent, 1, projection)).toEqual(original)
       expect(selectUploadSource(agent, 2, projection)).toEqual(file)
       expect(selectUploadSource(agent, 3, projection)).toEqual(text)
+      const firstTurnSeq = uploadTurnSeq(agent, projection)
+      expect(firstTurnSeq).toBeGreaterThan(0)
       expect(() => selectUploadSource(agent, 0, projection)).toThrow('positive integer')
       expect(() => selectUploadSource(agent, 4, projection)).toThrow('outside')
       history.append('turn/end', { turn: 2, reason: { kind: 'completed' } })
+      expect(uploadTurnSeq(agent, projection)).toBeUndefined()
+      history.append('turn/start', { turn: 3 })
+      expect(uploadTurnSeq(agent, projection)).not.toBe(firstTurnSeq)
       expect(() => selectUploadSource(agent, 1, projection)).toThrow('No user attachment')
       await projection.dispose()
     } finally { await ctx.fiber.dispose() }
@@ -185,7 +190,8 @@ describe('tool authorization', () => {
       ctx.provide('approval', { request } as never)
       ctx.provide('insightAccount', { getAccessToken } as never)
       ctx.provide('attachments', {} as never)
-      await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000 })
+      await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
+        generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 })
       const definition = register.mock.calls[0]?.[0]
       expect(definition?.name).toBe('upload_attachment')
       expect(definition?.output.schema.properties).not.toHaveProperty('attachmentId')
@@ -200,6 +206,6 @@ describe('tool authorization', () => {
       expect(request).toHaveBeenCalledOnce()
       expect(getAccessToken).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose() }
-    expect(release).toHaveBeenCalledOnce()
+    expect(release).toHaveBeenCalledTimes(3)
   })
 })

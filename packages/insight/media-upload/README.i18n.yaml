@@ -3,14 +3,14 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/insight/media-upload/README.md
 /:
-  en: bd5c87674acf87b3
-  zh: 77080ed93b5b44b2
+  en: 34991fcb7c7f9d62
+  zh: 9cf62a1741ec1df0
 /insight-ai-desktop-media-upload-plugin:
   en: 6c2823da4fd55b25
   zh: 7c273e3a0b55ffdc
 /insight-ai-desktop-media-upload-plugin/summary:
-  en: cf122f7f89143e98
-  zh: 8889671378ee8ab4
+  en: f24c94206690768d
+  zh: 986d0489808bf5a3
 /insight-ai-desktop-media-upload-plugin/table-of-contents:
   en: 9d5b4170e54be3d0
   zh: 607a289e15bb75d1
@@ -18,8 +18,8 @@
   en: c9198612bdf4eb16
   zh: b602071d36c24d28
 /insight-ai-desktop-media-upload-plugin/implementation:
-  en: 88e24eceb409273c
-  zh: a06bbdecc373545c
+  en: 3be2c69679c8dbfc
+  zh: 7abb271d72e2d0ea
 /insight-ai-desktop-media-upload-plugin/model-experience:
   en: 215e7ba838619b7b
   zh: a311da3843709f90
@@ -47,9 +47,21 @@
 /insight-ai-desktop-media-upload-plugin/model-experience/upload-result/kv-cache-effect:
   en: f70eeb378e30c523
   zh: 138af38ea69ccccb
+/insight-ai-desktop-media-upload-plugin/model-experience/image-layer-generation-tools:
+  en: 33b250dc11fc849b
+  zh: 6d814645f6904131
+/insight-ai-desktop-media-upload-plugin/model-experience/image-layer-generation-tools/what-the-model-sees:
+  en: 8729438df1e9efb6
+  zh: 681a616600ca4ec1
+/insight-ai-desktop-media-upload-plugin/model-experience/image-layer-generation-tools/token-effect:
+  en: 1779acec09ca4bd8
+  zh: 92c4dab92b6c9a61
+/insight-ai-desktop-media-upload-plugin/model-experience/image-layer-generation-tools/kv-cache-effect:
+  en: 4e63e67935b9d606
+  zh: b32ac3856c036d75
 /insight-ai-desktop-media-upload-plugin/known-limitations-and-deferred-work:
-  en: 5f628477dfb22e6d
-  zh: ff53817a1cd4f807
+  en: e1223b17f137c1d4
+  zh: 53dd14a76fe6f937
 /insight-ai-desktop-media-upload-plugin/known-limitations-and-deferred-work/dev-note:
   en: 0a1253c6f7b5e8b9
   zh: 9f56528562c7c914

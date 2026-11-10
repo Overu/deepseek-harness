@@ -8,5 +8,6 @@ export const inject = ['tools', 'attachments', 'approval', 'agents', 'sessionPro
 /** Register the production tool with an inert account provider; the snapshot exercises tool discovery only. */
 export async function apply(ctx: Context): Promise<void> {
   ctx.provide('insightAccount', { async getAccessToken() { throw new Error('Snapshot does not transfer files.') } } as never)
-  await ctx.plugin(MediaUpload, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000 }).await()
+  await ctx.plugin(MediaUpload, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
+    generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 }).await()
 }

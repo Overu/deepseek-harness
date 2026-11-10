@@ -1,18 +1,19 @@
-/** Insight Desktop's authenticated user-attachment OSS upload tool. */
+/** Insight Desktop's approved OSS upload and authenticated image-layer tools. */
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
 import { uploadCenterServiceBaseUrl } from '@insight-ai/desktop-integration/host'
-import { currentTurnUploadsProjection, selectUploadSource } from './upload-source.ts'
+import { currentTurnUploadsProjection, selectUploadSource, uploadTurnSeq } from './upload-source.ts'
 import { requestUploadSession, UploadFailure } from './upload-center.ts'
 import { putOssObject } from './oss-put.ts'
+import { registerImageLayeringTools } from './image-layering.ts'
 
 /** Cordis loader identity for the Insight media upload capability. */
 export const name = 'insight-media-upload'
 /** Host capabilities required before the tool can be registered. */
-export const inject = ['tools', 'attachments', 'insightAccount', 'approval', 'agents', 'sessionProjections']
+export const inject = ['tools', 'attachments', 'insightAccount', 'approval', 'agents', 'sessionProjections', 'jobs']
 
 /** Product environment and bounded network deadlines. */
 export interface Config {
@@ -22,6 +23,12 @@ export interface Config {
   requestTimeoutMs: number
   /** Deadline for the OSS PUT. */
   ossTimeoutMs: number
+  /** Deadline for each enterprise generation request. */
+  generationRequestTimeoutMs: number
+  /** Interval between generation status checks. */
+  generationPollIntervalMs: number
+  /** Maximum duration of local generation tracking. */
+  generationWatchTimeoutMs: number
 }
 
 /** Loader-validated deployment values. */
@@ -29,6 +36,9 @@ export const Config: z<Partial<Config>, Config> = z.object({
   serviceEnvironment: z.union(['test', 'production']).required(),
   requestTimeoutMs: z.number().step(1).min(1000).max(120_000).default(15_000),
   ossTimeoutMs: z.number().step(1).min(1000).max(3_600_000).default(180_000),
+  generationRequestTimeoutMs: z.number().step(1).min(1000).max(1_250_000).default(1_250_000),
+  generationPollIntervalMs: z.number().step(1).min(1000).max(300_000).default(10_000),
+  generationWatchTimeoutMs: z.number().step(1).min(60_000).max(7_200_000).default(3_900_000),
 })
 
 /** Canonical successful result; `url` is an OSS object address with unverified read access. */
@@ -56,10 +66,10 @@ function mimeType(name: string): string {
     ?? 'application/octet-stream'
 }
 
-/** Register the sole Agent tool and its Host-only current-turn projection.
+/** Register upload and image-layer tools with the Host-only current-turn projection.
  * @param ctx - Host services for tools, attachments, approval, account, Agent and Session projection.
  * @param config - Validated upload-center environment and request deadlines.
- * @returns When the projection and tool have registered under the plugin fiber.
+ * @returns When the projection and tools have registered under the plugin fiber.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const projection = await ctx.sessionProjections.register(currentTurnUploadsProjection)
@@ -67,6 +77,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const baseUrl = uploadCenterServiceBaseUrl(config.serviceEnvironment)
   const lifetime = new AbortController()
   const pending = new Set<Promise<UploadAttachmentResult>>()
+  const uploaded = new WeakMap<object, { turnSeq: number; urls: Set<string> }>()
   const definition = defineTool({
     name: 'upload_attachment',
     description: 'Upload one file attached by the user in the current turn to OSS. Use when the user requests an image, video, audio, or other file upload. Ask for transfer approval. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.',
@@ -97,7 +108,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
           displayReason: { en: `Upload ${file.name} (${String(file.bytes)} bytes) to OSS? Its object address will appear in this conversation.`,
             zh: `将 ${file.name}（${String(file.bytes)} 字节）上传至 OSS？对象地址会出现在当前对话中。` }, signal })
         if (outcome !== 'allowed-once') throw new UploadFailure('APPROVAL_DENIED', 'Attachment upload was not approved.')
-        return uploadAttachment(ctx, baseUrl, file, config, signal)
+        const turnSeq = uploadTurnSeq(agent, projection)
+        if (turnSeq === undefined) throw new UploadFailure('AGENT_REQUIRED', 'The upload turn has ended.')
+        const result = await uploadAttachment(ctx, baseUrl, file, config, signal)
+        if (mimeType(file.name).startsWith('image/') && uploadTurnSeq(agent, projection) === turnSeq) {
+          const previous = uploaded.get(agent.session)
+          const urls = previous?.turnSeq === turnSeq ? previous.urls : new Set<string>()
+          urls.add(result.url)
+          uploaded.set(agent.session, { turnSeq, urls })
+        }
+        return result
       })()
       pending.add(work)
       void work.then(() => pending.delete(work), (error: unknown) => {
@@ -113,6 +133,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     const release = ctx.tools.register(definition)
     return async () => { release(); lifetime.abort(); await Promise.allSettled([...pending]) }
   }, 'insight-media-upload: upload_attachment tool')
+  registerImageLayeringTools(ctx, config, (exec, url) => {
+    const agent = exec.agent
+    if (!agent) return false
+    const record = uploaded.get(agent.session)
+    return record !== undefined && record.turnSeq === uploadTurnSeq(agent, projection) && record.urls.has(url)
+  })
 }
 
 /** Transfer one approved current-turn file, then return its non-secret OSS address.

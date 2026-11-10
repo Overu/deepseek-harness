@@ -1,5 +1,5 @@
 ---
-description: "Insight Desktop tool for approved uploads of current-turn user attachments directly to OSS."
+description: "Insight Desktop tools for approved OSS attachment uploads and authenticated image-layer generation."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Insight Desktop bundle registers `upload_attachment` for one file attached by the user in the open turn. The Host asks for upload approval, requests temporary credentials directly from `POST /game-ai-editor-center/upload/sts/token` with the signed-in account, and PUTs the exact stored file bytes to OSS. Successful output contains the object `url`, `urlAccess: "unverified"`, the filename, and the original byte count. This path does not create an enterprise attachment ID or check read access to the URL.
+Insight Desktop loads this bundle to register `upload_attachment`, `submit_image_layering`, and `get_image_layering`. Upload requires one current-turn user attachment and approval, then obtains temporary credentials from the upload center and writes the original bytes to OSS; its URL has unverified read access. Image layering submits a successfully uploaded image URL from the same turn through `POST /api/skill-proxy/call-insight-api`, returns a user-bound task handle, and tracks status in a session Job. Status can be checked again by handle without repeating submission. The requested PSD is available only when the upstream result's `image_list` includes a PSD URL.
 
 ## Table of Contents
 
@@ -31,7 +31,9 @@ The model may provide `attachmentIndex`, a one-based position among direct-user 
 <a id="implementation"></a>
 ## Implementation
 
-`src/upload-source.ts` folds committed Session events into a Host-only current-turn source list. `src/index.ts` registers the one tool, checks the root Agent, and asks for a one-time transfer approval. `src/upload-center.ts` calls the fixed upload-center gateway path and checks the returned credentials, object name, and HTTPS OSS destination without exposing the login token or temporary credentials. An STS rejection reports its HTTP status and a validated service code when present, without returning the response message. `src/oss-put.ts` streams the attachment through `ali-oss` with SDK retries disabled. The tool returns the URL only after an explicit OSS HTTP 200 and complete source-stream consumption; an unconfirmed PUT is not automatically repeated and produces a Host diagnostic with the call ID and error code.
+`src/image-layering.ts` sends one authenticated proxy creation request, reads its terminal NDJSON event, and registers a session-owned Job that queries the same proxy. `job_kill`, plugin shutdown, or client restart stops local tracking but does not cancel remote generation. The tool result retains `taskHandle` for `get_image_layering({ taskHandle, watch: true })` recovery while the service handle remains valid. A submission transport failure may leave remote status unknown; POST is never retried automatically. Request, polling, and tracking durations are validated plugin configuration fields.
+
+`src/upload-source.ts` folds committed Session events into a Host-only current-turn source list. `src/index.ts` registers the upload tool, checks the root Agent, and asks for a one-time transfer approval. `src/upload-center.ts` calls the fixed upload-center gateway path and checks the returned credentials, object name, and HTTPS OSS destination without exposing the login token or temporary credentials. An STS rejection reports its HTTP status and a validated service code when present, without returning the response message. `src/oss-put.ts` streams the attachment through `ali-oss` with SDK retries disabled. The tool returns the URL only after an explicit OSS HTTP 200 and complete source-stream consumption; an unconfirmed PUT is not automatically repeated and produces a Host diagnostic with the call ID and error code.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -64,12 +66,27 @@ Result tokens vary with the filename and URL length.
 
 The result appends to the conversation; it does not rewrite the preceding request prefix.
 
+### Image-layer generation tools
+
+#### What the model sees
+
+`submit_image_layering` accepts an `imageUrl` from a successful current-turn image upload, optional `prompt`, and optional nonnegative integer `numLayers`; absent values become an empty prompt and zero layers. It returns `taskHandle`, current status, and a `jobId` when tracking starts. `get_image_layering` accepts `taskHandle` and optional `watch`; success returns validated `psdUrls` and `imageUrls`. A completed task without PSD reports `missing_psd`. If the Job is unavailable, `monitoring: "unavailable"` preserves the handle. Account tokens and upstream credentials never enter tool results.
+
+#### Token effect
+
+The two tool definitions add fixed request tokens while loaded. Task IDs, status, URLs, and the Job notice add retained tokens when produced.
+
+#### KV Cache effect
+
+Results and Job messages append to the conversation without rewriting the earlier request prefix.
+
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>
 
 - A private bucket may reject direct reads of the returned URL. Real STS permissions, object-key uniqueness, bucket versioning, and cleanup of objects without enterprise registration require an isolated environment check before production rollout.
 - The local image original is content-addressed and remains stored even if the staged prompt is later discarded.
+- The proxy task handle expires after about 24 hours. The deployed Gateway must include the `call-insight-api` connection; the test-environment service repository alone does not prove deployment. Upstream runs have returned PNG-only results as well as a PSD, so successful generation does not guarantee a PSD. The skill package downloads PSD files and calls `present`; production result OSS hosts require deployment configuration.
 
 <a id="dev-note"></a>
 ### Dev Note

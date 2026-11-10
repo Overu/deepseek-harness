@@ -4831,18 +4831,24 @@ export interface Config {
 
 ## `@insight-ai/desktop-media-upload-plugin`
 
-- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `agents` · `sessionProjections`
-- `source`: [`packages/insight/media-upload/src/index.ts:18`](../packages/insight/media-upload/src/index.ts)
+- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `agents` · `sessionProjections` · `jobs`
+- `source`: [`packages/insight/media-upload/src/index.ts:19`](../packages/insight/media-upload/src/index.ts)
 
 ```ts config-catalog
 /** Product environment and bounded network deadlines. */
 export interface Config {
-  /** Selected fixed enterprise service environment. */
+  /** Selected fixed upload-center service environment. */
   serviceEnvironment: 'test' | 'production'
-  /** Deadline for each enterprise JSON request. */
+  /** Deadline for the upload-center STS request. */
   requestTimeoutMs: number
   /** Deadline for the OSS PUT. */
   ossTimeoutMs: number
+  /** Deadline for each enterprise generation request. */
+  generationRequestTimeoutMs: number
+  /** Interval between generation status checks. */
+  generationPollIntervalMs: number
+  /** Maximum duration of local generation tracking. */
+  generationWatchTimeoutMs: number
 }
 ```
 <!-- END GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->

@@ -14,6 +14,7 @@ interface UploadSource {
 interface CurrentTurnUploads {
   readonly inheritedCount: number
   readonly open: boolean
+  readonly turnSeq: number
   readonly sources: readonly UploadSource[]
 }
 
@@ -25,18 +26,19 @@ const fileSchema = z.object({
 const stateSchema: z.ZodType<CurrentTurnUploads> = z.object({
   inheritedCount: z.number().int().nonnegative(),
   open: z.boolean(),
+  turnSeq: z.number().int().nonnegative(),
   sources: z.array(z.object({ seq: z.number().int().nonnegative(), file: fileSchema.nullable() })),
 })
 
 /** Host-only projection of direct-user file occurrences in the open turn. */
 export const currentTurnUploadsProjection = {
   key: 'insightCurrentTurnUploads',
-  stateVersion: 1,
+  stateVersion: 2,
   stateSchema,
-  init: (_header, inheritedEventCount) => ({ inheritedCount: Number(inheritedEventCount), open: false, sources: [] }),
+  init: (_header, inheritedEventCount) => ({ inheritedCount: Number(inheritedEventCount), open: false, turnSeq: 0, sources: [] }),
   apply: (state, event: SessionEvent) => {
     if (Number(event.seq) < state.inheritedCount) return state
-    if (event.type === 'turn/start') return { ...state, open: true, sources: [] }
+    if (event.type === 'turn/start') return { ...state, open: true, turnSeq: Number(event.seq), sources: [] }
     if (event.type === 'turn/end') return { ...state, open: false, sources: [] }
     if (!state.open) return state
     const op = event.surfaceOp
@@ -54,6 +56,16 @@ export const currentTurnUploadsProjection = {
     return additions.length === 0 && replaced === state.sources ? state : { ...state, sources: [...replaced, ...additions] }
   },
 } satisfies ProjectionDefinition<'insightCurrentTurnUploads', CurrentTurnUploads>
+
+/** Return the open turn identifier used to bind successful OSS uploads to this turn.
+ * @param agent - Root Agent in the current Session.
+ * @param projection - Registered current-turn attachment projection.
+ * @returns Start event sequence of the open turn, or undefined when closed.
+ */
+export function uploadTurnSeq(agent: Agent, projection: ProjectionHandle<CurrentTurnUploads>): number | undefined {
+  const state = projection.stateOf(agent.session)
+  return state.open ? state.turnSeq : undefined
+}
 
 /** Select exactly one committed current-turn attachment; a missing image original is refused.
  * @param agent - Root Agent whose exact Session supplies the committed user messages.
