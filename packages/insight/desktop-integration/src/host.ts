@@ -18,3 +18,5 @@ export {
 } from './host/account-service.ts'
 /** Fixed service bases shared by authenticated Host integrations. */
 export { skillProxyServiceBaseUrl, uploadCenterServiceBaseUrl } from './shared/service-environment.ts'
+/** Authenticated NDJSON transport shared by Host-only skill consumers. */
+export { createInsightSkillProxyRequest, InsightSkillProxyError } from './host/skill-proxy-request.ts'
