@@ -11,6 +11,9 @@ export type {
   PlatformSkillRemovalRequest,
 } from './shared/skill-installation.ts'
 export type {
+  InsightCustomSkillEntry,
+  InsightCustomSkillId,
+  InsightCustomSkillSnapshot,
   InsightSkillAvailability,
   InsightSkillInventoryEntry,
   InsightSkillInventorySnapshot,

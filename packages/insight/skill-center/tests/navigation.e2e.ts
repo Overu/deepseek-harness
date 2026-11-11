@@ -1,6 +1,6 @@
 /** Keyless real-Loader coverage of the skill market, shared overlays, and theme inheritance. */
 import { fileURLToPath } from 'node:url'
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { chromium } from 'playwright'
 import { expect, it } from 'vitest'
@@ -37,8 +37,8 @@ it('installs configured presets before opening the market and respects removal a
         })],
       })
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
-      await page.getByRole('button', { name: 'Installed', exact: true }).waitFor()
-      await page.getByRole('button', { name: 'View details', exact: true }).click()
+      await page.getByText('Installed', { exact: true }).waitFor()
+      await page.getByRole('button', { name: /View details$/u }).click()
       await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
       await page.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await page.reload({ waitUntil: 'load' })
@@ -143,7 +143,7 @@ it('uses the technical name despite OSS numeric ID changes, absence, or invalid 
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
       await page.getByRole('button', { name: 'Update', exact: true }).waitFor()
       await page.getByRole('button', { name: 'Update', exact: true }).click()
-      await page.getByRole('button', { name: 'Installed', exact: true }).waitFor()
+      await page.getByText('Installed', { exact: true }).waitFor()
       const upgraded: unknown = JSON.parse(await readFile(installedPath, 'utf8'))
       expect(upgraded).toMatchObject({
         id: skillName, version: '1.2.0',
@@ -158,9 +158,9 @@ it('uses the technical name despite OSS numeric ID changes, absence, or invalid 
         skills: [{ id: influencerIntegration, version: '1.2.0' }],
       })
       const installedCard = page.getByRole('article').filter({
-        has: page.getByRole('button', { name: 'Installed', exact: true }),
+        has: page.getByText('Installed', { exact: true }),
       })
-      await installedCard.getByRole('button', { name: 'View details', exact: true }).click()
+      await installedCard.getByRole('button', { name: /View details$/u }).click()
       await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
       await page.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await expect(stat(installedPath)).rejects.toMatchObject({ code: 'ENOENT' })
@@ -242,7 +242,7 @@ it('refreshes skill references in an open historical conversation after installa
       }
       await openMarket()
       await market.getByRole('button', { name: 'Install', exact: true }).click()
-      await market.getByRole('button', { name: 'Installed', exact: true }).waitFor()
+      await market.getByText('Installed', { exact: true }).waitFor()
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
       const picker = page.getByRole('listbox', { name: '可选技能', exact: true })
       const installedOption = picker.getByRole('button', { name: /browser-installed-expert/u })
@@ -282,15 +282,29 @@ it('refreshes skill references in an open historical conversation after installa
       await page.getByRole('combobox', { name: '搜索技能' }).press('Enter')
       await expect.poll(() => platformRow.getAttribute('aria-selected')).toBe('true')
       expect((await input.textContent())?.match(/\/browser-installed-expert\b/gu)).toHaveLength(1)
-      await rm(customSkill, { recursive: true })
-      await picker.getByText('已被更高优先级版本覆盖', { exact: true }).waitFor({ state: 'detached' })
+      await page.getByRole('tab', { name: '用户自定义', exact: true }).click()
+      await customRow.waitFor()
+      await market.getByRole('tab', { name: 'Custom skills', exact: true }).click()
+      await market.getByRole('button', { name: 'browser-installed-expert, View details', exact: true }).click()
+      const customDetails = market.getByRole('dialog', { name: 'browser-installed-expert', exact: true })
+      await customDetails.getByRole('button', { name: 'Delete skill', exact: true }).click()
+      const confirmation = market.getByRole('dialog', { name: 'Delete skill', exact: true })
+      await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click()
+      await expect(stat(join(customSkill, 'SKILL.md'))).resolves.toBeDefined()
+      await customDetails.getByRole('button', { name: 'Delete skill', exact: true }).click()
+      await confirmation.getByRole('button', { name: 'Delete skill', exact: true }).click()
+      await market.getByText('No custom skills are available yet', { exact: true }).waitFor()
+      await expect(stat(customSkill)).rejects.toMatchObject({ code: 'ENOENT' })
+      await customRow.waitFor({ state: 'detached' })
+      await page.getByRole('tab', { name: '平台预置', exact: true }).click()
+      await installedOption.waitFor()
       await page.keyboard.press('Escape')
       await writeComposerDraft(page, input, draft)
 
       version = '1.1.0'
       await openMarket()
       await market.getByRole('button', { name: 'Update', exact: true }).click()
-      await market.getByRole('button', { name: 'Installed', exact: true }).waitFor()
+      await market.getByText('Installed', { exact: true }).waitFor()
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
       await installedOption.waitFor()
       await expect.poll(() => installedOption.isEnabled()).toBe(true)
@@ -302,7 +316,7 @@ it('refreshes skill references in an open historical conversation after installa
 
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
       await installedOption.waitFor()
-      await market.getByRole('button', { name: 'View details', exact: true }).click()
+      await market.getByRole('button', { name: /View details$/u }).click()
       await market.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
       await market.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await reference.waitFor({ state: 'detached' })
@@ -372,14 +386,16 @@ it('installs, updates and removes a skill through the real Remote API', async ()
       }
       await openMarket()
       await page.getByRole('button', { name: '安装', exact: true }).click()
-      await page.getByRole('button', { name: '已安装', exact: true }).waitFor()
-      await expect.poll(() => page.getByRole('button', { name: '已安装', exact: true }).isDisabled()).toBe(true)
+      await page.getByText('已安装', { exact: true }).waitFor()
+      await expect.poll(() => page.getByRole('article').getByRole('button', { name: '安装', exact: true }).count()).toBe(0)
       version = '1.1.0'
       await openMarket()
       await page.getByRole('button', { name: '更新', exact: true }).click()
-      await page.getByRole('button', { name: '已安装', exact: true }).waitFor()
-      await page.getByRole('button', { name: '查看详情', exact: true }).click()
-      await page.getByRole('dialog').getByRole('button', { name: '移除', exact: true }).click()
+      await page.getByText('已安装', { exact: true }).waitFor()
+      await page.getByRole('button', { name: /查看详情$/u }).click()
+      const dialog = page.getByRole('dialog')
+      expect(await dialog.getByRole('button').count()).toBe(2)
+      await dialog.getByRole('button', { name: '移除', exact: true }).click()
       await page.getByRole('button', { name: '安装', exact: true }).waitFor()
     } finally {
       await browser.close()
@@ -389,7 +405,7 @@ it('installs, updates and removes a skill through the real Remote API', async ()
   }
 })
 
-it('browses the OSS catalog through the real shell in both themes and narrow panels', async () => {
+it('browses official and local skills through the real shell in both themes and narrow panels', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
       fileURLToPath(new URL('../../../../apps/web/tests/pin-browse-picker.overlay.yml', import.meta.url)),
@@ -398,6 +414,13 @@ it('browses the OSS catalog through the real shell in both themes and narrow pan
     profile: { packages: [{ dir: fileURLToPath(new URL('..', import.meta.url)), enabled: true }] },
   })
   try {
+    const accountSkill = join(scaffold.harnessHome, 'skills', 'influencer-integration')
+    const sharedSkill = join(scaffold.workspaceCwd, '.agents-home', 'skills', 'shared-brief')
+    await mkdir(accountSkill, { recursive: true })
+    await mkdir(sharedSkill, { recursive: true })
+    await writeFile(join(accountSkill, 'SKILL.md'), '---\nname: influencer-integration\ndescription: 整理我的达人整合方案。\n---\n')
+    await writeFile(join(accountSkill, 'ui.json'), JSON.stringify({ displayName: '我的达人整合', shortDescription: '个人营销模板' }))
+    await writeFile(join(sharedSkill, 'SKILL.md'), '---\nname: shared-brief\ndescription: 整理团队共享的营销简报。\n---\n')
     const browser = await chromium.launch()
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: 'zh-CN' })
@@ -424,6 +447,35 @@ it('browses the OSS catalog through the real shell in both themes and narrow pan
         await region.ariaSnapshot(), webSnapshotMode())
 
       const search = region.getByRole('searchbox')
+      const officialTab = region.getByRole('tab', { name: '官方技能', exact: true })
+      const customTab = region.getByRole('tab', { name: '自定义技能', exact: true })
+      expect(await officialTab.getAttribute('aria-selected')).toBe('true')
+      await search.fill('influencer-integration')
+      await search.press('Enter')
+      await expect.poll(() => region.getByRole('article').count()).toBe(1)
+      await officialTab.press('ArrowRight')
+      expect(await customTab.getAttribute('aria-selected')).toBe('true')
+      expect(await search.inputValue()).toBe('influencer-integration')
+      const customPanel = region.getByRole('tabpanel', { name: '自定义技能', exact: true })
+      await customPanel.getByRole('heading', { name: '我的达人整合', exact: true }).waitFor()
+      expect(await customPanel.getByRole('article').count()).toBe(1)
+      const glyph = await customPanel.getByText('我', { exact: true }).boundingBox()
+      if (glyph === null) throw new Error('Custom skill initial is not visible')
+      await page.mouse.click(glyph.x + glyph.width / 2, glyph.y + glyph.height / 2)
+      const customDialog = page.getByRole('dialog', { name: '我的达人整合', exact: true })
+      await customDialog.getByText('整理我的达人整合方案。', { exact: true }).waitFor()
+      expect(await customDialog.getByRole('button', { name: /安装|更新|移除/u }).count()).toBe(0)
+      await compareOrRefreshGolden(fileURLToPath(new URL('expected/custom-detail.expected.md', import.meta.url)),
+        await customDialog.ariaSnapshot(), webSnapshotMode())
+      await page.keyboard.press('Escape')
+      await search.fill('')
+      await search.press('Enter')
+      await customPanel.getByText('共享', { exact: true }).waitFor()
+      expect(await customPanel.getByRole('article').count()).toBe(2)
+      await compareOrRefreshGolden(fileURLToPath(new URL('expected/custom.expected.md', import.meta.url)),
+        await region.ariaSnapshot(), webSnapshotMode())
+      await officialTab.click()
+
       await search.fill('NO-SUCH-DEMO-SKILL')
       await region.getByRole('button', { name: '搜索', exact: true }).click()
       await region.getByText(/没有找到/).waitFor()
@@ -432,7 +484,7 @@ it('browses the OSS catalog through the real shell in both themes and narrow pan
       await search.press('Enter')
       await region.getByRole('article').first().waitFor()
 
-      const detailTrigger = region.getByRole('article').first().getByRole('button', { name: '查看详情' })
+      const detailTrigger = region.getByRole('article').first().getByRole('button', { name: /查看详情$/u })
       await detailTrigger.click()
       const dialog = page.getByRole('dialog')
       await dialog.waitFor()
@@ -457,7 +509,12 @@ it('browses the OSS catalog through the real shell in both themes and narrow pan
 
       for (const theme of ['light', 'dark']) {
         await page.evaluate(value => document.body.toggleAttribute('data-ds-dark-theme', value === 'dark'), theme)
-        for (const [width, columns] of [[1440, 3], [1000, 2], [390, 1]] as const) {
+        const tabList = region.getByRole('tablist', { name: '技能来源', exact: true })
+        expect(await tabList.evaluate(element => getComputedStyle(element).backgroundColor)).toBe('rgba(0, 0, 0, 0)')
+        expect(await tabList.locator(':scope > [aria-hidden="true"]').isVisible()).toBe(false)
+        expect(await officialTab.evaluate(element => getComputedStyle(element).borderTopWidth)).toBe('0px')
+        expect(await region.getByText('达', { exact: true }).evaluate(element => getComputedStyle(element).backgroundImage)).toContain('radial-gradient(')
+        for (const [width, columns] of [[1440, 2], [1000, 2], [390, 1]] as const) {
           await page.setViewportSize({ width, height: 1000 })
           await expect.poll(() => region.getByRole('article').evaluateAll((elements) => {
             const top = elements[0]!.getBoundingClientRect().top
@@ -470,6 +527,7 @@ it('browses the OSS catalog through the real shell in both themes and narrow pan
           await dialog.waitFor()
           const bounds = await dialog.boundingBox()
           expect(bounds!.x).toBeGreaterThanOrEqual(0)
+          expect(bounds!.width).toBeLessThanOrEqual(600)
           expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
           await dialog.getByRole('button', { name: '关闭', exact: true }).click()
         }

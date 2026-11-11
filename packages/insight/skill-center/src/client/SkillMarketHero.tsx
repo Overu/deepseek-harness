@@ -20,13 +20,12 @@ interface SkillMarketHeroProps {
 export function SkillMarketHero({ t, query, onQueryChange, onSearch }: SkillMarketHeroProps): ReactNode {
   return (
     <div className={styles.hero}>
-      <div className={styles.heroPattern} aria-hidden><span /><span /><i /><i /></div>
       <div className={styles.heroContent}>
         <p className={styles.eyebrow}>{t('eyebrow')}</p>
         <h1 className={styles.title}>{t('heroTitlePrefix')} <span>{t('heroTitleAccent')}</span></h1>
         <form className={styles.search} role="search" onSubmit={onSearch}>
           <Input type="search" value={query} onChange={(event) => { onQueryChange(event.target.value) }} placeholder={t('searchPlaceholder')} icon={<IconSearchOutlineRegular size={16} />} aria-label={t('searchPlaceholder')} />
-          <Button variant="primary" type="submit">{t('search')}</Button>
+          <Button variant="ghost" type="submit">{t('search')}</Button>
         </form>
       </div>
     </div>

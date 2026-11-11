@@ -18,8 +18,10 @@ import { createSkillCenterToastSource, SkillCenterToast } from './SkillCenterToa
 import { en, zh } from './locales.ts'
 import { Config } from '../config.ts'
 import { skillCatalogResourceProvider } from './skill-catalog-resource.ts'
+import { customSkillResourceProvider } from './custom-skill-resource.ts'
 import { platformSkillInstallationResourceProvider } from './skill-installation-resource.ts'
 import type { PlatformSkillInstallRequest, PlatformSkillOperationId, PlatformSkillRemovalRequest, SkillIdentity } from '../shared/skill-installation.ts'
+import type { InsightCustomSkillId } from '../shared/skill-inventory.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -49,6 +51,7 @@ function registerSkillCenter(ctx: Context): void {
   const panelId = 'insight-skill-center' as MainPanelId
   ctx.effect(() => ctx.locale.register(namespace, { en, zh }))
   ctx.effect(() => ctx.resources.register(skillCatalogResourceProvider(config)))
+  ctx.effect(() => ctx.resources.register(customSkillResourceProvider(ctx.remote.insightSkills)))
   ctx.effect(() => ctx.resources.register(platformSkillInstallationResourceProvider(ctx.remote.insightPlatformSkills)))
   const t = ctx.locale.bind(namespace)
   const notices = createSkillCenterToastSource()
@@ -64,6 +67,7 @@ function registerSkillCenter(ctx: Context): void {
       installations,
       hooks: { revision: installations.hooks.revision },
       remove: (request: PlatformSkillRemovalRequest, signal?: AbortSignal) => ctx.remote.insightPlatformSkills.removeSkill(request, signal),
+      removeCustom: (request: { readonly id: InsightCustomSkillId }) => ctx.remote.insightSkills.removeCustom(request),
     }),
   }, SkillCenterPage))
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({

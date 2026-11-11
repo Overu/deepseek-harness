@@ -4,6 +4,7 @@ import { Button, IconCheckOutlineRegular, IconChevronDownOutlineRegular, Menu } 
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { InsightSkillInventorySnapshot } from '../shared/skill-inventory.ts'
+import { isCustomSkillOrigin } from '../shared/skill-inventory.ts'
 import css from './InsightSkillPicker.module.css'
 
 /** Client loader backed by the generated `insightSkills/list` Remote method. */
@@ -36,7 +37,7 @@ const STATUS: Readonly<Record<InsightSkillInventorySnapshot['entries'][number]['
 
 /** Identify one visible inventory row across refreshes and source changes. */
 function entryKey(entry: InventoryEntry): string {
-  return `${entry.origin}:${entry.name}`
+  return entry.customId ?? `${entry.origin}:${entry.name}`
 }
 
 /** Move through selectable visible rows, wrapping at either end. */
@@ -133,7 +134,7 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
   }, [loadInventory, menuOpen, sessionId])
 
   const current = snapshots.get(sessionId)
-  const entries = useMemo(() => current?.entries.filter(entry => (group === 'platform' ? entry.origin === 'platform' : entry.origin !== 'platform')
+  const entries = useMemo(() => current?.entries.filter(entry => (isCustomSkillOrigin(entry.origin) === (group === 'user'))
     && `${entry.name} ${entry.description} ${entry.displayName ?? ''} ${entry.shortDescription ?? ''}`.toLocaleLowerCase()
       .includes(query.trim().toLocaleLowerCase())).sort((a, b) => a.name.localeCompare(b.name)) ?? [], [current, group, query])
   const selected = new Set(selectedSkills)
@@ -192,7 +193,7 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
       className={css.anchor} listClassName={css.menu}>
       <div className={css.content} role="dialog" aria-label="选择技能">
         <input ref={search} className={css.search} role="combobox" aria-label="搜索技能" placeholder="搜索技能" aria-controls={listboxId}
-          aria-expanded={menuOpen} aria-activedescendant={activeEntry === undefined ? undefined : `${listboxId}-${activeEntry.origin}-${activeEntry.name}`}
+          aria-expanded={menuOpen} aria-activedescendant={resolvedActiveKey === undefined ? undefined : `${listboxId}-${resolvedActiveKey}`}
           value={query} onChange={(event) => { setQuery(event.target.value) }} autoFocus
           onKeyDown={(event) => {
             event.stopPropagation()
@@ -236,13 +237,13 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
         <div className={css.scrollArea}>
           <ul id={listboxId} className={css.entries} role="listbox" aria-label="可选技能"
             aria-multiselectable="true">
-            {entries.map((entry, index) => <li className={css.entry} key={`${entry.origin}:${entry.name}`} role="option"
+            {entries.map((entry, index) => <li className={css.entry} key={entryKey(entry)} role="option"
               ref={(element) => {
                 const key = entryKey(entry)
                 if (element === null) options.current.delete(key)
                 else options.current.set(key, element)
               }}
-              id={`${listboxId}-${entry.origin}-${entry.name}`} data-active={index === active ? 'true' : undefined}
+              id={`${listboxId}-${entryKey(entry)}`} data-active={index === active ? 'true' : undefined}
               aria-selected={canSelect(entry) && selected.has(entry.name)} aria-disabled={!canSelect(entry)}>
               <button type="button" className={css.option} disabled={!canSelect(entry) || disabled}
                 aria-label={`${canSelect(entry) && selected.has(entry.name) ? '✓ ' : ''}${entry.displayName ?? entry.name}`}

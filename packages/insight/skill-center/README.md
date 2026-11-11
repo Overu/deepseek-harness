@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Open **Skill center** below **Plugins** in the Insight sidebar to browse and manage published platform skills. Search by name, ID, or summary, inspect skill details, then install, update, or remove a skill for the signed-in account.
+Open **Skill center** below **Plugins** in the Insight sidebar to browse official and custom skills. Search the active tab, view skill details, and install, update, or remove official skills for the signed-in account.
 
 ## Table of Contents
 
@@ -22,7 +22,9 @@ Open **Skill center** below **Plugins** in the Insight sidebar to browse and man
 <a id="use-this-package"></a>
 ## Use this package
 
-Select **Skill center** to browse the cards in the main column. Opening the page reads the [OSS catalog](https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json). Search filters the downloaded catalog as you type or submit the search form. A failed read displays **Retry**; an empty published catalog has a separate empty state. **View details** opens the full description. Each card shows **Install**, **Installed**, or **Update** from the current account's installed version. Details for an installed skill also offer **Remove**. Installation and updates show a blocking progress dialog with **Cancel**. Cancellation or failure before commit leaves no first installation and retains a previous installed version. A completed commit reports success even if cancellation arrives too late. Select **Plugins** or a conversation to leave the page. The bundle supplies Chinese and English copy; other languages use the locale registry's fallback.
+**Official skills** opens by default and reads the [OSS catalog](https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json). Each card shows **Install**, **Installed**, or **Update** based on the current account's installed version. The details dialog shows the skill version beside its name and places usage instructions in a separate panel. An installed skill offers **Remove** in the dialog. Installation and updates show a blocking progress dialog with **Cancel**. Cancellation or failure before commit leaves no first installation and retains a previous installed version. A completed commit reports success even if cancellation arrives later.
+
+**Custom skills** shows the same user installations as the Expert skills picker: skills in the account's `$DSH_HOME/skills` directory and the shared agent skills directory. Shared entries carry a **Shared** label. Open a card and choose **Delete skill** to remove its installed directory or standalone skill file after confirmation. Deleting a linked skill removes the link and leaves its target in place. Search filters the active tab by display name, technical name, or summary and keeps the search term when you switch tabs. A failed read displays **Retry**. The bundle supplies Chinese and English copy; other languages use the locale registry's fallback.
 
 Directory requests time out after 15 seconds, including the JSON body. Set `catalogRequestTimeoutMs` in the plugin configuration in `cordis.yml` to change this positive millisecond budget; the page adopts it on reload.
 
@@ -30,7 +32,7 @@ The Host separately limits one skill archive's request duration, compressed byte
 
 Removing a skill deletes its installation record and its skill-specific payload directory, including leftover releases. Startup also reclaims abandoned releases and empty skill directories. Shared account storage directories remain available for other installations. Cleanup failures are logged and retried at the next startup.
 
-The same bundle owns the **Expert skills** input picker. An empty list offers a button inside the scroll area that closes the picker and opens Skill center. It groups platform installations separately from user skills and retains legacy shared skills as read-only entries under user skills; legacy entries are not assigned to the current account or modified by the skill center. Entries with the same callable technical name share one draft reference and selection state across both groups; loading follows the existing skill priority.
+The same bundle owns the **Expert skills** input picker. An empty list offers a button inside the scroll area that closes the picker and opens Skill center. The platform tab includes installed platform skills and legacy bundled skills. Legacy entries are not assigned to the current account or modified by the skill center. Entries with the same callable technical name share one draft reference and selection state across both groups; loading follows the existing skill priority.
 
 Configure `presetSkillIds` with technical skill names to install defaults after the account UI is ready. The Insight bundle selects sixteen skills in [cordis.patch.yml](cordis.patch.yml). Automatic installation keeps one blocking, cancellable progress overlay open through the queue and reports one final toast; manual operations retain their individual feedback. The Host admits this queue only once per account startup, so refreshing a page does not retry failures. A failed skill is skipped without retry while later installations continue. Cancellation or failure to read the pending list ends the queue; unfinished skills remain eligible at the next Host startup or can be installed manually in Skill center. Existing installations are not automatically upgraded. Successful installation and explicit removal are remembered in `$DSH_HOME/platform-skills/auto-install-history`, so removed presets are not installed again. Removing a selector from configuration does not uninstall it.
 
@@ -59,7 +61,7 @@ The expert inventory runs as a Cordis child plugin with declared Session-query a
 
 #### What the model sees
 
-The `@insight-ai/skill-center` bundle displays and manages a published skill catalog; browsing and installation add no tools, model requests, or Session events. An installed skill joins normal skill discovery and can load into a later model request when the user selects it.
+In `@insight-ai/skill-center`, browsing or installing skills adds no tools, model requests, or Session events. An installed skill joins normal skill discovery and can load into a later model request when the user selects it.
 
 #### Token effect
 

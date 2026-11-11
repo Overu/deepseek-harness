@@ -39,7 +39,12 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
   const platformSkills = new InsightPlatformSkills(ctx, effectiveConfig)
   await platformSkills.initialize()
-  await ctx.plugin(InsightSkillInventory)
+  const bundledDirectory = process.env.DSH_BUNDLED_SKILL_DIR
+  await ctx.plugin(InsightSkillInventory, [
+    platformSkills.root,
+    ...effectiveConfig.legacySkillDirs,
+    ...bundledDirectory ? [bundledDirectory] : [],
+  ])
   ctx.on('webserver/index-inject', (table) => {
     table.push({ kind: 'global', name: '__INSIGHT_SKILL_CENTER_CONFIG__', value: effectiveConfig })
   })
