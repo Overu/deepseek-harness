@@ -135,6 +135,26 @@ The fixed `yinsai-gateway/deepseek-flash` provider uses normal Agent request tok
 
 No direct effect. Account presentation and authentication state stay outside model requests.
 
+### Tool argument recovery
+
+#### What the model sees
+
+When the Gateway returns completed tool arguments that fail JSON parsing, the Host retries the model request once in the same Agent step. The Session records the retry context. A second parse failure ends the step before any tool from either failed attempt runs.
+
+##### Retry prompt
+
+```markdown
+The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.
+```
+
+#### Token effect
+
+Recovery uses one additional model request with a short context message.
+
+#### KV Cache effect
+
+The retry appends runtime context after the existing request history.
+
 ## Known Limitations and Deferred Work
 
 <a id="known-limitations-and-deferred-work"></a>

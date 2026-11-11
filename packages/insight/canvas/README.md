@@ -28,6 +28,8 @@ The package's [bundle patch](cordis.patch.yml) contributes the existing Host plu
 
 Text nodes support two independent edits: `changes.prompt` updates the generation instruction, and `changes.text` writes the native `data.value` body. `canvas_run` generates text through the native workflow and returns the body in Job `outputs`; media result cards remain media-only.
 
+Canvas uses connected media nodes to select generation modes even before those nodes produce content. Prompt references and generation inputs require actual media.
+
 The iframe builds from `canvas-app`; its guidance remains package-owned. [upstream.json](upstream.json) records the source input and retained identity.
 
 <a id="understand-the-implementation"></a>

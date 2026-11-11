@@ -4839,12 +4839,12 @@ export interface Config {
 ## `@insight-ai/skill-center`
 
 - `inject`: `skills`
-- `source`: [`packages/insight/skill-center/src/config.ts:5`](../packages/insight/skill-center/src/config.ts)
+- `source`: [`packages/insight/skill-center/src/config.ts:6`](../packages/insight/skill-center/src/config.ts)
 
 ```ts config-catalog
 /** Deployment policy for OSS directory requests. */
 export interface Config {
-  /** Catalogue IDs for first installation, or technical names for catalogue entries without an ID. */
+  /** Technical skill names selected for first automatic installation. */
   presetSkillIds: string[]
   /** Absolute previous application skill directories discovered read-only for compatibility. */
   legacySkillDirs: string[]

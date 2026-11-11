@@ -29,7 +29,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required browser services for localized slot registrations. */
-export const inject = ['slots', 'locale', 'resources', 'remote']
+export const inject = ['slots', 'locale', 'resources', 'remote', 'layout']
 
 /**
  * Register the skill center immediately after Plugins and its matching main panel.
@@ -76,21 +76,27 @@ function registerSkillCenter(ctx: Context): void {
   }, SkillCenterToast))
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'insight-skill-center.installation', locale: namespace,
-    inject: () => ({ cancel: () => { installations.cancel() }, hooks: { active: installations.hooks.active } }),
+    inject: () => ({
+      cancel: () => { installations.cancel() }, hooks: { active: installations.hooks.active, presets: installations.hooks.presets },
+    }),
   }, SkillInstallOverlay))
   if (config.presetSkillIds.length > 0) {
     ctx.slots.inject('shell.overlay', () => ctx.slots.register({
       name: 'shell.overlay', id: 'insight-skill-center.presets',
       inject: () => ({
         installations,
-        listPendingPresets: (catalogue: readonly SkillIdentity[]) => ctx.remote.insightPlatformSkills.listPendingPresets(catalogue),
-        waitForInstallation: (identity: SkillIdentity) => ctx.remote.insightPlatformSkills.waitForInstallation(identity),
+        claim: () => ctx.remote.insightPlatformSkills.claimPresetInstallation(),
+        listPendingPresets: (catalogue: readonly SkillIdentity[], signal?: AbortSignal) =>
+          ctx.remote.insightPlatformSkills.listPendingPresets(catalogue, signal),
+        waitForInstallation: (identity: SkillIdentity, signal?: AbortSignal) =>
+          ctx.remote.insightPlatformSkills.waitForInstallation(identity, signal),
       }),
     }, PresetSkillBootstrap))
   }
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
-    name: 'conversation.input.left', id: 'insight-skills', order: -100,
+    name: 'conversation.input.left', id: 'insight-skills', order: -100, locale: namespace,
     inject: (): InsightSkillPickerInjected => ({
+      openSkillCenter: () => { ctx.layout.selectPanel(panelId) },
       loadInventory: async (sessionId, signal) => {
         const result = await ctx.remote.insightSkills.list({ sessionId }, signal)
         if (!result.ok) throw new Error(result.error.message)

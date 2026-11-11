@@ -1,8 +1,8 @@
 /** Categorized, explicit-draft skill picker for the Insight composition. */
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { IconCheckOutlineRegular, IconChevronDownOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconCheckOutlineRegular, IconChevronDownOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { InsightSkillInventorySnapshot } from '../shared/skill-inventory.ts'
 import css from './InsightSkillPicker.module.css'
 
@@ -12,9 +12,12 @@ export type InsightSkillInventoryLoader = (sessionId: SessionId, signal: AbortSi
 /** Product inventory loader injected into the native input slot. */
 export interface InsightSkillPickerInjected {
   readonly loadInventory: InsightSkillInventoryLoader
+  /** Open the skill center in the main content panel. */
+  readonly openSkillCenter: () => void
 }
 
-type Props = Pick<PropsRuntime<'conversation.input.left'>, 'sessionId' | 'useInput' | 'inputActions'> & InjectFace<InsightSkillPickerInjected>
+type Props = Pick<PropsRuntime<'conversation.input.left'>, 'sessionId' | 'useInput' | 'inputActions'>
+  & PropsLocale<'insight.skillCenter'> & InjectFace<InsightSkillPickerInjected>
 type InventoryEntry = InsightSkillInventorySnapshot['entries'][number]
 
 const GROUPS = [
@@ -37,27 +40,31 @@ function entryKey(entry: InventoryEntry): string {
 }
 
 /** Move through selectable visible rows, wrapping at either end. */
-function nextSelectable(entries: readonly InventoryEntry[], current: number, direction: 1 | -1): number {
+function nextSelectable(
+  entries: readonly InventoryEntry[], current: number, direction: 1 | -1, canSelect: (entry: InventoryEntry) => boolean,
+): number {
   if (entries.length === 0) return -1
   if (current < 0) {
     return direction === 1
-      ? entries.findIndex(entry => entry.availability === 'callable')
-      : entries.findLastIndex(entry => entry.availability === 'callable')
+      ? entries.findIndex(canSelect)
+      : entries.findLastIndex(canSelect)
   }
   for (let offset = 1; offset <= entries.length; offset += 1) {
     const index = (current + direction * offset + entries.length) % entries.length
-    if (entries[index]?.availability === 'callable') return index
+    const entry = entries[index]
+    if (entry !== undefined && canSelect(entry)) return index
   }
   return -1
 }
 
 /**
  * Show the three product skill locations without adding an implicit model context.
- * Each selection is a visible `/name` token in the regular DSH draft; the
- * normal composer transaction consequently preserves a draft after failure
+ * Each selection is a visible `/name` token in the regular DSH draft; platform
+ * and user entries with the same callable name share selection. The normal
+ * composer transaction consequently preserves a draft after failure
  * and clears it only after successful submission.
  */
-export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInventory }: Props) {
+export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInventory, openSkillCenter, t }: Props) {
   const [open, setOpen] = useState(false)
   const [openSession, setOpenSession] = useState<SessionId | undefined>()
   const [snapshots, setSnapshots] = useState<ReadonlyMap<SessionId, InsightSkillInventorySnapshot>>(() => new Map())
@@ -130,9 +137,12 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
     && `${entry.name} ${entry.description} ${entry.displayName ?? ''} ${entry.shortDescription ?? ''}`.toLocaleLowerCase()
       .includes(query.trim().toLocaleLowerCase())).sort((a, b) => a.name.localeCompare(b.name)) ?? [], [current, group, query])
   const selected = new Set(selectedSkills)
+  const callableNames = new Set(current?.entries.filter(entry => entry.availability === 'callable').map(entry => entry.name))
+  const canSelect = (entry: InventoryEntry): boolean => entry.availability === 'callable'
+    || entry.availability === 'shadowed' && callableNames.has(entry.name)
   const requestedActive = activeKey === undefined ? -1 : entries.findIndex(entry => entryKey(entry) === activeKey
-    && entry.availability === 'callable')
-  const active = requestedActive >= 0 ? requestedActive : entries.findIndex(entry => entry.availability === 'callable')
+    && canSelect(entry))
+  const active = requestedActive >= 0 ? requestedActive : entries.findIndex(canSelect)
   const activeEntry = active < 0 ? undefined : entries[active]
   const resolvedActiveKey = activeEntry === undefined ? undefined : entryKey(activeEntry)
 
@@ -153,7 +163,7 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
   }, [resolvedActiveKey])
 
   const choose = (entry: InventoryEntry | undefined): void => {
-    if (entry?.availability !== 'callable' || disabled) return
+    if (entry === undefined || !canSelect(entry) || disabled) return
     inputActions.toggleSkill(entry.name)
     search.current?.focus()
   }
@@ -189,7 +199,7 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
             if (event.nativeEvent.isComposing) return
             if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
               event.preventDefault()
-              const next = nextSelectable(entries, active, event.key === 'ArrowDown' ? 1 : -1)
+              const next = nextSelectable(entries, active, event.key === 'ArrowDown' ? 1 : -1, canSelect)
               setActiveKey(next < 0 || entries[next] === undefined ? undefined : entryKey(entries[next]))
               return
             }
@@ -223,33 +233,41 @@ export function InsightSkillPicker({ sessionId, useInput, inputActions, loadInve
         {current !== undefined && !current.complete
           ? <p className={css.status} role="status">技能目录正在更新，结果可能不完整</p>
           : null}
-        <ul id={listboxId} className={css.entries} role="listbox" aria-label="可选技能"
-          aria-multiselectable="true">
-          {entries.map((entry, index) => <li className={css.entry} key={`${entry.origin}:${entry.name}`} role="option"
-            ref={(element) => {
-              const key = entryKey(entry)
-              if (element === null) options.current.delete(key)
-              else options.current.set(key, element)
-            }}
-            id={`${listboxId}-${entry.origin}-${entry.name}`} data-active={index === active ? 'true' : undefined}
-            aria-selected={entry.availability === 'callable' && selected.has(entry.name)} aria-disabled={entry.availability !== 'callable'}>
-            <button type="button" className={css.option} disabled={entry.availability !== 'callable' || disabled}
-              aria-label={`${entry.availability === 'callable' && selected.has(entry.name) ? '✓ ' : ''}${entry.displayName ?? entry.name}`}
-              onMouseDown={(event) => { event.preventDefault() }} onMouseMove={() => { setActiveKey(entryKey(entry)) }}
-              onClick={() => { choose(entry) }}>
-              <span className={css.title}>
-                <span>{entry.displayName ?? entry.name}</span>
-                {entry.availability === 'callable' && selected.has(entry.name) ? <IconCheckOutlineRegular size={14} /> : null}
-              </span>
-              <span className={css.description} title={entry.shortDescription ?? entry.description}>
-                {entry.shortDescription ?? entry.description}
-              </span>
-            </button>
-            {STATUS[entry.availability] === '' ? null : <span role="status">{STATUS[entry.availability]}</span>}
-          </li>)}
-        </ul>
-        {loading === sessionId && current === undefined ? <p className={css.status} role="status">正在读取技能目录</p> : null}
-        {current !== undefined && entries.length === 0 ? <p className={css.status} role="status">没有匹配的技能</p> : null}
+        <div className={css.scrollArea}>
+          <ul id={listboxId} className={css.entries} role="listbox" aria-label="可选技能"
+            aria-multiselectable="true">
+            {entries.map((entry, index) => <li className={css.entry} key={`${entry.origin}:${entry.name}`} role="option"
+              ref={(element) => {
+                const key = entryKey(entry)
+                if (element === null) options.current.delete(key)
+                else options.current.set(key, element)
+              }}
+              id={`${listboxId}-${entry.origin}-${entry.name}`} data-active={index === active ? 'true' : undefined}
+              aria-selected={canSelect(entry) && selected.has(entry.name)} aria-disabled={!canSelect(entry)}>
+              <button type="button" className={css.option} disabled={!canSelect(entry) || disabled}
+                aria-label={`${canSelect(entry) && selected.has(entry.name) ? '✓ ' : ''}${entry.displayName ?? entry.name}`}
+                onMouseDown={(event) => { event.preventDefault() }} onMouseMove={() => { setActiveKey(entryKey(entry)) }}
+                onClick={() => { choose(entry) }}>
+                <span className={css.title}>
+                  <span>{entry.displayName ?? entry.name}</span>
+                  {canSelect(entry) && selected.has(entry.name) ? <IconCheckOutlineRegular size={14} /> : null}
+                </span>
+                <span className={css.description} title={entry.shortDescription ?? entry.description}>
+                  {entry.shortDescription ?? entry.description}
+                </span>
+              </button>
+              {STATUS[entry.availability] === '' ? null : <span role="status">{STATUS[entry.availability]}</span>}
+            </li>)}
+          </ul>
+          {loading === sessionId && current === undefined ? <p className={css.status} role="status">正在读取技能目录</p> : null}
+          {current !== undefined && entries.length === 0 ? <div className={css.empty}>
+            <p className={css.status} role="status">没有匹配的技能</p>
+            {current.complete && failure?.sessionId !== sessionId ? <Button variant="outline" size="sm" onClick={() => {
+              setOpen(false)
+              openSkillCenter()
+            }}>{t('goToSkillCenter')}</Button> : null}
+          </div> : null}
+        </div>
       </div>
     </Menu>
   </div>

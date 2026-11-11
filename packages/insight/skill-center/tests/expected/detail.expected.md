@@ -3,7 +3,7 @@
   - button "关闭"
   - paragraph: 匹配合适的创作者，并整理可执行的达人合作方案。
   - term: 技能 ID
-  - definition: "1"
+  - definition: influencer-integration
   - term: 版本
   - definition: v1.2.0
   - region "技能描述":
