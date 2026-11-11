@@ -5,6 +5,9 @@
     - tab "Chat" [selected]
     - tab "Trajectory"
   - button "More conversation views"
+- navigation "Turn navigation":
+  - button "Jump to turn 1"
+  - button "Jump to turn 2"
 - button "历史节点"
 - text: 请保留这个画布节点。 {{clock}}
 - button "Copy"
@@ -24,7 +27,11 @@
 - button "Analysis completed" [expanded]
 - button "Think" [expanded]
 - paragraph: 需要给出可点击的画布地址。
-- paragraph: 当前画布 ID：103334。
+- paragraph:
+  - text: 当前画布 ID：
+  - link "103334":
+    - /url: dsh-resource://canvas/103334
+  - text: 。
 - paragraph: 可以继续在画布上操作。
 - text: "Canvas ID:"
 - link "103334":

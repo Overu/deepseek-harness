@@ -53,3 +53,5 @@ native/system/test/bin/
 # Generated Insight client labels; source skills remain an externally synchronized directory.
 /build/skill-presentations.json
 packages/insight/canvas/canvas-app/dist/
+# Generated company-signed CUA release record.
+/packages/experimental/cua-macos/cua-helper.json

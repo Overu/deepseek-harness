@@ -2,7 +2,7 @@
   "name": "dsh-prompt-enhance",
   "private": true,
   "description": "Prompt enhancement for the DSH composer",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-rc.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",

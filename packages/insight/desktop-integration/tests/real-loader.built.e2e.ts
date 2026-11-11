@@ -16,6 +16,7 @@ const requiredBundles = [
   ['@insight-ai/desktop-canvas-plugin', 'packages/insight/canvas'],
   ['dsh-memory-evolve', 'packages/insight/memory-evolve'],
   ['dsh-prompt-enhance', 'packages/insight/prompt-enhance'],
+  ['@insight-ai/skill-center', 'packages/insight/skill-center'],
 ] as const
 const requiredBundleNames = requiredBundles.map(([name]) => name)
 const requiredBundlesEnvironment = JSON.stringify(requiredBundleNames)

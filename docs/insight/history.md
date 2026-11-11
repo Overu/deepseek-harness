@@ -10,6 +10,7 @@ P6 ended on 2026-11-03. The [closure record](history/p6-closeout.md) pins this d
 
 | Question | Frozen source |
 | --- | --- |
+| What issues did the DSH 0.2.2-rc.1 baseline upgrade uncover, and which remain open? | [Baseline upgrade issue record](history/2026-11-11-dsh-v0.2.2-rc.1-upgrade.md) |
 | When did P6 close, which source and installers are pinned, and where did remaining work go? | [P6 closure record](history/p6-closeout.md) |
 | Why migrate from Shell/Core, and which capabilities mattered? | [Capability inventory](history/shell/analysis/2026-10-08-business-capability-inventory.md), [execution design](history/shell/analysis/2026-10-28-dsh-insight-execution-report.md) |
 | How were fixed source, required components, and skills agreed? | [P0](history/shell/analysis/2026-10-28-dsh-insight-p0-design.md), [P1 delivery](history/shell/analysis/2026-10-28-dsh-insight-p1-delivery.md) |

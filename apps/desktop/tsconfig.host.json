@@ -42,7 +42,10 @@
       "path": "../../packages/util/file-drag"
     },
     {
-      "path": "../../packages/insight/desktop-integration/tsconfig.host.json"
+      "path": "../../packages/insight/desktop-integration/tsconfig.host.json",
+    },
+    {
+      "path": "../../packages/client/ui-file-actions"
     }
   ],
   "exclude": [

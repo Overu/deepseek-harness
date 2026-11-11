@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-root",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-rc.1",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -284,6 +284,8 @@
     "papaparse": "5.5.3",
     "pnpm": "11.28.5",
     "publint": "^0.3.24",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "semver": "^7.8.5",
     "smol-toml": "^1.9.0",
     "spdx-expression-parse": "^5.0.0",

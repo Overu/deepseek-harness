@@ -6,7 +6,7 @@ import { act, cleanup, fireEvent, waitFor } from '@testing-library/react'
 import { SessionId } from '@deepseek-ai/dsh-session/types'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
-import { SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
+import { contextMenuHook, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
 import { zh as commonZh } from '@deepseek-ai/dsh-client-locale/src/locales/zh.ts'
@@ -51,6 +51,10 @@ async function bench(canvasFirst = false) {
   runtime.ctx.provide('fileDrag', {
     actions: { prepare: async () => ({ start: () => true, release: () => {} }), reportFailure: () => {} }, read: () => undefined,
   } satisfies import('@deepseek-ai/cordis').Context['fileDrag'])
+  runtime.ctx.provide('contextMenus', { open: vi.fn() } as never)
+  runtime.slots.provideRoot({ props: {
+    useContextMenu: contextMenuHook((target, point) => { runtime.ctx.contextMenus.open(target, point) }),
+  } })
   const openResource = vi.fn()
   runtime.ctx.provide('sidebarRight', { openResource } as never)
   const earlyCanvas = canvasFirst ? await runtime.mount({ inject: ['slots'], apply: registerCanvasReferenceMessageViews }) : undefined
@@ -93,8 +97,8 @@ async function bench(canvasFirst = false) {
   const loadImage = vi.fn<UserContentInput['loadImage']>(async () => 'blob:history-image')
   const show = (node: Node): void => { act(() => { update(<SessionProvider session={session}>
     {node.kind === 'user'
-      ? seats.renderSlot('conversation.chat.node', { node, loadImage, openFile: vi.fn(), inspectCall: undefined, forkAt: vi.fn(), fileMentions: () => undefined }, { entryKey: 'user', hookContext: { turnData: undefined, disclosureReset: createSnapshotStore(0), useGroupAction: () => ({ current: null }) } })
-      : seats.renderSlot('conversation.chat.node', { node, loadImage, openFile: vi.fn(), inspectCall: undefined, forkAt: vi.fn(), fileMentions: () => undefined }, { entryKey: 'steering', hookContext: { turnData: undefined, disclosureReset: createSnapshotStore(0), useGroupAction: () => ({ current: null }) } })}
+      ? seats.renderSlot('conversation.chat.node', { node, loadImage, openFile: vi.fn(), inspectCall: undefined, forkAt: vi.fn() }, { entryKey: 'user', hookContext: { turnData: undefined, disclosureReset: createSnapshotStore(0), useGroupAction: () => ({ current: null }) } })
+      : seats.renderSlot('conversation.chat.node', { node, loadImage, openFile: vi.fn(), inspectCall: undefined, forkAt: vi.fn() }, { entryKey: 'steering', hookContext: { turnData: undefined, disclosureReset: createSnapshotStore(0), useGroupAction: () => ({ current: null }) } })}
   </SessionProvider>) }) }
   return { view, show, canvas, runtime, openResource, loadImage }
 }
