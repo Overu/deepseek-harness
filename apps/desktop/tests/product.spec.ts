@@ -18,7 +18,7 @@ describe('desktop product', () => {
       environment: { DSH_DESKTOP_PRODUCT: INSIGHT_DESKTOP_PRODUCT, INSIGHT_DESKTOP_VERSION: '1.4.0-beta.2', DSH_CLIENT_VERSION: '0.2.2' },
     })).toMatchObject({
       kind: 'insight', productName: '因赛AI', appId: 'com.insight-aigc.desktop', userDataName: 'insight-desktop',
-      developmentUserDataName: 'insight-desktop-dev', productVersion: '1.4.0-beta.2', runtimeVersion: '0.2.2',
+      developmentUserDataName: 'insight-desktop-dev', serviceEnvironment: 'test', productVersion: '1.4.0-beta.2', runtimeVersion: '0.2.2',
       branding: { macIcon: 'branding/icon.icns', windowsIcon: 'branding/icon.ico', resourceIcon: 'branding/app-icon.png' },
     })
   })
@@ -28,7 +28,23 @@ describe('desktop product', () => {
       isPackaged: true,
       manifest: { dshDesktopProduct: INSIGHT_DESKTOP_PRODUCT, version: '1.4.0', [DESKTOP_RUNTIME_VERSION_FIELD]: '0.2.2' },
       environment: {},
-    })).toMatchObject({ kind: 'insight', productVersion: '1.4.0', runtimeVersion: '0.2.2' })
+    })).toMatchObject({ kind: 'insight', serviceEnvironment: 'production', productVersion: '1.4.0', runtimeVersion: '0.2.2' })
+  })
+
+  it('isolates a packaged test client from the production application and account data', () => {
+    expect(resolveDesktopProduct({ isPackaged: true, manifest: {
+      dshDesktopProduct: INSIGHT_DESKTOP_PRODUCT, dshDesktopAppId: 'com.insight-aigc.desktop.test',
+      dshInsightServiceEnvironment: 'test', version: '1.4.0-beta.2',
+    } })).toMatchObject({ kind: 'insight', productName: '因赛AI 测试版', appId: 'com.insight-aigc.desktop.test',
+      userDataName: 'insight-desktop-test', serviceEnvironment: 'test' })
+    expect(() => resolveDesktopProduct({ isPackaged: true, manifest: {
+      dshDesktopProduct: INSIGHT_DESKTOP_PRODUCT, dshDesktopAppId: 'com.insight-aigc.desktop',
+      dshInsightServiceEnvironment: 'test', version: '1.4.0-beta.2',
+    } })).toThrow(/isolated test application ID/u)
+    expect(() => resolveDesktopProduct({ isPackaged: true, manifest: {
+      dshDesktopProduct: INSIGHT_DESKTOP_PRODUCT, dshDesktopAppId: 'com.insight-aigc.desktop.test',
+      version: '1.4.0-beta.2',
+    } })).toThrow(/test service environment/u)
   })
 
   it.each([

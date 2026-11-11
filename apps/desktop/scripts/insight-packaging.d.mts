@@ -1,6 +1,7 @@
 /** Insight product packaging selection. */
 export const INSIGHT_PACKAGING_PRODUCT: 'insight'
 export const INSIGHT_PACKAGING_APP_ID: 'com.insight-aigc.desktop'
+export const INSIGHT_TEST_PACKAGING_APP_ID: 'com.insight-aigc.desktop.test'
 export const INSIGHT_PACKAGING_PRODUCT_NAME: '因赛AI'
 export const INSIGHT_PACKAGING_ARTIFACT_PREFIX: 'insight'
 export const INSIGHT_WINDOWS_EXECUTABLE_NAME: 'insight-desktop'
@@ -17,9 +18,10 @@ export function resolveInsightPackaging(
   arch: string,
   options?: { requireAppId?: boolean, requireNativeTarget?: boolean },
 ): {
-  readonly appId: 'com.insight-aigc.desktop'
-  readonly productName: '因赛AI'
-  readonly artifactPrefix: 'insight'
+  readonly appId: 'com.insight-aigc.desktop' | 'com.insight-aigc.desktop.test'
+  readonly productName: '因赛AI' | '因赛AI 测试版'
+  readonly artifactPrefix: 'insight' | 'insight-test'
+  readonly serviceEnvironment: 'test' | 'production'
   readonly productVersion: string
   readonly target: 'darwin-arm64' | 'darwin-x64' | 'win32-x64' | undefined
   readonly update: { readonly channel: 'nightly' | 'latest', readonly publicUrl: string } | undefined

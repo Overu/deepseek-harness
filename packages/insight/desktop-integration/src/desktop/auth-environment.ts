@@ -11,16 +11,16 @@ export interface AuthEnvironmentConfig {
 
 /** Resolve the fixed authentication environment for this desktop build.
  *
- * @param input Packaging state supplied by Electron.
+ * @param input Packaging state and product-selected service environment.
  * @returns The matching API origin and cookie partition.
  */
-export function resolveAuthEnvironment(input: { packaged: boolean }): AuthEnvironmentConfig {
-  const service = desktopServiceEnvironment(input.packaged ? 'production' : 'test')
+export function resolveAuthEnvironment(input: { packaged: boolean; serviceEnvironment?: AuthEnvironment }): AuthEnvironmentConfig {
+  const service = desktopServiceEnvironment(input.serviceEnvironment ?? (input.packaged ? 'production' : 'test'))
   return {
     name: service.name,
     baseUrl: service.authOrigin,
     partition: input.packaged
-      ? 'persist:insight-auth-production'
+      ? `persist:insight-auth-${service.name}`
       : 'insight-auth-test',
   }
 }

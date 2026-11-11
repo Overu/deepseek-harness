@@ -31,6 +31,8 @@ Insight Desktop uses this private bundle for product branding, authentication be
 
 The Insight application adds `@insight-ai/desktop-integration` to its account profile after authentication selects a safe Home. Profile preparation adds a missing declaration to an existing account profile, and plugin recovery retains the bundle while disabling other third-party bundles. The package is private and has no standalone installation path; the official Desktop composition remains unchanged.
 
+Packaged Insight selects its service environment from validated application metadata before authentication. The isolated [test installer](../../../apps/desktop/packaging/README.md#configuration-and-local-builds) uses the test gateway and persistent test authentication partition; the ordinary package uses production. Development uses the test gateway with a nonpersistent partition.
+
 ### What you get
 
 Before a Host exists, the native login window retains the Insight brand panel, interactive dot field, and SMS/password forms, with consent links, credential restoration, and account-scoped Home selection. The window stays hidden while saved credentials are restored; successful authentication and Home preparation enter the workspace directly, while unavailable credentials or Home admission failures show the existing login or recovery surface. Desktop Main keeps the credential in encrypted Electron storage for packaged builds and exposes only renderer-safe login state. Bundled service and privacy documents open inside the login window with fixed header and footer controls, a scrolling reading area, Escape dismissal, and focus restoration. Reading or closing a document does not accept it or submit authentication.

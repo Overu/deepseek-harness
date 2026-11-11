@@ -181,11 +181,13 @@ Desktop 的致命故障通过原生恢复对话框提供退出、重启、禁用
 
 macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的环境，不包含 shell 启动文件导出的变量。第一个 Host 启动之前，Desktop 以 `<shell> -ilc` 运行一次账户的登录 shell（取自用户数据库，不看 `$SHELL`），读取定界符之间的 `env -0` 输出，使 `~/.zprofile` 和 `~/.zshrc`（或该 shell 的对应文件）对 Host、agent shell、终端和 profile 配置生效。读取与 profile 准备并行进行。读取进程没有终端输入，并设置 `DISABLE_AUTO_UPDATE=true`、`ZSH_TMUX_AUTOSTARTED=true` 和 `ZSH_TMUX_AUTOSTART=false`，避免 oh-my-zsh 和 tmux 插件阻塞。shell 的值覆盖继承的值，但 `PWD`、`OLDPWD`、`SHLVL`、`_`、上述读取变量以及启动方自有的 `DSH_*` 和 `ELECTRON_*` 除外；Desktop 在读取之前已按 `DSH_HOME` 等变量解析路径，因此 Host 保持相同的值。读取在结束定界符出现时完成，因此启动文件启动的后台进程可以继续运行，其输出被丢弃。候选 shell 无法启动、以非零状态退出、没有输出定界内容或超过 `DSH_DESKTOP_LOGIN_SHELL_TIMEOUT_MS`（1000 到 2147483647 的整数毫秒，默认 `10000`；超时会结束其进程组）时，Desktop 记录一条警告，并依次尝试 `/bin/zsh`、`/bin/bash` 和 `/bin/sh`；全部失败时 Host 使用继承的环境。读取命令使用 POSIX 语法，因此 csh、tcsh 或 nushell 等账户 shell 会失败，Host 改为获得第一个系统 shell 的启动文件所设置的环境。读取期间退出 Desktop 会结束正在运行的读取进程组。每个应用进程只读取一次，因此修改 shell 启动文件后需要退出并重新打开 Desktop。Windows 从图形界面启动的程序已经从注册表继承用户和系统环境变量，因此 Windows 跳过这一步。
 
-启动 Host 前，Desktop 会移除启动器或登录 shell 继承的所有大小写变体 `DSH_PRODUCT_REQUIRED_BUNDLES` 和 `DSH_INSIGHT_SKILL_PROXY_NODE`。官方产品保持两者缺失。Insight 仅将 `product.ts` 中固定的产品 bundle 列表序列化为 JSON 后写入，并传递既有 primary-runtime Node 路径；它只向 Host 侧插件管理传递产品要求，不读取或替换用户 registry，也不携带第二份 Node 运行时。
+启动 Host 前，Desktop 会移除启动器或登录 shell 继承的所有大小写变体 `DSH_PRODUCT_REQUIRED_BUNDLES` 和 `DSH_INSIGHT_SKILL_PROXY_NODE`。官方产品保持两者缺失。Insight 在打包运行时中包含所有必需的产品 bundle，再将 `product.ts` 中固定的 bundle 列表序列化为 JSON 后写入，并传递既有 primary-runtime Node 路径；它只向 Host 侧插件管理传递产品要求，不读取或替换用户 registry，也不携带第二份 Node 运行时。
 
 <a id="insight-bundled-skills"></a>
 
-Insight 不再打包 `bundled-skills` 目录。已登录用户可在[技能中心](../../packages/insight/skill-center/README.zh.md)安装、更新和移除平台技能；已提交技能保留在当前账号的本地数据中，并显示在“专家技能 → 平台预置”。
+Insight 打包 `bundled-skills` 目录，包括图像分层技能及其 PSD 下载脚本；安装后可在“专家技能 → 用户技能”中使用。已登录用户也可在[技能中心](../../packages/insight/skill-center/README.zh.md)安装、更新和移除账号所属的平台技能；已提交技能保留在当前账号的本地数据中，并显示在“专家技能 → 平台预置”。若账号已安装同调用名称的技能，则优先使用账号安装的版本。
+
+连接测试业务服务的可安装客户端使用独立应用标识，参见[打包指南](packaging/README.zh.md#configuration-and-local-builds)。
 
 <a id="develop"></a>
 

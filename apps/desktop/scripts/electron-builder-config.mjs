@@ -43,6 +43,7 @@ import {
 
 const INSIGHT_BRANDING_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/', import.meta.url))
 const INSIGHT_INSTALLER_ASSETS_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/installer-assets/', import.meta.url))
+const INSIGHT_SKILLS_ROOT = fileURLToPath(new URL('../../../bundled-skills/', import.meta.url))
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -106,7 +107,8 @@ export function createElectronBuilderConfig(
   if (windowsSigner !== undefined) {
     installWindowsNsisBootstrapSigner({ sign: windowsSigner })
   }
-  const update = unsigned ? undefined : insight?.update ?? resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch)
+  const update = unsigned ? undefined : insight === undefined
+    ? resolveDesktopAutoUpdateConfig(env, resolvedPlatform, resolvedArch) : insight.update
   if (preparedRuntime !== undefined) buildPaths.dsh = preparedRuntime
   // electron-builder merges extraMetadata into the packaged manifest, so a build version here reaches
   // the artifact names, the update feed, and the installed app.getVersion() the updater compares against.
@@ -123,7 +125,7 @@ export function createElectronBuilderConfig(
   const packaged = resolveDesktopBuildCommit(env)
   return {
     appId,
-    protocols: [{ name: productName, schemes: ['dsh'] }],
+    protocols: insight?.serviceEnvironment === 'test' ? undefined : [{ name: productName, schemes: ['dsh'] }],
     extraMetadata: {
       dshDesktopAppId: appId,
       dshDesktopUpdateChannel: update?.channel ?? 'nightly',
@@ -131,6 +133,7 @@ export function createElectronBuilderConfig(
         dshDesktopProduct: INSIGHT_PACKAGING_PRODUCT,
         dshDesktopProductVersion: productVersion,
         dshDesktopRuntimeVersion: runtimeVersion,
+        ...(insight.serviceEnvironment === 'test' ? { dshInsightServiceEnvironment: 'test' } : {}),
       }),
       ...(policy === undefined ? {} : { dshMandatoryUpdatePolicy: policy }),
       // The tracked app manifest remains the DSH runtime version. Insight always writes its
@@ -142,7 +145,7 @@ export function createElectronBuilderConfig(
     // The default copyright uses author.name; this line names the product instead.
     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
-    artifactName: `${insight === undefined ? 'deepseek-harness' : 'insight'}-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+    artifactName: `${insight === undefined ? 'deepseek-harness' : insight.artifactPrefix}-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
     electronDist: buildPaths.electron,
@@ -189,6 +192,7 @@ export function createElectronBuilderConfig(
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       ...(insight === undefined ? [] : [{ from: INSIGHT_BRANDING_ROOT, to: 'branding' }]),
       ...(insight === undefined ? [] : [{ from: INSIGHT_UPDATE_RESOURCE_ROOT, to: 'insight-update' }]),
+      ...(insight === undefined ? [] : [{ from: INSIGHT_SKILLS_ROOT, to: 'bundled-skills' }]),
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],

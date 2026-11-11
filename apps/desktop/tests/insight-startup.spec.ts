@@ -63,6 +63,7 @@ const { InsightLoginClosedError, insightLoginInput, prepareInsightDesktop } = aw
 const product = {
   kind: 'insight' as const, productName: '因赛AI' as const, appId: 'com.insight-aigc.desktop' as const,
   userDataName: 'insight-desktop' as const, developmentUserDataName: 'insight-desktop-dev' as const,
+  serviceEnvironment: 'test' as const,
   productVersion: '1.0.0', runtimeVersion: '0.2.0',
   branding: {
     macIcon: 'branding/icon.icns' as const,

@@ -1,10 +1,11 @@
 /** Validate the assembled application, including native Office conversion outside ASAR. */
 import { fileURLToPath } from 'node:url'
+import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { desktopArtifactOutput, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
-import { resolveDesktopProduct } from '../src/product.ts'
+import { INSIGHT_REQUIRED_BUNDLES, resolveDesktopProduct } from '../src/product.ts'
 import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
@@ -43,8 +44,21 @@ async function main(): Promise<void> {
   const target = resolveDesktopBuildTarget()
   const artifacts = desktopArtifactOutput(paths, { unsigned: values.unsigned, skipNotarization: values['skip-notarization'] }).directory
   const { application, resources, executable } = resolvePackagedApplicationPaths(target, artifacts, process.env)
+  const insight = resolveDesktopProduct({ isPackaged: false, environment: process.env }).kind === 'insight'
+  if (insight) {
+    for (const file of ['SKILL.md', join('scripts', 'download_psd.mjs')]) {
+      const path = join(resources, 'bundled-skills', 'image-layering', file)
+      if (!statSync(path).isFile()) throw new Error(`desktop package: missing Insight skill file ${path}`)
+    }
+  }
   const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
     resolveDesktopPackageTarget(target))
+  if (insight) {
+    const packages = new Set(descriptor.sharedPackages.map(entry => entry.name))
+    for (const name of INSIGHT_REQUIRED_BUNDLES) {
+      if (!packages.has(name)) throw new Error(`desktop package: missing Insight bundle ${name}`)
+    }
+  }
   if (shouldVerifyWindowsCode(target, values.unsigned, process.env)) await verifyWindowsCode(application)
   await smokePreparedRuntime(join(resources, 'app.asar', 'dsh'), executable, join(resources, 'runtime'), descriptor)
 }

@@ -38,10 +38,11 @@ export interface OfficialDesktopProduct {
 /** Insight Desktop product identity and its separately-versioned DSH runtime. */
 export interface InsightDesktopProduct {
   readonly kind: 'insight'
-  readonly productName: '因赛AI'
-  readonly appId: 'com.insight-aigc.desktop'
-  readonly userDataName: 'insight-desktop'
+  readonly productName: '因赛AI' | '因赛AI 测试版'
+  readonly appId: 'com.insight-aigc.desktop' | 'com.insight-aigc.desktop.test'
+  readonly userDataName: 'insight-desktop' | 'insight-desktop-test'
   readonly developmentUserDataName: 'insight-desktop-dev'
+  readonly serviceEnvironment: 'test' | 'production'
   readonly productVersion: string
   readonly runtimeVersion: string | undefined
   readonly branding: DesktopBranding
@@ -100,12 +101,24 @@ export function resolveDesktopProduct(options: ResolveDesktopProductOptions): De
     1,
   )
   const runtime = options.isPackaged ? objectField(options.manifest, DESKTOP_RUNTIME_VERSION_FIELD) : environment.DSH_CLIENT_VERSION
+  const packagedService = options.isPackaged ? objectField(options.manifest, 'dshInsightServiceEnvironment') : undefined
+  if (packagedService !== undefined && packagedService !== 'test') {
+    throw new Error('desktop product: dshInsightServiceEnvironment must be test when present')
+  }
+  const testPackage = packagedService === 'test'
+  if (testPackage && objectField(options.manifest, 'dshDesktopAppId') !== 'com.insight-aigc.desktop.test') {
+    throw new Error('desktop product: test service environment requires the isolated test application ID')
+  }
+  if (options.isPackaged && !testPackage && objectField(options.manifest, 'dshDesktopAppId') === 'com.insight-aigc.desktop.test') {
+    throw new Error('desktop product: test application ID requires the test service environment')
+  }
   return {
     kind: 'insight',
-    productName: '因赛AI',
-    appId: 'com.insight-aigc.desktop',
-    userDataName: 'insight-desktop',
+    productName: testPackage ? '因赛AI 测试版' : '因赛AI',
+    appId: testPackage ? 'com.insight-aigc.desktop.test' : 'com.insight-aigc.desktop',
+    userDataName: testPackage ? 'insight-desktop-test' : 'insight-desktop',
     developmentUserDataName: 'insight-desktop-dev',
+    serviceEnvironment: testPackage || !options.isPackaged ? 'test' : 'production',
     productVersion,
     runtimeVersion: runtime === undefined ? undefined : resolveVersion(runtime, DESKTOP_RUNTIME_VERSION_FIELD),
     branding: INSIGHT_BRANDING,
