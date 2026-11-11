@@ -1,7 +1,7 @@
 {
   "name": "dsh-memory-evolve",
   "description": "Layered memory, skill and task management for Insight workspaces",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-rc.1",
   "private": true,
   "type": "module",
   "main": "lib/index.js",

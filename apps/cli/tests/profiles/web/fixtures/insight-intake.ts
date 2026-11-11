@@ -8,9 +8,11 @@ import { bootProductionProfile } from '../../../../../../packages/test-support/l
 const repository = new URL('../../../../../../', import.meta.url)
 const patchPath = join(process.cwd(), 'insight-intake.patch.yml')
 const components = ['canvas', 'memory-evolve', 'prompt-enhance']
+const accountFixture = new URL('apps/web/tests/fixtures/canvas-history/index.js', repository).href
 const modules = components.map(component => new URL(`packages/insight/${component}/lib/index.js`, repository).href)
 await writeFile(patchPath, JSON.stringify([
   { id: 'web-runtime', config: { printUrl: false, openBrowser: false } },
+  { insert: [{ id: 'fixture-insight-account', name: accountFixture }] },
   { insert: modules.map((name, index) => ({
     id: `insight-${components[index]}`,
     name,
@@ -48,9 +50,9 @@ try {
   assert(names.has('canvas_process'))
   assert(names.has('memory'))
   const origin = ctx.webServer.getOrigin()
-  for (const path of ['/desktop-canvas/canvas-service.js', '/memory-evolve/api/config', '/prompt-enhance/enhance']) {
+  for (const path of ['/desktop-canvas/canvas-service.js', '/memory-evolve/api/config', '/api/prompt-enhance']) {
     const response = await fetch(origin + path, {
-      method: path.startsWith('/prompt-enhance/') ? 'POST' : 'GET',
+      method: path === '/api/prompt-enhance' ? 'POST' : 'GET',
     })
     assert([401, 403].includes(response.status), `${path} must reject an unauthenticated request; got ${response.status}`)
     await response.body?.cancel()
