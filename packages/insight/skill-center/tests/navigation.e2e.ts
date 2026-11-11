@@ -160,14 +160,14 @@ it('uses the technical name despite OSS numeric ID changes, absence, or invalid 
       const installedCard = page.getByRole('article').filter({
         has: page.getByText('Installed', { exact: true }),
       })
+      const originalCard = page.getByRole('article').filter({ hasText: CATALOG_FIXTURE.skills[0]!.name })
       await installedCard.getByRole('button', { name: /View details$/u }).click()
       await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
-      await page.getByRole('button', { name: 'Install', exact: true }).waitFor()
+      await originalCard.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await expect(stat(installedPath)).rejects.toMatchObject({ code: 'ENOENT' })
       expect(JSON.parse(await readFile(historyPath, 'utf8'))).toEqual({ id: skillName })
       await page.reload({ waitUntil: 'load' })
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
-      const originalCard = page.getByRole('article').filter({ hasText: CATALOG_FIXTURE.skills[0]!.name })
       const renamedCard = page.getByRole('article').filter({ hasText: 'Renamed skill' })
       await originalCard.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await renamedCard.getByRole('button', { name: 'Install', exact: true }).waitFor()
