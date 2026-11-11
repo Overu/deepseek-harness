@@ -28,6 +28,7 @@
     "@deepseek-ai/dsh-workspace": "workspace:*",
     "@deepseek-ai/dsh-plugin-manager": "workspace:*",
     "@insight-ai/desktop-canvas-plugin": "workspace:~",
+    "@insight-ai/desktop-media-upload-plugin": "workspace:~",
     "dsh-memory-evolve": "workspace:~",
     "dsh-prompt-enhance": "workspace:~",
     "@insight-ai/desktop-integration": "workspace:*",

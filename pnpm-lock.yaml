@@ -908,6 +908,9 @@ importers:
       '@insight-ai/desktop-integration':
         specifier: workspace:*
         version: link:../../packages/insight/desktop-integration
+      '@insight-ai/desktop-media-upload-plugin':
+        specifier: workspace:~
+        version: link:../../packages/insight/media-upload
       '@insight-ai/skill-center':
         specifier: workspace:~
         version: link:../../packages/insight/skill-center
