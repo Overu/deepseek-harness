@@ -12,6 +12,10 @@
     { "path": "../../session/session-projection" },
     { "path": "../../core/tools" },
     { "path": "../../interaction/user-approval" },
+    { "path": "../../interaction/permission-presets" },
+    { "path": "../../fs/fs" },
+    { "path": "../../session/working-directory" },
+    { "path": "../../sandbox/sandbox-policy" },
     { "path": "../desktop-integration/tsconfig.host.json" }
   ],
   "include": ["src/**/*.ts"]

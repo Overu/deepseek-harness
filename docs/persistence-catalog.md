@@ -44,6 +44,7 @@ The [format references](persistence-changes/historical-formats/README.md) cover 
 | `event:hook/invoked` | event | `8a6e1ec9e8db346b0e02f027db73c07a94f067a26d40c1aef1abd09c47ce7ba0` | [`{ type: "hook/invoked" }`](#persistence-type-sha256-8a6e1ec9e8db346b0e02f027db73c07a94f067a26d40c1aef1abd09c47ce7ba0) |
 | `event:hook/result` | event | `e75916628f3f10c2d50658bd143052a46285fbf1a9a700ba54947614603d26b4` | [`{ type: "hook/result" }`](#persistence-type-sha256-e75916628f3f10c2d50658bd143052a46285fbf1a9a700ba54947614603d26b4) |
 | `event:image/offload` | event | `b222069eea2d768065161c1147b1f2c78c1b54328c84b3586ae5c8f91b8ed35e` | [`{ type: "image/offload" }`](#persistence-type-sha256-b222069eea2d768065161c1147b1f2c78c1b54328c84b3586ae5c8f91b8ed35e) |
+| `event:insight/image-layering/task` | event | `0daa9aecdd7c2dd04fe926bf8cbb1a969ab91db4b1901eb755b2a8b6066f47dd` | [`{ type: "insight/image-layering/task" }`](#persistence-type-sha256-0daa9aecdd7c2dd04fe926bf8cbb1a969ab91db4b1901eb755b2a8b6066f47dd) |
 | `event:job/registered` | event | `f5520c1d261ca86ea03735799c311a0a9ede8babb588cf0a65422576d2ee0ad1` | [`{ type: "job/registered" }`](#persistence-type-sha256-f5520c1d261ca86ea03735799c311a0a9ede8babb588cf0a65422576d2ee0ad1) |
 | `event:job/settled` | event | `edd37b1e4974af648633014435572089b1e8fb71910468a0767a7e28fdd22abf` | [`{ type: "job/settled" }`](#persistence-type-sha256-edd37b1e4974af648633014435572089b1e8fb71910468a0767a7e28fdd22abf) |
 | `event:llm/retry` | event | `525254db03b1d1e6b74cf55aced52817568331ac1f96c0818728910b6692e336` | [`{ type: "llm/retry" }`](#persistence-type-sha256-525254db03b1d1e6b74cf55aced52817568331ac1f96c0818728910b6692e336) |
@@ -631,6 +632,19 @@ Source: [`packages/experimental/hook-protocol/src/types.ts:31`](../packages/expe
 ```
 
 Source: [`packages/compaction/compaction-image-offload/src/projection.ts:25`](../packages/compaction/compaction-image-offload/src/projection.ts)
+
+### `insight/*`
+
+<a id="insightimage-layeringtask--log-only"></a>
+
+#### `insight/image-layering/task` — log-only
+
+```ts persistence-catalog
+/** Durable reservation before a potentially paid image-layering creation. */
+'insight/image-layering/task': { readonly task: BoundTask }
+```
+
+Source: [`packages/insight/media-upload/src/image-layering.ts:32`](../packages/insight/media-upload/src/image-layering.ts)
 
 ### `job/*`
 
@@ -1533,6 +1547,14 @@ SHA-256: `254dce209e735f9cb6f6b7aec0354712b1611759ec02af4d35a96f2081e666f6`
 
 `"blocked"`
 
+<a id="persistence-type-sha256-898111ebe8e5eec479d78fe8526df5e0e039d785cae83c93f547261cfedd48bd"></a>
+
+### `"bound"`
+
+SHA-256: `898111ebe8e5eec479d78fe8526df5e0e039d785cae83c93f547261cfedd48bd`
+
+`"bound"`
+
 <a id="persistence-type-sha256-d4e4d575abeb4b72d616dc65c17ac0eaa943cc135609395044c38d5afcb10e31"></a>
 
 ### `"canceled"`
@@ -2043,6 +2065,14 @@ SHA-256: `e7ce49f12953583fad217bf80fb9f1463acff2c3e9471a823782661675fb124c`
 
 `"initial"`
 
+<a id="persistence-type-sha256-9b45b464efca87b9bea8b7fdef5a1b5091ce71cb7c8cc4c0f73ac607983f5c59"></a>
+
+### `"insight/image-layering/task"`
+
+SHA-256: `9b45b464efca87b9bea8b7fdef5a1b5091ce71cb7c8cc4c0f73ac607983f5c59`
+
+`"insight/image-layering/task"`
+
 <a id="persistence-type-sha256-e4cac694f8b6e1d52e48c699464f1c4c26111ef87e558f7931040d00fdc8d486"></a>
 
 ### `"instruction-following"`
@@ -2387,6 +2417,14 @@ SHA-256: `16d0507cb94b4cfc84a87446b1ba7652d6ec1d65ee1684789e747e30d542800e`
 
 `"relay"`
 
+<a id="persistence-type-sha256-13527ff9ba8f89d110df1ffc1a3e898834b49ecb528f88550378fc69c337f981"></a>
+
+### `"released"`
+
+SHA-256: `13527ff9ba8f89d110df1ffc1a3e898834b49ecb528f88550378fc69c337f981`
+
+`"released"`
+
 <a id="persistence-type-sha256-7382c4fc95fe8c5db65ca4d9da572b115d0dbb818b7f32c22ab040318ffbb4bc"></a>
 
 ### `"remove"`
@@ -2427,6 +2465,14 @@ SHA-256: `3e0eff5946255ff05d88a10839c60305135801f97794ea48d409f8503303317e`
 
 `"request/header"`
 
+<a id="persistence-type-sha256-5c6f923e4666d049a98667b84ec3efac62332414e16b15d23837dd5dcd85fac3"></a>
+
+### `"reserved"`
+
+SHA-256: `5c6f923e4666d049a98667b84ec3efac62332414e16b15d23837dd5dcd85fac3`
+
+`"reserved"`
+
 <a id="persistence-type-sha256-5bd310104cfe448e530beb11422d2f791e2e32e8e95fdc528a15f9ca693dae75"></a>
 
 ### `"resource-cost"`
@@ -2442,6 +2488,14 @@ SHA-256: `5bd310104cfe448e530beb11422d2f791e2e32e8e95fdc528a15f9ca693dae75`
 SHA-256: `34d1ab5c5df378186d6054b1a1beea9a41e41965d6f336f0bc0025c441a82e66`
 
 `"resume"`
+
+<a id="persistence-type-sha256-002a75463ed1a11cf915624bdf6c82d21562decb3ceabf9a06e107e0a7e97963"></a>
+
+### `"retry_eligible"`
+
+SHA-256: `002a75463ed1a11cf915624bdf6c82d21562decb3ceabf9a06e107e0a7e97963`
+
+`"retry_eligible"`
 
 <a id="persistence-type-sha256-24b10f7cdae64928f89c49afc2eca0af9eb4a2f135e16f3416e6b8461fef1748"></a>
 
@@ -3245,6 +3299,31 @@ One of:
 SHA-256: `68cb67cc2521c0906d2903ccb3f7fe2ebf69d4ce0986321f896c4ef0799d0d29`
 
 Array of [`AssistantStreamRecord`](#persistence-type-sha256-54d1cd1975646fc8a901b9dbffcb2453ce49374ff5e81d4c918e2a3edcd5b1c4).
+
+<a id="persistence-type-sha256-0e3d45797018f60d894f935a0418cb29dc6ce89d96aa4730a5e27a272c833ddf"></a>
+
+<a id="persistence-type-boundtask"></a>
+
+<a id="persistence-type-packagesinsightmedia-uploadsrcimage-layeringtsboundtask"></a>
+
+### `BoundTask`
+
+SHA-256: `0e3d45797018f60d894f935a0418cb29dc6ce89d96aa4730a5e27a272c833ddf`
+
+Sources: [`packages/insight/media-upload/src/image-layering.ts:16`](../packages/insight/media-upload/src/image-layering.ts)
+
+| Property | Presence | Type |
+|---|---|---|
+| `accountScope` | required | `string` |
+| `attempt` | required | [`union (2 variants)`](#persistence-type-sha256-0a010ecef52e6f3d200c4fe5659463594a67f6de23133dc0a90d87ddc5b461b6) |
+| `cwd` | required | `string` |
+| `file` | required | [`FileAttachmentRef`](#persistence-type-sha256-f19bee84bf3d20904553cdcd57465232bc1c2a194f54c4d195292ba0487223a6) |
+| `firstHandle` | optional | `string` |
+| `handle` | optional | `string` |
+| `numLayers` | required | `number` |
+| `prompt` | required | `string` |
+| `requestKey` | required | `string` |
+| `state` | required | [`union (4 variants)`](#persistence-type-sha256-4bab878faeb324b55862c47d45657f8aedb02bbdc7dc12d8d4e126775b3ad171) |
 
 <a id="persistence-type-sha256-ada310bf0bdb8fed51f3b56ea63f6ea6b18bbd587f04fccb63a14ab0b2a24e05"></a>
 
@@ -5691,6 +5770,17 @@ One of:
 - [`{ compactionId, llmStreamCall, maxTokens?, model, … }`](#persistence-type-sha256-aef0098c450d802cb7ab6b30583653a56c9a08a81a3fd4eae4da3b06ea4c7b7e)
 - [`{ compactionId, maxTokens?, model, provider, … }`](#persistence-type-sha256-f37a27edae041bb60ac68aea6232a500c89be8fb2f80b90b13f447d05bb7984b)
 
+<a id="persistence-type-sha256-0a010ecef52e6f3d200c4fe5659463594a67f6de23133dc0a90d87ddc5b461b6"></a>
+
+### `union (2 variants)`
+
+SHA-256: `0a010ecef52e6f3d200c4fe5659463594a67f6de23133dc0a90d87ddc5b461b6`
+
+One of:
+
+- `1`
+- `2`
+
 <a id="persistence-type-sha256-1ab2ef1296f157ba96998f179bb5daa9d21a82480da2901127aeab2730797c92"></a>
 
 ### `union (2 variants)`
@@ -5773,6 +5863,19 @@ One of:
 - `"completed"`
 - `"in_progress"`
 - `"pending"`
+
+<a id="persistence-type-sha256-4bab878faeb324b55862c47d45657f8aedb02bbdc7dc12d8d4e126775b3ad171"></a>
+
+### `union (4 variants)`
+
+SHA-256: `4bab878faeb324b55862c47d45657f8aedb02bbdc7dc12d8d4e126775b3ad171`
+
+One of:
+
+- `"bound"`
+- `"released"`
+- `"reserved"`
+- `"retry_eligible"`
 
 <a id="persistence-type-sha256-62e6a429ff3f390a46ac39fb468692032f42936ca0db19b53454184189401379"></a>
 
@@ -8083,6 +8186,18 @@ Sources: [`packages/compaction/compaction-image-offload/src/projection.ts:25`](.
 |---|---|---|
 | `targets` | required | [`ImageOffloadTarget[]`](#persistence-type-sha256-9e2c06d8653585b33d72d5c1a80da79c8a24a88c284409bca15cc0f0ead5ebfb) |
 
+<a id="persistence-type-sha256-a52f9955d34bbf58ca07e1a170d007cfdc4dee5abed9fe9aec218324bdce4643"></a>
+
+### `{ task }`
+
+SHA-256: `a52f9955d34bbf58ca07e1a170d007cfdc4dee5abed9fe9aec218324bdce4643`
+
+Sources: [`packages/insight/media-upload/src/image-layering.ts:32`](../packages/insight/media-upload/src/image-layering.ts)
+
+| Property | Presence | Type |
+|---|---|---|
+| `task` | required | [`BoundTask`](#persistence-type-sha256-0e3d45797018f60d894f935a0418cb29dc6ce89d96aa4730a5e27a272c833ddf) |
+
 <a id="persistence-type-sha256-a40d12070f6f4a124f32fb3cc86e7857554702e32f0eda3080a25c4b9ac9b18c"></a>
 
 ### `{ task, teamId, version }`
@@ -8543,6 +8658,22 @@ SHA-256: `b222069eea2d768065161c1147b1f2c78c1b54328c84b3586ae5c8f91b8ed35e`
 | `seq` | required | `number` |
 | `time` | required | `number` |
 | `type` | required | `"image/offload"` |
+
+<a id="persistence-type-sha256-0daa9aecdd7c2dd04fe926bf8cbb1a969ab91db4b1901eb755b2a8b6066f47dd"></a>
+
+<a id="persistence-type-eventinsightimage-layeringtask"></a>
+
+### `{ type: "insight/image-layering/task" }`
+
+SHA-256: `0daa9aecdd7c2dd04fe926bf8cbb1a969ab91db4b1901eb755b2a8b6066f47dd`
+
+| Property | Presence | Type |
+|---|---|---|
+| `data` | required | [`{ task }`](#persistence-type-sha256-a52f9955d34bbf58ca07e1a170d007cfdc4dee5abed9fe9aec218324bdce4643) |
+| `ignorable` | optional | `true` |
+| `seq` | required | `number` |
+| `time` | required | `number` |
+| `type` | required | `"insight/image-layering/task"` |
 
 <a id="persistence-type-sha256-f5520c1d261ca86ea03735799c311a0a9ede8babb588cf0a65422576d2ee0ad1"></a>
 

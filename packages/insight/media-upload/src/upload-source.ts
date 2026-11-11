@@ -16,6 +16,7 @@ interface CurrentTurnUploads {
   readonly open: boolean
   readonly turnSeq: number
   readonly sources: readonly UploadSource[]
+  readonly recentTurns: readonly { readonly turnSeq: number; readonly sources: readonly UploadSource[] }[]
 }
 
 const fileSchema = z.object({
@@ -28,32 +29,44 @@ const stateSchema: z.ZodType<CurrentTurnUploads> = z.object({
   open: z.boolean(),
   turnSeq: z.number().int().nonnegative(),
   sources: z.array(z.object({ seq: z.number().int().nonnegative(), file: fileSchema.nullable() })),
+  recentTurns: z.array(z.object({ turnSeq: z.number().int().nonnegative(),
+    sources: z.array(z.object({ seq: z.number().int().nonnegative(), file: fileSchema.nullable() })) })),
 })
 
 /** Host-only projection of direct-user file occurrences in the open turn. */
 export const currentTurnUploadsProjection = {
   key: 'insightCurrentTurnUploads',
-  stateVersion: 2,
+  stateVersion: 3,
   stateSchema,
-  init: (_header, inheritedEventCount) => ({ inheritedCount: Number(inheritedEventCount), open: false, turnSeq: 0, sources: [] }),
+  init: (_header, inheritedEventCount) => ({ inheritedCount: Number(inheritedEventCount), open: false,
+    turnSeq: 0, sources: [], recentTurns: [] }),
   apply: (state, event: SessionEvent) => {
     if (Number(event.seq) < state.inheritedCount) return state
     if (event.type === 'turn/start') return { ...state, open: true, turnSeq: Number(event.seq), sources: [] }
     if (event.type === 'turn/end') return { ...state, open: false, sources: [] }
-    if (!state.open) return state
     const op = event.surfaceOp
     const replaced = typeof op === 'object'
       ? state.sources.filter(source => source.seq < Number(op.startSeq) || source.seq > Number(op.endSeq))
       : state.sources
+    const recentTurns = typeof op === 'object'
+      ? state.recentTurns.map(turn => ({ ...turn,
+        sources: turn.sources.filter(source => source.seq < Number(op.startSeq) || source.seq > Number(op.endSeq)) }))
+      : state.recentTurns
+    if (!state.open) return recentTurns === state.recentTurns ? state : { ...state, recentTurns }
     if (event.type !== 'user/message' || event.data.source.kind !== 'user') {
-      return replaced === state.sources ? state : { ...state, sources: replaced }
+      return replaced === state.sources && recentTurns === state.recentTurns
+        ? state : { ...state, sources: replaced, recentTurns }
     }
     const additions: UploadSource[] = event.data.content.flatMap((part) => {
       if (part.type === 'file') return [{ seq: Number(event.seq), file: part.attachment }]
       if (part.type === 'image') return [{ seq: Number(event.seq), file: part.originalFile ?? null }]
       return []
     })
-    return additions.length === 0 && replaced === state.sources ? state : { ...state, sources: [...replaced, ...additions] }
+    const last = recentTurns.at(-1)
+    const turns = last?.turnSeq === state.turnSeq
+      ? [...recentTurns.slice(0, -1), { turnSeq: state.turnSeq, sources: [...last.sources, ...additions] }]
+      : [...recentTurns, { turnSeq: state.turnSeq, sources: additions }].slice(-3)
+    return { ...state, sources: [...replaced, ...additions], recentTurns: turns }
   },
 } satisfies ProjectionDefinition<'insightCurrentTurnUploads', CurrentTurnUploads>
 
@@ -65,6 +78,57 @@ export const currentTurnUploadsProjection = {
 export function uploadTurnSeq(agent: Agent, projection: ProjectionHandle<CurrentTurnUploads>): number | undefined {
   const state = projection.stateOf(agent.session)
   return state.open ? state.turnSeq : undefined
+}
+
+/** A directly uploaded image in one of the last three user-message turns. */
+export interface LayeringSource {
+  /** Content-addressed reference to select this exact original. */
+  readonly sourceRef: string
+  /** Original attachment filename for user selection. */
+  readonly filename: string
+  /** User turn containing the image. */
+  readonly turnSeq: number
+  /** Message event sequence containing the image. */
+  readonly messageSeq: number
+}
+
+function layeringCandidates(agent: Agent, projection: ProjectionHandle<CurrentTurnUploads>) {
+  const state = projection.stateOf(agent.session)
+  if (!state.open) throw new Error('Use image layering in an open user conversation.')
+  const candidates = new Map<string, { source: LayeringSource; file: FileAttachmentRef }>()
+  for (const turn of state.recentTurns) for (const occurrence of turn.sources) {
+    const file = occurrence.file
+    if (!file || file.bytes < 1 || !/\.(png|jpe?g|webp)$/iu.test(file.name)) continue
+    const sourceRef = String(file.attachmentId)
+    candidates.set(sourceRef, { source: { sourceRef, filename: file.name,
+      turnSeq: turn.turnSeq, messageSeq: occurrence.seq }, file })
+  }
+  return [...candidates.values()]
+}
+
+/** List eligible original images without reading their bytes.
+ * @param agent - Root Agent in the current Session.
+ * @param projection - Session attachment projection.
+ * @returns At most three user turns of distinct image references.
+ */
+export function listLayeringSources(agent: Agent, projection: ProjectionHandle<CurrentTurnUploads>): LayeringSource[] {
+  return layeringCandidates(agent, projection).map(candidate => candidate.source)
+}
+
+/** Resolve a selected image against the current Session's recent user uploads.
+ * @param agent - Root Agent in the current Session.
+ * @param sourceRef - Content-addressed reference returned by listLayeringSources.
+ * @param projection - Session attachment projection.
+ * @returns Original stored file reference.
+ */
+export function selectLayeringSource(agent: Agent, sourceRef: string | undefined,
+  projection: ProjectionHandle<CurrentTurnUploads>): FileAttachmentRef {
+  const candidates = layeringCandidates(agent, projection)
+  if (candidates.length === 0) throw new Error('No original image is available in the last three user turns; upload it again.')
+  if (!sourceRef && candidates.length !== 1) throw new Error('Choose one image from prepare_image_layering_source first.')
+  const candidate = sourceRef ? candidates.find(item => item.source.sourceRef === sourceRef) : candidates[0]
+  if (!candidate) throw new Error('The selected image is outside the last three user turns; choose again.')
+  return candidate.file
 }
 
 /** Select exactly one committed current-turn attachment; a missing image original is refused.

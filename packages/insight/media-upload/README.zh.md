@@ -1,5 +1,5 @@
 ---
-description: "因赛 Desktop 经审批上传附件至 OSS 并以当前登录态进行图像分层的工具。"
+description: "因赛 Desktop 上传附件至 OSS 并以当前登录态进行图像分层的工具。"
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ kind: "package-bundle"
 
 ## 概述
 
-因赛 Desktop 加载此组合，注册 `upload_attachment`、`submit_image_layering` 和 `get_image_layering`。上传需要当前轮次的一项用户附件及审批，随后从上传中心获取临时凭据，将原始字节写入 OSS；返回 URL 的读取权限未经验证。图像分层仅接收本轮成功上传的图片 URL，通过 `POST /api/skill-proxy/call-insight-api` 提交，返回绑定用户的任务句柄，并由会话 Job 跟踪状态。可凭句柄再次查询而不重复提交；只有上游 `image_list` 中出现 PSD URL，才取得所需 PSD。
+因赛 Desktop 加载此组合，注册通用 OSS 上传工具及图像分层的来源、提交、查询、重建和缓存工具。通用上传仅接受当前轮次用户直接提供的附件：“完全权限”下免单独审批，其余权限预设保留各自审批行为。图像分层从最近三个含用户消息的轮次中选择原图，在提交时上传，并由会话 Job 跟踪企业任务。完成后须下载、验证 PSD 与分层图像，再以本地文件卡片交付。
 
 ## 目录
 
@@ -24,16 +24,16 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-本包仅由因赛 Desktop 产品组合加载。其补丁也仅为该产品启用 `file-upload.retainOriginalImage`，使图片提示词同时保留私有原图文件引用与归一化的模型图片。其他产品组合沿用默认值 `false`。`serviceEnvironment` 选择固定的测试或生产上传中心；`requestTimeoutMs` 和 `ossTimeoutMs` 限制外部请求时间。
+本包仅由因赛 Desktop 产品组合加载。其补丁也仅为该产品启用 `file-upload.retainOriginalImage`，使图片提示词同时保留私有原图文件引用与归一化的模型图片。其他产品组合沿用默认值 `false`。`serviceEnvironment` 选择固定的测试或生产上传中心；`requestTimeoutMs` 和 `ossTimeoutMs` 限制外部请求时间。`generationResultHosts` 为空时，测试环境使用固定的测试 OSS 结果主机，生产环境拒绝下载结果；非空列表明确指定允许的主机。
 
 模型可提供 `attachmentIndex`，即当前轮次用户直接提供的文件和图片附件中的 1 基序号；有多个候选项时必须指定。粘贴文本、本地路径、Canvas 素材、继承消息和旧轮次都不构成上传授权。缺失原图引用的图片无法上传。上传中心收到文件名与路由类型，但不收到文件大小或 MIME；STS 成功响应不能证明其接受范围、写权限或大小上限。原企业附件策略不再参与本流程。
 
 <a id="implementation"></a>
 ## 实现
 
-`src/image-layering.ts` 通过已认证代理发送一次创建请求，读取 NDJSON 终结事件，再注册会话 Job 经同一代理查询。`job_kill`、插件关闭或客户端重启只停止本地跟踪，不取消远端生成。工具结果保留 `taskHandle`，在服务句柄有效期内可用 `get_image_layering({ taskHandle, watch: true })` 恢复。提交传输失败可能使远端状态不明；POST 不会自动重试。请求、轮询和跟踪时限均为已校验的插件配置。
+`src/image-layering.ts` 在已认证代理创建请求前将每次创建名额写入 Session，取得句柄后绑定任务并启动 Job。确定失败或结果不完整时用同一句柄再查一次；只有首个任务可以使用保存的原图和参数再创建一次。创建或查询状态不明时不重新创建付费任务。任务绑定账号范围及初始交付目录。`job_kill`、关闭或重启只停止本地跟踪，不取消远端任务；句柄有效时可恢复查询。`src/result-cache.ts` 下载合法的 PSD 和图片，校验字节并通过 Session 沙箱文件系统写入。后续切换目录时先把已验证的整组文件复制到当前工作区；搬迁失败则保留原目录文件。
 
-`src/upload-source.ts` 将已提交 Session 事件折叠为仅在 Host 使用的当前轮次附件列表。`src/index.ts` 注册上传工具、检查根 Agent 并申请一次性外传审批。`src/upload-center.ts` 调用固定的上传中心网关路径，校验临时凭据、返回的对象名与 HTTPS OSS 目标，不向模型暴露登录令牌或临时凭据。STS 拒绝时报告 HTTP 状态和经过校验的服务错误码（如有），不返回响应消息。`src/oss-put.ts` 通过 `ali-oss` 流式传送附件，并关闭 SDK 自动重试。只有 OSS 明确返回 HTTP 200 且源流完整消费，工具才返回 URL；结果不明时不会自动再次 PUT，并在 Host 中记录仅含调用 ID 和错误码的诊断。
+`src/upload-source.ts` 将已提交 Session 事件分别折叠为通用上传的当前轮次附件列表，以及分层使用的最近三个用户轮次图片列表。`src/index.ts` 检查根 Agent；普通上传除有效“完全权限”预设外申请一次性审批，分层上传则依据用户对选定图片的处理请求执行。`src/upload-center.ts` 校验固定上传网关的 STS 响应，不暴露凭据。`src/oss-put.ts` 使用关闭 SDK 重试的流式写入。通用工具仅在 OSS HTTP 200 且原始字节完整消费后返回 URL；结果不明时不自动重复 PUT。
 
 <a id="model-experience"></a>
 ## 模型体验
@@ -70,11 +70,11 @@ OSS PUT 明确成功后返回 `url`、`urlAccess: "unverified"`、`filename` 和
 
 #### 模型看到的内容
 
-`submit_image_layering` 接收本轮成功上传图片的 `imageUrl`、可选 `prompt` 和可选非负整数 `numLayers`；省略时分别使用空提示词和零层。结果包含 `taskHandle`、当前状态，以及跟踪已启动时的 `jobId`。`get_image_layering` 接收 `taskHandle` 和可选 `watch`；成功时返回已验证的 `psdUrls` 与 `imageUrls`。任务完成但没有 PSD 时报告 `missing_psd`。若 Job 不可用，`monitoring: "unavailable"` 仍保留句柄。账号令牌与上游凭据不会进入工具结果。
+`prepare_image_layering_source` 列出合格原图，多张不同图片时先选定。`submit_image_layering` 接收 `sourceRef`、可选 `prompt` 和非负 `numLayers`（默认 `0`），在 Host 内上传并提交，不再请求通用上传的单独审批。兼容路径仍接受同轮普通上传得到的 `imageUrl`。`get_image_layering` 使用绑定的 `taskHandle` 和可选 `watch` 查询；初次任务两次确认的不完整结果报告 `retry_eligible`，第二次任务失败即停止。代理创建返回 HTTP 5xx 时按结果未知处理，不自动重建。`retry_image_layering` 最多使用原图与原参数再创建一次。Job 在成功查询后缓存结果；`cache_image_layering_result` 用于恢复，返回已校验的本地路径、完整性和目录搬迁状态，供技能调用 `present`。结果地址失效时只按同一句柄刷新一次，并复用对象路径相同的已验证文件。诊断指明无效字段与原因，不记录带签名的 URL。
 
 #### Token 影响
 
-加载后两个工具定义增加固定请求 token；任务 ID、状态、URL 和 Job 通知产生时增加保留 token。
+加载后五个分层工具定义增加固定请求 token；任务 ID、状态、本地路径、URL 和 Job 通知产生时增加保留 token。
 
 #### KV Cache 影响
 
@@ -86,7 +86,7 @@ OSS PUT 明确成功后返回 `url`、`urlAccess: "unverified"`、`filename` 和
 
 - 私有桶可能拒绝直接读取所返回的 URL。正式上线前仍需在隔离环境核验 STS 写权限、对象键唯一性、桶版本控制及无企业登记对象的清理。
 - 原图在本地按内容寻址存储，即使暂存提示词后来被丢弃，已保存的原图仍存在。
-- 代理任务句柄约 24 小时后过期。目标 Gateway 必须部署 `call-insight-api` 连接；本地服务仓库代码不能证明目标环境已经部署。真实上游既有仅返回 PNG 的结果，也有返回 PSD 的结果，因此任务成功不保证得到 PSD。技能包负责下载 PSD 并调用 `present`；生产环境结果 OSS 主机需要部署配置。
+- 代理任务句柄约 24 小时后过期。目标 Gateway 必须部署 `call-insight-api` 连接；本地服务仓库代码不能证明目标环境已经部署。上游可能仅返回 PNG，任务成功不保证取得 PSD。技能仅对已验证本地文件调用 `present`。生产环境结果 OSS 主机须配置到 `generationResultHosts`。
 
 <a id="dev-note"></a>
 ### 开发备注

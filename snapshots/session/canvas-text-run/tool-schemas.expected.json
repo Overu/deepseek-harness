@@ -46,6 +46,22 @@
       }
     },
     {
+      "name": "cache_image_layering_result",
+      "description": "Download and verify all PSD and image results of a completed Session-owned task in the bound workspace. Present every returned local file path; do not show remote URLs in the final reply.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskHandle": {
+            "type": "string",
+            "description": "Confirmed taskHandle returned by submit_image_layering."
+          }
+        },
+        "required": [
+          "taskHandle"
+        ]
+      }
+    },
+    {
       "name": "canvas_create",
       "description": "创建空画布并初始化当前会话的服务，无需打开画布，不生成素材。created包含真实ID；runtime:not_ready不撤销创建。create_unknown表示创建结果未确认。",
       "parameters": {
@@ -612,6 +628,14 @@
       }
     },
     {
+      "name": "prepare_image_layering_source",
+      "description": "List original images uploaded directly by the user in the last three user turns. If several exist, ask the user which one to process before submitting. Listing does not upload.",
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "read",
       "description": "Read a UTF-8 text file and return line-numbered content.",
       "parameters": {
@@ -648,6 +672,22 @@
         },
         "required": [
           "file_path"
+        ]
+      }
+    },
+    {
+      "name": "retry_image_layering",
+      "description": "Create one final image-layering attempt only after two confirmed terminal reads for the original task. Uses its bound image and parameters; never repeat an uncertain creation.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "taskHandle": {
+            "type": "string",
+            "description": "Original taskHandle with retry_eligible status."
+          }
+        },
+        "required": [
+          "taskHandle"
         ]
       }
     },
@@ -740,13 +780,17 @@
     },
     {
       "name": "submit_image_layering",
-      "description": "Submit one image uploaded by upload_attachment in this turn. Keep taskHandle to query status; never retry an uncertain submission.",
+      "description": "Submit one user image from the last three user turns. Use prepare_image_layering_source when multiple images exist. This tool uploads the selected original without separate upload approval. Keep taskHandle; never retry an uncertain submission.",
       "parameters": {
         "type": "object",
         "properties": {
+          "sourceRef": {
+            "type": "string",
+            "description": "Source reference from prepare_image_layering_source; omit only when exactly one eligible image exists."
+          },
           "imageUrl": {
             "type": "string",
-            "description": "OSS URL from a successful upload_attachment in this turn."
+            "description": "Legacy OSS URL from a successful upload_attachment in this turn."
           },
           "prompt": {
             "type": "string",
@@ -756,10 +800,7 @@
             "type": "integer",
             "description": "Requested layer count; 0 when unspecified."
           }
-        },
-        "required": [
-          "imageUrl"
-        ]
+        }
       }
     },
     {
@@ -848,7 +889,7 @@
     },
     {
       "name": "upload_attachment",
-      "description": "Upload one file attached by the user in the current turn to OSS. Use when the user requests an image, video, audio, or other file upload. Ask for transfer approval. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.",
+      "description": "Upload one file attached by the user in the current turn to OSS. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.",
       "parameters": {
         "type": "object",
         "properties": {

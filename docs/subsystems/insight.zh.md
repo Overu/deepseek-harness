@@ -36,6 +36,11 @@ Same-process service consumed only by trusted Host plugins. It has no Remote or 
  * @returns the token without persisting, logging, or exposing it through a remote service.
  */
 getAccessToken(signal?: AbortSignal): Promise<string>
+
+/** Return a noncredential identifier for the Main-selected account home.
+ * @returns Stable account scope for task ownership checks across Host restarts.
+ */
+getAccountScope(): string
 ```
 
 Source: [`packages/insight/desktop-integration/src/host/account-service.ts`](../../packages/insight/desktop-integration/src/host/account-service.ts)

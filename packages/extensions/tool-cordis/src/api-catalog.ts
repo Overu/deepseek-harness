@@ -1735,6 +1735,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'signal', description: 'cancellation for this request only.' }],
         returns: 'the token without persisting, logging, or exposing it through a remote service.',
       },
+      {
+        signature: 'getAccountScope(): string',
+        description: 'Return a noncredential identifier for the Main-selected account home.',
+        parameters: [],
+        returns: 'Stable account scope for task ownership checks across Host restarts.',
+      },
     ],
   },
   {

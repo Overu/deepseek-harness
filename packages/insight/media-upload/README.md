@@ -1,5 +1,5 @@
 ---
-description: "Insight Desktop tools for approved OSS attachment uploads and authenticated image-layer generation."
+description: "Insight Desktop tools for OSS attachment uploads and authenticated image-layer generation."
 kind: "package-bundle"
 ---
 
@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Insight Desktop loads this bundle to register `upload_attachment`, `submit_image_layering`, and `get_image_layering`. Upload requires one current-turn user attachment and approval, then obtains temporary credentials from the upload center and writes the original bytes to OSS; its URL has unverified read access. Image layering submits a successfully uploaded image URL from the same turn through `POST /api/skill-proxy/call-insight-api`, returns a user-bound task handle, and tracks status in a session Job. Status can be checked again by handle without repeating submission. The requested PSD is available only when the upstream result's `image_list` includes a PSD URL.
+Insight Desktop loads this bundle to register a general OSS upload tool and image-layering source, submission, query, retry, and cache tools. General upload accepts a direct user attachment from the current turn: Full access proceeds without a separate approval prompt; other permission presets retain their approval behavior. Image layering selects an original image from the last three user-message turns, uploads it as part of submission, and tracks the enterprise task in a Session Job. A completed result is delivered only after PSD and image files are downloaded, verified, and presented locally.
 
 ## Table of Contents
 
@@ -24,16 +24,16 @@ Insight Desktop loads this bundle to register `upload_attachment`, `submit_image
 <a id="use-this-package"></a>
 ## Use this package
 
-The package is loaded only by the Insight Desktop product bundle. Its patch also enables `file-upload.retainOriginalImage` for that product, so image prompts retain a private original-file reference in addition to their normalized model image. Other product profiles keep the existing default of `false`. `serviceEnvironment` selects the fixed test or production upload center; `requestTimeoutMs` and `ossTimeoutMs` bound external requests.
+The package is loaded only by the Insight Desktop product bundle. Its patch also enables `file-upload.retainOriginalImage` for that product, so image prompts retain a private original-file reference in addition to their normalized model image. Other product profiles keep the existing default of `false`. `serviceEnvironment` selects the fixed test or production upload center; `requestTimeoutMs` and `ossTimeoutMs` bound external requests. An empty `generationResultHosts` uses the fixed test OSS result host in the test environment and denies result downloads in production; a nonempty list selects the allowed hosts explicitly.
 
 The model may provide `attachmentIndex`, a one-based position among direct-user file and image attachments in the current turn. It must provide the index when there are multiple candidates. Text pasted in a prompt, local paths, Canvas assets, inherited messages, and older turns provide no upload authority. Images without an original-file reference cannot be uploaded. The upload center receives a filename and routing type, but no file size or MIME type. Its accepted extensions, write permissions, and size limits are not established by an STS success response; the former enterprise attachment policy no longer applies.
 
 <a id="implementation"></a>
 ## Implementation
 
-`src/image-layering.ts` sends one authenticated proxy creation request, reads its terminal NDJSON event, and registers a session-owned Job that queries the same proxy. `job_kill`, plugin shutdown, or client restart stops local tracking but does not cancel remote generation. The tool result retains `taskHandle` for `get_image_layering({ taskHandle, watch: true })` recovery while the service handle remains valid. A submission transport failure may leave remote status unknown; POST is never retried automatically. Request, polling, and tracking durations are validated plugin configuration fields.
+`src/image-layering.ts` reserves each creation attempt in Session data before the authenticated proxy POST, records its task handle, and starts a Session Job. A confirmed failed or incomplete result is queried once more through the same handle; only the first task can become eligible for one further creation with its bound image and parameters. Unknown submission or status outcomes never trigger another paid creation. The account scope and initial delivery directory are bound to the task. `job_kill`, shutdown, or restart stops local tracking without cancelling the remote task; a confirmed handle can resume tracking while valid. `src/result-cache.ts` downloads each allowed PSD and image, verifies its bytes, and writes through the Session sandboxed filesystem. A later directory change copies the verified group to the current workspace before delivery, retaining the original files if relocation fails.
 
-`src/upload-source.ts` folds committed Session events into a Host-only current-turn source list. `src/index.ts` registers the upload tool, checks the root Agent, and asks for a one-time transfer approval. `src/upload-center.ts` calls the fixed upload-center gateway path and checks the returned credentials, object name, and HTTPS OSS destination without exposing the login token or temporary credentials. An STS rejection reports its HTTP status and a validated service code when present, without returning the response message. `src/oss-put.ts` streams the attachment through `ali-oss` with SDK retries disabled. The tool returns the URL only after an explicit OSS HTTP 200 and complete source-stream consumption; an unconfirmed PUT is not automatically repeated and produces a Host diagnostic with the call ID and error code.
+`src/upload-source.ts` folds committed Session events into a Host-only current-turn list for ordinary uploads and a separate three-user-turn image list for layering. `src/index.ts` checks the root Agent; ordinary upload requests one-time approval except under the effective Full access preset, while layering upload follows the user's request to process the selected image. `src/upload-center.ts` validates the fixed gateway's STS response without exposing credentials. `src/oss-put.ts` streams the original bytes with SDK retries disabled. The general tool returns an OSS URL only after confirmed HTTP 200 and complete source consumption; uncertain PUT results are not repeated automatically.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -70,11 +70,11 @@ The result appends to the conversation; it does not rewrite the preceding reques
 
 #### What the model sees
 
-`submit_image_layering` accepts an `imageUrl` from a successful current-turn image upload, optional `prompt`, and optional nonnegative integer `numLayers`; absent values become an empty prompt and zero layers. It returns `taskHandle`, current status, and a `jobId` when tracking starts. `get_image_layering` accepts `taskHandle` and optional `watch`; success returns validated `psdUrls` and `imageUrls`. A completed task without PSD reports `missing_psd`. If the Job is unavailable, `monitoring: "unavailable"` preserves the handle. Account tokens and upstream credentials never enter tool results.
+`prepare_image_layering_source` lists eligible originals; several distinct images require selection. `submit_image_layering` accepts `sourceRef`, optional `prompt`, and optional nonnegative `numLayers` (default `0`), then uploads and submits without a separate general-upload approval. A same-turn `imageUrl` from the older general upload path remains accepted for compatibility. `get_image_layering` accepts the bound `taskHandle` and optional `watch`; only the first task reports `retry_eligible` after two confirmed incomplete reads, while a failed second task stops. Proxy creation HTTP 5xx is treated as an unknown outcome and is never automatically resubmitted. `retry_image_layering` creates at most one additional task from the saved original and parameters. The Job caches results after a successful query; `cache_image_layering_result` resumes caching and returns verified local file paths, a completeness flag, and a relocation flag for the skill to present. An expired result address triggers one refresh under the same handle, reusing verified files with the same object path. Result diagnostics name the invalid field and reason without logging signed URLs.
 
 #### Token effect
 
-The two tool definitions add fixed request tokens while loaded. Task IDs, status, URLs, and the Job notice add retained tokens when produced.
+The five image-layering tool definitions add fixed request tokens while loaded. Task IDs, status, local paths, URLs, and Job notices add retained tokens when produced.
 
 #### KV Cache effect
 
@@ -86,7 +86,7 @@ Results and Job messages append to the conversation without rewriting the earlie
 
 - A private bucket may reject direct reads of the returned URL. Real STS permissions, object-key uniqueness, bucket versioning, and cleanup of objects without enterprise registration require an isolated environment check before production rollout.
 - The local image original is content-addressed and remains stored even if the staged prompt is later discarded.
-- The proxy task handle expires after about 24 hours. The deployed Gateway must include the `call-insight-api` connection; the test-environment service repository alone does not prove deployment. Upstream runs have returned PNG-only results as well as a PSD, so successful generation does not guarantee a PSD. The skill package downloads PSD files and calls `present`; production result OSS hosts require deployment configuration.
+- The proxy task handle expires after about 24 hours. The deployed Gateway must include the `call-insight-api` connection; local service code does not prove deployment. Upstream runs may return PNG-only results, so successful generation does not guarantee a PSD. The skill calls `present` only for verified local files. Production result OSS hosts must be configured with `generationResultHosts`.
 
 <a id="dev-note"></a>
 ### Dev Note

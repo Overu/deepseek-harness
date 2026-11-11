@@ -1,11 +1,55 @@
 /** Authenticated image-layer generation through the enterprise skill proxy. */
 import { setTimeout as delay } from 'node:timers/promises'
+import { z } from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
+import { AttachmentId, type FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { JobOutcome } from '@deepseek-ai/dsh-jobs'
 import type {} from '@deepseek-ai/dsh-jobs'
+import type { ProjectionDefinition, ProjectionHandle } from '@deepseek-ai/dsh-session-projection'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { createInsightSkillProxyRequest, InsightSkillProxyError, skillProxyServiceBaseUrl } from '@insight-ai/desktop-integration/host'
 import type { Config } from './index.ts'
+import type { LayeringSource } from './upload-source.ts'
+import { cacheLayeringFiles, copyLayeringFilesToCurrentDirectory, prepareResultDirectory, ResultDownloadFailure } from './result-cache.ts'
+
+interface BoundTask {
+  readonly requestKey: string
+  readonly file: FileAttachmentRef
+  readonly prompt: string
+  readonly numLayers: number
+  readonly cwd: string
+  readonly accountScope: string
+  readonly attempt: 1 | 2
+  readonly state: 'reserved' | 'bound' | 'retry_eligible' | 'released'
+  readonly handle?: string | undefined
+  readonly firstHandle?: string | undefined
+}
+
+declare module '@deepseek-ai/dsh-session/types' {
+  interface SessionEventMap {
+    /** Durable reservation before a potentially paid image-layering creation. */
+    'insight/image-layering/task': { readonly task: BoundTask }
+  }
+}
+
+const taskSchema: z.ZodType<BoundTask> = z.object({
+  requestKey: z.string(), file: z.object({ attachmentId: z.string().regex(/^sha256:[a-f0-9]{64}$/u).transform(AttachmentId),
+    name: z.string(), bytes: z.number().int().positive() }),
+  prompt: z.string(), numLayers: z.number().int().nonnegative(), cwd: z.string(), accountScope: z.string(),
+  attempt: z.union([z.literal(1), z.literal(2)]),
+  state: z.enum(['reserved', 'bound', 'retry_eligible', 'released']),
+  handle: z.string().optional(), firstHandle: z.string().optional(),
+})
+
+/** Session-owned creation reservations and task bindings for restart-safe recovery. */
+export const layeringTasksProjection = {
+  key: 'insightImageLayeringTasks', stateVersion: 1,
+  stateSchema: z.record(z.string(), taskSchema),
+  init: () => ({}),
+  apply: (state, event: SessionEvent) => event.type === 'insight/image-layering/task'
+    ? { ...state, [event.data.task.requestKey]: event.data.task } : state,
+} satisfies ProjectionDefinition<'insightImageLayeringTasks', Record<string, BoundTask>>
 
 declare module '@deepseek-ai/dsh-jobs' {
   interface JobKindMap {
@@ -16,13 +60,24 @@ declare module '@deepseek-ai/dsh-jobs' {
 
 interface LayeringResult {
   readonly taskHandle: string
-  readonly status: 'running' | 'succeeded' | 'missing_psd' | 'failed'
+  readonly status: 'running' | 'succeeded' | 'missing_psd' | 'failed' | 'cancelled' | 'retry_eligible'
   readonly psdUrls?: string[]
   readonly imageUrls?: string[]
+  readonly imageListValid?: boolean
   readonly error?: string
   readonly jobId?: string
   readonly monitoring?: 'running' | 'unavailable'
   readonly proxyRequestId?: string
+  readonly diagnostic?: {
+    readonly field: 'psd_url' | 'image_list'
+    readonly reason: string
+    readonly valueType: string
+    readonly psdCandidates: number
+    readonly imageItems?: number
+    readonly validImages?: number
+    readonly invalidIndices?: number[]
+    readonly queryAttempt?: number
+  }
 }
 
 /** Stable failures for proxy submission and status reads. */
@@ -41,11 +96,19 @@ export class ImageLayeringFailure extends Error {
 const output = {
   schema: { type: 'object', additionalProperties: false, properties: {
     taskHandle: { type: 'string', required: true },
-    status: { type: 'string', enum: ['running', 'succeeded', 'missing_psd', 'failed'], required: true },
+    status: { type: 'string', enum: ['running', 'succeeded', 'missing_psd', 'failed', 'cancelled', 'retry_eligible'], required: true },
     psdUrls: { type: 'array', items: { type: 'string' } },
     imageUrls: { type: 'array', items: { type: 'string' } },
+    imageListValid: { type: 'boolean' },
     error: { type: 'string' }, jobId: { type: 'string' }, proxyRequestId: { type: 'string' },
     monitoring: { type: 'string', enum: ['running', 'unavailable'] },
+    diagnostic: { type: 'object', additionalProperties: false, properties: {
+      field: { type: 'string', enum: ['psd_url', 'image_list'], required: true },
+      reason: { type: 'string', required: true }, valueType: { type: 'string', required: true },
+      psdCandidates: { type: 'integer', required: true }, imageItems: { type: 'integer' },
+      validImages: { type: 'integer' }, invalidIndices: { type: 'array', items: { type: 'integer' } },
+      queryAttempt: { type: 'integer' },
+    } },
   } },
   render: (_args: unknown, value: LayeringResult) => [{ type: 'text' as const, text: JSON.stringify(value) }],
 } as const
@@ -60,6 +123,26 @@ function safeUrl(value: unknown): value is string {
     const url = new URL(value)
     return url.protocol === 'https:' && !url.username && !url.password && !url.hash
   } catch { return false }
+}
+
+function safeResultUrl(value: unknown): value is string {
+  return safeUrl(value) && /\.(psd|png|jpe?g|webp)$/iu.test(new URL(value).pathname)
+}
+
+function valueType(value: unknown): string {
+  return value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+}
+
+function urlReason(value: unknown): string {
+  if (typeof value !== 'string') return 'not_string'
+  if (value.length > 8192) return 'too_long'
+  try {
+    const url = new URL(value)
+    if (url.protocol !== 'https:') return 'non_https'
+    if (url.username || url.password || url.hash) return 'credentials_or_fragment'
+    if (!url.pathname.toLowerCase().endsWith('.psd')) return 'not_psd_path'
+    return 'valid'
+  } catch { return 'invalid_url' }
 }
 
 function taskHandle(value: unknown): value is string {
@@ -137,7 +220,8 @@ async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_c
       if (code === 'LOGIN_REQUIRED' || code === 'USER_NOT_LOGIN') {
         throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in before generating image layers.')
       }
-      throw new ImageLayeringFailure(creating && /UNKNOWN|TIMEOUT/u.test(code) ? 'SUBMISSION_UNKNOWN'
+      throw new ImageLayeringFailure(creating && ((typeof event.status === 'number' && event.status >= 500)
+        || /UNKNOWN|TIMEOUT/u.test(code)) ? 'SUBMISSION_UNKNOWN'
         : creating ? 'SUBMISSION_REJECTED' : 'STATUS_UNAVAILABLE',
       `${code}${proxyRequestId ? ` (request ${proxyRequestId})` : ''}.`)
     }
@@ -190,24 +274,32 @@ export function parseLayeringResult(value: unknown, handle: string, proxyRequest
   const row = object(value)
   const metadata = proxyRequestId ? { proxyRequestId } : {}
   if (row?.status === 'running' || row?.status === 'pending') return { taskHandle: handle, status: 'running', ...metadata }
-  if (row?.status === 'failed' || row?.status === 'cancelled') return { taskHandle: handle, status: 'failed',
+  if (row?.status === 'failed') return { taskHandle: handle, status: 'failed',
     error: 'Upstream generation failed.', ...metadata }
+  if (row?.status === 'cancelled') return { taskHandle: handle, status: 'cancelled',
+    error: 'Upstream generation was cancelled.', ...metadata }
   if (row?.status !== 'success') throw new ImageLayeringFailure('STATUS_UNAVAILABLE', 'Upstream task status is unknown.')
   const data = object(row.data)
   const images = data?.image_list
-  if (!Array.isArray(images) || images.length > 128 || images.some(item => !safeUrl(item))) {
-    throw new ImageLayeringFailure('INVALID_RESPONSE', 'Successful task has no valid image_list.')
-  }
+  const imageListValid = Array.isArray(images) && images.length <= 128 && images.every(item => safeResultUrl(item))
+  const imageListReason = imageListValid ? undefined
+    : !Array.isArray(images) ? 'not_array' : images.length > 128 ? 'too_many_items' : 'invalid_item_url'
   const separatePsd = data?.psd_url
-  if (separatePsd !== undefined && (!safeUrl(separatePsd) || !new URL(separatePsd).pathname.toLowerCase().endsWith('.psd'))) {
-    throw new ImageLayeringFailure('INVALID_RESPONSE', 'Successful task has an invalid psd_url.')
-  }
-  const imageUrls = images as string[]
+  const imageUrls = Array.isArray(images) && images.length <= 128 ? images.filter(item => safeResultUrl(item)) : []
   const psdUrls = imageUrls.filter(url => new URL(url).pathname.toLowerCase().endsWith('.psd'))
-  if (typeof separatePsd === 'string' && !psdUrls.includes(separatePsd)) psdUrls.push(separatePsd)
-  if (psdUrls.length === 0) return { taskHandle: handle, status: 'missing_psd', imageUrls,
-    error: 'Upstream generation completed without a PSD file.', ...metadata }
-  return { taskHandle: handle, status: 'succeeded', psdUrls, imageUrls, ...metadata }
+  const reason = separatePsd === undefined ? 'missing' : urlReason(separatePsd)
+  if (reason === 'valid' && typeof separatePsd === 'string' && !psdUrls.includes(separatePsd)) psdUrls.push(separatePsd)
+  const diagnostic = imageListReason ? { field: 'image_list' as const, reason: imageListReason,
+    valueType: valueType(images), psdCandidates: psdUrls.length,
+    imageItems: Array.isArray(images) ? images.length : 0, validImages: imageUrls.length,
+    invalidIndices: Array.isArray(images) ? images.flatMap((item, index) => safeResultUrl(item) ? [] : [index]).slice(0, 5) : [] }
+    : reason !== 'valid' && (reason !== 'missing' || psdUrls.length === 0) ? { field: 'psd_url' as const, reason,
+      valueType: valueType(separatePsd), psdCandidates: psdUrls.length } : undefined
+  if (psdUrls.length === 0) return { taskHandle: handle, status: 'missing_psd', imageUrls, imageListValid,
+    error: diagnostic ? `Successful task has invalid ${diagnostic.field} (${diagnostic.reason}, type ${diagnostic.valueType}).`
+      : 'Upstream generation completed without a PSD file.', ...metadata, ...(diagnostic ? { diagnostic } : {}) }
+  return { taskHandle: handle, status: 'succeeded', psdUrls, imageUrls, imageListValid, ...metadata,
+    ...(diagnostic ? { diagnostic } : {}) }
 }
 
 /** Register submission and recovery tools beside the approved OSS upload tool.
@@ -216,7 +308,14 @@ export function parseLayeringResult(value: unknown, handle: string, proxyRequest
  * @param uploadedInTurn - Check that the URL came from this turn's successful upload.
  */
 export function registerImageLayeringTools(ctx: Context, config: Config,
-  uploadedInTurn: (exec: ToolRunContext, url: string) => boolean): void {
+  uploadedInTurn: (exec: ToolRunContext, url: string) => boolean,
+  source?: {
+    list(exec: ToolRunContext): LayeringSource[]
+    select(exec: ToolRunContext, sourceRef: string | undefined): FileAttachmentRef
+    requestTurn(exec: ToolRunContext): number
+    upload(exec: ToolRunContext, file: FileAttachmentRef): Promise<string>
+  },
+  tasks?: ProjectionHandle<Record<string, BoundTask>>): void {
   const base = skillProxyServiceBaseUrl(config.serviceEnvironment)
   const lifetime = new AbortController()
   const watching = new Map<string, string>()
@@ -225,10 +324,84 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     if (!agent || !ctx.agents.roots().includes(agent)) throw new Error('Use image layering in the original user conversation.')
     return agent
   }
-  const getResult = async (handle: string, signal: AbortSignal) => {
+  const findTask = (exec: ToolRunContext, handle: string): BoundTask | undefined => {
+    if (!tasks) return undefined
+    const agent = requireAgent(exec)
+    const task = Object.values(tasks.stateOf(agent.session)).find(item => item.handle === handle || item.firstHandle === handle)
+    if (task && task.accountScope !== ctx.insightAccount.getAccountScope()) {
+      throw new ImageLayeringFailure('AUTH_REQUIRED', 'This image-layering task belongs to another signed-in account.')
+    }
+    return task
+  }
+  const appendTask = (exec: ToolRunContext, task: BoundTask): void => {
+    requireAgent(exec).session.append('insight/image-layering/task', { task })
+  }
+  const getResult = async (handle: string, signal: AbortSignal, attempt = 1) => {
     const result = await requestProxy(ctx, base, '/v1/proxy_async_get_result',
       { task_type: 'async_tencent_multi_layer_get_result', task_id: handle }, config.generationRequestTimeoutMs, signal)
-    return parseLayeringResult(result.body, handle, result.proxyRequestId)
+    const value = parseLayeringResult(result.body, handle, result.proxyRequestId)
+    if (!value.diagnostic) return value
+    const diagnostic = { ...value.diagnostic, queryAttempt: attempt }
+    ctx.logger.warn(`insight-media-upload: image-layering result diagnostic ${JSON.stringify({
+      ...diagnostic, proxyRequestId: result.proxyRequestId ?? null })}`)
+    return { ...value, diagnostic }
+  }
+  const recheckTerminal = async (handle: string, first: LayeringResult, signal: AbortSignal): Promise<LayeringResult> => {
+    if (first.status !== 'failed' && first.status !== 'missing_psd'
+      && !(first.status === 'succeeded' && first.imageListValid === false)) return first
+    const second = await getResult(handle, signal, 2)
+    if (second.status === 'failed' || second.status === 'missing_psd'
+      || (second.status === 'succeeded' && second.imageListValid === false)) {
+      const imageUrls = [...new Set([...(first.imageUrls ?? []), ...(second.imageUrls ?? [])])]
+      const psdUrls = [...new Set([...(first.psdUrls ?? []), ...(second.psdUrls ?? [])])]
+      return { ...second, status: 'retry_eligible',
+        error: second.error ?? 'Two status reads confirmed no usable PSD.',
+        ...(imageUrls.length ? { imageUrls } : {}), ...(psdUrls.length ? { psdUrls } : {}),
+        ...(second.diagnostic ? { diagnostic: { ...second.diagnostic, queryAttempt: 2 } } : {}) }
+    }
+    return second
+  }
+  const resolveRetry = (exec: ToolRunContext, handle: string, value: LayeringResult): LayeringResult => {
+    if (value.status !== 'retry_eligible') return value
+    const task = findTask(exec, handle)
+    if (task?.attempt === 1 && (task.state === 'bound' || task.state === 'retry_eligible')) {
+      return value
+    }
+    return { ...value, status: 'failed', error: task?.attempt === 2
+      ? 'The second image-layering attempt did not return a complete result.'
+      : 'This image-layering task cannot be retried automatically.' }
+  }
+  const markRetry = (exec: ToolRunContext, handle: string) => {
+    const task = findTask(exec, handle)
+    if (task?.attempt === 1 && task.state === 'bound') appendTask(exec, { ...task, state: 'retry_eligible' })
+  }
+  const cacheResult = async (exec: ToolRunContext, task: BoundTask, handle: string,
+    initial: LayeringResult, signal: AbortSignal) => {
+    const agent = requireAgent(exec)
+    let result = initial
+    if (result.status !== 'succeeded' && result.status !== 'missing_psd') {
+      throw new Error('Image-layering result is not ready for local caching.')
+    }
+    const download = (value: LayeringResult) => cacheLayeringFiles(ctx, agent, config, handle,
+      [...(value.psdUrls ?? []), ...(value.imageUrls ?? [])], task.cwd, signal)
+    let cached: Awaited<ReturnType<typeof download>>
+    try { cached = await download(result) }
+    catch (error) {
+      if (!(error instanceof ResultDownloadFailure) || signal.aborted) throw error
+      result = await getResult(handle, signal, 2)
+      if (result.status !== 'succeeded' && result.status !== 'missing_psd') {
+        throw new Error('Result download failed and the task could not provide refreshed file addresses.', { cause: error })
+      }
+      cached = await download(result)
+    }
+    let files = cached
+    let relocationFailed = false
+    if (ctx.workingDirectory.get(agent.session) !== task.cwd) {
+      try { files = await copyLayeringFilesToCurrentDirectory(ctx, agent, cached, signal) }
+      catch { if (signal.aborted) throw new Error('Result transfer was cancelled.'); relocationFailed = true }
+    }
+    return { complete: result.status === 'succeeded' && result.imageListValid === true
+      && files.some(file => file.kind === 'psd'), relocationFailed, files }
   }
   const startWatch = (exec: ToolRunContext, handle: string): string => {
     if (exec.signal.aborted || lifetime.signal.aborted) throw new Error('Local tracking is unavailable.')
@@ -259,10 +432,58 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
           const deadline = Date.now() + config.generationWatchTimeoutMs
           try {
             while (!signal.aborted && Date.now() < deadline) {
-              const value = await getResult(handle, signal)
-              if (value.status === 'succeeded') { finish({ status: 'completed', result: JSON.stringify(value) }); return }
-              if (value.status === 'failed' || value.status === 'missing_psd') {
+              let first: LayeringResult
+              let alreadyRechecked = false
+              try { first = await getResult(handle, signal) }
+              catch (error) {
+                if (!(error instanceof ImageLayeringFailure)
+                  || (error.code !== 'INVALID_RESPONSE' && error.code !== 'STATUS_UNAVAILABLE')) throw error
+                first = await getResult(handle, signal, 2)
+                alreadyRechecked = true
+              }
+              const value = resolveRetry(exec, handle,
+                alreadyRechecked ? first : await recheckTerminal(handle, first, signal))
+              if (value.status === 'succeeded') {
+                const task = findTask(exec, handle)
+                if (task?.handle === handle) {
+                  try {
+                    const cache = await cacheResult(exec, task, handle, value, signal)
+                    finish({ status: cache.complete ? 'completed' : 'failed',
+                      ...(cache.complete ? {} : { detail: 'Image-layering files were not completely cached.' }),
+                      result: JSON.stringify({ ...value, cache }) })
+                  } catch (error) {
+                    finish({ status: 'failed', detail: 'Image-layering result caching failed; retry local caching by task handle.',
+                      result: JSON.stringify({ taskHandle: handle, status: 'cache_partial',
+                        error: error instanceof Error ? error.message : 'Local caching failed.' }) })
+                  }
+                  return
+                }
+                finish({ status: 'completed', result: JSON.stringify(value) }); return
+              }
+              if (value.status === 'retry_eligible' || value.status === 'failed') {
+                const task = findTask(exec, handle)
+                if (task?.handle === handle && (value.imageUrls?.length || value.psdUrls?.length)) {
+                  try {
+                    const cache = await cacheResult(exec, task, handle, { ...value, status: 'missing_psd' }, signal)
+                    if (cache.complete) {
+                      if (task.state === 'retry_eligible') appendTask(exec, { ...task, state: 'bound' })
+                      finish({ status: 'completed', result: JSON.stringify({ ...value, status: 'succeeded', cache }) })
+                    } else {
+                      if (value.status === 'retry_eligible') markRetry(exec, handle)
+                      finish({ status: 'failed', detail: value.error ?? 'No complete PSD result was returned.',
+                        result: JSON.stringify({ ...value, cache }) })
+                    }
+                  } catch {
+                    finish({ status: 'failed', detail: 'Image-layering files were not completely cached; recover the local files before retrying generation.',
+                      result: JSON.stringify({ taskHandle: handle, status: 'cache_partial' }) })
+                  }
+                  return
+                }
+                if (value.status === 'retry_eligible') markRetry(exec, handle)
                 finish({ status: 'failed', detail: value.error ?? 'No PSD file was returned.', result: JSON.stringify(value) }); return
+              }
+              if (value.status === 'cancelled') {
+                finish({ status: 'failed', detail: value.error ?? 'Remote task was cancelled.', result: JSON.stringify(value) }); return
               }
               job.updateProgress('running')
               await delay(config.generationPollIntervalMs, undefined, { signal })
@@ -274,7 +495,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
             if (signal.aborted) stop()
             else finish({ status: 'failed',
               detail: error instanceof ImageLayeringFailure && error.code === 'INVALID_RESPONSE'
-                ? 'Upstream task completed, but its image_list was invalid.' : 'Local tracking stopped; remote status is unknown.',
+                ? error.message : 'Local tracking stopped; remote status is unknown.',
               result: JSON.stringify({ taskHandle: handle,
                 status: error instanceof ImageLayeringFailure && error.code === 'INVALID_RESPONSE' ? 'invalid_result' : 'monitoring_unknown',
                 error: error instanceof Error ? error.message : 'Status request failed.' }) })
@@ -291,24 +512,52 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
   }
   const submit = defineTool({
     name: 'submit_image_layering',
-    description: 'Submit one image uploaded by upload_attachment in this turn. Keep taskHandle to query status; never retry an uncertain submission.',
+    description: 'Submit one user image from the last three user turns. Use prepare_image_layering_source when multiple images exist. This tool uploads the selected original without separate upload approval. Keep taskHandle; never retry an uncertain submission.',
     parameters: {
-      imageUrl: { type: 'string', required: true, description: 'OSS URL from a successful upload_attachment in this turn.' },
+      sourceRef: { type: 'string', description: 'Source reference from prepare_image_layering_source; omit only when exactly one eligible image exists.' },
+      imageUrl: { type: 'string', description: 'Legacy OSS URL from a successful upload_attachment in this turn.' },
       prompt: { type: 'string', description: 'User processing instructions; empty when absent.' },
       numLayers: { type: 'integer', description: 'Requested layer count; 0 when unspecified.' },
     }, output,
     presentCall: () => ({ card: 'generic', kind: 'other', title: 'Submit image layering' }),
     presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image layering submission failed' : 'Image layering submitted' }),
     execute: async (args, exec): Promise<LayeringResult> => {
-      requireAgent(exec)
-      if (!safeUrl(args.imageUrl) || !uploadedInTurn(exec, args.imageUrl)) {
-        throw new Error('Use the OSS image URL returned by upload_attachment in this turn.')
-      }
+      const agent = requireAgent(exec)
+      if (args.imageUrl && args.sourceRef) throw new Error('Choose sourceRef or imageUrl, not both.')
       const layers = args.numLayers ?? 0
       if (!Number.isSafeInteger(layers) || layers < 0) throw new Error('numLayers must be a nonnegative integer.')
+      let imageUrl: string
+      let reservation: BoundTask | undefined
+      if (args.imageUrl) {
+        if (!safeUrl(args.imageUrl) || !uploadedInTurn(exec, args.imageUrl)) {
+          throw new Error('Use the OSS image URL returned by upload_attachment in this turn.')
+        }
+        imageUrl = args.imageUrl
+      } else if (source) {
+        if (!tasks) throw new Error('Image-layering task registry is unavailable.')
+        const file = source.select(exec, args.sourceRef)
+        const requestKey = `${String(source.requestTurn(exec))}:${String(file.attachmentId)}`
+        const existing = tasks.stateOf(agent.session)[requestKey]
+        if (existing && existing.state !== 'released') {
+          if (existing.accountScope !== ctx.insightAccount.getAccountScope()) {
+            throw new ImageLayeringFailure('AUTH_REQUIRED', 'This image-layering request belongs to another signed-in account.')
+          }
+          if (existing.prompt !== (args.prompt ?? '') || existing.numLayers !== layers) {
+            throw new Error('This image already has a task with different processing parameters in this user turn.')
+          }
+          if (existing.handle) return { taskHandle: existing.handle, status: 'running' }
+          throw new ImageLayeringFailure('SUBMISSION_UNKNOWN', 'A creation attempt is already reserved for this request; inspect proxy audit before another submission.')
+        }
+        const cwd = await prepareResultDirectory(ctx, agent, exec.signal)
+        const accountScope = ctx.insightAccount.getAccountScope()
+        reservation = { requestKey, file, prompt: args.prompt ?? '', numLayers: layers,
+          cwd, accountScope, attempt: 1, state: 'reserved' }
+        appendTask(exec, reservation)
+        imageUrl = await source.upload(exec, file)
+      } else throw new Error('No image source is available.')
       const result = await requestProxy(ctx, base, '/v1/proxy_async_create', {
         model_id: 'decompose-1.0-flash', task_type: 'async_tencent_multi_layer_create',
-        data: { prompt: args.prompt ?? '', image_url_list: [args.imageUrl], image_params: { num_layers: layers } },
+        data: { prompt: args.prompt ?? '', image_url_list: [imageUrl], image_params: { num_layers: layers } },
       }, config.generationRequestTimeoutMs, AbortSignal.any([exec.signal, lifetime.signal]))
       let handle: string
       try { handle = parseTaskHandle(result.body) }
@@ -317,6 +566,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
           `Creation returned no single usable task handle${result.proxyRequestId ? ` (request ${result.proxyRequestId})` : ''}; inspect proxy audit before retrying.`,
           { cause: error })
       }
+      if (reservation) appendTask(exec, { ...reservation, state: 'bound', handle })
       const submitted: LayeringResult = { taskHandle: handle, status: 'running',
         ...(result.proxyRequestId ? { proxyRequestId: result.proxyRequestId } : {}) }
       try { return { ...submitted, jobId: startWatch(exec, handle), monitoring: 'running' } }
@@ -335,17 +585,110 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     execute: async (args, exec): Promise<LayeringResult> => {
       requireAgent(exec)
       if (!taskHandle(args.taskHandle)) throw new Error('Invalid taskHandle.')
-      const value = await getResult(args.taskHandle, AbortSignal.any([exec.signal, lifetime.signal]))
+      // Unbound handles remain query-only; cache and paid retry require a Session task record.
+      findTask(exec, args.taskHandle)
+      const signal = AbortSignal.any([exec.signal, lifetime.signal])
+      let first: LayeringResult
+      let alreadyRechecked = false
+      try { first = await getResult(args.taskHandle, signal) }
+      catch (error) {
+        if (!(error instanceof ImageLayeringFailure)
+          || (error.code !== 'INVALID_RESPONSE' && error.code !== 'STATUS_UNAVAILABLE')) throw error
+        first = await getResult(args.taskHandle, signal, 2)
+        alreadyRechecked = true
+      }
+      const value = resolveRetry(exec, args.taskHandle,
+        alreadyRechecked ? first : await recheckTerminal(args.taskHandle, first, signal))
+      if (value.status === 'retry_eligible') {
+        const task = findTask(exec, args.taskHandle)
+        if (task?.handle === args.taskHandle && (value.imageUrls?.length || value.psdUrls?.length)) {
+          const cache = await cacheResult(exec, task, args.taskHandle, { ...value, status: 'missing_psd' }, signal)
+          if (cache.complete) {
+            if (task.state === 'retry_eligible') appendTask(exec, { ...task, state: 'bound' })
+            return { ...value, status: 'succeeded' }
+          }
+        }
+        markRetry(exec, args.taskHandle)
+      }
       if (!args.watch || value.status !== 'running') return value
       try { return { ...value, jobId: startWatch(exec, args.taskHandle), monitoring: 'running' } }
       catch { return { ...value, monitoring: 'unavailable' } }
     },
   })
+  const retry = source && tasks && defineTool({
+    name: 'retry_image_layering',
+    description: 'Create one final image-layering attempt only after two confirmed terminal reads for the original task. Uses its bound image and parameters; never repeat an uncertain creation.',
+    parameters: { taskHandle: { type: 'string', required: true, description: 'Original taskHandle with retry_eligible status.' } },
+    output,
+    presentCall: () => ({ card: 'generic', kind: 'other', title: 'Retry image layering' }),
+    presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image layering retry failed' : 'Image layering retried' }),
+    execute: async (args, exec): Promise<LayeringResult> => {
+      const agent = requireAgent(exec)
+      const old = findTask(exec, args.taskHandle)
+      if (!old || old.handle !== args.taskHandle || old.attempt !== 1 || old.state !== 'retry_eligible') {
+        throw new Error('This task is not eligible for one automatic retry.')
+      }
+      await prepareResultDirectory(ctx, agent, exec.signal, old.cwd)
+      const reserved: BoundTask = { requestKey: old.requestKey, file: old.file, prompt: old.prompt,
+        numLayers: old.numLayers, cwd: old.cwd, accountScope: old.accountScope,
+        state: 'reserved', attempt: 2, firstHandle: old.handle }
+      appendTask(exec, reserved)
+      const imageUrl = await source.upload(exec, old.file)
+      const result = await requestProxy(ctx, base, '/v1/proxy_async_create', {
+        model_id: 'decompose-1.0-flash', task_type: 'async_tencent_multi_layer_create',
+        data: { prompt: old.prompt, image_url_list: [imageUrl], image_params: { num_layers: old.numLayers } },
+      }, config.generationRequestTimeoutMs, AbortSignal.any([exec.signal, lifetime.signal]))
+      const handle = parseTaskHandle(result.body)
+      appendTask(exec, { ...reserved, state: 'bound', handle })
+      const submitted: LayeringResult = { taskHandle: handle, status: 'running',
+        ...(result.proxyRequestId ? { proxyRequestId: result.proxyRequestId } : {}) }
+      try { return { ...submitted, jobId: startWatch(exec, handle), monitoring: 'running' } }
+      catch { return { ...submitted, monitoring: 'unavailable' } }
+    },
+  })
+  const cache = tasks && defineTool({
+    name: 'cache_image_layering_result',
+    description: 'Download and verify all PSD and image results of a completed Session-owned task in the bound workspace. Present every returned local file path; do not show remote URLs in the final reply.',
+    parameters: { taskHandle: { type: 'string', required: true, description: 'Confirmed taskHandle returned by submit_image_layering.' } },
+    output: { schema: { type: 'object', additionalProperties: false, properties: {
+      complete: { type: 'boolean', required: true },
+      relocationFailed: { type: 'boolean', required: true },
+      files: { type: 'array', required: true, items: { type: 'object', additionalProperties: false, properties: {
+        path: { type: 'string', required: true }, kind: { type: 'string', enum: ['psd', 'png', 'jpg', 'webp'], required: true },
+        sizeBytes: { type: 'integer', required: true },
+      } } },
+    } }, render: (_args, value) => [{ type: 'text' as const, text: JSON.stringify(value) }] },
+    presentCall: () => ({ card: 'generic', kind: 'other', title: 'Cache image layering files' }),
+    presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image files not cached' : 'Image files cached' }),
+    execute: async (args, exec) => {
+      requireAgent(exec)
+      const task = findTask(exec, args.taskHandle)
+      if (!task || task.handle !== args.taskHandle) throw new Error('Task handle is not bound to this Session.')
+      const signal = AbortSignal.any([exec.signal, lifetime.signal])
+      return cacheResult(exec, task, args.taskHandle, await getResult(args.taskHandle, signal), signal)
+    },
+  })
+  const prepare = source && defineTool({
+    name: 'prepare_image_layering_source',
+    description: 'List original images uploaded directly by the user in the last three user turns. If several exist, ask the user which one to process before submitting. Listing does not upload.',
+    parameters: {},
+    output: { schema: { type: 'object', additionalProperties: false, properties: {
+      candidates: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
+        properties: { sourceRef: { type: 'string', required: true }, filename: { type: 'string', required: true },
+          turnSeq: { type: 'integer', required: true }, messageSeq: { type: 'integer', required: true } } } },
+    } }, render: (_args, value) => [{ type: 'text' as const, text: JSON.stringify(value) }] },
+    presentCall: () => ({ card: 'generic', kind: 'other', title: 'Find image layering source' }),
+    presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image source unavailable' : 'Image sources found' }),
+    execute: (_args, exec) => { requireAgent(exec); return Promise.resolve({ candidates: source.list(exec) }) },
+  })
   ctx.effect(() => {
     const releaseSubmit = ctx.tools.register(submit)
     try {
       const releaseGet = ctx.tools.register(get)
-      return () => { releaseGet(); releaseSubmit(); lifetime.abort() }
+      const releasePrepare = prepare ? ctx.tools.register(prepare) : () => {}
+      const releaseRetry = retry ? ctx.tools.register(retry) : () => {}
+      const releaseCache = cache ? ctx.tools.register(cache) : () => {}
+      return () => { releaseCache(); releaseRetry(); releasePrepare(); releaseGet(); releaseSubmit(); lifetime.abort() }
     } catch (error) { releaseSubmit(); lifetime.abort(); throw error }
   }, 'insight-media-upload: image-layering tools')
 }

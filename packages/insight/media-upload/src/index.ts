@@ -4,16 +4,22 @@ import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-approval'
+import type {} from '@deepseek-ai/dsh-permission-presets'
+import type {} from '@deepseek-ai/dsh-fs'
+import type {} from '@deepseek-ai/dsh-working-directory'
+import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import { uploadCenterServiceBaseUrl } from '@insight-ai/desktop-integration/host'
-import { currentTurnUploadsProjection, selectUploadSource, uploadTurnSeq } from './upload-source.ts'
+import { currentTurnUploadsProjection, listLayeringSources, selectLayeringSource, selectUploadSource,
+  uploadTurnSeq } from './upload-source.ts'
 import { requestUploadSession, UploadFailure } from './upload-center.ts'
 import { putOssObject } from './oss-put.ts'
-import { registerImageLayeringTools } from './image-layering.ts'
+import { layeringTasksProjection, registerImageLayeringTools } from './image-layering.ts'
 
 /** Cordis loader identity for the Insight media upload capability. */
 export const name = 'insight-media-upload'
 /** Host capabilities required before the tool can be registered. */
-export const inject = ['tools', 'attachments', 'insightAccount', 'approval', 'agents', 'sessionProjections', 'jobs']
+export const inject = ['tools', 'attachments', 'insightAccount', 'approval', 'permissionPresets',
+  'agents', 'sessionProjections', 'jobs', 'fs', 'workingDirectory', 'sandboxPolicy']
 
 /** Product environment and bounded network deadlines. */
 export interface Config {
@@ -29,6 +35,8 @@ export interface Config {
   generationPollIntervalMs: number
   /** Maximum duration of local generation tracking. */
   generationWatchTimeoutMs: number
+  /** Allowed result-object hosts; production must configure its result hosts. */
+  generationResultHosts?: string[]
 }
 
 /** Loader-validated deployment values. */
@@ -39,6 +47,7 @@ export const Config: z<Partial<Config>, Config> = z.object({
   generationRequestTimeoutMs: z.number().step(1).min(1000).max(1_250_000).default(1_250_000),
   generationPollIntervalMs: z.number().step(1).min(1000).max(300_000).default(10_000),
   generationWatchTimeoutMs: z.number().step(1).min(60_000).max(7_200_000).default(3_900_000),
+  generationResultHosts: z.array(z.string()),
 })
 
 /** Canonical successful result; `url` is an OSS object address with unverified read access. */
@@ -74,13 +83,15 @@ function mimeType(name: string): string {
 export async function apply(ctx: Context, config: Config): Promise<void> {
   const projection = await ctx.sessionProjections.register(currentTurnUploadsProjection)
   ctx.effect(() => () => projection.dispose(), 'insight-media-upload: current-turn attachment projection')
+  const tasks = await ctx.sessionProjections.register(layeringTasksProjection)
+  ctx.effect(() => () => tasks.dispose(), 'insight-media-upload: image-layering task projection')
   const baseUrl = uploadCenterServiceBaseUrl(config.serviceEnvironment)
   const lifetime = new AbortController()
   const pending = new Set<Promise<UploadAttachmentResult>>()
   const uploaded = new WeakMap<object, { turnSeq: number; urls: Set<string> }>()
   const definition = defineTool({
     name: 'upload_attachment',
-    description: 'Upload one file attached by the user in the current turn to OSS. Use when the user requests an image, video, audio, or other file upload. Ask for transfer approval. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.',
+    description: 'Upload one file attached by the user in the current turn to OSS. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.',
     parameters: {
       attachmentIndex: { type: 'integer', description: '1-based position among direct-user attachments in this turn. Required when there is more than one.' },
     },
@@ -103,14 +114,25 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const agent = exec.agent
         if (!agent || !ctx.agents.roots().includes(agent)) throw new UploadFailure('AGENT_REQUIRED', 'Use this tool in the original user conversation.')
         const file = selectUploadSource(agent, args.attachmentIndex, projection)
-        const outcome = await ctx.approval.request({ agent, toolName: 'upload_attachment', callId: exec.callId,
-          reason: `Upload ${file.name} (${String(file.bytes)} bytes) to OSS and disclose its object address.`,
-          displayReason: { en: `Upload ${file.name} (${String(file.bytes)} bytes) to OSS? Its object address will appear in this conversation.`,
-            zh: `将 ${file.name}（${String(file.bytes)} 字节）上传至 OSS？对象地址会出现在当前对话中。` }, signal })
-        if (outcome !== 'allowed-once') throw new UploadFailure('APPROVAL_DENIED', 'Attachment upload was not approved.')
+        let approvedPreset: string | undefined
+        const approve = async (): Promise<void> => {
+          const outcome = await ctx.approval.request({ agent, toolName: 'upload_attachment', callId: exec.callId,
+            reason: `Upload ${file.name} (${String(file.bytes)} bytes) to OSS and disclose its object address.`,
+            displayReason: { en: `Upload ${file.name} (${String(file.bytes)} bytes) to OSS? Its object address will appear in this conversation.`,
+              zh: `将 ${file.name}（${String(file.bytes)} 字节）上传至 OSS？对象地址会出现在当前对话中。` }, signal })
+          if (outcome !== 'allowed-once') throw new UploadFailure('APPROVAL_DENIED', 'Attachment upload was not approved.')
+        }
+        const authorize = async () => {
+          const preset = ctx.permissionPresets.current(agent.session)
+          if (preset === 'danger-full-access') { approvedPreset = undefined; return }
+          if (approvedPreset === preset) return
+          await approve()
+          approvedPreset = preset
+        }
+        await authorize()
         const turnSeq = uploadTurnSeq(agent, projection)
         if (turnSeq === undefined) throw new UploadFailure('AGENT_REQUIRED', 'The upload turn has ended.')
-        const result = await uploadAttachment(ctx, baseUrl, file, config, signal)
+        const result = await uploadAttachment(ctx, baseUrl, file, config, signal, authorize)
         if (mimeType(file.name).startsWith('image/') && uploadTurnSeq(agent, projection) === turnSeq) {
           const previous = uploaded.get(agent.session)
           const urls = previous?.turnSeq === turnSeq ? previous.urls : new Set<string>()
@@ -138,7 +160,29 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     if (!agent) return false
     const record = uploaded.get(agent.session)
     return record !== undefined && record.turnSeq === uploadTurnSeq(agent, projection) && record.urls.has(url)
-  })
+  }, {
+    list(exec) {
+      const agent = exec.agent
+      if (!agent || !ctx.agents.roots().includes(agent)) throw new Error('Use image layering in the original user conversation.')
+      return listLayeringSources(agent, projection)
+    },
+    select(exec, sourceRef) {
+      const agent = exec.agent
+      if (!agent || !ctx.agents.roots().includes(agent)) throw new Error('Use image layering in the original user conversation.')
+      return selectLayeringSource(agent, sourceRef, projection)
+    },
+    requestTurn(exec) {
+      const agent = exec.agent
+      if (!agent) throw new Error('Use image layering in the original user conversation.')
+      const turn = uploadTurnSeq(agent, projection)
+      if (turn === undefined) throw new Error('Image layering requires an open user turn.')
+      return turn
+    },
+    async upload(exec, file) {
+      return (await uploadAttachment(ctx, baseUrl, file, config,
+        AbortSignal.any([exec.signal, lifetime.signal]))).url
+    },
+  }, tasks)
 }
 
 /** Transfer one approved current-turn file, then return its non-secret OSS address.
@@ -151,14 +195,16 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
  */
 async function uploadAttachment(ctx: Context, baseUrl: string,
   file: import('@deepseek-ai/dsh-attachment').FileAttachmentRef, config: Config,
-  signal: AbortSignal): Promise<UploadAttachmentResult> {
+  signal: AbortSignal, authorize?: () => Promise<void>): Promise<UploadAttachmentResult> {
   let token: string
   try { token = await ctx.insightAccount.getAccessToken(signal) }
   catch { throw new UploadFailure('AUTH_REQUIRED', 'Desktop login is required before uploading an attachment.') }
   if (!token) throw new UploadFailure('AUTH_REQUIRED', 'Desktop login is required before uploading an attachment.')
   const type = mimeType(file.name)
+  await authorize?.()
   const session = await requestUploadSession(baseUrl, token, file,
     AbortSignal.any([signal, AbortSignal.timeout(config.requestTimeoutMs)]))
+  await authorize?.()
   await putOssObject(ctx.attachments, file, session, type, config.ossTimeoutMs, signal)
   return { url: session.uploadUrl, urlAccess: 'unverified', filename: file.name, sizeBytes: file.bytes }
 }

@@ -9,7 +9,8 @@ import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { uploadCenterServiceBaseUrl } from '@insight-ai/desktop-integration/host'
 import { apply } from '../src/index.ts'
-import { currentTurnUploadsProjection, selectUploadSource, uploadTurnSeq } from '../src/upload-source.ts'
+import { currentTurnUploadsProjection, listLayeringSources, selectLayeringSource,
+  selectUploadSource, uploadTurnSeq } from '../src/upload-source.ts'
 import { objectFileType, requestUploadSession, type UploadSession } from '../src/upload-center.ts'
 import { putOssObject } from '../src/oss-put.ts'
 
@@ -113,6 +114,35 @@ describe('original-byte OSS PUT', () => {
 })
 
 describe('current-turn attachment authority', () => {
+  it('retains images from exactly three user-message turns while ordinary upload stays current-turn only', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(SessionProjectionRegistry)
+      const projection = await ctx.sessionProjections.register(currentTurnUploadsProjection)
+      const session = Session.create(SessionId('three-turn-images'))
+      const agent = { session } as Agent
+      const images = [1, 2, 3, 4].map(n => ({ attachmentId: AttachmentId(`sha256:${String(n).repeat(64)}`),
+        name: `photo-${String(n)}.png`, bytes: 8 }))
+      for (let n = 0; n < 3; n++) {
+        session.append('turn/start', { turn: n + 1 })
+        session.append('user/message', createUserMessage({ source: { kind: 'user' },
+          content: [{ type: 'file', attachment: images[n]! }] }), { surfaceOp: 'append' })
+        session.append('turn/end', { turn: n + 1, reason: { kind: 'completed' } })
+      }
+      session.append('turn/start', { turn: 4 })
+      expect(listLayeringSources(agent, projection).map(source => source.filename))
+        .toEqual(['photo-1.png', 'photo-2.png', 'photo-3.png'])
+      expect(() => selectLayeringSource(agent, undefined, projection)).toThrow('Choose one image')
+      expect(selectLayeringSource(agent, String(images[0]!.attachmentId), projection)).toEqual(images[0])
+      expect(() => selectUploadSource(agent, 1, projection)).toThrow('No user attachment')
+      session.append('user/message', createUserMessage({ source: { kind: 'user' },
+        content: [{ type: 'file', attachment: images[3]! }] }), { surfaceOp: 'append' })
+      expect(listLayeringSources(agent, projection).map(source => source.filename))
+        .toEqual(['photo-2.png', 'photo-3.png', 'photo-4.png'])
+      expect(() => selectLayeringSource(agent, String(images[0]!.attachmentId), projection)).toThrow('outside')
+      await projection.dispose()
+    } finally { await ctx.fiber.dispose() }
+  })
   it('selects original image bytes, video, and text only from the open direct-user turn', async () => {
     const ctx = new Context()
     try {
@@ -188,6 +218,7 @@ describe('tool authorization', () => {
       ctx.provide('tools', { register } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('approval', { request } as never)
+      ctx.provide('permissionPresets', { current: () => 'workspace-write' } as never)
       ctx.provide('insightAccount', { getAccessToken } as never)
       ctx.provide('attachments', {} as never)
       await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
@@ -206,6 +237,69 @@ describe('tool authorization', () => {
       expect(request).toHaveBeenCalledOnce()
       expect(getAccessToken).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose() }
-    expect(release).toHaveBeenCalledTimes(3)
+    expect(release).toHaveBeenCalledTimes(6)
+  })
+
+  it('uses the effective Full access preset without requesting upload approval', async () => {
+    const ctx = new Context()
+    try {
+      await ctx.plugin(SessionProjectionRegistry)
+      const session = Session.create(SessionId('full-access-upload'))
+      session.append('turn/start', { turn: 1 })
+      session.append('user/message', createUserMessage({ source: { kind: 'user' },
+        content: [{ type: 'file', attachment: file }] }), { surfaceOp: 'append' })
+      const agent = { session } as Agent
+      const definitions: ToolDefinition[] = []
+      const request = vi.fn(async () => 'rejected' as const)
+      const getAccessToken = vi.fn(async () => { throw new Error('No account') })
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('approval', { request } as never)
+      ctx.provide('permissionPresets', { current: () => 'danger-full-access' } as never)
+      ctx.provide('insightAccount', { getAccessToken } as never)
+      ctx.provide('attachments', {} as never)
+      await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
+        generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 })
+      const exec = { agent, callId: ToolCallId('call-1'), name: 'upload_attachment', arguments: {},
+        signal: new AbortController().signal } as ToolRunContext
+      await expect(definitions.find(tool => tool.name === 'upload_attachment')?.execute({}, exec))
+        .rejects.toMatchObject({ code: 'AUTH_REQUIRED' })
+      expect(request).not.toHaveBeenCalled()
+      expect(getAccessToken).toHaveBeenCalledOnce()
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('asks again when Full access ends before the STS request', async () => {
+    const ctx = new Context()
+    const transport = vi.fn()
+    vi.stubGlobal('fetch', transport)
+    try {
+      await ctx.plugin(SessionProjectionRegistry)
+      const session = Session.create(SessionId('changed-upload-preset'))
+      session.append('turn/start', { turn: 1 })
+      session.append('user/message', createUserMessage({ source: { kind: 'user' },
+        content: [{ type: 'file', attachment: file }] }), { surfaceOp: 'append' })
+      const agent = { session } as Agent
+      const definitions: ToolDefinition[] = []
+      const request = vi.fn(async () => 'rejected' as const)
+      let preset = 'danger-full-access'
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('approval', { request } as never)
+      ctx.provide('permissionPresets', { current: () => preset } as never)
+      ctx.provide('insightAccount', { getAccessToken: async () => {
+        preset = 'workspace-write'
+        return 'account-token'
+      } } as never)
+      ctx.provide('attachments', {} as never)
+      await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
+        generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 })
+      const exec = { agent, callId: ToolCallId('call-1'), name: 'upload_attachment', arguments: {},
+        signal: new AbortController().signal } as ToolRunContext
+      await expect(definitions.find(tool => tool.name === 'upload_attachment')?.execute({}, exec))
+        .rejects.toMatchObject({ code: 'APPROVAL_DENIED' })
+      expect(request).toHaveBeenCalledOnce()
+      expect(transport).not.toHaveBeenCalled()
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
 })

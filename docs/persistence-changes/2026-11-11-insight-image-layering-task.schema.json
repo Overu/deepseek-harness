@@ -1,0 +1,25 @@
+{
+  "formatVersion": 2,
+  "roots": [
+    {"key":"event:insight/image-layering/task","kind":"event","event":"insight/image-layering/task","surface":false,"digest":"0daa9aecdd7c2dd04fe926bf8cbb1a969ab91db4b1901eb755b2a8b6066f47dd"}
+  ],
+  "types": [],
+  "nodes": {
+    "002a75463ed1a11c": {"kind":"literal","value":"retry_eligible"},
+    "0657d3ca5ac4e7bf": {"kind":"primitive","type":"number"},
+    "0a010ecef52e6f3d": {"kind":"union","types":["a0f906856fc06f1c","f88f1b7b6bb733f6"]},
+    "0daa9aecdd7c2dd0": {"kind":"object","properties":[{"name":"data","type":"a52f9955d34bbf58","optional":false},{"name":"ignorable","type":"dacf3d5f3e4ff619","optional":true},{"name":"seq","type":"0657d3ca5ac4e7bf","optional":false},{"name":"time","type":"0657d3ca5ac4e7bf","optional":false},{"name":"type","type":"9b45b464efca87b9","optional":false}],"indices":[]},
+    "0e3d45797018f60d": {"kind":"object","properties":[{"name":"accountScope","type":"4cd48f3e5108bd6e","optional":false},{"name":"attempt","type":"0a010ecef52e6f3d","optional":false},{"name":"cwd","type":"4cd48f3e5108bd6e","optional":false},{"name":"file","type":"f19bee84bf3d2090","optional":false},{"name":"firstHandle","type":"4cd48f3e5108bd6e","optional":true},{"name":"handle","type":"4cd48f3e5108bd6e","optional":true},{"name":"numLayers","type":"0657d3ca5ac4e7bf","optional":false},{"name":"prompt","type":"4cd48f3e5108bd6e","optional":false},{"name":"requestKey","type":"4cd48f3e5108bd6e","optional":false},{"name":"state","type":"4bab878faeb324b5","optional":false}],"indices":[]},
+    "13527ff9ba8f89d1": {"kind":"literal","value":"released"},
+    "4bab878faeb324b5": {"kind":"union","types":["002a75463ed1a11c","13527ff9ba8f89d1","5c6f923e4666d049","898111ebe8e5eec4"]},
+    "4cd48f3e5108bd6e": {"kind":"primitive","type":"string"},
+    "5c6f923e4666d049": {"kind":"literal","value":"reserved"},
+    "898111ebe8e5eec4": {"kind":"literal","value":"bound"},
+    "9b45b464efca87b9": {"kind":"literal","value":"insight/image-layering/task"},
+    "a0f906856fc06f1c": {"kind":"literal","value":2},
+    "a52f9955d34bbf58": {"kind":"object","properties":[{"name":"task","type":"0e3d45797018f60d","optional":false}],"indices":[]},
+    "dacf3d5f3e4ff619": {"kind":"literal","value":true},
+    "f19bee84bf3d2090": {"kind":"object","properties":[{"name":"attachmentId","type":"4cd48f3e5108bd6e","optional":false},{"name":"bytes","type":"0657d3ca5ac4e7bf","optional":false},{"name":"name","type":"4cd48f3e5108bd6e","optional":false}],"indices":[]},
+    "f88f1b7b6bb733f6": {"kind":"literal","value":1}
+  }
+}

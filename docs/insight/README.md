@@ -13,6 +13,7 @@ P6 documentation closure and the remaining-work handoff completed on 2026-11-03;
 | Is P6 closed, and how does source differ from published installers? | [Closure record](history/p6-closeout.md), [delivery state](operations.md#current-delivery-state) |
 | What was migrated, retained, or excluded? | [Migration summary](migration-summary.md) |
 | How do login, account data, the Host, and plugins connect? | [Architecture](architecture.md) |
+| How does image layering upload, generate, track, and deliver a PSD in a conversation? | [Image layering](image-layering.md) |
 | Why did we change official DSH files, and what must survive an upstream update? | [Baseline changes](baseline-changes.md) |
 | How do I develop, build, publish, or recover from a known failure? | [Operations](operations.md) |
 | What remains open, why, and when should we act? | [Follow-ups](follow-ups.md) |
@@ -20,7 +21,7 @@ P6 documentation closure and the remaining-work handoff completed on 2026-11-03;
 
 ## Documentation ownership
 
-These pages own Insight product decisions, migration outcomes, and maintenance guidance. Package READMEs own package behavior and configuration; [release scripts](../../scripts/insight-release/README.md) own the publication protocol; the [generated subsystem API](../subsystems/insight.md) owns the account service API. Links connect these owners instead of copying their implementation details.
+These pages own Insight product decisions, cross-package workflows, migration outcomes, and maintenance guidance. Package READMEs own package behavior and configuration; [release scripts](../../scripts/insight-release/README.md) own the publication protocol; the [generated subsystem API](../subsystems/insight.md) owns the account service API. Links connect these owners instead of copying their implementation details.
 
 Current pages are maintained in both languages. Frozen history preserves the source language, decisions, and test results from the recorded date. A failed historical check remains failed unless a later record closes it; a pending check does not mean a missing implementation.
 
