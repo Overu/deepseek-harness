@@ -255,6 +255,24 @@ export class LocalFileSystem extends FileSystem {
     })
   }
 
+  /** Publish binary content with the local provider's atomic writer and per-target lock.
+   * @param target - Resolved destination.
+   * @param content - Complete binary content.
+   * @param signal - Cancellation before publication.
+   * @returns Resulting file version.
+   */
+  override async writeBytes(target: FsTarget, content: Uint8Array, signal?: AbortSignal): Promise<{ version: FsVersion; size: number }> {
+    return this.withLock(target.targetKey, async () => {
+      const existing = await probe(target.targetKey)
+      if (existing && existing.type !== 'file') {
+        throw new FsError(`cannot write "${target.displayPath}": not a regular file`, 'FS_NOT_REGULAR_FILE')
+      }
+      await writeFileAtomic(target.targetKey, content, existing?.mode, signal, this.internals)
+      const after = await probe(target.targetKey)
+      return { version: this.versionAfterWrite(after, target), size: after?.size ?? content.length }
+    })
+  }
+
   override async editText(
     target: FsTarget,
     edit: FsEditRequest,

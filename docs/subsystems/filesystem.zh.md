@@ -275,7 +275,7 @@ type FsErrorCode =
 
 ## 服务与插件
 
-`FileSystem`（`ctx.fs`，abstract）拥有提供方原语：`resolve`、`processPath`、`processPathFromHostPath`、`fileUrl`、`contains`、`stat`、`lstat`、`readText`、`streamText`、`readBytes`、`listDir`、`writeText` 与 `editText`。`dsh-fs-observation-policy` **不注册服务**。它通过 `fs/*` 事件门禁添加策略，根据未见、缺失或存在状态对写入与编辑意图 waterfall 作出决策，并记录 `FsObservation` 值。执行器是 `dsh-tool-fs`：它通过 `ctx.fs` 读取、写入或编辑，分发 waterfall，并 emit 记录事件。下方生成的 [`ctx.fs` 小节](#ctxfs--filesystem-abstract-seam) 展示确切的 `ctx.fs` 签名。
+`FileSystem`（`ctx.fs`，abstract）拥有提供方原语：`resolve`、`processPath`、`processPathFromHostPath`、`fileUrl`、`contains`、`stat`、`lstat`、`readText`、`streamText`、`readBytes`、`readByteRange`、`listDir`、`writeText`、`writeBytes` 与 `editText`。`writeBytes` 不使用面向模型的观察意图；本地与沙箱后端原子发布调用方字节，基础提供方拒绝不支持的二进制写入。`dsh-fs-observation-policy` **不注册服务**，只通过 `fs/*` 事件决定文本写入/编辑意图并记录观察值。执行器是 `dsh-tool-fs`；下方生成的 [`ctx.fs` 小节](#ctxfs--filesystem-abstract-seam) 展示确切签名。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -443,6 +443,15 @@ abstract listDir(target: FsTarget, signal?: AbortSignal): Promise<FsDirEntry[]>
  * @returns the outcome, including the version the write produced.
  */
 abstract writeText( target: FsTarget, content: string, expected?: FsWriteIntent, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsWriteOutcome>
+
+/** Atomically publish raw bytes under the same per-call sandbox policy as text writes.
+ * @param target - Resolved destination in this execution world.
+ * @param content - Complete bounded binary content.
+ * @param signal - Cancellation before publication.
+ * @param sandboxPolicy - Effective Session mutation policy.
+ * @returns Metadata for the published file.
+ */
+writeBytes(target: FsTarget, content: Uint8Array, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<{ version: FsVersion; size: number }>
 
 /**
  * Atomically edit literal text. When supplied, the version guard is checked

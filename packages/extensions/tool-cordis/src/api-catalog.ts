@@ -1563,6 +1563,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the outcome, including the version the write produced.',
       },
       {
+        signature: 'writeBytes(target: FsTarget, content: Uint8Array, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<{ version: FsVersion; size: number }>',
+        description: 'Atomically publish raw bytes under the same per-call sandbox policy as text writes.',
+        parameters: [{ name: 'target', description: 'Resolved destination in this execution world.' }, { name: 'content', description: 'Complete bounded binary content.' }, { name: 'signal', description: 'Cancellation before publication.' }, { name: 'sandboxPolicy', description: 'Effective Session mutation policy.' }],
+        returns: 'Metadata for the published file.',
+      },
+      {
         signature: 'abstract editText( target: FsTarget, edit: FsEditRequest, expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsEditOutcome>',
         description: 'Atomically edit literal text. When supplied, the version guard is checked before matching so stale content reports `FS_STALE_VERSION`; omission edits the current content without a freshness precondition.',
         parameters: [{ name: 'target', description: 'the resolved target to edit.' }, { name: 'edit', description: 'the literal search/replace request.' }, { name: 'expected', description: 'the version guard; omit for an unconditional edit.' }, { name: 'signal', description: 'aborts before atomic publication takes effect.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this edit runs under; a sandboxing backend fences the edit by it, the bare backend ignores it. Omit to leave the backend its own default.' }],
