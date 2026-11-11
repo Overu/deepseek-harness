@@ -10,6 +10,7 @@ P6 已于 2026-11-03 结束。[收口记录](history/p6-closeout.md)固定本次
 
 | 问题 | 冻结来源 |
 | --- | --- |
+| DSH 0.2.2-rc.1 基线升级遇到哪些问题，哪些仍待处理？ | [基线升级问题记录](history/2026-11-11-dsh-v0.2.2-rc.1-upgrade.md) |
 | P6 何时结束，源码与安装包以什么为准，遗留项如何移交？ | [P6 收口记录](history/p6-closeout.md) |
 | 为什么从 Shell/Core 迁移，当时看重哪些能力？ | [能力盘点](history/shell/analysis/2026-10-08-business-capability-inventory.md)、[执行设计](history/shell/analysis/2026-10-28-dsh-insight-execution-report.md) |
 | 固定源码、必需组件和技能如何确定？ | [P0](history/shell/analysis/2026-10-28-dsh-insight-p0-design.md)、[P1 交付](history/shell/analysis/2026-10-28-dsh-insight-p1-delivery.md) |
