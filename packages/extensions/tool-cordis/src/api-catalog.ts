@@ -1797,9 +1797,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Current account installation state.',
       },
       {
-        signature: '@Remote listPendingPresets(catalogue: readonly SkillIdentity[]): Promise<readonly SkillIdentity[]>',
+        signature: '@Remote claimPresetInstallation(): boolean',
+        description: 'Admit one automatic preset installation during this account Host lifetime.',
+        parameters: [],
+        returns: 'True only for the first caller, including when that attempt later fails.',
+      },
+      {
+        signature: '@Remote listPendingPresets(catalogue: readonly SkillIdentity[], signal?: AbortSignal): Promise<readonly SkillIdentity[]>',
         description: 'List configured platform skills eligible for this account\'s first automatic installation.',
-        parameters: [{ name: 'catalogue', description: 'Published identities used to resolve configured selectors.' }],
+        parameters: [{ name: 'catalogue', description: 'Published identities used to resolve configured selectors.' }, { name: 'signal', description: 'Optional cancellation of this eligibility read.' }],
         returns: 'Identities absent from both installed records and account installation history.',
       },
       {
@@ -1829,7 +1835,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       {
         signature: '@Remote(\'removeSkill\') async remove(request: PlatformSkillRemovalRequest, signal: AbortSignal): Promise<PlatformSkillSnapshot>',
         description: 'Remove one committed skill selection and then reclaim its immutable payload.',
-        parameters: [{ name: 'request', description: 'Local key and current catalogue identity of the installation to remove.' }, { name: 'signal', description: 'Cancellation is honored before record removal commits.' }],
+        parameters: [{ name: 'request', description: 'Technical name of the installation to remove.' }, { name: 'signal', description: 'Cancellation is honored before record removal commits.' }],
         returns: 'current committed installation state.',
       },
       {
@@ -6813,7 +6819,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'InstalledPlatformSkill',
-    declaration: 'export interface InstalledPlatformSkill extends SkillIdentity {\n    readonly key: PlatformSkillKey;\n    readonly version: string;\n}',
+    declaration: 'export interface InstalledPlatformSkill extends SkillIdentity {\n    readonly version: string;\n}',
   },
   {
     name: 'InstallSpecKind',
@@ -7537,11 +7543,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PlatformSkillInstallRequest',
-    declaration: 'export interface PlatformSkillInstallRequest extends SkillIdentity {\n    readonly key?: PlatformSkillKey;\n    readonly version: string;\n    readonly operationId: PlatformSkillOperationId;\n    readonly downloadUrl: string;\n}',
-  },
-  {
-    name: 'PlatformSkillKey',
-    declaration: 'export type PlatformSkillKey = Branded<\'PlatformSkillKey\'>;',
+    declaration: 'export interface PlatformSkillInstallRequest extends SkillIdentity {\n    readonly version: string;\n    readonly operationId: PlatformSkillOperationId;\n    readonly downloadUrl: string;\n}',
   },
   {
     name: 'PlatformSkillOperationId',
@@ -7553,7 +7555,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'PlatformSkillRemovalRequest',
-    declaration: 'export interface PlatformSkillRemovalRequest extends SkillIdentity {\n    readonly key: PlatformSkillKey;\n}',
+    declaration: 'export type PlatformSkillRemovalRequest = SkillIdentity;',
   },
   {
     name: 'PlatformSkillSnapshot',
@@ -9089,7 +9091,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SkillIdentity',
-    declaration: 'export interface SkillIdentity {\n    readonly id?: InsightSkillId;\n    readonly skillName: string;\n}',
+    declaration: 'export interface SkillIdentity {\n    readonly id: InsightSkillId;\n}',
   },
   {
     name: 'SkillInvocationPolicy',

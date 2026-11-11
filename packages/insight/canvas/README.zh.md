@@ -28,6 +28,8 @@ kind: "package-bundle"
 
 文本节点支持分别编辑：`changes.prompt` 更新生成要求，`changes.text` 写入原生 `data.value` 正文。`canvas_run` 通过原生工作流生成文本，并在 Job 的 `outputs` 中返回正文；媒体结果卡仍只处理媒体。
 
+画布根据已连线的媒体节点判断生成模式，空节点也参与判断。提示词引用和实际生成输入需要已有内容的素材。
+
 iframe 从 `canvas-app` 构建；guidance 归本包拥有。[upstream.json](upstream.json) 记录源码输入和保留的标识。
 
 <a id="understand-the-implementation"></a>

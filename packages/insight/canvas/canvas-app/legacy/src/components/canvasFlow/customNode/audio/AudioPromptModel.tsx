@@ -49,9 +49,10 @@ const AudioPromptModel = ({ isExcute, props, status, onChangePrompt, onSelectCha
   const category = String(type);
   const edges = useFlowStore(state => state.edges);
   const nodes = useFlowStore(state => state.nodes);
-  const { textMap, imageMap, mediaInputs } = useGetNodeInput(id, nodes, edges);
+  const { textMap, imageMap, mediaInputs, mediaByTypeCounts } = useGetNodeInput(id, nodes, edges)
   const nonTextInputs = mediaInputs;
   const audioInputs = mediaInputs.filter(item => item.kind === 'audio');
+  const mediaByTypeCount = mediaByTypeCounts.images + mediaByTypeCounts.videos + mediaByTypeCounts.audios
   const textValues = useMemo(() => textMap.map(t => t.value), [textMap]);
   const previousNonTextInputCountRef = useRef(0);
   const [selectedStyleIds, setSelectedStyleIds] = useState<Record<string, number[]>>({});
@@ -120,9 +121,9 @@ const AudioPromptModel = ({ isExcute, props, status, onChangePrompt, onSelectCha
 
   useEffect(() => {
     const previousCount = previousNonTextInputCountRef.current;
-    if (previousCount === 0 && nonTextInputs.length > 0 && params.modelType !== AudioModelType.MUSIC_COVER) handleChange('modelType', AudioModelType.MUSIC_COVER);
-    previousNonTextInputCountRef.current = nonTextInputs.length;
-  }, [nonTextInputs.length, handleChange, params.modelType]);
+    if (previousCount === 0 && mediaByTypeCount > 0 && params.modelType !== AudioModelType.MUSIC_COVER) handleChange('modelType', AudioModelType.MUSIC_COVER)
+    previousNonTextInputCountRef.current = mediaByTypeCount
+  }, [mediaByTypeCount, handleChange, params.modelType])
 
   const modelTypeTabs = useMemo(() => modelTypes.map(item => ({ key: item.value, label: item.label })), [modelTypes]);
 

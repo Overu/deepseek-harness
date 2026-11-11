@@ -3,7 +3,20 @@
       name: ./lib/index.js
       config:
         presetSkillIds:
-          - '1'
-          - '2'
-          - '3'
+          - 'activity-search'
+          - 'brand-campaign-monitoring'
+          - 'canvas-workflow-builder'
+          - 'category-competitor-insight'
+          - 'creative-generation-evaluation'
+          - 'creator-due-diligence'
+          - 'creator-recommendation'
+          - 'human-needs-insight'
+          - 'influencer-integration'
+          - 'influencer-seeding'
+          - 'inspiration-api'
+          - 'marketing-integrated'
+          - 'media-generator'
+          - 'ppt-maker-new-new'
+          - 'soccor-proposal'
+          - 'insight-prestrategy-analysis'
         legacySkillDirs: []

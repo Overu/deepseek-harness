@@ -133,6 +133,26 @@ GitHub Release 构建和 OSS 发布是相互独立的操作，详见 [Insight �
 
 没有直接影响。账号呈现与认证状态不进入模型请求。
 
+### 工具参数恢复
+
+#### 模型看到什么
+
+当 Gateway 返回的完整工具参数无法解析为 JSON 时，Host 在同一个 Agent 步骤内重新请求模型一次。Session 记录纠错上下文。若再次解析失败，该步骤结束，两次失败响应中的工具都不会执行。
+
+##### 纠错提示
+
+```markdown
+The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.
+```
+
+#### Token 影响
+
+恢复会额外请求模型一次，并附上一条简短的上下文消息。
+
+#### KV Cache 影响
+
+重试在既有请求历史之后追加运行时上下文。
+
 ## 已知限制与延期工作
 
 <a id="known-limitations-and-deferred-work"></a>
