@@ -480,7 +480,7 @@
     },
     {
       "name": "get_image_layering",
-      "description": "Read an image-layer task using its enterprise taskHandle. Set watch=true to resume local tracking without resubmission.",
+      "description": "Read an image-layer task using its enterprise taskHandle. A query_unavailable result stops this image without resubmission; only a query timeout is retried once. Set watch=true to resume local tracking when no Job is active.",
       "parameters": {
         "type": "object",
         "properties": {

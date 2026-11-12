@@ -746,6 +746,10 @@ Declare existing files as final deliverables for the user. Hosts may show presen
 {
   "type": "object",
   "properties": {
+    "groupTitle": {
+      "type": "string",
+      "description": "Optional heading for these files. Use the same heading across calls for files that belong together."
+    },
     "files": {
       "type": "array",
       "description": "Usually the 1-2 most important deliverables; at most 4 per call.",

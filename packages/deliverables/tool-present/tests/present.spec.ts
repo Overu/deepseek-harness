@@ -69,9 +69,9 @@ async function setup() {
   await fiber
   const owner = await agent(ctx, root)
   owner.session.append('turn/start', { turn: 1 })
-  const execute = (files: unknown) => executeToolFixture(ctx, {
+  const execute = (files: unknown, groupTitle?: string) => executeToolFixture(ctx, {
     signal: new AbortController().signal, callId: ToolCallId(`call-${++callNumber}`),
-    name: 'present', arguments: { files }, agent: owner,
+    name: 'present', arguments: { files, ...groupTitle === undefined ? {} : { groupTitle } }, agent: owner,
   })
   return { ctx, owner, root, fiber, execute }
 }
@@ -93,6 +93,16 @@ describe('present', () => {
     expect(ctx.get('attachments')).toBeUndefined()
     await fiber.dispose()
     expect(ctx.tools.get('present', owner)).toBeUndefined()
+  })
+
+  it('records a shared heading for a delivered file group', async () => {
+    const { owner, root, execute } = await setup()
+    await writeFile(join(root, 'layer.psd'), 'psd')
+    const result = await execute([{ path: 'layer.psd' }], ' 图片 1（原图.png）的处理结果 ')
+    expect(result.isError).toBe(false)
+    expect(result.value).toMatchObject({ groupTitle: '图片 1（原图.png）的处理结果' })
+    expect(owner.session.snapshotEvents().find(event => event.type === 'deliverables/presented')?.data.groupTitle)
+      .toBe('图片 1（原图.png）的处理结果')
   })
 
   it('ignores a different present definition in the calling agent scope', async () => {
@@ -144,6 +154,13 @@ describe('present', () => {
       const result = await execute(files)
       expect(result.isError, JSON.stringify(files)).toBe(true)
     }
+    expect(owner.session.snapshotEvents().some(event => event.type === 'deliverables/presented')).toBe(false)
+  })
+
+  it('rejects a blank group heading before publishing a delivery', async () => {
+    const { root, owner, execute } = await setup()
+    await writeFile(join(root, 'layer.psd'), 'psd')
+    expect((await execute([{ path: 'layer.psd' }], '  ')).isError).toBe(true)
     expect(owner.session.snapshotEvents().some(event => event.type === 'deliverables/presented')).toBe(false)
   })
 

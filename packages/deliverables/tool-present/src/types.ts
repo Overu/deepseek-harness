@@ -12,6 +12,6 @@ export interface PresentedFile {
 declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
     /** Declared filesystem files from a successful final present result, including nested calls. */
-    'deliverables/presented': { turn: number; callId: ToolCallId; files: PresentedFile[] }
+    'deliverables/presented': { turn: number; callId: ToolCallId; files: PresentedFile[]; groupTitle?: string }
   }
 }

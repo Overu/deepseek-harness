@@ -135,7 +135,7 @@ interface WorkspaceChanges {
 
 ## 持久事件与提供的摘要
 
-`tool-present` 通过声明合并把 `deliverables/presented: { turn; callId; files: PresentedFile[] }` 加入 `SessionEventMap`，每次 `present` 的最终结果成功时追加一条。`workspace-changes` 合并 `workspace/changes: { turn }`，在顶层轮停止时追加；该事件宣告的摘要不在日志里，而是由 `workspaceChanges.summary(sessionId, seq)` 按事件序号返回，直到 Session 释放，因此 Host 重启后重新打开的对话，先前轮次没有改动文件卡片。`workspaceChanges.diff(sessionId, seq, index, signal)` 按同样的条件对比一个所列文件。同一轮后来的事件替代先前的，客户端只保留最新一条。生成的[持久化目录](../persistence-catalog.zh.md#deliverablespresented--log-only)记录了两处声明位置。两个事件都不会进入模型请求。
+`tool-present` 通过声明合并把 `deliverables/presented: { turn; callId; files: PresentedFile[]; groupTitle?: string }` 加入 `SessionEventMap`，每次 `present` 的最终结果成功时追加一条。`workspace-changes` 合并 `workspace/changes: { turn }`，在顶层轮停止时追加；该事件宣告的摘要不在日志里，而是由 `workspaceChanges.summary(sessionId, seq)` 按事件序号返回，直到 Session 释放，因此 Host 重启后重新打开的对话，先前轮次没有改动文件卡片。`workspaceChanges.diff(sessionId, seq, index, signal)` 按同样的条件对比一个所列文件。同一轮后来的事件替代先前的，客户端只保留最新一条。生成的[持久化目录](../persistence-catalog.zh.md#deliverablespresented--log-only)记录了两处声明位置。两个事件都不会进入模型请求。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 

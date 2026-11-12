@@ -37,7 +37,7 @@
 | `event:compaction/prune` | event | `7f7fd5a6b0064f597534b29ff62ef26e786dffccf5e14f654a7d4fcea2c35f04` | [`{ type: "compaction/prune" }`](#persistence-type-sha256-7f7fd5a6b0064f597534b29ff62ef26e786dffccf5e14f654a7d4fcea2c35f04) |
 | `event:compaction/start` | event | `db874d463b0fdec77e9da1c4568f37cb70bd6596781eb93800db44fb8a116965` | [`{ type: "compaction/start" }`](#persistence-type-sha256-db874d463b0fdec77e9da1c4568f37cb70bd6596781eb93800db44fb8a116965) |
 | `event:compaction/summary` | event | `9a58d3e2095f1c378b16e5e10f75b8f3eac3beb9ddeb7f2d935f256f39331241` | [`{ type: "compaction/summary" }`](#persistence-type-sha256-9a58d3e2095f1c378b16e5e10f75b8f3eac3beb9ddeb7f2d935f256f39331241) |
-| `event:deliverables/presented` | event | `13d3d180f977bf78081d487ffa0ecb75857349bcab29a5a3fb48189fca2a6176` | [`{ type: "deliverables/presented" }`](#persistence-type-sha256-13d3d180f977bf78081d487ffa0ecb75857349bcab29a5a3fb48189fca2a6176) |
+| `event:deliverables/presented` | event | `feb57edc04d55e088816e46f52e4ccc3cad8e77fa51a012d61efe3ea75f292b6` | [`{ type: "deliverables/presented" }`](#persistence-type-sha256-feb57edc04d55e088816e46f52e4ccc3cad8e77fa51a012d61efe3ea75f292b6) |
 | `event:developer/message` | event | `807ea6fc6aeaa6340a7476e6b32dcb513f2c09cecb00a1c1f03ee08d1d5e324f` | [`{ type: "developer/message" }`](#persistence-type-sha256-807ea6fc6aeaa6340a7476e6b32dcb513f2c09cecb00a1c1f03ee08d1d5e324f) |
 | `event:feedback/message-delete` | event | `3ee93b06f3a125850337602bcdf155d2538c43a5c944ec55b1b3c365152d6796` | [`{ type: "feedback/message-delete" }`](#persistence-type-sha256-3ee93b06f3a125850337602bcdf155d2538c43a5c944ec55b1b3c365152d6796) |
 | `event:feedback/message-put` | event | `b5086d249e8502e9ead1d39156bb8d559bde7951cac0f14ce150345b4e42a2bf` | [`{ type: "feedback/message-put" }`](#persistence-type-sha256-b5086d249e8502e9ead1d39156bb8d559bde7951cac0f14ce150345b4e42a2bf) |
@@ -487,7 +487,7 @@ export type SessionEvent<T extends SessionEventType = SessionEventType> = {
 
 ```ts persistence-catalog
 /** Declared filesystem files from a successful final present result, including nested calls. */
-'deliverables/presented': { turn: number; callId: ToolCallId; files: PresentedFile[] }
+'deliverables/presented': { turn: number; callId: ToolCallId; files: PresentedFile[]; groupTitle?: string }
 ```
 
 类型：[PresentedFile](subsystems/deliverables.zh.md) · [ToolCallId](subsystems/core.zh.md)
@@ -5993,11 +5993,11 @@ SHA-256: `e4c18e294232c3ba6c9f1999f168263cc55956147cfe4121720899be8e52edd1`
 | `step` | 必需 | `number` |
 | `turn` | 必需 | `number` |
 
-<a id="persistence-type-sha256-1528539c63db8b23506f0209a99ce77d8ad138adfbfcee3d4769b7382d93756c"></a>
+<a id="persistence-type-sha256-c2d92c8b3be3c71d64144911636219a5dfee7e84ea256e28cbcad8f4ad6586cd"></a>
 
-### `{ callId, files, turn }`
+### `{ callId, files, groupTitle?, turn }`
 
-SHA-256: `1528539c63db8b23506f0209a99ce77d8ad138adfbfcee3d4769b7382d93756c`
+SHA-256: `c2d92c8b3be3c71d64144911636219a5dfee7e84ea256e28cbcad8f4ad6586cd`
 
 来源：[`packages/deliverables/tool-present/src/types.ts:15`](../packages/deliverables/tool-present/src/types.ts)
 
@@ -6005,6 +6005,7 @@ SHA-256: `1528539c63db8b23506f0209a99ce77d8ad138adfbfcee3d4769b7382d93756c`
 |---|---|---|
 | `callId` | 必需 | `string` |
 | `files` | 必需 | [`PresentedFile[]`](#persistence-type-sha256-1d9cb3caa96100b18b1911fa3ff8c751ef6992971a03c5f4d9aefc1a0004a345) |
+| `groupTitle` | 可选 | `string` |
 | `turn` | 必需 | `number` |
 
 <a id="persistence-type-sha256-45f2a07ea94573123b6ae14db787a40062dec3834f36d8be92c523d40ba28448"></a>
@@ -8489,17 +8490,17 @@ SHA-256: `9a58d3e2095f1c378b16e5e10f75b8f3eac3beb9ddeb7f2d935f256f39331241`
 | `time` | 必需 | `number` |
 | `type` | 必需 | `"compaction/summary"` |
 
-<a id="persistence-type-sha256-13d3d180f977bf78081d487ffa0ecb75857349bcab29a5a3fb48189fca2a6176"></a>
+<a id="persistence-type-sha256-feb57edc04d55e088816e46f52e4ccc3cad8e77fa51a012d61efe3ea75f292b6"></a>
 
 <a id="persistence-type-eventdeliverablespresented"></a>
 
 ### `{ type: "deliverables/presented" }`
 
-SHA-256: `13d3d180f977bf78081d487ffa0ecb75857349bcab29a5a3fb48189fca2a6176`
+SHA-256: `feb57edc04d55e088816e46f52e4ccc3cad8e77fa51a012d61efe3ea75f292b6`
 
 | 属性 | 存在性 | 类型 |
 |---|---|---|
-| `data` | 必需 | [`{ callId, files, turn }`](#persistence-type-sha256-1528539c63db8b23506f0209a99ce77d8ad138adfbfcee3d4769b7382d93756c) |
+| `data` | 必需 | [`{ callId, files, groupTitle?, turn }`](#persistence-type-sha256-c2d92c8b3be3c71d64144911636219a5dfee7e84ea256e28cbcad8f4ad6586cd) |
 | `ignorable` | 可选 | `true` |
 | `seq` | 必需 | `number` |
 | `time` | 必需 | `number` |

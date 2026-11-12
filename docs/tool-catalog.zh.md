@@ -750,6 +750,10 @@ bash 工具是 bash 执行器 seam 面向模型的消费方。组合中有 job �
 {
   "type": "object",
   "properties": {
+    "groupTitle": {
+      "type": "string",
+      "description": "Optional heading for these files. Use the same heading across calls for files that belong together."
+    },
     "files": {
       "type": "array",
       "description": "Usually the 1-2 most important deliverables; at most 4 per call.",

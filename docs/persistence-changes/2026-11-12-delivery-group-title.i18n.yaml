@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-11-12-delivery-group-title.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-11-12-delivery-group-title.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-11-12-delivery-group-title:
+  en: 38ca69896c08d95e
+  zh: bd34bee642ef15cd
+/2026-11-12-delivery-group-title/summary:
+  en: 0e3df99211259a5e
+  zh: 73c04860c3947b9e
+/2026-11-12-delivery-group-title/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-11-12-delivery-group-title/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-11-12-delivery-group-title/compatibility:
+  en: 109a510ae9262579
+  zh: 06c9619ec9b04612
+/2026-11-12-delivery-group-title/verification:
+  en: 314f68a1747424d2
+  zh: f160c4c8ff7ba94a
+/2026-11-12-delivery-group-title/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269
