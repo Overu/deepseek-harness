@@ -4833,8 +4833,8 @@ export interface Config {
 
 ## `@insight-ai/desktop-media-upload-plugin`
 
-- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `agents` · `sessionProjections` · `jobs`
-- `source`: [`packages/insight/media-upload/src/index.ts:19`](../packages/insight/media-upload/src/index.ts)
+- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `permissionPresets` · `agents` · `sessionProjections` · `jobs` · `fs` · `workingDirectory` · `sandboxPolicy`
+- `source`: [`packages/insight/media-upload/src/index.ts:25`](../packages/insight/media-upload/src/index.ts)
 
 ```ts config-catalog
 /** Product environment and bounded network deadlines. */
@@ -4851,6 +4851,8 @@ export interface Config {
   generationPollIntervalMs: number
   /** Maximum duration of local generation tracking. */
   generationWatchTimeoutMs: number
+  /** Allowed result-object hosts; production must configure its result hosts. */
+  generationResultHosts?: string[]
 }
 ```
 <!-- END GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->

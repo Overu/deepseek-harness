@@ -31,7 +31,7 @@ kind: "package-bundle"
 <a id="implementation"></a>
 ## 实现
 
-`src/image-layering.ts` 在已认证代理创建请求前将每次创建名额写入 Session，取得句柄后绑定任务并启动 Job。确定失败或结果不完整时用同一句柄再查一次；只有首个任务可以使用保存的原图和参数再创建一次。创建或查询状态不明时不重新创建付费任务。任务绑定账号范围及初始交付目录。`job_kill`、关闭或重启只停止本地跟踪，不取消远端任务；句柄有效时可恢复查询。`src/result-cache.ts` 下载合法的 PSD 和图片，校验字节并通过 Session 沙箱文件系统写入。后续切换目录时先把已验证的整组文件复制到当前工作区；搬迁失败则保留原目录文件。
+`src/image-layering.ts` 在已认证代理创建请求前将每次创建名额写入 Session，取得句柄后绑定任务并启动 Job。非超时查询错误在第一次读取后停止该图 Job；单次查询达到请求期限时才用同一句柄补查一次。远端明确失败或结果不完整时不自动复查或重建。既有 Session 任务若已标记 `retry_eligible`，仍可使用重试工具；新任务不再获得该状态。创建或查询状态不明时不重新创建付费任务。任务绑定账号范围及初始交付目录。`job_kill`、关闭或重启只停止本地跟踪，不取消远端任务；句柄有效时可恢复查询。`src/result-cache.ts` 下载合法的 PSD 和图片，校验字节并通过 Session 沙箱文件系统写入。后续切换目录时先把已验证的整组文件复制到当前工作区；搬迁失败则保留原目录文件。
 
 `src/upload-source.ts` 将已提交 Session 事件分别折叠为通用上传的当前轮次附件列表，以及分层使用的最近三个用户轮次图片列表。`src/index.ts` 检查根 Agent；普通上传除有效“完全权限”预设外申请一次性审批，分层上传则依据用户对选定图片的处理请求执行。`src/upload-center.ts` 校验固定上传网关的 STS 响应，不暴露凭据。`src/oss-put.ts` 使用关闭 SDK 重试的流式写入。通用工具仅在 OSS HTTP 200 且原始字节完整消费后返回 URL；结果不明时不自动重复 PUT。
 
@@ -70,7 +70,7 @@ OSS PUT 明确成功后返回 `url`、`urlAccess: "unverified"`、`filename` 和
 
 #### 模型看到的内容
 
-`prepare_image_layering_source` 列出合格原图，多张不同图片时先选定。`submit_image_layering` 接收 `sourceRef`、可选 `prompt` 和非负 `numLayers`（默认 `0`），在 Host 内上传并提交，不再请求通用上传的单独审批。兼容路径仍接受同轮普通上传得到的 `imageUrl`。`get_image_layering` 使用绑定的 `taskHandle` 和可选 `watch` 查询；初次任务两次确认的不完整结果报告 `retry_eligible`，第二次任务失败即停止。代理创建返回 HTTP 5xx 时按结果未知处理，不自动重建。`retry_image_layering` 最多使用原图与原参数再创建一次。Job 在成功查询后缓存结果；`cache_image_layering_result` 用于恢复，返回已校验的本地路径、完整性和目录搬迁状态，供技能调用 `present`。结果地址失效时只按同一句柄刷新一次，并复用对象路径相同的已验证文件。诊断指明无效字段与原因，不记录带签名的 URL。
+`prepare_image_layering_source` 列出合格原图，多张不同图片时先选定。`submit_image_layering` 接收 `sourceRef`、可选 `prompt` 和非负 `numLayers`（默认 `0`），在 Host 内上传并提交，不再请求通用上传的单独审批。兼容路径仍接受同轮普通上传得到的 `imageUrl`。`get_image_layering` 使用绑定的 `taskHandle` 和可选 `watch` 查询；查询失败返回 `query_unavailable`，包含结构化原因、可选业务码与代理请求 ID，以及 `remoteOutcome: "unknown"`。代理创建返回 HTTP 5xx 时按结果未知处理，不自动重建。`retry_image_layering` 仅供之前已取得资格的 Session 任务使用。Job 在成功查询后缓存结果；`cache_image_layering_result` 用于恢复，返回已校验的本地路径、完整性和目录搬迁状态，供技能调用 `present`。结果地址失效时只按同一句柄刷新一次，并复用对象路径相同的已验证文件。诊断指明无效字段与原因，不记录带签名的 URL。
 
 #### Token 影响
 

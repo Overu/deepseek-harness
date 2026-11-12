@@ -60,7 +60,10 @@ declare module '@deepseek-ai/dsh-jobs' {
 
 interface LayeringResult {
   readonly taskHandle: string
-  readonly status: 'running' | 'succeeded' | 'missing_psd' | 'failed' | 'cancelled' | 'retry_eligible'
+  readonly status: 'running' | 'succeeded' | 'missing_psd' | 'failed' | 'cancelled' | 'retry_eligible' | 'query_unavailable'
+  readonly reason?: QueryFailureReason
+  readonly businessCode?: number
+  readonly remoteOutcome?: 'unknown'
   readonly psdUrls?: string[]
   readonly imageUrls?: string[]
   readonly imageListValid?: boolean
@@ -80,14 +83,18 @@ interface LayeringResult {
   }
 }
 
+type QueryFailureReason = 'business_error' | 'query_timeout' | 'invalid_response' | 'transport_error'
+
 /** Stable failures for proxy submission and status reads. */
 export class ImageLayeringFailure extends Error {
   /** @param code - Failure category for callers.
    * @param message - Actionable detail without upstream response text.
    * @param options - Original Host-only cause.
+   * @param query - Safe query failure details for tool and Job results.
    */
   constructor(readonly code: 'AUTH_REQUIRED' | 'SUBMISSION_UNKNOWN' | 'SUBMISSION_REJECTED'
-    | 'STATUS_UNAVAILABLE' | 'INVALID_RESPONSE', message: string, options?: ErrorOptions) {
+    | 'AUTH_UNAVAILABLE' | 'STATUS_UNAVAILABLE' | 'INVALID_RESPONSE', message: string, options?: ErrorOptions,
+  readonly query?: { reason: QueryFailureReason; businessCode?: number; proxyRequestId?: string }) {
     super(`${code}: ${message}`, options)
     this.name = 'ImageLayeringFailure'
   }
@@ -96,7 +103,12 @@ export class ImageLayeringFailure extends Error {
 const output = {
   schema: { type: 'object', additionalProperties: false, properties: {
     taskHandle: { type: 'string', required: true },
-    status: { type: 'string', enum: ['running', 'succeeded', 'missing_psd', 'failed', 'cancelled', 'retry_eligible'], required: true },
+    status: { type: 'string', enum: ['running', 'succeeded', 'missing_psd', 'failed', 'cancelled', 'retry_eligible', 'query_unavailable'],
+      description: 'State of this image task; query_unavailable stops local tracking without confirming the remote outcome.', required: true },
+    reason: { type: 'string', enum: ['business_error', 'query_timeout', 'invalid_response', 'transport_error'],
+      description: 'Why a status query became unavailable; only query_timeout receives one automatic same-handle retry.' },
+    businessCode: { type: 'integer', description: 'Safe upstream business code when a status query returned one.' },
+    remoteOutcome: { type: 'string', enum: ['unknown'], description: 'Remote generation outcome is unconfirmed after a query error.' },
     psdUrls: { type: 'array', items: { type: 'string' } },
     imageUrls: { type: 'array', items: { type: 'string' } },
     imageListValid: { type: 'boolean' },
@@ -205,11 +217,12 @@ async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_c
   body: object, timeoutMs: number, signal: AbortSignal): Promise<{ body: Record<string, unknown>; proxyRequestId?: string }> {
   const creating = path === '/v1/proxy_async_create'
   let responseRequestId: string | undefined
+  const timeoutSignal = AbortSignal.timeout(timeoutMs)
   try {
     const request = createInsightSkillProxyRequest(base, ctx.insightAccount)
     const response = await request('/api/skill-proxy/call-insight-api', {
       method: 'POST', body: JSON.stringify({ method: 'POST', path, body }),
-      signal: AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]),
+      signal: AbortSignal.any([signal, timeoutSignal]),
     })
     const requestId = response.headers.get('X-Insight-Proxy-Request-Id')
     responseRequestId = requestId && /^[0-9a-f-]{36}$/iu.test(requestId) ? requestId : undefined
@@ -217,30 +230,42 @@ async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_c
     if (event.type === 'error') {
       const code = typeof event.code === 'string' && /^[A-Z][A-Z0-9_]{0,127}$/u.test(event.code)
         ? event.code : 'SKILL_PROXY_FAILED'
-      if (code === 'LOGIN_REQUIRED' || code === 'USER_NOT_LOGIN') {
-        throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in before generating image layers.')
+      if (code === 'LOGIN_REQUIRED' || code === 'USER_NOT_LOGIN' || event.status === 401 || event.status === 403) {
+        throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in or request access before generating image layers.')
       }
       throw new ImageLayeringFailure(creating && ((typeof event.status === 'number' && event.status >= 500)
         || /UNKNOWN|TIMEOUT/u.test(code)) ? 'SUBMISSION_UNKNOWN'
         : creating ? 'SUBMISSION_REJECTED' : 'STATUS_UNAVAILABLE',
-      `${code}${proxyRequestId ? ` (request ${proxyRequestId})` : ''}.`)
+      `${code}${proxyRequestId ? ` (request ${proxyRequestId})` : ''}.`, undefined,
+      creating ? undefined : { reason: 'business_error', ...(proxyRequestId ? { proxyRequestId } : {}) })
     }
     const result = object(event.body)
     if (typeof event.status !== 'number' || event.status < 200 || event.status >= 300 || result?.code !== 0) {
+      if (event.status === 401 || event.status === 403) {
+        throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in or request access before generating image layers.')
+      }
       const businessCode = typeof result?.code === 'number' && Number.isSafeInteger(result.code)
-        ? `, business code ${result.code}` : ''
+        ? result.code : undefined
       throw new ImageLayeringFailure(creating && (typeof event.status !== 'number' || event.status >= 500)
         ? 'SUBMISSION_UNKNOWN' : creating ? 'SUBMISSION_REJECTED' : 'STATUS_UNAVAILABLE',
-      `Proxy operation returned upstream HTTP ${String(event.status)}${businessCode}${proxyRequestId ? ` (request ${proxyRequestId})` : ''}.`)
+      `Proxy operation returned upstream HTTP ${String(event.status)}${businessCode === undefined ? '' : `, business code ${businessCode}`}${proxyRequestId ? ` (request ${proxyRequestId})` : ''}.`,
+      undefined, creating ? undefined : { reason: 'business_error', ...(businessCode === undefined ? {} : { businessCode }),
+        ...(proxyRequestId ? { proxyRequestId } : {}) })
     }
     return { body: result, ...(proxyRequestId ? { proxyRequestId } : {}) }
   } catch (error) {
     if (error instanceof ImageLayeringFailure) throw error
-    if (error instanceof InsightSkillProxyError && error.code === 'LOGIN_REQUIRED') {
-      throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in before generating image layers.', { cause: error })
+    if (signal.aborted) throw error
+    if (error instanceof InsightSkillProxyError && (error.code === 'LOGIN_REQUIRED' || error.status === 401 || error.status === 403)) {
+      throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in or request access before generating image layers.', { cause: error })
+    }
+    if (error instanceof InsightSkillProxyError && error.code === 'SKILL_PROXY_AUTH_UNAVAILABLE') {
+      throw new ImageLayeringFailure('AUTH_UNAVAILABLE', 'Authentication service is unavailable; stop new image submissions.', { cause: error })
     }
     if (error instanceof InsightSkillProxyError && !creating) {
-      throw new ImageLayeringFailure('STATUS_UNAVAILABLE', `${error.code} (HTTP ${error.status}).`, { cause: error })
+      throw new ImageLayeringFailure('STATUS_UNAVAILABLE', `${error.code} (HTTP ${error.status}).`, { cause: error },
+        { reason: timeoutSignal.aborted ? 'query_timeout' : 'transport_error',
+          ...(responseRequestId ? { proxyRequestId: responseRequestId } : {}) })
     }
     if (error instanceof InsightSkillProxyError && error.code !== 'SKILL_PROXY_OUTCOME_UNKNOWN'
       && error.status >= 400 && error.status < 500) {
@@ -248,7 +273,9 @@ async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_c
     }
     throw new ImageLayeringFailure(creating ? 'SUBMISSION_UNKNOWN' : 'STATUS_UNAVAILABLE',
       creating ? `Submission outcome is unknown${responseRequestId ? ` (request ${responseRequestId})` : ''}; check proxy audit before creating another task.`
-        : `Task status could not be read${responseRequestId ? ` (request ${responseRequestId})` : ''}.`, { cause: error })
+        : `Task status could not be read${responseRequestId ? ` (request ${responseRequestId})` : ''}.`, { cause: error },
+      creating ? undefined : { reason: timeoutSignal.aborted ? 'query_timeout' : 'invalid_response',
+        ...(responseRequestId ? { proxyRequestId: responseRequestId } : {}) })
   }
 }
 
@@ -339,41 +366,33 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
   const getResult = async (handle: string, signal: AbortSignal, attempt = 1) => {
     const result = await requestProxy(ctx, base, '/v1/proxy_async_get_result',
       { task_type: 'async_tencent_multi_layer_get_result', task_id: handle }, config.generationRequestTimeoutMs, signal)
-    const value = parseLayeringResult(result.body, handle, result.proxyRequestId)
+    let value: LayeringResult
+    try { value = parseLayeringResult(result.body, handle, result.proxyRequestId) }
+    catch (error) {
+      if (!(error instanceof ImageLayeringFailure) || error.code !== 'STATUS_UNAVAILABLE') throw error
+      throw new ImageLayeringFailure('STATUS_UNAVAILABLE', error.message, { cause: error },
+        { reason: 'invalid_response', ...(result.proxyRequestId ? { proxyRequestId: result.proxyRequestId } : {}) })
+    }
     if (!value.diagnostic) return value
     const diagnostic = { ...value.diagnostic, queryAttempt: attempt }
     ctx.logger.warn(`insight-media-upload: image-layering result diagnostic ${JSON.stringify({
       ...diagnostic, proxyRequestId: result.proxyRequestId ?? null })}`)
     return { ...value, diagnostic }
   }
-  const recheckTerminal = async (handle: string, first: LayeringResult, signal: AbortSignal): Promise<LayeringResult> => {
-    if (first.status !== 'failed' && first.status !== 'missing_psd'
-      && !(first.status === 'succeeded' && first.imageListValid === false)) return first
-    const second = await getResult(handle, signal, 2)
-    if (second.status === 'failed' || second.status === 'missing_psd'
-      || (second.status === 'succeeded' && second.imageListValid === false)) {
-      const imageUrls = [...new Set([...(first.imageUrls ?? []), ...(second.imageUrls ?? [])])]
-      const psdUrls = [...new Set([...(first.psdUrls ?? []), ...(second.psdUrls ?? [])])]
-      return { ...second, status: 'retry_eligible',
-        error: second.error ?? 'Two status reads confirmed no usable PSD.',
-        ...(imageUrls.length ? { imageUrls } : {}), ...(psdUrls.length ? { psdUrls } : {}),
-        ...(second.diagnostic ? { diagnostic: { ...second.diagnostic, queryAttempt: 2 } } : {}) }
+  const readStatus = async (handle: string, signal: AbortSignal, deadline?: number): Promise<LayeringResult> => {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try { return await getResult(handle, signal, attempt) }
+      catch (error) {
+        if (signal.aborted || !(error instanceof ImageLayeringFailure)
+          || (error.code !== 'STATUS_UNAVAILABLE' && error.code !== 'INVALID_RESPONSE')) throw error
+        const reason = error.query?.reason ?? 'invalid_response'
+        if (reason === 'query_timeout' && attempt === 1 && (deadline === undefined || Date.now() < deadline)) continue
+        return { taskHandle: handle, status: 'query_unavailable', reason, remoteOutcome: 'unknown',
+          ...(error.query?.businessCode === undefined ? {} : { businessCode: error.query.businessCode }),
+          ...(error.query?.proxyRequestId ? { proxyRequestId: error.query.proxyRequestId } : {}) }
+      }
     }
-    return second
-  }
-  const resolveRetry = (exec: ToolRunContext, handle: string, value: LayeringResult): LayeringResult => {
-    if (value.status !== 'retry_eligible') return value
-    const task = findTask(exec, handle)
-    if (task?.attempt === 1 && (task.state === 'bound' || task.state === 'retry_eligible')) {
-      return value
-    }
-    return { ...value, status: 'failed', error: task?.attempt === 2
-      ? 'The second image-layering attempt did not return a complete result.'
-      : 'This image-layering task cannot be retried automatically.' }
-  }
-  const markRetry = (exec: ToolRunContext, handle: string) => {
-    const task = findTask(exec, handle)
-    if (task?.attempt === 1 && task.state === 'bound') appendTask(exec, { ...task, state: 'retry_eligible' })
+    throw new Error('Status query exceeded its retry limit.')
   }
   const cacheResult = async (exec: ToolRunContext, task: BoundTask, handle: string,
     initial: LayeringResult, signal: AbortSignal) => {
@@ -432,17 +451,11 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
           const deadline = Date.now() + config.generationWatchTimeoutMs
           try {
             while (!signal.aborted && Date.now() < deadline) {
-              let first: LayeringResult
-              let alreadyRechecked = false
-              try { first = await getResult(handle, signal) }
-              catch (error) {
-                if (!(error instanceof ImageLayeringFailure)
-                  || (error.code !== 'INVALID_RESPONSE' && error.code !== 'STATUS_UNAVAILABLE')) throw error
-                first = await getResult(handle, signal, 2)
-                alreadyRechecked = true
+              const value = await readStatus(handle, signal, deadline)
+              if (value.status === 'query_unavailable') {
+                finish({ status: 'failed', detail: 'Local tracking stopped; remote status is unknown.',
+                  result: JSON.stringify(value) }); return
               }
-              const value = resolveRetry(exec, handle,
-                alreadyRechecked ? first : await recheckTerminal(handle, first, signal))
               if (value.status === 'succeeded') {
                 const task = findTask(exec, handle)
                 if (task?.handle === handle) {
@@ -460,26 +473,19 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
                 }
                 finish({ status: 'completed', result: JSON.stringify(value) }); return
               }
-              if (value.status === 'retry_eligible' || value.status === 'failed') {
+              if (value.status === 'missing_psd' || value.status === 'failed') {
                 const task = findTask(exec, handle)
                 if (task?.handle === handle && (value.imageUrls?.length || value.psdUrls?.length)) {
                   try {
                     const cache = await cacheResult(exec, task, handle, { ...value, status: 'missing_psd' }, signal)
-                    if (cache.complete) {
-                      if (task.state === 'retry_eligible') appendTask(exec, { ...task, state: 'bound' })
-                      finish({ status: 'completed', result: JSON.stringify({ ...value, status: 'succeeded', cache }) })
-                    } else {
-                      if (value.status === 'retry_eligible') markRetry(exec, handle)
-                      finish({ status: 'failed', detail: value.error ?? 'No complete PSD result was returned.',
-                        result: JSON.stringify({ ...value, cache }) })
-                    }
+                    finish({ status: 'failed', detail: value.error ?? 'No complete PSD result was returned.',
+                      result: JSON.stringify({ ...value, cache }) })
                   } catch {
-                    finish({ status: 'failed', detail: 'Image-layering files were not completely cached; recover the local files before retrying generation.',
+                    finish({ status: 'failed', detail: 'Image-layering files were not completely cached; recover local files without resubmitting generation.',
                       result: JSON.stringify({ taskHandle: handle, status: 'cache_partial' }) })
                   }
                   return
                 }
-                if (value.status === 'retry_eligible') markRetry(exec, handle)
                 finish({ status: 'failed', detail: value.error ?? 'No PSD file was returned.', result: JSON.stringify(value) }); return
               }
               if (value.status === 'cancelled') {
@@ -497,7 +503,9 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
               detail: error instanceof ImageLayeringFailure && error.code === 'INVALID_RESPONSE'
                 ? error.message : 'Local tracking stopped; remote status is unknown.',
               result: JSON.stringify({ taskHandle: handle,
-                status: error instanceof ImageLayeringFailure && error.code === 'INVALID_RESPONSE' ? 'invalid_result' : 'monitoring_unknown',
+                status: error instanceof ImageLayeringFailure && (error.code === 'AUTH_REQUIRED' || error.code === 'AUTH_UNAVAILABLE')
+                  ? 'auth_unavailable' : error instanceof ImageLayeringFailure && error.code === 'INVALID_RESPONSE'
+                    ? 'invalid_result' : 'monitoring_unknown',
                 error: error instanceof Error ? error.message : 'Status request failed.' }) })
           }
         }
@@ -575,7 +583,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
   })
   const get = defineTool({
     name: 'get_image_layering',
-    description: 'Read an image-layer task using its enterprise taskHandle. Set watch=true to resume local tracking without resubmission.',
+    description: 'Read an image-layer task using its enterprise taskHandle. A query_unavailable result stops this image without resubmission; only a query timeout is retried once. Set watch=true to resume local tracking when no Job is active.',
     parameters: {
       taskHandle: { type: 'string', required: true, description: 'Opaque taskHandle returned by submit_image_layering.' },
       watch: { type: 'boolean', description: 'Resume asynchronous tracking while the task is running.' },
@@ -588,28 +596,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
       // Unbound handles remain query-only; cache and paid retry require a Session task record.
       findTask(exec, args.taskHandle)
       const signal = AbortSignal.any([exec.signal, lifetime.signal])
-      let first: LayeringResult
-      let alreadyRechecked = false
-      try { first = await getResult(args.taskHandle, signal) }
-      catch (error) {
-        if (!(error instanceof ImageLayeringFailure)
-          || (error.code !== 'INVALID_RESPONSE' && error.code !== 'STATUS_UNAVAILABLE')) throw error
-        first = await getResult(args.taskHandle, signal, 2)
-        alreadyRechecked = true
-      }
-      const value = resolveRetry(exec, args.taskHandle,
-        alreadyRechecked ? first : await recheckTerminal(args.taskHandle, first, signal))
-      if (value.status === 'retry_eligible') {
-        const task = findTask(exec, args.taskHandle)
-        if (task?.handle === args.taskHandle && (value.imageUrls?.length || value.psdUrls?.length)) {
-          const cache = await cacheResult(exec, task, args.taskHandle, { ...value, status: 'missing_psd' }, signal)
-          if (cache.complete) {
-            if (task.state === 'retry_eligible') appendTask(exec, { ...task, state: 'bound' })
-            return { ...value, status: 'succeeded' }
-          }
-        }
-        markRetry(exec, args.taskHandle)
-      }
+      const value = await readStatus(args.taskHandle, signal)
       if (!args.watch || value.status !== 'running') return value
       try { return { ...value, jobId: startWatch(exec, args.taskHandle), monitoring: 'running' } }
       catch { return { ...value, monitoring: 'unavailable' } }

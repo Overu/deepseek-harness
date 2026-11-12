@@ -25,7 +25,7 @@ const jsonBody = (init: RequestInit): unknown => {
 }
 
 describe('image layering proxy', () => {
-  it('reserves a user image task before creation and permits only one confirmed retry', async () => {
+  it('stops after one query error while retaining historical retry eligibility', async () => {
     const ctx = new Context()
     const definitions: ToolDefinition[] = []
     const session = Session.create(SessionId('reserved-layering-task'))
@@ -41,7 +41,7 @@ describe('image layering proxy', () => {
         creates++
         return ndjson({ code: 0, data: { task_id_list: [creates === 1 ? handle : 'second-handle'] } })
       }
-      if (++queries === 1) throw new Error('Status request interrupted')
+      if (++queries === 1) return ndjson({ code: 3099, message: 'not available' })
       return ndjson({ code: 0, status: 'failed' })
     })
     vi.stubGlobal('fetch', transport)
@@ -67,22 +67,25 @@ describe('image layering proxy', () => {
       expect(await tool('submit_image_layering').execute({}, exec)).toMatchObject({ taskHandle: handle })
       expect(creates).toBe(1)
       expect(await tool('get_image_layering').execute({ taskHandle: handle }, exec))
-        .toMatchObject({ status: 'failed' })
+        .toMatchObject({ status: 'query_unavailable', reason: 'business_error', businessCode: 3099,
+          remoteOutcome: 'unknown', taskHandle: handle,
+          proxyRequestId: '123e4567-e89b-12d3-a456-426614174000' })
+      expect(queries).toBe(1)
       await expect(tool('retry_image_layering').execute({ taskHandle: handle }, exec)).rejects.toThrow('not eligible')
       expect(creates).toBe(1)
-      expect(await tool('get_image_layering').execute({ taskHandle: handle }, exec))
-        .toMatchObject({ status: 'retry_eligible' })
+      const bound = Object.values(tasks.stateOf(session))[0]!
+      session.append('insight/image-layering/task', { task: { ...bound, state: 'retry_eligible' } })
       expect(await tool('retry_image_layering').execute({ taskHandle: handle }, exec))
         .toMatchObject({ taskHandle: 'second-handle' })
       expect(await tool('get_image_layering').execute({ taskHandle: 'second-handle' }, exec))
-        .toMatchObject({ status: 'failed', error: 'The second image-layering attempt did not return a complete result.' })
+        .toMatchObject({ status: 'failed' })
       await expect(tool('retry_image_layering').execute({ taskHandle: handle }, exec)).rejects.toThrow('not eligible')
       expect(creates).toBe(2)
       expect(upload).toHaveBeenCalledTimes(2)
       await tasks.dispose()
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
-  it('caches successful image files before offering a retry for missing PSD', async () => {
+  it('keeps partial image files without creating retry eligibility for missing PSD', async () => {
     const ctx = new Context()
     const definitions: ToolDefinition[] = []
     const session = Session.create(SessionId('partial-layering-task'))
@@ -135,11 +138,11 @@ describe('image layering proxy', () => {
       const job = jobSpec?.run({ id: JobId('partial-job'), append: () => {}, updateProgress: () => {} })
       const outcome = await job?.done
       expect(outcome).toMatchObject({ status: 'failed' })
-      expect(JSON.parse(outcome?.result ?? '{}')).toMatchObject({ status: 'retry_eligible',
+      expect(JSON.parse(outcome?.result ?? '{}')).toMatchObject({ status: 'missing_psd',
         cache: { complete: false, files: [{ kind: 'png' }] } })
-      expect(Object.values(tasks.stateOf(session))[0]).toMatchObject({ state: 'retry_eligible' })
+      expect(Object.values(tasks.stateOf(session))[0]).toMatchObject({ state: 'bound' })
       expect(local.size).toBe(2)
-      expect(transport).toHaveBeenCalledTimes(4)
+      expect(transport).toHaveBeenCalledTimes(3)
       await tasks.dispose()
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
@@ -302,6 +305,92 @@ describe('image layering proxy', () => {
         signal: new AbortController().signal } as ToolRunContext
       await expect(definitions.find(tool => tool.name === 'submit_image_layering')?.execute({ imageUrl: input }, exec))
         .rejects.toThrow('business code 1001')
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
+  })
+
+  it('stops the failed image Job while the other image Jobs finish', async () => {
+    const ctx = new Context()
+    const definitions: ToolDefinition[] = []
+    const jobs: JobSpec[] = []
+    const agent = { id: SessionId('layer-agent'), session: Session.create(SessionId('three-layering-tasks')) } as Agent
+    const queries: string[] = []
+    const handles = ['good-1', handle, 'good-3']
+    let creates = 0
+    const transport = vi.fn(async (_url: string, init: RequestInit) => {
+      const request = jsonBody(init) as { path: string; body: { task_id?: string } }
+      if (request.path === '/v1/proxy_async_create') {
+        creates++
+        return ndjson({ code: 0, data: { task_id_list: [handles[creates - 1]] } })
+      }
+      queries.push(request.body.task_id!)
+      return ndjson(request.body.task_id === handle ? { code: 3099 } :
+        { code: 0, status: 'success', data: { image_list: [psd] } })
+    })
+    vi.stubGlobal('fetch', transport)
+    try {
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
+      ctx.provide('jobs', { start(spec: JobSpec) { jobs.push(spec); return JobId(`job-${jobs.length}`) } } as never)
+      registerImageLayeringTools(ctx, config, () => true)
+      const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
+        signal: new AbortController().signal } as ToolRunContext
+      const submit = definitions.find(tool => tool.name === 'submit_image_layering')!
+      await submit.execute({ imageUrl: input }, exec)
+      await submit.execute({ imageUrl: input }, exec)
+      await submit.execute({ imageUrl: input }, exec)
+      const outcomes = await Promise.all(jobs.map((spec, index) => spec.run({ id: JobId(`job-${index + 1}`),
+        append: () => {}, updateProgress: () => {} }).done))
+      expect(outcomes.map(outcome => outcome.status)).toEqual(['completed', 'failed', 'completed'])
+      expect(JSON.parse(outcomes[1]?.result ?? '{}')).toMatchObject({ taskHandle: handle,
+        status: 'query_unavailable', reason: 'business_error', businessCode: 3099, remoteOutcome: 'unknown' })
+      expect(queries).toEqual(['good-1', handle, 'good-3'])
+      expect(creates).toBe(3)
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
+  })
+
+  it('retries only a timed-out status query once under the same handle', async () => {
+    const ctx = new Context()
+    const definitions: ToolDefinition[] = []
+    const agent = { id: SessionId('layer-agent'), session: Session.create(SessionId('timeout-layering-task')) } as Agent
+    const transport = vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener('abort', () => { reject(new Error('Aborted')) }, { once: true })
+    }))
+    vi.stubGlobal('fetch', transport)
+    try {
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
+      ctx.provide('jobs', { start: () => JobId('job') } as never)
+      registerImageLayeringTools(ctx, { ...config, generationRequestTimeoutMs: 5 }, () => true)
+      const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
+        signal: new AbortController().signal } as ToolRunContext
+      expect(await definitions.find(tool => tool.name === 'get_image_layering')!.execute({ taskHandle: handle }, exec))
+        .toMatchObject({ status: 'query_unavailable', reason: 'query_timeout', remoteOutcome: 'unknown' })
+      expect(transport).toHaveBeenCalledTimes(2)
+      for (const [, init] of transport.mock.calls) {
+        expect((jsonBody(init) as { body: { task_id: string } }).body.task_id).toBe(handle)
+      }
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
+  })
+
+  it('treats authentication service failure as a shared stop condition', async () => {
+    const ctx = new Context()
+    const definitions: ToolDefinition[] = []
+    const agent = { id: SessionId('layer-agent'), session: Session.create(SessionId('auth-layering-task')) } as Agent
+    const transport = vi.fn()
+    vi.stubGlobal('fetch', transport)
+    try {
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('insightAccount', { getAccessToken: async () => { throw new Error('Service unavailable') } } as never)
+      ctx.provide('jobs', { start: () => JobId('job') } as never)
+      registerImageLayeringTools(ctx, config, () => true)
+      const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
+        signal: new AbortController().signal } as ToolRunContext
+      await expect(definitions.find(tool => tool.name === 'get_image_layering')!.execute({ taskHandle: handle }, exec))
+        .rejects.toMatchObject({ code: 'AUTH_UNAVAILABLE' })
+      expect(transport).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
 
