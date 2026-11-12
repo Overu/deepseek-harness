@@ -67,13 +67,14 @@ export function presentedFileUrl(sessionId: SessionId, seq: number, index: numbe
 /**
  * Validate a delivery event before reading its turn or file declarations.
  * @param value - decoded durable event data.
- * @returns whether the event identifies a turn, call, and file list.
+ * @returns whether the event identifies a turn, call, file list, and valid optional group heading.
  */
-export function isPresentedData(value: unknown): value is { turn: number; callId: ToolCallId; files: unknown[] } {
+export function isPresentedData(value: unknown): value is { turn: number; callId: ToolCallId; files: unknown[]; groupTitle?: string } {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const { turn, callId, files } = value as Record<string, unknown>
+  const { turn, callId, files, groupTitle } = value as Record<string, unknown>
   return typeof turn === 'number' && Number.isSafeInteger(turn) && turn >= 1
     && typeof callId === 'string' && callId.length > 0 && Array.isArray(files)
+    && (groupTitle === undefined || (typeof groupTitle === 'string' && groupTitle.trim().length > 0))
 }
 
 /**

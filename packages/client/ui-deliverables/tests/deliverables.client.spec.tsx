@@ -1003,6 +1003,35 @@ describe('presented files', () => {
       .toMatchObject([{ path: 'report.docx', seq: 3, index: 0, description: 'Final report' }])
   })
 
+  it('groups separate delivery calls under their source heading and expands each group independently', () => {
+    const first = '图片 1（草帽人物.png）的处理结果'
+    const second = '图片 2（笔记本.png）的处理结果'
+    const value = assembler([
+      at(1, 'turn/start', { turn: 1 }),
+      at(2, 'deliverables/presented', { turn: 1, callId: 'first-a', groupTitle: first,
+        files: Array.from({ length: 7 }, (_, index) => file(`first-${index}.png`)) }),
+      at(3, 'deliverables/presented', { turn: 1, callId: 'first-b', groupTitle: first,
+        files: Array.from({ length: 3 }, (_, index) => file(`first-${index + 7}.png`)) }),
+      at(4, 'deliverables/presented', { turn: 1, callId: 'second', groupTitle: second,
+        files: Array.from({ length: 7 }, (_, index) => file(`second-${index}.png`)) }),
+    ])
+    const owner = tailOwner(deliverablesOf(value), 5)
+    const matched = selectDeliverables(owner)!
+    expect(matched.presented).toHaveLength(17)
+    const view = render(<Deliverables {...openProps()} matched={matched} openFile={owner.openFile} sessionId={SessionId('session')} t={makeTranslate(zh)} />)
+    const groups = view.container.querySelectorAll('[data-grouped]')
+    expect(groups).toHaveLength(2)
+    expect(within(groups[0] as HTMLElement).getByRole('heading', { name: first })).toBeTruthy()
+    expect(within(groups[1] as HTMLElement).getByRole('heading', { name: second })).toBeTruthy()
+    expect(groups[0]?.querySelectorAll('[data-presented-file]')).toHaveLength(2)
+    expect(groups[1]?.querySelectorAll('[data-presented-file]')).toHaveLength(2)
+    fireEvent.click(within(groups[0] as HTMLElement).getByRole('button', { name: '展开全部 10 个交付文件' }))
+    expect(groups[0]?.querySelectorAll('[data-presented-file]')).toHaveLength(10)
+    expect(groups[1]?.querySelectorAll('[data-presented-file]')).toHaveLength(2)
+    fireEvent.click(within(groups[1] as HTMLElement).getByRole('button', { name: '展开全部 7 个交付文件' }))
+    expect(groups[1]?.querySelectorAll('[data-presented-file]')).toHaveLength(7)
+  })
+
   it('uses the viewed fork Session in every open action and expands all delivered files', () => {
     const value = assembler([
       at(1, 'turn/start', { turn: 1 }),
@@ -1033,7 +1062,10 @@ describe('presented files', () => {
 })
 
 
-it.each([null, [], 'invalid'])('declines non-object delivery data: %j', (data) => {
+it.each([null, [], 'invalid',
+  { turn: 1, callId: 'bad', files: [], groupTitle: ' ' },
+  { turn: 1, callId: 'bad', files: [], groupTitle: 42 },
+])('declines malformed delivery data: %j', (data) => {
   expect(deliverablesDefinition.match(at(1, 'deliverables/presented', data).event)).toBeNull()
 })
 

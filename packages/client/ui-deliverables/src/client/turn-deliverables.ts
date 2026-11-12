@@ -18,6 +18,8 @@ import { basename, isPresentedData, isPresentedFile } from '../presented.ts'
 export interface PresentedPath extends PresentedFile {
   readonly seq: number
   readonly index: number
+  /** Heading shared by files delivered for one source. */
+  readonly groupTitle?: string
 }
 
 interface ProducedPath {
@@ -189,12 +191,13 @@ export const deliverablesDefinition: ConversationNodeDefinition<DeliverablesStat
   update: (context, match) => {
     if (match.event.type === 'workspace/changes') return { ...context.state, changes: { seq: match.event.seq } }
     if (match.event.type === 'deliverables/presented') {
-      const { files } = match.event.data
+      const { files, groupTitle } = match.event.data
       const seq = match.event.seq
       const presented: PresentedPath[] = []
       for (let index = 0; index < files.length; index += 1) {
         const file = files[index]
-        if (isPresentedFile(file)) presented.push({ ...file, seq, index })
+        if (isPresentedFile(file)) presented.push({ ...file, seq, index,
+          ...groupTitle === undefined ? {} : { groupTitle } })
       }
       if (presented.length === 0) return context.state
       return { ...context.state, presented: [...context.state.presented ?? [], ...presented] }
