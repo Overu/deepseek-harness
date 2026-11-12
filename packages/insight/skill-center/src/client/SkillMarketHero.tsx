@@ -1,6 +1,7 @@
 /** Hero and search form for the skill market. */
 import type { FormEvent, ReactNode } from 'react'
 import { Button, IconSearchOutlineRegular, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { SkillHeroHands } from './SkillHeroHands.tsx'
 import type { SkillCenterTranslate } from './types.ts'
 import styles from './SkillCenterPage.module.css'
 
@@ -20,6 +21,7 @@ interface SkillMarketHeroProps {
 export function SkillMarketHero({ t, query, onQueryChange, onSearch }: SkillMarketHeroProps): ReactNode {
   return (
     <div className={styles.hero}>
+      <SkillHeroHands />
       <div className={styles.heroContent}>
         <p className={styles.eyebrow}>{t('eyebrow')}</p>
         <h1 className={styles.title}>{t('heroTitlePrefix')} <span>{t('heroTitleAccent')}</span></h1>

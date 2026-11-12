@@ -161,6 +161,7 @@ it('keeps the custom removal failure visible and refreshes the list after the fa
   fireEvent.click(await view.findByRole('button', { name: 'account-brief，查看详情' }))
   fireEvent.click(within(view.getByRole('dialog', { name: 'account-brief' })).getByRole('button', { name: '删除技能' }))
   const confirmation = within(view.getByRole('dialog', { name: '删除技能' }))
+  expect(inventory.removeCustom).not.toHaveBeenCalled()
   fireEvent.click(confirmation.getByRole('button', { name: '删除技能' }))
   expect((await confirmation.findByRole('alert')).textContent).toBe(zh.deleteCustomFailed)
   await waitFor(() => { expect(inventory.listCustom).toHaveBeenCalledTimes(2) })
@@ -289,7 +290,7 @@ it('keeps completed installation feedback when a late cancel request rejects', a
   await waitFor(() => { expect(view.getByRole('alert').textContent).toContain('技能已安装') })
 })
 
-it('matches an installed technical name and removes it by the same name', async () => {
+it('removes an installed skill by its technical name after confirmation', async () => {
   let snapshot = installed([{ id: 'influencer-integration', version: '0.0.1' }])
   const platform = RemoteMock.create()
     .unary('insightPlatformSkills/listInstalled', () => ok(snapshot))
@@ -303,6 +304,9 @@ it('matches an installed technical name and removes it by the same name', async 
   const dialog = view.getByRole('dialog')
   expect(within(dialog).getByRole('button', { name: '更新' })).toBeTruthy()
   fireEvent.click(within(dialog).getByRole('button', { name: '移除' }))
+  const confirmation = within(view.getByRole('dialog', { name: '移除技能' }))
+  expect(platform.remote.insightPlatformSkills.removeSkill).not.toHaveBeenCalled()
+  fireEvent.click(confirmation.getByRole('button', { name: '移除' }))
   expect(platform.remote.insightPlatformSkills.removeSkill).toHaveBeenCalledWith({ id: 'influencer-integration' }, undefined)
   await waitFor(() => { expect(within(view.getAllByRole('article')[0]!).getByRole('button', { name: '安装' })).toBeTruthy() })
 })
@@ -343,6 +347,7 @@ it('keeps an installed skill missing from the catalogue removable', async () => 
   expect(within(card).getByText('该已安装技能已不在技能目录中，你仍可将其移除')).toBeTruthy()
   fireEvent.click(within(card).getByRole('button', { name: /查看详情$/u }))
   fireEvent.click(within(view.getByRole('dialog')).getByRole('button', { name: '移除' }))
+  fireEvent.click(within(view.getByRole('dialog', { name: '移除技能' })).getByRole('button', { name: '移除' }))
   await waitFor(() => { expect(view.queryByRole('heading', { name: 'retired-platform-skill' })).toBeNull() })
 })
 
@@ -360,6 +365,7 @@ it('keeps installed skills removable while the catalogue is unavailable', async 
   if (card === null) throw new Error('retired platform skill card missing')
   fireEvent.click(within(card).getByRole('button', { name: /查看详情$/u }))
   fireEvent.click(within(view.getByRole('dialog')).getByRole('button', { name: '移除' }))
+  fireEvent.click(within(view.getByRole('dialog', { name: '移除技能' })).getByRole('button', { name: '移除' }))
   await waitFor(() => { expect(view.queryByRole('heading', { name: 'retired-platform-skill' })).toBeNull() })
 })
 

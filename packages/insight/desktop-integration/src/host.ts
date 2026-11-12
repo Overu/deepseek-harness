@@ -1,4 +1,4 @@
-/** Host-only account service definition and structured access failures for trusted plugins. */
+/** Account credentials and service addresses for trusted Host plugins. */
 import { InsightAccount } from './host/account-service.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -16,3 +16,4 @@ export {
   type InsightAccountServiceOptions,
   type InsightAccountTransport,
 } from './host/account-service.ts'
+export { desktopServiceEnvironment } from './shared/service-environment.ts'

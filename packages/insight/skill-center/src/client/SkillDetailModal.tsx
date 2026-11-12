@@ -22,17 +22,21 @@ export interface SkillDetailModalProps {
 /**
  * Render the selected skill's published description as plain text.
  * @param props - The selected skill, localized text, and user actions.
- * @returns the shared detail modal and custom removal confirmation.
+ * @returns the skill details and confirmation for removal of an installed skill.
  */
 export function SkillDetailModal({
   skill, source, customRemovable, t, onClose, state, onInstall, onRemove,
 }: SkillDetailModalProps): ReactNode {
   const [confirmation, setConfirmation] = useState<'closed' | 'confirm' | 'removing' | 'failed'>('closed')
+  const official = source === undefined
+  const removeAction = official ? 'remove' : 'deleteCustom'
   const removing = confirmation === 'removing'
+  const requestRemoval = (): void => { setConfirmation('confirm') }
   const cancel = (): void => { if (!removing) setConfirmation('closed') }
   const confirm = async (): Promise<void> => {
     setConfirmation('removing')
-    setConfirmation(await onRemove() ? 'closed' : 'failed')
+    const removed = await onRemove()
+    setConfirmation(removed || official ? 'closed' : 'failed')
   }
   const paragraphs = descriptionParagraphs(skill.descriptionMarkdown)
   const { name, version } = skill
@@ -51,26 +55,28 @@ export function SkillDetailModal({
           <p className={styles.summary}>{skill.summary}</p>
         </div>
         <section className={styles.instructions} aria-labelledby="skill-detail-description">
-          <h3 id="skill-detail-description" className={styles.descriptionTitle}>{t(source === undefined ? 'usage' : 'description')}</h3>
+          <h3 id="skill-detail-description" className={styles.descriptionTitle}>{t(official ? 'usage' : 'description')}</h3>
           {paragraphs.length === 0
             ? <p className={styles.paragraph}>{t('noDescription')}</p>
             : paragraphs.map(paragraph => <p key={paragraph.id} className={styles.paragraph}>{paragraph.text}</p>)}
         </section>
       </div>
-      {source === undefined && <div className={styles.actions}>
-        {(state === 'installed' || state === 'update') && <Button variant="outline" onClick={() => { void onRemove() }}>{t('remove')}</Button>}
+      {official && <div className={styles.actions}>
+        {(state === 'installed' || state === 'update') && <Button variant="outline" onClick={requestRemoval}>{t(removeAction)}</Button>}
         {(state === 'install' || state === 'update') && <Button variant="primary" onClick={() => { onInstall(skill) }}>{t(state)}</Button>}
         {(state === 'loading' || state === 'conflict') && <Tag tone="neutral">{t(state === 'loading' ? 'installStateLoading' : 'identityConflict')}</Tag>}
       </div>}
-      {source !== undefined && customRemovable && <div className={styles.actions}>
-        <Button variant="outline" onClick={() => { setConfirmation('confirm') }}>{t('deleteCustom')}</Button>
+      {!official && customRemovable && <div className={styles.actions}>
+        <Button variant="outline" onClick={requestRemoval}>{t(removeAction)}</Button>
       </div>}
     </Modal>
-    <Modal open={confirmation !== 'closed'} onClose={cancel} title={t('deleteCustom')} closeLabel={t('close')}
-      description={t('deleteCustomDescription').replace('{name}', name)}
+    <Modal open={confirmation !== 'closed'} onClose={cancel} title={t(official ? 'removeOfficialTitle' : 'deleteCustom')} closeLabel={t('close')}
+      description={t(official ? 'removeOfficialDescription' : 'deleteCustomDescription').replace('{name}', () => name)}
       footer={<>
         <Button variant="outline" data-modal-autofocus disabled={removing} onClick={cancel}>{t('installCancel')}</Button>
-        <Button variant="primary" disabled={removing} onClick={() => { void confirm() }}>{t(removing ? 'deletingCustom' : 'deleteCustom')}</Button>
+        <Button variant="primary" disabled={removing} onClick={() => { void confirm() }}>
+          {removing ? t(official ? 'removingOfficial' : 'deletingCustom') : t(removeAction)}
+        </Button>
       </>}>
       {confirmation === 'failed' && <p role="alert">{t('deleteCustomFailed')}</p>}
     </Modal>

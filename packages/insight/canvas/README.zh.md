@@ -38,7 +38,9 @@ iframe 从 `canvas-app` 构建；guidance 归本包拥有。[upstream.json](upst
 <details>
 <summary>实现细节</summary>
 
-Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。Host 从 `ctx.insightAccount` 获取凭证，不再单独拥有 Desktop token IPC 客户端；Main 选择匹配的服务环境。
+Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。Host 从 `ctx.insightAccount` 获取凭证，不再单独拥有 Desktop token IPC 客户端。
+
+Canvas 使用 [Desktop Integration 的网关配置](../desktop-integration/README.zh.md#understand-the-implementation)，并负责自己的 Web、抠图和模型参数 CDN 地址。
 
 已认证的桥接请求在已有 Web 来源外接受精确的 `dsh-app://app` 来源，仍执行 Connection 认证和 Canvas 所有权检查。关闭时先停止接入、取消消费者并等待分发与结果写入，再等待 OSS 上传结束，最后关闭桥接和存储资源。停止本地跟踪不承诺取消已被云端接受的操作。
 

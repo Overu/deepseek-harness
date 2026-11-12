@@ -10,11 +10,10 @@
   - paragraph: 共 2 个技能
   - tabpanel "自定义技能":
     - article:
-      - heading "我的达人整合" [level=3]:
-        - button "我的达人整合，查看详情": 我的达人整合
+      - heading "我的达人整合" [level=3]
       - paragraph: 个人营销模板
+      - button "我的达人整合，查看详情": 详情
     - article:
-      - heading "shared-brief" [level=3]:
-        - button "shared-brief，查看详情": shared-brief
+      - heading "shared-brief" [level=3]
       - paragraph: 整理团队共享的营销简报。
-      - text: 共享
+      - button "shared-brief，查看详情": 详情

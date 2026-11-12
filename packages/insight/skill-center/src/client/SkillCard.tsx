@@ -19,12 +19,14 @@ export interface SkillCardProps {
 }
 
 /**
- * Render the skill's first display character, summary, source, and actions.
+ * Render the skill's first display character, summary, and actions.
  * @param props - The displayed skill and its available action callbacks.
  * @returns the skill directory card.
  */
 export function SkillCard({ skill, source, t, onDetail, state, onInstall }: SkillCardProps): ReactNode {
   const { name, version } = skill
+  const detailLabel = t('detail').replace('{name}', name)
+  const custom = source !== undefined
   const action = state === undefined ? undefined : t(state === 'loading' ? 'installStateLoading' : state === 'conflict' ? 'identityConflict' : state)
   const actionable = state === 'install' || state === 'update'
   return (
@@ -33,8 +35,10 @@ export function SkillCard({ skill, source, t, onDetail, state, onInstall }: Skil
       <div className={styles.copy}>
         <div className={styles.titleRow}>
           <h3 className={styles.heading} aria-label={name}>
-            <Button variant="ghost" className={styles.detail} aria-haspopup="dialog"
-              aria-label={t('detail').replace('{name}', name)} onClick={onDetail}>{name}</Button>
+            {custom
+              ? <span className={styles.name}>{name}</span>
+              : <Button variant="ghost" className={styles.detail} aria-haspopup="dialog"
+                aria-label={detailLabel} onClick={onDetail}>{name}</Button>}
           </h3>
           {version !== undefined && <Tag tone="quiet" className={styles.version}>{t('versionValue').replace('{version}', version)}</Tag>}
         </div>
@@ -42,7 +46,8 @@ export function SkillCard({ skill, source, t, onDetail, state, onInstall }: Skil
       </div>
       {actionable && <Button className={styles.trailing} variant="primary" size="sm" onClick={onInstall}>{action}</Button>}
       {!actionable && action !== undefined && <Tag tone="neutral" className={styles.status}>{action}</Tag>}
-      {source === 'shared' && <Tag tone="neutral" className={styles.status}>{t('sharedSkill')}</Tag>}
+      {custom && <Button variant="outline" size="sm" className={styles.detailAction} aria-haspopup="dialog"
+        aria-label={detailLabel} onClick={onDetail}>{t('details')}</Button>}
     </article>
   )
 }

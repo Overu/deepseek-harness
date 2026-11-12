@@ -1,6 +1,6 @@
 diff --git a/README.i18n.yaml b/README.i18n.yaml
 new file mode 100644
-index 0000000..4290fcf
+index 0000000..f53528f
 --- /dev/null
 +++ b/README.i18n.yaml
 @@ -0,0 +1,43 @@
@@ -24,8 +24,8 @@ index 0000000..4290fcf
 +  en: 79a884ad49e6a160
 +  zh: e384b674c6976144
 +/insight-ai-desktop-canvas-plugin/understand-the-implementation:
-+  en: c0b9367478fdc9c6
-+  zh: 4b4fa68b6c68b233
++  en: 52b8f23d0066db94
++  zh: 8ec7f4d09b32b9f7
 +/insight-ai-desktop-canvas-plugin/model-experience:
 +  en: 215e7ba838619b7b
 +  zh: a311da3843709f90
@@ -49,10 +49,10 @@ index 0000000..4290fcf
 +  zh: 9f56528562c7c914
 diff --git a/README.md b/README.md
 new file mode 100644
-index 0000000..89e1988
+index 0000000..6aac516
 --- /dev/null
 +++ b/README.md
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,79 @@
 +---
 +description: "Canvas tools and its embedded business page for an Insight-authenticated desktop profile."
 +kind: "package-bundle"
@@ -93,7 +93,9 @@ index 0000000..89e1988
 +<details>
 +<summary>Implementation internals</summary>
 +
-+The Host owns tools, local routes, bridge ownership, and result persistence. The Client owns Canvas navigation, references, and the resident page service. The existing page shares its Canvas context with the visible iframe. Both plugin halves use the official workspace compiler and Client bundler; the iframe retains its own Vite build under the root dependency lock. Shared upload names use DSH’s UUID helper, which remains available on plain-HTTP browser pages. The Host obtains credentials from `ctx.insightAccount`; it does not own another Desktop token IPC client. Main selects the matching service environment.
++The Host owns tools, local routes, bridge ownership, and result persistence. The Client owns Canvas navigation, references, and the resident page service. The existing page shares its Canvas context with the visible iframe. Both plugin halves use the official workspace compiler and Client bundler; the iframe retains its own Vite build under the root dependency lock. Shared upload names use DSH’s UUID helper, which remains available on plain-HTTP browser pages. The Host obtains credentials from `ctx.insightAccount`; it does not own another Desktop token IPC client.
++
++Canvas uses the [Desktop Integration gateway configuration](../desktop-integration/README.md#understand-the-implementation) and owns its Web, matting, and model-parameter CDN addresses.
 +
 +Authenticated bridge requests admit the exact `dsh-app://app` origin alongside existing Web origins. Connection authentication and Canvas ownership checks still apply. Shutdown stops admission, cancels consumers, waits for dispatch and result writes, then drains OSS uploads before closing bridge and storage resources. Stopping local tracking does not promise cancellation of an accepted cloud operation.
 +
@@ -132,10 +134,10 @@ index 0000000..89e1988
 +None.
 diff --git a/README.zh.md b/README.zh.md
 new file mode 100644
-index 0000000..ee83ad9
+index 0000000..0069f7e
 --- /dev/null
 +++ b/README.zh.md
-@@ -0,0 +1,77 @@
+@@ -0,0 +1,79 @@
 +---
 +description: "为已完成 Insight 桌面认证的 profile 提供画布工具和嵌入业务页面。"
 +kind: "package-bundle"
@@ -176,7 +178,9 @@ index 0000000..ee83ad9
 +<details>
 +<summary>实现细节</summary>
 +
-+Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。Host 从 `ctx.insightAccount` 获取凭证，不再单独拥有 Desktop token IPC 客户端；Main 选择匹配的服务环境。
++Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。Host 从 `ctx.insightAccount` 获取凭证，不再单独拥有 Desktop token IPC 客户端。
++
++Canvas 使用 [Desktop Integration 的网关配置](../desktop-integration/README.zh.md#understand-the-implementation)，并负责自己的 Web、抠图和模型参数 CDN 地址。
 +
 +已认证的桥接请求在已有 Web 来源外接受精确的 `dsh-app://app` 来源，仍执行 Connection 认证和 Canvas 所有权检查。关闭时先停止接入、取消消费者并等待分发与结果写入，再等待 OSS 上传结束，最后关闭桥接和存储资源。停止本地跟踪不承诺取消已被云端接受的操作。
 +
@@ -26713,28 +26717,41 @@ index 8bd2a5e..0cc4b19 100644
      const snapshot = await snapshotAsset(response, name, mediaType, signal)
      const declared = response.headers['content-length']
 diff --git a/src/host/service-environment.ts b/src/host/service-environment.ts
-index 556cdc3..bec774d 100644
+index 556cdc3..b010e3e 100644
 --- a/src/host/service-environment.ts
 +++ b/src/host/service-environment.ts
-@@ -1,7 +1,8 @@
- /** Desktop-owned destinations. Pages and tool arguments cannot choose another environment. */
+@@ -1,17 +1,26 @@
+-/** Desktop-owned destinations. Pages and tool arguments cannot choose another environment. */
++/** Canvas-specific destinations paired with the Desktop-selected gateway. */
++import { desktopServiceEnvironment } from '@insight-ai/desktop-integration/host'
++
  const PROFILES = {
    test: {
 -    matting: 'https://test-api-upload.idealead.com', api: 'https://gapi-test.insight-aigc.com', web: 'https://dynsight-test.insight-aigc.com',
-+    matting: 'https://test-api-upload.idealead.com', api: 'https://gapi-test.insight-aigc.com',
++    matting: 'https://test-api-upload.idealead.com',
 +    web: 'https://dynsight-test.insight-aigc.com',
      modelParams: 'https://game-ai-admin-test-cdn.idealead.com/model_node_setting/model_params_with_sort.json',
    },
    production: {
-@@ -11,7 +12,7 @@ const PROFILES = {
+-    matting: 'https://api-upload.idealead.com', api: 'https://gapi.insight-aigc.com', web: 'https://dynsight.insight-aigc.com',
++    matting: 'https://api-upload.idealead.com',
++    web: 'https://dynsight.insight-aigc.com',
+     modelParams: 'https://game-ai-admin-prod-cdn.idealead.com/model_node_setting/model_params_with_sort.json',
+   },
  } as const
  
++/**
++ * Resolve Canvas destinations for the environment selected by Desktop Main.
++ * @returns The shared gateway origin and Canvas-specific destinations.
++ * @throws If the Host has no valid Insight service environment.
++ */
  export function desktopServiceProfile() {
 -  const environment = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
 -  if (environment && environment !== 'test' && environment !== 'production') throw new Error('invalid desktop service environment')
+-  return environment === 'production' ? PROFILES.production : PROFILES.test
 +  const environment = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
 +  if (environment !== 'test' && environment !== 'production') throw new Error('invalid desktop service environment')
-   return environment === 'production' ? PROFILES.production : PROFILES.test
++  return { ...PROFILES[environment], api: desktopServiceEnvironment(environment).gatewayOrigin }
  }
 diff --git a/src/host/snapshot-route.ts b/src/host/snapshot-route.ts
 index 75fe102..5e8f7bc 100644
@@ -29399,23 +29416,32 @@ index 6feb905..4be091b 100644
 +  assert.equal(bridge.checkClient(registered.bridgeKey, 'https://other.example'), false)
 +})
 diff --git a/test/canvas-api.test.mjs b/test/canvas-api.test.mjs
-index f40f799..de1fea1 100644
+index f40f799..a022312 100644
 --- a/test/canvas-api.test.mjs
 +++ b/test/canvas-api.test.mjs
-@@ -12,10 +12,10 @@ function fixture(response = () => envelope({ id: '103136', versionNumber: 0 }))
+@@ -12,22 +12,25 @@ function fixture(response = () => envelope({ id: '103136', versionNumber: 0 }))
    return { calls, dependencies }
  }
  test('create uses the existing empty canvas payload, fixed environment and current desktop identity', async () => {
 -  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
 +  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
    try {
-     for (const [environment, domain] of [['test', '-test'], ['production', '']]) {
+-    for (const [environment, domain] of [['test', '-test'], ['production', '']]) {
 -      process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = environment
++    for (const [environment, api, web] of [
++      ['test', 'https://gapi-test.insight-aigc.com', 'https://dynsight-test.insight-aigc.com'],
++      ['production', 'https://gapi-dsh.idealead.com', 'https://dynsight.insight-aigc.com'],
++    ]) {
 +      process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
        const f = fixture()
        assert.deepEqual(await createEmptyCanvas('  产品项目  ', controller().signal, f.dependencies), { canvasId: '103136', name: '产品项目', version: '0' })
        assert.equal(f.calls.length, 1)
-@@ -26,8 +26,8 @@ test('create uses the existing empty canvas payload, fixed environment and curre
+       const { url, init } = f.calls[0]
+-      assert.equal(url, `https://gapi${domain}.insight-aigc.com/game-ai-editor-center/api/canvas/saveOrUpdate`)
+-      assert.equal(init.headers.origin, `https://dynsight${domain}.insight-aigc.com`)
++      assert.equal(url, `${api}/game-ai-editor-center/api/canvas/saveOrUpdate`)
++      assert.equal(init.headers.origin, web)
+       assert.equal(init.headers.token, 'private-token'); assert.equal(init.redirect, 'error')
        assert.deepEqual(JSON.parse(init.body), { name: '产品项目', temp: false, canvasType: 0, version: 'comfyui', data: '{"nodes":[],"edges":[]}' })
      }
    } finally {
@@ -29444,10 +29470,10 @@ index 3e3fc39..a87bdfd 100644
      dispatch: async (_target, request, operation) => { calls.push(['dispatch', request, operation]); return operation.action === 'canvas.read' ? { status: 'read', consistency: 'confirmed', nodes: [{ id: 'source', type: 'image', outputs: ['https://cdn.example.com/result.png'], truncatedFields: [] }] } : { status: 'saved', canvasId: id, version: '19', affectedNodeIds: ['asset-node'], unchanged: false } }, ...overrides.bridge }
    const api = { getIdentity: async () => { calls.push(['identity']); return { userId: '123', token: 'private-token' } },
 diff --git a/test/canvas-assets.test.mjs b/test/canvas-assets.test.mjs
-index 8081ed2..4797932 100644
+index 8081ed2..757d0ee 100644
 --- a/test/canvas-assets.test.mjs
 +++ b/test/canvas-assets.test.mjs
-@@ -41,11 +41,11 @@ test('audio/video uploads stream exact file bytes and register native types and
+@@ -41,20 +41,23 @@ test('audio/video uploads stream exact file bytes and register native types and
  })
  
  test('identity uses current desktop token and fixed test/production GET with no redirects', async () => {
@@ -29457,14 +29483,20 @@ index 8081ed2..4797932 100644
 -    for (const [environment, suffix] of [[undefined, '-test'], ['test', '-test'], ['production', '']]) {
 -      if (environment === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
 -      else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = environment
-+    for (const [environment, suffix] of [['test', '-test'], ['production', '']]) {
++    for (const [environment, api, web] of [
++      ['test', 'https://gapi-test.insight-aigc.com', 'https://dynsight-test.insight-aigc.com'],
++      ['production', 'https://gapi-dsh.idealead.com', 'https://dynsight.insight-aigc.com'],
++    ]) {
 +      if (environment === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
 +      else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
        const f = fixture(); assert.deepEqual(await f.api.getIdentity(), identity)
        assert.equal(f.tokenCount(), 1); assert.equal(f.calls.length, 1)
-       assert.equal(f.calls[0].url, `https://gapi${suffix}.insight-aigc.com/user-server/getUserDetail`)
-@@ -54,7 +54,7 @@ test('identity uses current desktop token and fixed test/production GET with no
-       assert.equal(f.calls[0].init.headers.origin, `https://dynsight${suffix}.insight-aigc.com`)
+-      assert.equal(f.calls[0].url, `https://gapi${suffix}.insight-aigc.com/user-server/getUserDetail`)
++      assert.equal(f.calls[0].url, `${api}/user-server/getUserDetail`)
+       assert.equal(f.calls[0].init.method, 'GET'); assert.equal(f.calls[0].init.body, undefined)
+       assert.equal(f.calls[0].init.headers.token, identity.token)
+-      assert.equal(f.calls[0].init.headers.origin, `https://dynsight${suffix}.insight-aigc.com`)
++      assert.equal(f.calls[0].init.headers.origin, web)
        assert.equal(f.calls[0].init.redirect, 'error')
      }
 -  } finally { if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT; else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = previous }
@@ -29472,7 +29504,7 @@ index 8081ed2..4797932 100644
  })
  test('identity success forms and Long JSON tokens are preserved exactly', async () => {
    for (const code of ['SUCCESS', 200, 0, '0']) {
-@@ -64,13 +64,13 @@ test('identity success forms and Long JSON tokens are preserved exactly', async
+@@ -64,13 +67,13 @@ test('identity success forms and Long JSON tokens are preserved exactly', async
    const f = fixture({ reply: () => new Response('{"code":0,"id":103}') }); assert.deepEqual(await f.api.getIdentity(), identity)
  })
  test('invalid environment and cancelled token lookup never send a request', async () => {
@@ -29489,7 +29521,7 @@ index 8081ed2..4797932 100644
    const f = fixture(); const controller = new AbortController(); controller.abort()
    await assert.rejects(f.api.getIdentity(controller.signal), { code: 'CANCELLED_BEFORE_DISPATCH', requestPhase: 'not_sent' })
    assert.equal(f.calls.length, 0); assert.equal(f.tokenCount(), 0)
-@@ -202,3 +202,22 @@ test('OSS PUT resolved with an explicit HTTP 403 reports rejection without retry
+@@ -202,3 +205,22 @@ test('OSS PUT resolved with an explicit HTTP 403 reports rejection without retry
    await assert.rejects(f.api.uploadMedia(stored(), identity), error => error.code === 'ASSET_UPLOAD_REJECTED' && error.requestPhase === 'rejected' && safeError(error))
    assert.equal(f.calls.length, 1); assert.equal(f.puts.length, 1)
  })
@@ -29567,7 +29599,7 @@ index cfb1d2b..87b22f3 100644
    const start = at(1, 'turn/start', { turn: 1 }), outer = at(2, 'tool/call', { turn: 1, step: 1, callId: 'outer', name: 'run_code', arguments: '{}' })
    native.assembler.replaceWindow([start, outer, at(3, 'tool/ptc-dispatch-start', ids)], false)
 diff --git a/test/canvas-get.test.mjs b/test/canvas-get.test.mjs
-index 63ed494..013dabf 100644
+index 63ed494..a2f296e 100644
 --- a/test/canvas-get.test.mjs
 +++ b/test/canvas-get.test.mjs
 @@ -27,8 +27,8 @@ test('canvas/get rejects node IDs that cannot round-trip through selection messa
@@ -29581,7 +29613,7 @@ index 63ed494..013dabf 100644
    const calls = []
    try {
      const result = await fetchCanvas(id, async () => 'current-token', async (url, init) => {
-@@ -41,14 +41,14 @@ test('canvas/get uses current Token and the fixed test Gateway', async () => {
+@@ -41,26 +41,26 @@ test('canvas/get uses current Token and the fixed test Gateway', async () => {
      assert.equal(calls[0].init.redirect, 'error')
      assert.equal(calls[0].init.body, '{"id":"2873"}')
    } finally {
@@ -29600,7 +29632,11 @@ index 63ed494..013dabf 100644
    try {
      let call
      await fetchCanvas(id, async () => 'production-token', async (url, init) => {
-@@ -59,8 +59,8 @@ test('canvas/get in a packaged client uses the production Gateway and Web origin
+       call = { url, init }
+       return new Response(JSON.stringify(envelope), { status: 200 })
+     })
+-    assert.equal(call.url, 'https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/get')
++    assert.equal(call.url, 'https://gapi-dsh.idealead.com/game-ai-editor-center/api/canvas/get')
      assert.equal(call.init.headers.origin, 'https://dynsight.insight-aigc.com')
      assert.equal(call.init.headers.token, 'production-token')
    } finally {
@@ -29868,7 +29904,7 @@ similarity index 100%
 rename from test/fixtures/media/README.md
 rename to test/fixtures/media/FIXTURES.md
 diff --git a/test/gateway-route.test.mjs b/test/gateway-route.test.mjs
-index 1cc0677..b2e0adb 100644
+index 1cc0677..71bd569 100644
 --- a/test/gateway-route.test.mjs
 +++ b/test/gateway-route.test.mjs
 @@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events'
@@ -29891,8 +29927,12 @@ index 1cc0677..b2e0adb 100644
    const calls = []
    try {
      const raw = '{"code":"VERSION_CONFLICT","msg":"版本冲突"}'
-@@ -163,8 +163,8 @@ test('gateway uses the fixed production host and preserves a JSON conflict respo
-     assert.equal(calls[0].url, 'https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/saveOrUpdate')
+@@ -160,11 +160,11 @@ test('gateway uses the fixed production host and preserves a JSON conflict respo
+     await handler(request('POST', `${prefix}/game-ai-editor-center/api/canvas/saveOrUpdate`, '{}'), res)
+     assert.equal(res.status, 409)
+     assert.equal(text(res), raw)
+-    assert.equal(calls[0].url, 'https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/saveOrUpdate')
++    assert.equal(calls[0].url, 'https://gapi-dsh.idealead.com/game-ai-editor-center/api/canvas/saveOrUpdate')
      assert.equal(calls[0].init.headers.origin, 'https://dynsight.insight-aigc.com')
    } finally {
 -    if (previous === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
@@ -29984,27 +30024,47 @@ index dbbc671..591efe6 100644
 +    else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous
    }
  })
+diff --git a/test/request-adapter.test.mjs b/test/request-adapter.test.mjs
+index cc64e2f..32b4683 100644
+--- a/test/request-adapter.test.mjs
++++ b/test/request-adapter.test.mjs
+@@ -68,7 +68,7 @@ test('canvas request reports expired desktop login and rejects direct remote URL
+     headers: { 'content-type': 'application/json' },
+   })
+   await assert.rejects(request('game-ai-editor-center/api/canvas/get', { id: '2873' }), AuthExpiredError)
+-  await assert.rejects(request('https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/get', {}),
++  await assert.rejects(request('https://gapi-dsh.idealead.com/game-ai-editor-center/api/canvas/get', {}),
+     /必须经桌面客户端转发/u)
+ })
+ 
 diff --git a/test/service-environment.test.mjs b/test/service-environment.test.mjs
-index bbea168..0ac2e49 100644
+index bbea168..fbbac9f 100644
 --- a/test/service-environment.test.mjs
 +++ b/test/service-environment.test.mjs
-@@ -4,24 +4,26 @@ import { desktopServiceProfile } from '../src/host/service-environment.ts'
+@@ -1,27 +1,31 @@
+ import assert from 'node:assert/strict'
+ import test from 'node:test'
++import { resolveAuthEnvironment } from '@insight-ai/desktop-integration/desktop'
+ import { desktopServiceProfile } from '../src/host/service-environment.ts'
  import { desktopGatewayProfile } from '../src/host/canvas-api.ts'
  
- test('API, Web origin and model CDN share one desktop-owned environment', () => {
+-test('API, Web origin and model CDN share one desktop-owned environment', () => {
 -  const previous = process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
++test('Canvas uses the login gateway and pairs its own destinations with the desktop environment', () => {
 +  const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
    try {
      for (const [environment, api, web, modelHost] of [
 -      [undefined, 'https://gapi-test.insight-aigc.com', 'https://dynsight-test.insight-aigc.com', 'game-ai-admin-test-cdn.idealead.com'],
+-      ['production', 'https://gapi.insight-aigc.com', 'https://dynsight.insight-aigc.com', 'game-ai-admin-prod-cdn.idealead.com'],
 +      ['test', 'https://gapi-test.insight-aigc.com', 'https://dynsight-test.insight-aigc.com', 'game-ai-admin-test-cdn.idealead.com'],
-       ['production', 'https://gapi.insight-aigc.com', 'https://dynsight.insight-aigc.com', 'game-ai-admin-prod-cdn.idealead.com'],
++      ['production', 'https://gapi-dsh.idealead.com', 'https://dynsight.insight-aigc.com', 'game-ai-admin-prod-cdn.idealead.com'],
      ]) {
 -      if (environment === undefined) delete process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT
 -      else process.env.INSIGHT_DESKTOP_SERVICE_ENVIRONMENT = environment
 +      if (environment === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
 +      else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
        const profile = desktopServiceProfile()
++      assert.equal(profile.api, resolveAuthEnvironment({ packaged: environment === 'production' }).baseUrl)
        assert.equal(profile.api, api); assert.equal(profile.web, web)
        assert.equal(new URL(profile.modelParams).hostname, modelHost)
        assert.deepEqual(desktopGatewayProfile(), { api, web })
@@ -30391,11 +30451,13 @@ index 0000000..ecc62dd
 +}
 diff --git a/tsconfig.json b/tsconfig.json
 new file mode 100644
-index 0000000..2eca820
+index 0000000..4d35b2e
 --- /dev/null
 +++ b/tsconfig.json
-@@ -0,0 +1,11 @@
+@@ -0,0 +1,13 @@
 +{
++  // Let tsx resolve Host test imports to workspace source.
++  "extends": "../../../tsconfig.base.json",
 +  "files": [],
 +  "references": [
 +    {

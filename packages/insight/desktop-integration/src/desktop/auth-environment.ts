@@ -18,7 +18,7 @@ export function resolveAuthEnvironment(input: { packaged: boolean }): AuthEnviro
   const service = desktopServiceEnvironment(input.packaged ? 'production' : 'test')
   return {
     name: service.name,
-    baseUrl: service.authOrigin,
+    baseUrl: service.gatewayOrigin,
     partition: input.packaged
       ? 'persist:insight-auth-production'
       : 'insight-auth-test',

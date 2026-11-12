@@ -40,6 +40,8 @@ it('installs configured presets before opening the market and respects removal a
       await page.getByText('Installed', { exact: true }).waitFor()
       await page.getByRole('button', { name: /View details$/u }).click()
       await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
+      await page.getByRole('dialog', { name: 'Remove skill', exact: true })
+        .getByRole('button', { name: 'Remove', exact: true }).click()
       await page.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await page.reload({ waitUntil: 'load' })
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
@@ -163,6 +165,8 @@ it('uses the technical name despite OSS numeric ID changes, absence, or invalid 
       const originalCard = page.getByRole('article').filter({ hasText: CATALOG_FIXTURE.skills[0]!.name })
       await installedCard.getByRole('button', { name: /View details$/u }).click()
       await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
+      await page.getByRole('dialog', { name: 'Remove skill', exact: true })
+        .getByRole('button', { name: 'Remove', exact: true }).click()
       await originalCard.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await expect(stat(installedPath)).rejects.toMatchObject({ code: 'ENOENT' })
       expect(JSON.parse(await readFile(historyPath, 'utf8'))).toEqual({ id: skillName })
@@ -318,6 +322,8 @@ it('refreshes skill references in an open historical conversation after installa
       await installedOption.waitFor()
       await market.getByRole('button', { name: /View details$/u }).click()
       await market.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
+      await market.getByRole('dialog', { name: 'Remove skill', exact: true })
+        .getByRole('button', { name: 'Remove', exact: true }).click()
       await market.getByRole('button', { name: 'Install', exact: true }).waitFor()
       await reference.waitFor({ state: 'detached' })
       await installedOption.waitFor({ state: 'detached' })
@@ -395,7 +401,17 @@ it('installs, updates and removes a skill through the real Remote API', async ()
       await page.getByRole('button', { name: /查看详情$/u }).click()
       const dialog = page.getByRole('dialog')
       expect(await dialog.getByRole('button').count()).toBe(2)
-      await dialog.getByRole('button', { name: '移除', exact: true }).click()
+      const removeButton = dialog.getByRole('button', { name: '移除', exact: true })
+      await removeButton.click()
+      const confirmation = page.getByRole('dialog', { name: '移除技能', exact: true })
+      await compareOrRefreshGolden(fileURLToPath(new URL('expected/official-remove.expected.md', import.meta.url)),
+        await confirmation.ariaSnapshot(), webSnapshotMode())
+      await confirmation.getByRole('button', { name: '取消', exact: true }).click()
+      expect(await scaffold.ctx.insightPlatformSkills.listInstalled()).toEqual({
+        skills: [{ id: normalizeSkillId('browser-installed-expert'), version: '1.1.0' }],
+      })
+      await removeButton.click()
+      await confirmation.getByRole('button', { name: '移除', exact: true }).click()
       await page.getByRole('button', { name: '安装', exact: true }).waitFor()
     } finally {
       await browser.close()
@@ -446,6 +462,47 @@ it('browses official and local skills through the real shell in both themes and 
       await compareOrRefreshGolden(fileURLToPath(new URL('expected/catalog.expected.md', import.meta.url)),
         await region.ariaSnapshot(), webSnapshotMode())
 
+      const hands = region.locator('canvas[aria-hidden="true"]')
+      const handPoint = (side: 'left' | 'right') => hands.evaluate((element, side) => {
+        if (!(element instanceof HTMLCanvasElement)) throw new Error('Expected the hands canvas')
+        const { width, height } = element
+        const brush = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!
+        brush.canvas.width = width
+        brush.canvas.height = height
+        brush.drawImage(element, 0, 0)
+        const pixels = brush.getImageData(0, 0, width, height).data
+        const box = element.getBoundingClientRect()
+        const start = side === 'left' ? .09 : .56
+        for (let y = Math.floor(height * .22); y < height * .84; y++) {
+          for (let x = Math.floor(width * start); x < width * (start + .35); x++) {
+            if (pixels[(y * width + x) * 4 + 3]! > 115) {
+              return { x: box.left + x * box.width / width, y: box.top + y * box.height / height }
+            }
+          }
+        }
+        return null
+      }, side)
+      const hasBlueDots = () => hands.evaluate((element) => {
+        if (!(element instanceof HTMLCanvasElement)) throw new Error('Expected the hands canvas')
+        const brush = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!
+        brush.canvas.width = element.width
+        brush.canvas.height = element.height
+        brush.drawImage(element, 0, 0)
+        const pixels = brush.getImageData(0, 0, element.width, element.height).data
+        return pixels.some((value, index) => index % 4 === 2 && pixels[index + 1]! > 80 && value - pixels[index - 2]! > 45)
+      })
+      for (const [side, dark] of [['left', false], ['right', true]] as const) {
+        await page.evaluate(dark => document.body.toggleAttribute('data-ds-dark-theme', dark), dark)
+        await expect.poll(() => handPoint(side)).not.toBeNull()
+        const point = (await handPoint(side))!
+        await page.mouse.move(point.x, point.y)
+        await expect.poll(hasBlueDots).toBe(true)
+        await page.mouse.move(5, 400)
+        expect(await hasBlueDots()).toBe(true)
+        await expect.poll(hasBlueDots, { timeout: 3000 }).toBe(false)
+      }
+      await page.evaluate(() => { document.body.removeAttribute('data-ds-dark-theme') })
+
       const search = region.getByRole('searchbox')
       const officialTab = region.getByRole('tab', { name: '官方技能', exact: true })
       const customTab = region.getByRole('tab', { name: '自定义技能', exact: true })
@@ -470,7 +527,13 @@ it('browses official and local skills through the real shell in both themes and 
       await page.keyboard.press('Escape')
       await search.fill('')
       await search.press('Enter')
-      await customPanel.getByText('共享', { exact: true }).waitFor()
+      const sharedDetails = customPanel.getByRole('button', { name: 'shared-brief，查看详情', exact: true })
+      await sharedDetails.waitFor()
+      expect(await sharedDetails.textContent()).toBe('详情')
+      await sharedDetails.click()
+      const sharedDialog = page.getByRole('dialog', { name: 'shared-brief', exact: true })
+      await sharedDialog.waitFor()
+      await page.keyboard.press('Escape')
       expect(await customPanel.getByRole('article').count()).toBe(2)
       await compareOrRefreshGolden(fileURLToPath(new URL('expected/custom.expected.md', import.meta.url)),
         await region.ariaSnapshot(), webSnapshotMode())

@@ -55,6 +55,8 @@ Desktop Main selects the Insight product before Electron reads `userData`, compl
 
 This package is both the selected profile bundle and the owner of its Host plugin. Its `cordis.patch.yml` must mount that plugin as `./lib/index.js`; bundle patch parsing anchors the relative path beside the patch file. DSH runtime package lookup excludes a selected bundle package itself, so the row must never use the self-package name `@insight-ai/desktop-integration`. This is a package-resolution requirement, not a Loader ordering requirement.
 
+Main selects the service environment and passes it to the Host at startup. Desktop login and Canvas Host resolve their gateway origin from the same [service configuration](src/shared/service-environment.ts).
+
 The Host service validates request and response fields, limits concurrent token requests, applies a deadline, and cancels pending requests when the caller aborts or the IPC channel closes. Desktop Main accepts requests only from the current Host child and discards late responses after shutdown or replacement. Sign-out revokes new account access, hides the workspace, stops account-owned resources, clears authentication, and relaunches into the login gate only after shutdown completes.
 
 Non-cancelled Gateway failures retain a redacted diagnostic in their existing Session-visible LLM failure message. It distinguishes Main account-token retrieval from model request or stream failures and includes only structured source, code, errno, syscall, or HTTP-status facts when available. It excludes credentials, headers, prompts, request and response bodies, URLs, and Session identifiers. PiAi may discard an upstream cause, so a generic transport failure cannot always be narrowed further.
