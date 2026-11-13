@@ -49,6 +49,7 @@ export class InsightPlatformSkills extends TypertRemoteService {
   private readonly operations = new Map<PlatformSkillOperationId, ActiveOperation>()
   private readonly mutatingSkills: SkillIdentity[] = []
   private readonly activeCalls = new Set<Promise<unknown>>()
+  private readonly packagedRoots = new Set<string>()
   private invalidateSkills = (): void => {}
   private accepting = true
 
@@ -320,7 +321,7 @@ export class InsightPlatformSkills extends TypertRemoteService {
   }
 
   /**
-   * List effective candidates from only payloads selected by committed records.
+   * List committed account candidates followed by package-owned skills, omitting a package candidate with an installed name.
    * @param options - Lookup cancellation and working-directory context.
    * @returns Complete candidates, or an explicitly incomplete observation.
    */
@@ -331,19 +332,44 @@ export class InsightPlatformSkills extends TypertRemoteService {
     const lookup = { ...options, signal }
     const roots = await this.store.selectedRoots(signal)
     const candidates: SkillCandidate[] = []
+    const names = new Set<string>()
     let complete = true
-    for (const root of roots) {
+    for (const [index, root] of [...roots, ...this.packagedRoots].entries()) {
       signal.throwIfAborted()
       const provider = this.providerFor(root)
       try {
         const observation = normalize(await provider.list(lookup))
-        candidates.push(...observation.candidates)
+        for (const candidate of observation.candidates) {
+          if (index >= roots.length && names.has(candidate.name)) continue
+          names.add(candidate.name)
+          candidates.push(candidate)
+        }
         complete &&= observation.complete
       } finally {
         await provider.dispose()
       }
     }
     return complete ? candidates : { candidates, complete: false }
+  }
+
+  /** Register a trusted package's single root skill below account installations and above legacy roots.
+   * @param root - Absolute package-owned skill directory containing SKILL.md.
+   * @param skillName - Expected invocation name in the skill frontmatter.
+   * @returns Disposer that removes this package's candidate and refreshes skill discovery.
+   */
+  async registerPackagedSkillRoot(root: string, skillName: string): Promise<() => void> {
+    this.assertAccepting()
+    if (!isAbsolute(root)) throw new Error('Packaged skill root must be an absolute host path.')
+    const resolved = await realpath(root)
+    if (this.packagedRoots.has(resolved)) throw new Error(`Packaged skill root already registered: ${resolved}`)
+    await this.validatePayload(resolved, skillName, this.lifetime.signal)
+    this.assertAccepting()
+    if (this.packagedRoots.has(resolved)) throw new Error(`Packaged skill root already registered: ${resolved}`)
+    this.packagedRoots.add(resolved)
+    this.invalidateSkills()
+    return () => {
+      if (this.packagedRoots.delete(resolved)) this.invalidateSkills()
+    }
   }
 
   /**
