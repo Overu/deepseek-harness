@@ -14,14 +14,17 @@ function fixture(response = () => envelope({ id: '103136', versionNumber: 0 })) 
 test('create uses the existing empty canvas payload, fixed environment and current desktop identity', async () => {
   const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   try {
-    for (const [environment, domain] of [['test', '-test'], ['production', '']]) {
+    for (const [environment, api, web] of [
+      ['test', 'https://gapi-test.insight-aigc.com', 'https://dynsight-test.insight-aigc.com'],
+      ['production', 'https://gapi-dsh.idealead.com', 'https://dynsight.insight-aigc.com'],
+    ]) {
       process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
       const f = fixture()
       assert.deepEqual(await createEmptyCanvas('  产品项目  ', controller().signal, f.dependencies), { canvasId: '103136', name: '产品项目', version: '0' })
       assert.equal(f.calls.length, 1)
       const { url, init } = f.calls[0]
-      assert.equal(url, `https://gapi${domain}.insight-aigc.com/game-ai-editor-center/api/canvas/saveOrUpdate`)
-      assert.equal(init.headers.origin, `https://dynsight${domain}.insight-aigc.com`)
+      assert.equal(url, `${api}/game-ai-editor-center/api/canvas/saveOrUpdate`)
+      assert.equal(init.headers.origin, web)
       assert.equal(init.headers.token, 'private-token'); assert.equal(init.redirect, 'error')
       assert.deepEqual(JSON.parse(init.body), { name: '产品项目', temp: false, canvasType: 0, version: 'comfyui', data: '{"nodes":[],"edges":[]}' })
     }

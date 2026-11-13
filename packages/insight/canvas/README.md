@@ -28,6 +28,8 @@ The package's [bundle patch](cordis.patch.yml) contributes the existing Host plu
 
 Text nodes support two independent edits: `changes.prompt` updates the generation instruction, and `changes.text` writes the native `data.value` body. `canvas_run` generates text through the native workflow and returns the body in Job `outputs`; media result cards remain media-only.
 
+Canvas uses connected media nodes to select generation modes even before those nodes produce content. Prompt references and generation inputs require actual media.
+
 The iframe builds from `canvas-app`; its guidance remains package-owned. [upstream.json](upstream.json) records the source input and retained identity.
 
 <a id="understand-the-implementation"></a>
@@ -36,7 +38,9 @@ The iframe builds from `canvas-app`; its guidance remains package-owned. [upstre
 <details>
 <summary>Implementation internals</summary>
 
-The Host owns tools, local routes, bridge ownership, and result persistence. The Client owns Canvas navigation, references, and the resident page service. The existing page shares its Canvas context with the visible iframe. Both plugin halves use the official workspace compiler and Client bundler; the iframe retains its own Vite build under the root dependency lock. Shared upload names use DSH’s UUID helper, which remains available on plain-HTTP browser pages. The Host obtains credentials from `ctx.insightAccount`; it does not own another Desktop token IPC client. Main selects the matching service environment.
+The Host owns tools, local routes, bridge ownership, and result persistence. The Client owns Canvas navigation, references, and the resident page service. The existing page shares its Canvas context with the visible iframe. Both plugin halves use the official workspace compiler and Client bundler; the iframe retains its own Vite build under the root dependency lock. Shared upload names use DSH’s UUID helper, which remains available on plain-HTTP browser pages. The Host obtains credentials from `ctx.insightAccount`; it does not own another Desktop token IPC client.
+
+Canvas uses the [Desktop Integration gateway configuration](../desktop-integration/README.md#understand-the-implementation) and owns its Web, matting, and model-parameter CDN addresses.
 
 Authenticated bridge requests admit the exact `dsh-app://app` origin alongside existing Web origins. Connection authentication and Canvas ownership checks still apply. Shutdown stops admission, cancels consumers, waits for dispatch and result writes, then drains OSS uploads before closing bridge and storage resources. Stopping local tracking does not promise cancellation of an accepted cloud operation.
 

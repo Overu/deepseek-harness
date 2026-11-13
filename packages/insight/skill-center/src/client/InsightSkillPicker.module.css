@@ -57,7 +57,9 @@
 }
 .tabs button[aria-selected='true'] { color: var(--dsw-alias-label-primary); border-bottom-color: currentColor; }
 .tabs button:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: -2px; }
-.entries { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; margin: 0; padding: 0; list-style: none; }
+.scrollArea { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.entries { flex: none; margin: 0; padding: 0; list-style: none; }
+.empty { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 12px; min-height: 100px; padding: 16px; }
 .entry { margin: 2px; border-radius: var(--dsw-radius-md); }
 .entry[data-active='true'] { background: var(--dsw-alias-interactive-bg-hover); }
 .option {

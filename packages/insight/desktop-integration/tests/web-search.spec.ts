@@ -8,7 +8,7 @@ afterEach(() => { vi.unstubAllGlobals() })
 
 it.each([
   { environment: 'test', baseURL: 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1' },
-  { environment: 'production', baseURL: 'https://gapi.insight-aigc.com/insight-harness-llm-gateway/v1' },
+  { environment: 'production', baseURL: 'https://gapi-dsh.idealead.com/insight-harness-llm-gateway/v1' },
 ] as const)('authenticates $environment native searches with the current Bearer token', async ({ environment, baseURL }) => {
   const context = new Context()
   const token = vi.fn<() => Promise<string>>()

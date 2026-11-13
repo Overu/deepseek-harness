@@ -56,7 +56,7 @@ interface ImageAttachmentLimits {
 }
 ```
 
-The local backend admits at most 20 images and 200 MiB of encoded source data per message. One source may use up to 50 MiB, 64,000,000 pixels, and 65,535 pixels on either side. These source limits precede the independent normalization stage, which limits the long edge to 2048 pixels and encoded data to 4 MiB by default.
+The local backend checks source limits before normalization. For the per-image and per-message limits, see the [local backend configuration](../../packages/attachment/attachment-local/README.md#use-this-package).
 
 The reference records intrinsic dimensions and encoded length so clients can lay out history without decoding first. Reads verify the stored object against the supplied reference's ID, format, byte length, width, and height. Optional display names and pre-normalization dimensions are returned unchanged as caller-supplied display information, without verification against stored bytes.
 

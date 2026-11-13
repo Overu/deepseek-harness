@@ -171,16 +171,17 @@ const ImageNode = (props: any) => {
       const node = nodes.find(n => n.id === id);
       if (!node) return;
 
-      const { images } = getSourceMap(nodes, edges, id);
-      const countKey = String(images.length);
+      const { images, mediaByTypeCounts } = getSourceMap(nodes, edges, id)
+      const imageTypeCount = mediaByTypeCounts.images
+      const countKey = `${imageTypeCount}-${images.length}`
       if (prevImageCountRef.current !== null && prevImageCountRef.current === countKey) return;
       prevImageCountRef.current = countKey;
 
       const nodeData = node.data as typeof data;
       const { params } = nodeData;
       const newPrompt = clearTemplatesByValue(params.prompt, images.length);
-      const newModelType = transformImageType(images.length);
-      const mismatch = getImageModelTypeMismatchReason(String(params.modelType || ''), images.length);
+      const newModelType = transformImageType(imageTypeCount)
+      const mismatch = getImageModelTypeMismatchReason(String(params.modelType || ''), imageTypeCount)
       const switchModel = mismatch && newModelType !== params.modelType;
       if (!switchModel && newPrompt === params.prompt) return;
 

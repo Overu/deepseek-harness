@@ -52,6 +52,7 @@ export class InsightPlatformSkills extends TypertRemoteService {
   private readonly packagedRoots = new Set<string>()
   private invalidateSkills = (): void => {}
   private accepting = true
+  private presetsClaimed = false
 
   /**
    * Register the platform provider and its Remote management API.
@@ -86,7 +87,7 @@ export class InsightPlatformSkills extends TypertRemoteService {
         maxExtractedBytes: config.packageMaxExtractedBytes,
         allowedOrigins: new Set(config.packageAllowedOrigins),
       },
-      (payload, skillName, signal) => this.validatePayload(payload, skillName, signal),
+      (payload, id, signal) => this.validatePayload(payload, id, signal),
       (message, error) => { ctx.logger.warn(message, error) },
     )
     this.root = this.store.root
@@ -142,14 +143,28 @@ export class InsightPlatformSkills extends TypertRemoteService {
   }
 
   /**
+   * Admit one automatic preset installation during this account Host lifetime.
+   * @returns True only for the first caller, including when that attempt later fails.
+   */
+  @Remote
+  claimPresetInstallation(): boolean {
+    this.assertAccepting()
+    if (this.presetsClaimed) return false
+    this.presetsClaimed = true
+    return true
+  }
+
+  /**
    * List configured platform skills eligible for this account's first automatic installation.
    * @param catalogue - Published identities used to resolve configured selectors.
+   * @param signal - Optional cancellation of this eligibility read.
    * @returns Identities absent from both installed records and account installation history.
    */
   @Remote
-  listPendingPresets(catalogue: readonly SkillIdentity[]): Promise<readonly SkillIdentity[]> {
+  listPendingPresets(catalogue: readonly SkillIdentity[], signal?: AbortSignal): Promise<readonly SkillIdentity[]> {
     this.assertAccepting()
-    return this.track(this.store.pendingPresets(catalogue, this.presetSelectors, this.lifetime.signal))
+    const combined = signal === undefined ? this.lifetime.signal : AbortSignal.any([signal, this.lifetime.signal])
+    return this.track(this.store.pendingPresets(catalogue, this.presetSelectors, combined))
   }
 
   /**
@@ -291,14 +306,14 @@ export class InsightPlatformSkills extends TypertRemoteService {
     try {
       return await operation.settlement
     } catch (error) {
-      this.ctx.logger.warn(`Insight platform skill cancellation failed for ${operation.identity.skillName}.`, error)
+      this.ctx.logger.warn(`Insight platform skill cancellation failed for ${operation.identity.id}.`, error)
       throw remoteInstallFailure(error)
     }
   }
 
   /**
    * Remove one committed skill selection and then reclaim its immutable payload.
-   * @param request - Local key and current catalogue identity of the installation to remove.
+   * @param request - Technical name of the installation to remove.
    * @param signal - Cancellation is honored before record removal commits.
    * @returns current committed installation state.
    */
@@ -313,7 +328,7 @@ export class InsightPlatformSkills extends TypertRemoteService {
       return snapshot
     } catch (error) {
       if (combined.aborted) throw combined.reason
-      this.ctx.logger.warn(`Insight platform skill removal failed for ${request.skillName}.`, error)
+      this.ctx.logger.warn(`Insight platform skill removal failed for ${request.id}.`, error)
       throw new RemoteError('gateway/internal', 'Skill removal failed. Try again.', {})
     } finally {
       this.releaseMutation(request)
@@ -394,14 +409,14 @@ export class InsightPlatformSkills extends TypertRemoteService {
     )
   }
 
-  private async validatePayload(payload: string, skillName: string, signal: AbortSignal): Promise<void> {
+  private async validatePayload(payload: string, id: string, signal: AbortSignal): Promise<void> {
     const provider = this.providerFor(payload)
     try {
       const observation = normalize(await provider.list({ signal }))
       const instructionPath = await realpath(join(payload, 'SKILL.md'))
       const [candidate] = observation.candidates
       if (!observation.complete || observation.candidates.length !== 1
-        || candidate?.name !== skillName
+        || candidate?.name !== id
         || candidate.path !== instructionPath
         || await provider.get(candidate, { signal }) === undefined) {
         throw new Error('Skill package does not contain one valid root SKILL.md.')
@@ -424,7 +439,7 @@ export class InsightPlatformSkills extends TypertRemoteService {
       if (isAbortFailure(error, signal)) {
         return { kind: 'cancelled', operationId: request.operationId }
       }
-      this.ctx.logger.warn(`Insight platform skill installation failed for ${request.skillName}.`, error)
+      this.ctx.logger.warn(`Insight platform skill installation failed for ${request.id}.`, error)
       throw error
     }
   }

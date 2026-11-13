@@ -1,4 +1,4 @@
-/** Host-only account service definition and structured access failures for trusted plugins. */
+/** Account credentials and service addresses for trusted Host plugins. */
 import { InsightAccount } from './host/account-service.ts'
 
 declare module '@deepseek-ai/cordis' {
@@ -17,6 +17,6 @@ export {
   type InsightAccountTransport,
 } from './host/account-service.ts'
 /** Fixed service bases shared by authenticated Host integrations. */
-export { skillProxyServiceBaseUrl, uploadCenterServiceBaseUrl } from './shared/service-environment.ts'
+export { desktopServiceEnvironment, skillProxyServiceBaseUrl, uploadCenterServiceBaseUrl } from './shared/service-environment.ts'
 /** Authenticated NDJSON transport shared by Host-only skill consumers. */
 export { createInsightSkillProxyRequest, InsightSkillProxyError } from './host/skill-proxy-request.ts'

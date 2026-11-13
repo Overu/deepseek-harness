@@ -1,50 +1,86 @@
 /** Skill detail dialog using the shared modal behavior. */
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SkillCatalogItem } from './skill-catalog-resource.ts'
+import { Button, IconCloseOutlineRegular, Modal, Tag } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { SkillPresentation } from './skill-presentation.ts'
 import type { SkillCenterLocaleKey } from './types.ts'
+import cardStyles from './SkillCard.module.css'
 import styles from './SkillDetailModal.module.css'
 
 /** Detail dialog inputs. */
 export interface SkillDetailModalProps {
-  readonly skill: SkillCatalogItem | null
+  readonly skill: SkillPresentation
+  readonly source?: 'account' | 'shared' | undefined
+  readonly customRemovable: boolean
   readonly t: (key: SkillCenterLocaleKey) => string
   readonly onClose: () => void
   readonly state: 'install' | 'installed' | 'update' | 'loading' | 'conflict'
-  readonly onInstall: (skill: SkillCatalogItem) => void
-  readonly onRemove: (skill: SkillCatalogItem) => void
+  readonly onInstall: (skill: SkillPresentation) => void
+  readonly onRemove: () => Promise<boolean>
 }
 
 /**
  * Render the selected skill's published description as plain text.
  * @param props - The selected skill, localized text, and user actions.
- * @returns the shared detail modal, or null without a selected skill.
+ * @returns the skill details and confirmation for removal of an installed skill.
  */
-export function SkillDetailModal({ skill, t, onClose, state, onInstall, onRemove }: SkillDetailModalProps): ReactNode {
-  if (skill === null) return null
+export function SkillDetailModal({
+  skill, source, customRemovable, t, onClose, state, onInstall, onRemove,
+}: SkillDetailModalProps): ReactNode {
+  const [confirmation, setConfirmation] = useState<'closed' | 'confirm' | 'removing' | 'failed'>('closed')
+  const official = source === undefined
+  const removeAction = official ? 'remove' : 'deleteCustom'
+  const removing = confirmation === 'removing'
+  const requestRemoval = (): void => { setConfirmation('confirm') }
+  const cancel = (): void => { if (!removing) setConfirmation('closed') }
+  const confirm = async (): Promise<void> => {
+    setConfirmation('removing')
+    const removed = await onRemove()
+    setConfirmation(removed || official ? 'closed' : 'failed')
+  }
   const paragraphs = descriptionParagraphs(skill.descriptionMarkdown)
-  const name = skill.name
-  return (
-    <Modal open onClose={onClose} title={name} closeLabel={t('close')} backdropBlur={false}
-      className={clsx(styles.modal)} contentClassName={clsx(styles.content)}>
-      <p className={styles.summary}>{skill.summary}</p>
-      <dl className={styles.meta}>
-        <div><dt>{t('skillId')}</dt><dd>{skill.id ?? skill.skillName}</dd></div>
-        <div><dt>{t('version')}</dt><dd>{t('versionValue').replace('{version}', skill.version)}</dd></div>
-      </dl>
-      <section aria-labelledby="skill-detail-description">
-        <h3 id="skill-detail-description" className={styles.descriptionTitle}>{t('description')}</h3>
-        {paragraphs.length === 0
-          ? <p className={styles.paragraph}>{t('noDescription')}</p>
-          : paragraphs.map(paragraph => <p key={paragraph.id} className={styles.paragraph}>{paragraph.text}</p>)}
-      </section>
-      <div className={styles.actions}>
-        {(state === 'installed' || state === 'update') && <Button variant="outline" onClick={() => { onRemove(skill) }}>{t('remove')}</Button>}
-        <Button variant="primary" disabled={state === 'installed' || state === 'loading' || state === 'conflict'} onClick={() => { onInstall(skill) }}>{t(state === 'loading' ? 'installStateLoading' : state === 'conflict' ? 'identityConflict' : state)}</Button>
+  const { name, version } = skill
+  return (<>
+    <Modal open headless onClose={onClose} title={name} className={clsx(styles.modal)}>
+      <Button variant="ghost" size="sm" className={styles.close} aria-label={t('close')} onClick={onClose}>
+        <IconCloseOutlineRegular size={16} />
+      </Button>
+      <div className={styles.content}>
+        <div className={styles.intro}>
+          <span className={clsx(cardStyles.glyph, styles.icon)} aria-hidden>{Array.from(name)[0]}</span>
+          <div className={styles.titleRow}>
+            <h2 className={styles.title}>{name}</h2>
+            {version !== undefined && <Tag tone="quiet">{t('versionValue').replace('{version}', version)}</Tag>}
+          </div>
+          <p className={styles.summary}>{skill.summary}</p>
+        </div>
+        <section className={styles.instructions} aria-labelledby="skill-detail-description">
+          <h3 id="skill-detail-description" className={styles.descriptionTitle}>{t(official ? 'usage' : 'description')}</h3>
+          {paragraphs.length === 0
+            ? <p className={styles.paragraph}>{t('noDescription')}</p>
+            : paragraphs.map(paragraph => <p key={paragraph.id} className={styles.paragraph}>{paragraph.text}</p>)}
+        </section>
       </div>
+      {official && <div className={styles.actions}>
+        {(state === 'installed' || state === 'update') && <Button variant="outline" onClick={requestRemoval}>{t(removeAction)}</Button>}
+        {(state === 'install' || state === 'update') && <Button variant="primary" onClick={() => { onInstall(skill) }}>{t(state)}</Button>}
+        {(state === 'loading' || state === 'conflict') && <Tag tone="neutral">{t(state === 'loading' ? 'installStateLoading' : 'identityConflict')}</Tag>}
+      </div>}
+      {!official && customRemovable && <div className={styles.actions}>
+        <Button variant="outline" onClick={requestRemoval}>{t(removeAction)}</Button>
+      </div>}
     </Modal>
-  )
+    <Modal open={confirmation !== 'closed'} onClose={cancel} title={t(official ? 'removeOfficialTitle' : 'deleteCustom')} closeLabel={t('close')}
+      description={t(official ? 'removeOfficialDescription' : 'deleteCustomDescription').replace('{name}', () => name)}
+      footer={<>
+        <Button variant="outline" data-modal-autofocus disabled={removing} onClick={cancel}>{t('installCancel')}</Button>
+        <Button variant="primary" disabled={removing} onClick={() => { void confirm() }}>
+          {removing ? t(official ? 'removingOfficial' : 'deletingCustom') : t(removeAction)}
+        </Button>
+      </>}>
+      {confirmation === 'failed' && <p role="alert">{t('deleteCustomFailed')}</p>}
+    </Modal>
+  </>)
 }
 
 /** Drop the source's leading usage heading and retain readable Markdown text lines. */

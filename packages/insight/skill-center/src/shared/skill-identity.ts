@@ -1,59 +1,38 @@
-/** Shared catalogue and installation matching, independent of local storage paths. */
+/** Technical-name matching shared by the catalogue and account installations. */
 import { brandString } from '@deepseek-ai/dsh-brand'
+import { PLATFORM_SKILL_ID_PATTERN } from './skill-installation.ts'
 import type { InsightSkillId, SkillIdentity } from './skill-installation.ts'
 
-/** Result of an unambiguous identity lookup. */
+/** Result of an unambiguous technical-name lookup. */
 export type SkillIdentityMatch<T> =
   | { readonly kind: 'match'; readonly value: T }
   | { readonly kind: 'missing' }
   | { readonly kind: 'conflict' }
 
 /**
- * Normalize an OSS ID without interpreting it as a path or technical name.
- * @param value - External ID; absent, null, and empty strings mean no ID.
- * @returns Canonical opaque ID, or undefined when absent.
- * @throws {Error} for unsupported ID values.
+ * Validate a technical name read from catalogue or persisted data.
+ * @param value - Technical name; numeric catalogue identifiers are not accepted.
+ * @returns The validated technical identifier.
+ * @throws {Error} when the value is not a kebab-case technical name.
  */
-export function normalizeSkillId(value: unknown): InsightSkillId | undefined {
-  if (value === undefined || value === null || value === '') return undefined
-  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return brandString<InsightSkillId>(String(value))
-  if (typeof value === 'string' && value.trim() !== '') return brandString<InsightSkillId>(value.trim())
-  if (typeof value === 'string') return undefined
-  throw new Error('Skill catalogue ID must be a string or nonnegative safe integer.')
+export function normalizeSkillId(value: unknown): InsightSkillId {
+  if (typeof value !== 'string' || !PLATFORM_SKILL_ID_PATTERN.test(value.trim())) {
+    throw new Error('Skill technical name must be a nonempty kebab-case string.')
+  }
+  return brandString<InsightSkillId>(value.trim())
 }
 
 /**
- * Produce a UI lookup key without conflating numeric IDs with technical names.
- * @param identity - Catalogue or installed identity.
- * @returns Namespaced key used only by in-memory views.
- */
-export function skillIdentityKey(identity: SkillIdentity): string {
-  return identity.id === undefined ? `name:${identity.skillName}` : `id:${identity.id}`
-}
-
-/**
- * Match IDs first; use an exact technical name only when either side lacks an ID.
- * @param identity - Identity to resolve.
- * @param candidates - Available records; ambiguous fallback names are conflicts.
- * @param catalogue - Complete source catalogue, when available; omission checks candidate uniqueness only.
- * @returns A single match, absence, or conflict; distinct nonempty IDs never match by name.
+ * Match an installation solely by technical name.
+ * @param identity - Technical name to resolve.
+ * @param candidates - Available records, each identified by technical name.
+ * @returns A single match, absence, or duplicate-name conflict.
  */
 export function matchSkillIdentity<T extends SkillIdentity>(
-  identity: SkillIdentity, candidates: readonly T[], catalogue?: readonly SkillIdentity[],
+  identity: SkillIdentity, candidates: readonly T[],
 ): SkillIdentityMatch<T> {
-  if (identity.id !== undefined) {
-    const ids = candidates.filter(candidate => candidate.id === identity.id)
-    if (ids.length > 1) return { kind: 'conflict' }
-    const [matched] = ids
-    if (matched !== undefined) return { kind: 'match', value: matched }
-  }
-  const names = candidates.filter(candidate => candidate.skillName === identity.skillName)
-  if (names.length > 1) return { kind: 'conflict' }
-  const [matched] = names
-  if (matched === undefined) return { kind: 'missing' }
-  if (identity.id !== undefined && matched.id !== undefined) return { kind: 'conflict' }
-  if (catalogue !== undefined && catalogue.filter(candidate => candidate.skillName === identity.skillName).length > 1) {
-    return { kind: 'conflict' }
-  }
-  return { kind: 'match', value: matched }
+  const matches = candidates.filter(candidate => candidate.id === identity.id)
+  if (matches.length > 1) return { kind: 'conflict' }
+  const [matched] = matches
+  return matched === undefined ? { kind: 'missing' } : { kind: 'match', value: matched }
 }

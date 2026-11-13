@@ -62,11 +62,18 @@ initialize(): Promise<void>
 @Remote listInstalled(): Promise<PlatformSkillSnapshot>
 
 /**
+ * Admit one automatic preset installation during this account Host lifetime.
+ * @returns True only for the first caller, including when that attempt later fails.
+ */
+@Remote claimPresetInstallation(): boolean
+
+/**
  * List configured platform skills eligible for this account's first automatic installation.
  * @param catalogue - Published identities used to resolve configured selectors.
+ * @param signal - Optional cancellation of this eligibility read.
  * @returns Identities absent from both installed records and account installation history.
  */
-@Remote listPendingPresets(catalogue: readonly SkillIdentity[]): Promise<readonly SkillIdentity[]>
+@Remote listPendingPresets(catalogue: readonly SkillIdentity[], signal?: AbortSignal): Promise<readonly SkillIdentity[]>
 
 /**
  * Observe another client's admitted installation without cancelling its work.
@@ -100,7 +107,7 @@ async listLegacyCandidates(options: SkillLookupOptions): Promise<readonly SkillC
 
 /**
  * Remove one committed skill selection and then reclaim its immutable payload.
- * @param request - Local key and current catalogue identity of the installation to remove.
+ * @param request - Technical name of the installation to remove.
  * @param signal - Cancellation is honored before record removal commits.
  * @returns current committed installation state.
  */

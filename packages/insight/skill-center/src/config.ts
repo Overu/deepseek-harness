@@ -1,9 +1,10 @@
 /** Request limits shared by the Host and browser skill directory. */
 import z from '@deepseek-ai/schemastery'
+import { PLATFORM_SKILL_ID_PATTERN } from './shared/skill-installation.ts'
 
 /** Deployment policy for OSS directory requests. */
 export interface Config {
-  /** Catalogue IDs for first installation, or technical names for catalogue entries without an ID. */
+  /** Technical skill names selected for first automatic installation. */
   presetSkillIds: string[]
   /** Absolute previous application skill directories discovered read-only for compatibility. */
   legacySkillDirs: string[]
@@ -23,7 +24,7 @@ export interface Config {
 
 /** Validated request budget projected to browser pages. */
 export const Config: z<Partial<Config>, Config> = z.object({
-  presetSkillIds: z.array(z.string().pattern(/\S/u)).default([]),
+  presetSkillIds: z.array(z.string().pattern(PLATFORM_SKILL_ID_PATTERN)).default([]),
   legacySkillDirs: z.array(z.string().pattern(/^(?:\/|[a-z]:[\\/]|\\\\)/iu)).default([]),
   catalogRequestTimeoutMs: z.natural().min(1).max(2_147_483_647).default(15_000),
   packageRequestTimeoutMs: z.natural().min(1).max(2_147_483_647).default(120_000),

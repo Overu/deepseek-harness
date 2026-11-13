@@ -160,7 +160,7 @@ test('gateway uses the fixed production host and preserves a JSON conflict respo
     await handler(request('POST', `${prefix}/game-ai-editor-center/api/canvas/saveOrUpdate`, '{}'), res)
     assert.equal(res.status, 409)
     assert.equal(text(res), raw)
-    assert.equal(calls[0].url, 'https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/saveOrUpdate')
+    assert.equal(calls[0].url, 'https://gapi-dsh.idealead.com/game-ai-editor-center/api/canvas/saveOrUpdate')
     assert.equal(calls[0].init.headers.origin, 'https://dynsight.insight-aigc.com')
   } finally {
     if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT

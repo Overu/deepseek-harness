@@ -43,15 +43,18 @@ test('audio/video uploads stream exact file bytes and register native types and 
 test('identity uses current desktop token and fixed test/production GET with no redirects', async () => {
   const previous = process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
   try {
-    for (const [environment, suffix] of [['test', '-test'], ['production', '']]) {
+    for (const [environment, api, web] of [
+      ['test', 'https://gapi-test.insight-aigc.com', 'https://dynsight-test.insight-aigc.com'],
+      ['production', 'https://gapi-dsh.idealead.com', 'https://dynsight.insight-aigc.com'],
+    ]) {
       if (environment === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
       else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = environment
       const f = fixture(); assert.deepEqual(await f.api.getIdentity(), identity)
       assert.equal(f.tokenCount(), 1); assert.equal(f.calls.length, 1)
-      assert.equal(f.calls[0].url, `https://gapi${suffix}.insight-aigc.com/user-server/getUserDetail`)
+      assert.equal(f.calls[0].url, `${api}/user-server/getUserDetail`)
       assert.equal(f.calls[0].init.method, 'GET'); assert.equal(f.calls[0].init.body, undefined)
       assert.equal(f.calls[0].init.headers.token, identity.token)
-      assert.equal(f.calls[0].init.headers.origin, `https://dynsight${suffix}.insight-aigc.com`)
+      assert.equal(f.calls[0].init.headers.origin, web)
       assert.equal(f.calls[0].init.redirect, 'error')
     }
   } finally { if (previous === undefined) delete process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT; else process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = previous }

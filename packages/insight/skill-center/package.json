@@ -1,6 +1,6 @@
 {
   "name": "@insight-ai/skill-center",
-  "version": "0.2.2-alpha.2",
+  "version": "0.2.2-rc.1",
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
@@ -28,6 +28,7 @@
       "types": "./lib/types/types.d.ts",
       "default": "./lib/types/types.js"
     },
+    "./assets/*": "./lib/assets/*",
     "./src/*": "./src/*",
     "./package.json": "./package.json"
   },
@@ -105,6 +106,7 @@
     "lib/typert.host.d.ts",
     "lib/typert.remote-client.js",
     "lib/typert.remote-client.d.ts",
+    "lib/assets",
     "cordis.patch.yml",
     "locale/**",
     "README.md",

@@ -3,24 +3,28 @@ import type { AuthEnvironment } from './auth-contracts.ts'
 /** Fixed service endpoints published with the desktop application. */
 export interface DesktopServiceEnvironment {
   readonly name: AuthEnvironment
-  readonly authOrigin: string
+  readonly gatewayOrigin: string
   readonly modelBaseUrl: string
 }
 
 const ENVIRONMENTS: Readonly<Record<AuthEnvironment, DesktopServiceEnvironment>> = Object.freeze({
   test: Object.freeze({
     name: 'test',
-    authOrigin: 'https://gapi-test.insight-aigc.com',
+    gatewayOrigin: 'https://gapi-test.insight-aigc.com',
     modelBaseUrl: 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1',
   }),
   production: Object.freeze({
     name: 'production',
-    authOrigin: 'https://gapi.insight-aigc.com',
-    modelBaseUrl: 'https://gapi.insight-aigc.com/insight-harness-llm-gateway/v1',
+    gatewayOrigin: 'https://gapi-dsh.idealead.com',
+    modelBaseUrl: 'https://gapi-dsh.idealead.com/insight-harness-llm-gateway/v1',
   }),
 })
 
-/** Return a build-selected service pair without a user-editable runtime override. */
+/**
+ * Resolve the fixed service addresses for the Desktop-selected environment.
+ * @param name - Environment selected by Desktop Main.
+ * @returns The service addresses, including the gateway origin shared by login and Canvas.
+ */
 export function desktopServiceEnvironment(name: AuthEnvironment): DesktopServiceEnvironment {
   return ENVIRONMENTS[name]
 }
@@ -30,7 +34,7 @@ export function desktopServiceEnvironment(name: AuthEnvironment): DesktopService
  * @returns HTTPS service base including the enterprise gateway path.
  */
 export function skillProxyServiceBaseUrl(name: AuthEnvironment): string {
-  return `${desktopServiceEnvironment(name).authOrigin}/insight-harness-service`
+  return `${desktopServiceEnvironment(name).gatewayOrigin}/insight-harness-service`
 }
 
 /** Return the fixed upload-center gateway base for direct Desktop uploads.
@@ -38,5 +42,5 @@ export function skillProxyServiceBaseUrl(name: AuthEnvironment): string {
  * @returns HTTPS service base including the upload-center gateway path.
  */
 export function uploadCenterServiceBaseUrl(name: AuthEnvironment): string {
-  return `${desktopServiceEnvironment(name).authOrigin}/game-ai-editor-center`
+  return `${desktopServiceEnvironment(name).gatewayOrigin}/game-ai-editor-center`
 }

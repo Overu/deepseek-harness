@@ -3,5 +3,5 @@
 export {}
 
 process.env.DSH_DESKTOP_PRODUCT = 'insight'
-process.env.INSIGHT_DESKTOP_VERSION ??= '1.0.12-rc.1'
+process.env.INSIGHT_DESKTOP_VERSION ??= '1.0.13-rc.6'
 await import('../apps/desktop/scripts/dev.ts')

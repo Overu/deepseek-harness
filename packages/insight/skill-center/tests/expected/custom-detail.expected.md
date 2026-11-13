@@ -1,0 +1,8 @@
+- dialog "我的达人整合":
+  - button "关闭"
+  - heading "我的达人整合" [level=2]
+  - paragraph: 个人营销模板
+  - region "技能描述":
+    - heading "技能描述" [level=3]
+    - paragraph: 整理我的达人整合方案。
+  - button "删除技能"

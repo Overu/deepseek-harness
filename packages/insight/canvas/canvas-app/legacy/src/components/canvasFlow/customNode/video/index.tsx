@@ -127,8 +127,9 @@ const VideoNode = (props: any) => {
       const node = nodes.find(n => n.id === id);
       if (!node) return;
 
-      const { images, videos, audios } = getSourceMap(nodes, edges, id);
-      const countsKey = `${images.length}-${videos.length}-${audios.length}`;
+      const { images, videos, audios, mediaByTypeCounts } = getSourceMap(nodes, edges, id)
+      const { images: imageTypeCount, videos: videoTypeCount, audios: audioTypeCount } = mediaByTypeCounts
+      const countsKey = `${imageTypeCount}-${videoTypeCount}-${audioTypeCount}-${images.length}-${videos.length}-${audios.length}`
       if (prevMediaCountsRef.current !== null && prevMediaCountsRef.current === countsKey) return;
       prevMediaCountsRef.current = countsKey;
 
@@ -139,8 +140,8 @@ const VideoNode = (props: any) => {
         视频: videos.length,
         音频: audios.length,
       });
-      const newModelType = resolveVideoModelTypeOnInputChange(images.length, videos.length, audios.length);
-      const mismatch = getVideoModelTypeMismatchReason(String(params.modelType || ''), images.length, videos.length > 0 || audios.length > 0);
+      const newModelType = resolveVideoModelTypeOnInputChange(imageTypeCount, videoTypeCount, audioTypeCount)
+      const mismatch = getVideoModelTypeMismatchReason(String(params.modelType || ''), imageTypeCount, videoTypeCount > 0 || audioTypeCount > 0)
       const switchModel = mismatch && newModelType !== params.modelType;
       if (!switchModel && newPrompt === params.prompt) return;
 

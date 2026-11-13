@@ -1,0 +1,6 @@
+- dialog "移除技能":
+  - heading "移除技能" [level=2]
+  - button "关闭"
+  - paragraph: 确定移除「达人整合」？这会卸载当前账号中的技能。
+  - button "取消"
+  - button "移除"

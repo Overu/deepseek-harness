@@ -26,7 +26,7 @@ const session: UploadSession = {
 describe('direct upload-center protocol', () => {
   it('uses the fixed upload-center gateway path for both product environments', () => {
     expect(uploadCenterServiceBaseUrl('test')).toBe(serviceBaseUrl)
-    expect(uploadCenterServiceBaseUrl('production')).toBe('https://gapi.insight-aigc.com/game-ai-editor-center')
+    expect(uploadCenterServiceBaseUrl('production')).toBe('https://gapi-dsh.idealead.com/game-ai-editor-center')
   })
 
   it('requests STS with the account token and uses the returned object name', async () => {
