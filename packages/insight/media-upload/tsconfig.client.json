@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types", "types": ["node", "react", "client-build-environment", "client-assets"] },
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../client/locale/tsconfig.client.json" },
+    { "path": "../../client/ui-chat/tsconfig.client.json" },
+    { "path": "../../client/ui-conversation/tsconfig.client.json" },
+    { "path": "../../client/ui-primitives/tsconfig.json" },
+    { "path": "../../client/ui-renderer/tsconfig.json" },
+    { "path": "../../client/ui-slots/tsconfig.json" },
+    { "path": "../../core/session/tsconfig.json" }
+  ],
+  "include": ["src/client/**/*", "src/shared/**/*.ts", "src/css-modules.d.ts"]
+}

@@ -3,7 +3,3 @@
       name: ./lib/index.js
       config:
         serviceEnvironment: !!js process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
-
-- id: file-upload
-  config:
-    retainOriginalImage: true

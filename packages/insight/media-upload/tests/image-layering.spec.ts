@@ -5,14 +5,17 @@ import { Session, SessionId } from '@deepseek-ai/dsh-session'
 import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { JobId, type JobSpec } from '@deepseek-ai/dsh-jobs'
 import { AttachmentId } from '@deepseek-ai/dsh-attachment'
-import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
-import { layeringTasksProjection, parseLayeringResult, parseTaskHandle, registerImageLayeringTools } from '../src/image-layering.ts'
+import { parseLayeringResult, parseTaskHandle, registerImageLayeringTools } from '../src/image-layering.ts'
 
 const handle = 'opaque-user-bound-handle'
 const psd = 'https://game-ai-editor-videoassets-test.oss-cn-guangzhou.aliyuncs.com/result.psd'
 const png = 'https://game-ai-editor-videoassets-test.oss-cn-guangzhou.aliyuncs.com/preview.png'
 const input = 'https://shanghaigroup.oss-cn-guangzhou.aliyuncs.com/input.png'
+function registerForTest(...args: Parameters<typeof registerImageLayeringTools>): void {
+  args[0].provide('connection', { fetch: { register: () => () => {} } } as never)
+  registerImageLayeringTools(...args)
+}
 const config = { serviceEnvironment: 'test' as const, requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
   generationRequestTimeoutMs: 1_250_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 }
 const ndjson = (body: object) => new Response(
@@ -25,7 +28,7 @@ const jsonBody = (init: RequestInit): unknown => {
 }
 
 describe('image layering proxy', () => {
-  it('stops after one query error while retaining historical retry eligibility', async () => {
+  it('stops after one query error without recording a task reservation', async () => {
     const ctx = new Context()
     const definitions: ToolDefinition[] = []
     const session = Session.create(SessionId('reserved-layering-task'))
@@ -46,8 +49,6 @@ describe('image layering proxy', () => {
     })
     vi.stubGlobal('fetch', transport)
     try {
-      await ctx.plugin(SessionProjectionRegistry)
-      const tasks = await ctx.sessionProjections.register(layeringTasksProjection)
       ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token', getAccountScope: () => 'account-1' } as never)
@@ -55,11 +56,11 @@ describe('image layering proxy', () => {
       ctx.provide('workingDirectory', { get: () => 'C:/workspace' } as never)
       ctx.provide('sandboxPolicy', { resolve: () => ({ mode: 'workspace-write', workspaceRoot: 'C:/workspace' }) } as never)
       ctx.provide('fs', { resolve: async (path: string) => ({ displayPath: path, targetKey: path }),
-        stat: async () => ({ type: 'directory' }), writeBytes: async () => ({ size: 0, version: 'v1' }) } as never)
-      registerImageLayeringTools(ctx, config, () => false, {
+        stat: async () => ({ type: 'directory' }), writeText: async () => ({ version: 'v1' }) } as never)
+      registerForTest(ctx, config, () => false, {
         list: () => [{ sourceRef: String(file.attachmentId), filename: file.name, turnSeq: 1, messageSeq: 2 }],
-        select: () => file, requestTurn: () => 1, upload,
-      }, tasks)
+        select: () => ({ kind: 'file', ref: file }), upload,
+      })
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       const tool = (name: string) => definitions.find(item => item.name === name)!
@@ -71,29 +72,25 @@ describe('image layering proxy', () => {
           remoteOutcome: 'unknown', taskHandle: handle,
           proxyRequestId: '123e4567-e89b-12d3-a456-426614174000' })
       expect(queries).toBe(1)
-      await expect(tool('retry_image_layering').execute({ taskHandle: handle }, exec)).rejects.toThrow('not eligible')
+      expect(tool('retry_image_layering')).toBeUndefined()
       expect(creates).toBe(1)
-      const bound = Object.values(tasks.stateOf(session))[0]!
-      session.append('insight/image-layering/task', { task: { ...bound, state: 'retry_eligible' } })
-      expect(await tool('retry_image_layering').execute({ taskHandle: handle }, exec))
+      expect(await tool('submit_image_layering').execute({}, exec))
         .toMatchObject({ taskHandle: 'second-handle' })
       expect(await tool('get_image_layering').execute({ taskHandle: 'second-handle' }, exec))
         .toMatchObject({ status: 'failed' })
-      await expect(tool('retry_image_layering').execute({ taskHandle: handle }, exec)).rejects.toThrow('not eligible')
       expect(creates).toBe(2)
       expect(upload).toHaveBeenCalledTimes(2)
-      await tasks.dispose()
+      expect(session.snapshotEvents().map(event => event.type)).toEqual(['turn/start'])
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
-  it('keeps partial image files without creating retry eligibility for missing PSD', async () => {
+  it('keeps a partial result without downloading files before delivery', async () => {
     const ctx = new Context()
     const definitions: ToolDefinition[] = []
     const session = Session.create(SessionId('partial-layering-task'))
     session.append('turn/start', { turn: 1 })
     const agent = { id: SessionId('layer-agent'), session } as Agent
     const file = { attachmentId: AttachmentId(`sha256:${'ab'.repeat(32)}`), name: 'photo.png', bytes: 8 }
-    const pngBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1])
-    const local = new Map<string, Uint8Array>()
+    const local = new Map<string, string>()
     let jobSpec: JobSpec | undefined
     const transport = vi.fn(async (_url: string | URL, init?: RequestInit) => {
       if (typeof init?.body === 'string') {
@@ -101,12 +98,10 @@ describe('image layering proxy', () => {
           ? { code: 0, data: { task_id_list: [handle] } }
           : { code: 0, status: 'success', data: { image_list: [png] } })
       }
-      return new Response(pngBytes, { headers: { 'content-type': 'image/png' } })
+      throw new Error('Generated bytes must not be fetched before download is clicked.')
     })
     vi.stubGlobal('fetch', transport)
     try {
-      await ctx.plugin(SessionProjectionRegistry)
-      const tasks = await ctx.sessionProjections.register(layeringTasksProjection)
       ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token', getAccountScope: () => 'account-1' } as never)
@@ -120,30 +115,28 @@ describe('image layering proxy', () => {
         stat: async (target: { displayPath: string }) => target.displayPath === 'C:/workspace'
           ? { type: 'directory' } : local.has(target.displayPath)
             ? { type: 'file', size: local.get(target.displayPath)!.length } : undefined,
-        writeBytes: async (target: { displayPath: string }, bytes: Uint8Array) => {
-          local.set(target.displayPath, bytes)
-          return { size: bytes.length, version: 'v1' }
+        writeText: async (target: { displayPath: string }, text: string) => {
+          local.set(target.displayPath, text); return { version: 'v1' }
         },
-        readBytes: async (target: { displayPath: string }) => local.get(target.displayPath)!,
-        readByteRange: async (target: { displayPath: string }, range: { length: number }) =>
-          local.get(target.displayPath)!.subarray(0, range.length),
+        readText: async (target: { displayPath: string }) => local.get(target.displayPath),
       } as never)
-      registerImageLayeringTools(ctx, config, () => false, {
+      registerForTest(ctx, config, () => false, {
         list: () => [{ sourceRef: String(file.attachmentId), filename: file.name, turnSeq: 1, messageSeq: 2 }],
-        select: () => file, requestTurn: () => 1, upload: async () => input,
-      }, tasks)
+        select: () => ({ kind: 'file', ref: file }), upload: async () => input,
+      })
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       await definitions.find(tool => tool.name === 'submit_image_layering')!.execute({}, exec)
       const job = jobSpec?.run({ id: JobId('partial-job'), append: () => {}, updateProgress: () => {} })
       const outcome = await job?.done
       expect(outcome).toMatchObject({ status: 'failed' })
-      expect(JSON.parse(outcome?.result ?? '{}')).toMatchObject({ status: 'missing_psd',
-        cache: { complete: false, files: [{ kind: 'png' }] } })
-      expect(Object.values(tasks.stateOf(session))[0]).toMatchObject({ state: 'bound' })
+      expect(JSON.parse(outcome?.result ?? '{}')).toMatchObject({ status: 'missing_psd', imageUrls: [png] })
+      expect(local.size).toBe(1)
+      expect(transport).toHaveBeenCalledTimes(2)
+      const result = await definitions.find(tool => tool.name === 'cache_image_layering_result')!
+        .execute({ taskHandle: handle, imageLabel: '图片 1（photo.png）' }, exec)
+      expect(result).toMatchObject({ complete: false, files: [{ kind: 'png', url: png }] })
       expect(local.size).toBe(2)
-      expect(transport).toHaveBeenCalledTimes(3)
-      await tasks.dispose()
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
   it('requires exactly one service-issued handle', () => {
@@ -175,20 +168,12 @@ describe('image layering proxy', () => {
         diagnostic: { field: 'image_list', invalidIndices: [0] } })
   })
 
-  it('refreshes expired result addresses by the same handle and keeps verified files', async () => {
+  it('stores a URL manifest without fetching PSD or image bytes', async () => {
     const ctx = new Context()
     const definitions: ToolDefinition[] = []
     const session = Session.create(SessionId('cache-layering-session'))
-    session.append('insight/image-layering/task', { task: { requestKey: '1:source',
-      file: { attachmentId: AttachmentId(`sha256:${'ab'.repeat(32)}`), name: 'photo.png', bytes: 8 },
-      prompt: '', numLayers: 0, cwd: 'C:/workspace', accountScope: 'account-1', attempt: 1,
-      state: 'bound', handle } })
     const agent = { id: SessionId('layer-agent'), session } as Agent
-    const psdBytes = Buffer.alloc(26)
-    psdBytes.write('8BPS', 0, 'ascii')
-    psdBytes[5] = 1
-    const pngBytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1])
-    const local = new Map<string, Uint8Array>()
+    const local = new Map<string, string>()
     let queries = 0
     let jobSpec: JobSpec | undefined
     const transport = vi.fn(async (url: string | URL, init?: RequestInit) => {
@@ -197,19 +182,13 @@ describe('image layering proxy', () => {
           return ndjson({ code: 0, data: { task_id_list: [handle] } })
         }
         queries++
-        const suffix = queries === 1 ? 'old' : 'new'
         return ndjson({ code: 0, status: 'success', data: {
-          image_list: [`${psd}?${suffix}`, `${png}?${suffix}`] } })
+          image_list: [`${psd}?signed`, `${png}?signed`] } })
       }
-      const result = new URL(url)
-      if (result.pathname.endsWith('.png') && result.search === '?old') return new Response(null, { status: 403 })
-      return new Response(result.pathname.endsWith('.psd') ? psdBytes : pngBytes,
-        { headers: { 'content-type': result.pathname.endsWith('.psd') ? 'image/vnd.adobe.photoshop' : 'image/png' } })
+      throw new Error(`Generated bytes must not be fetched before download is clicked: ${url}`)
     })
     vi.stubGlobal('fetch', transport)
     try {
-      await ctx.plugin(SessionProjectionRegistry)
-      const tasks = await ctx.sessionProjections.register(layeringTasksProjection)
       ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token', getAccountScope: () => 'account-1' } as never)
@@ -223,31 +202,27 @@ describe('image layering proxy', () => {
         stat: async (target: { displayPath: string }) => target.displayPath === 'C:/workspace'
           ? { type: 'directory' } : local.has(target.displayPath)
             ? { type: 'file', size: local.get(target.displayPath)!.length } : undefined,
-        writeBytes: async (target: { displayPath: string }, bytes: Uint8Array) => {
-          local.set(target.displayPath, bytes)
-          return { size: bytes.length, version: 'v1' }
+        writeText: async (target: { displayPath: string }, text: string) => {
+          local.set(target.displayPath, text); return { version: 'v1' }
         },
-        readBytes: async (target: { displayPath: string }) => local.get(target.displayPath)!,
-        readByteRange: async (target: { displayPath: string }, range: { length: number }) =>
-          local.get(target.displayPath)!.subarray(0, range.length),
+        readText: async (target: { displayPath: string }) => local.get(target.displayPath),
       } as never)
-      registerImageLayeringTools(ctx, config, () => true, undefined, tasks)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-cache'), rootCallId: ToolCallId('root-cache'),
         signal: new AbortController().signal } as ToolRunContext
       const cache = definitions.find(tool => tool.name === 'cache_image_layering_result')!
-      expect(await cache.execute({ taskHandle: handle }, exec)).toMatchObject({ complete: true,
-        files: [{ kind: 'psd' }, { kind: 'png' }] })
-      expect(queries).toBe(2)
-      expect(transport).toHaveBeenCalledTimes(5)
-      expect(local.size).toBe(2)
+      expect(await cache.execute({ taskHandle: handle, imageLabel: '图片 1（photo.png）' }, exec))
+        .toMatchObject({ complete: true, files: [{ kind: 'psd' }, { kind: 'png' }] })
+      expect(queries).toBe(1)
+      expect(transport).toHaveBeenCalledTimes(1)
+      expect(local.size).toBe(1)
+      expect([...local.values()][0]).toContain(`${psd}?signed`)
       await definitions.find(tool => tool.name === 'submit_image_layering')!.execute({ imageUrl: input }, exec)
       const job = jobSpec?.run({ id: JobId('cache-job'), append: () => {}, updateProgress: () => {} })
       const outcome = await job?.done
       expect(outcome).toMatchObject({ status: 'completed' })
-      expect(JSON.parse(outcome?.result ?? '{}')).toMatchObject({ cache: { complete: true,
-        files: [{ kind: 'psd' }, { kind: 'png' }] } })
-      expect(transport).toHaveBeenCalledTimes(7)
-      await tasks.dispose()
+      expect(JSON.parse(outcome?.result ?? '{}')).toMatchObject({ taskHandle: handle, status: 'succeeded' })
+      expect(transport).toHaveBeenCalledTimes(3)
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
 
@@ -267,7 +242,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start: () => 'image-layering-job-1' } as never)
-      registerImageLayeringTools(ctx, config, (_exec, url) => url === input)
+      registerForTest(ctx, config, (_exec, url) => url === input)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       const submit = definitions.find(tool => tool.name === 'submit_image_layering')
@@ -300,7 +275,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start: () => 'job' } as never)
-      registerImageLayeringTools(ctx, config, () => true)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       await expect(definitions.find(tool => tool.name === 'submit_image_layering')?.execute({ imageUrl: input }, exec))
@@ -332,7 +307,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start(spec: JobSpec) { jobs.push(spec); return JobId(`job-${jobs.length}`) } } as never)
-      registerImageLayeringTools(ctx, config, () => true)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       const submit = definitions.find(tool => tool.name === 'submit_image_layering')!
@@ -362,7 +337,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start: () => JobId('job') } as never)
-      registerImageLayeringTools(ctx, { ...config, generationRequestTimeoutMs: 5 }, () => true)
+      registerForTest(ctx, { ...config, generationRequestTimeoutMs: 5 }, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       expect(await definitions.find(tool => tool.name === 'get_image_layering')!.execute({ taskHandle: handle }, exec))
@@ -385,7 +360,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => { throw new Error('Service unavailable') } } as never)
       ctx.provide('jobs', { start: () => JobId('job') } as never)
-      registerImageLayeringTools(ctx, config, () => true)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       await expect(definitions.find(tool => tool.name === 'get_image_layering')!.execute({ taskHandle: handle }, exec))
@@ -410,7 +385,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start: () => 'job' } as never)
-      registerImageLayeringTools(ctx, config, () => true)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       await expect(definitions.find(tool => tool.name === 'submit_image_layering')?.execute({ imageUrl: input }, exec))
@@ -436,7 +411,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start(spec: JobSpec) { jobSpec = spec; return JobId('image-layering-job-1') } } as never)
-      registerImageLayeringTools(ctx, config, () => true)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       const created = await definitions.find(tool => tool.name === 'submit_image_layering')?.execute({ imageUrl: input }, exec)
@@ -469,7 +444,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start(spec: JobSpec) { jobSpec = spec; return JobId('image-layering-job-1') } } as never)
-      registerImageLayeringTools(ctx, config, () => true)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       await definitions.find(tool => tool.name === 'submit_image_layering')?.execute({ imageUrl: input }, exec)
@@ -500,7 +475,7 @@ describe('image layering proxy', () => {
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
       ctx.provide('jobs', { start: () => JobId('job') } as never)
-      registerImageLayeringTools(ctx, config, () => true)
+      registerForTest(ctx, config, () => true)
       const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
         signal: new AbortController().signal } as ToolRunContext
       let failure: unknown

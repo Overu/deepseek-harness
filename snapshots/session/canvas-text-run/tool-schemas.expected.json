@@ -47,17 +47,22 @@
     },
     {
       "name": "cache_image_layering_result",
-      "description": "Download and verify all PSD and image results of a completed Session-owned task in the bound workspace. Present every returned local file path; do not show remote URLs in the final reply.",
+      "description": "Save a completed task's PSD and image result URLs as a workspace JSON manifest and publish downloadable remote file cards. Call once per completed image after its Job settles. This does not download generated files.",
       "parameters": {
         "type": "object",
         "properties": {
           "taskHandle": {
             "type": "string",
             "description": "Confirmed taskHandle returned by submit_image_layering."
+          },
+          "imageLabel": {
+            "type": "string",
+            "description": "Short original image label for the result card, such as 图片 1（photo.png）."
           }
         },
         "required": [
-          "taskHandle"
+          "taskHandle",
+          "imageLabel"
         ]
       }
     },
@@ -480,7 +485,7 @@
     },
     {
       "name": "get_image_layering",
-      "description": "Read an image-layer task using its enterprise taskHandle. A query_unavailable result stops this image without resubmission; only a query timeout is retried once. Set watch=true to resume local tracking when no Job is active.",
+      "description": "Read an image-layer task using its enterprise taskHandle. A query_unavailable result stops this image without resubmission; only a query timeout is retried once. Set watch=true to resume local tracking when no Job is active. Save finished URLs with cache_image_layering_result.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -629,7 +634,7 @@
     },
     {
       "name": "prepare_image_layering_source",
-      "description": "List original images uploaded directly by the user in the last three user turns. If several exist, ask the user which one to process before submitting. Listing does not upload.",
+      "description": "List stored image messages and image file attachments uploaded directly by the user in the last three user turns. If several exist, ask the user which one to process before submitting. Listing does not upload.",
       "parameters": {
         "type": "object",
         "properties": {}
@@ -672,22 +677,6 @@
         },
         "required": [
           "file_path"
-        ]
-      }
-    },
-    {
-      "name": "retry_image_layering",
-      "description": "Create one final image-layering attempt only after two confirmed terminal reads for the original task. Uses its bound image and parameters; never repeat an uncertain creation.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "taskHandle": {
-            "type": "string",
-            "description": "Original taskHandle with retry_eligible status."
-          }
-        },
-        "required": [
-          "taskHandle"
         ]
       }
     },
@@ -780,7 +769,7 @@
     },
     {
       "name": "submit_image_layering",
-      "description": "Submit one user image from the last three user turns. Use prepare_image_layering_source when multiple images exist. This tool uploads the selected original without separate upload approval. Keep taskHandle; never retry an uncertain submission.",
+      "description": "Submit one user image from the last three user turns. Use prepare_image_layering_source when multiple images exist. Ordinary image messages upload their stored normalized encoding; image file attachments keep exact bytes. No separate upload approval. Keep taskHandle; never retry an uncertain submission.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -889,7 +878,7 @@
     },
     {
       "name": "upload_attachment",
-      "description": "Upload one file attached by the user in the current turn to OSS. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.",
+      "description": "Upload one direct-user attachment from the current turn to OSS. Image messages upload their stored normalized encoding; file attachments upload exact bytes. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object; read access is unverified.",
       "parameters": {
         "type": "object",
         "properties": {

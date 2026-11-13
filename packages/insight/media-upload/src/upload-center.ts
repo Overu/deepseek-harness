@@ -28,7 +28,7 @@ const nonempty = (value: unknown): value is string => typeof value === 'string' 
 const invalid = () => new UploadFailure('STS_RESPONSE_INVALID', 'Upload-center authorization is invalid; no OSS upload was started.')
 
 /** Choose the upload-center routing category from the committed filename.
- * @param name - Filename of the selected original attachment.
+ * @param name - Filename of the selected stored attachment.
  * @returns The upload-center file type, independent of model arguments.
  */
 export function objectFileType(name: string): 'image' | 'video' | 'audio' | 'file' {
@@ -95,10 +95,10 @@ function parseSession(value: unknown, requestedType: ReturnType<typeof objectFil
     objectKey: key, uploadUrl: `https://${bucket}.${endpoint.hostname}/${encoded}` }
 }
 
-/** Request one short-lived OSS upload session for a selected original file.
+/** Request one short-lived OSS upload session for a selected stored file.
  * @param baseUrl - Fixed HTTPS upload-center base including its gateway path.
  * @param token - Current Desktop account access token, never logged or returned.
- * @param file - Committed original-file reference.
+ * @param file - Committed file or normalized-image copy.
  * @param signal - Cancellation and request deadline.
  * @param transport - HTTP implementation, replaced only in protocol tests.
  * @returns Validated temporary OSS authority and object address.

@@ -4,31 +4,31 @@
 #   pnpm run verify-translation-pairing --write docs/insight/image-layering.md
 /insight-image-layering:
   en: 71ada879c1f0649e
-  zh: 1dcd984d229e7721
+  zh: 25ef78f791665a87
 /insight-image-layering/summary:
-  en: a57baa5ffc6bf304
-  zh: e607a624075dfa3d
+  en: 2474d98567dc5b7b
+  zh: acbbd4ba4d05d28c
 /insight-image-layering/contents:
   en: 382a9a0fb9bd1247
-  zh: e969c79e3be68900
+  zh: 8e42fd2d39320429
 /insight-image-layering/modules-and-ownership:
-  en: a20e7ab3ade1b0f3
-  zh: 4aef34e971f467fc
+  en: 2ec93dbdeb587364
+  zh: 9762de0ac7d3fd9f
 /insight-image-layering/call-and-data-flow:
-  en: df925b5aa38da278
-  zh: 25bd6551e32e5150
+  en: b1ea82e6cf954cf2
+  zh: 82f4c339a7b10011
 /insight-image-layering/asynchronous-task-states:
-  en: 316ac53a2bb16dcd
-  zh: 80c21f0f2d5253df
+  en: 3575fc8daa6cf1ca
+  zh: b8216c7001ccff23
 /insight-image-layering/conversation-delivery:
-  en: ed5e5ede85720eca
-  zh: 5d7459cf882ef219
+  en: 492a7d34bfc3f19b
+  zh: 7abf86390b1ba370
 /insight-image-layering/failures-and-recovery:
-  en: 5d54339fba95aebf
-  zh: 8b8fd35411187798
+  en: 9c92e298f0d2b11f
+  zh: 686c28d2101ec899
 /insight-image-layering/evidence-and-limits:
-  en: 363c11a5b65f8f44
-  zh: 797ba055753a16c3
+  en: dd1365ef378f1295
+  zh: 668dc6ebad10d580
 /insight-image-layering/dev-note:
   en: b75c8458928b72b9
   zh: 003ba4e17b4b5269

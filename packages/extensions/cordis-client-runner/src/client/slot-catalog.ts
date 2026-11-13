@@ -558,6 +558,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       'client-ui-action-cards ActionCardTail id \'@deepseek-ai/dsh-client-ui-action-cards\'',
       '@insight-ai/desktop-canvas-plugin CanvasResults',
       '@insight-ai/desktop-canvas-plugin CanvasCreatedLinks',
+      '@insight-ai/desktop-media-upload-plugin LayeringResultCards id \'@insight-ai/desktop-media-upload-plugin-results\'',
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'conversation.chat.turnTail\', () => ctx.slots.register(\n      { name: \'conversation.chat.turnTail\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',

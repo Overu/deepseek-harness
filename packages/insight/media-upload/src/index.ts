@@ -11,19 +11,22 @@ import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
+import type {} from '@deepseek-ai/dsh-client-connection'
+import type {} from '@deepseek-ai/dsh-session-query'
 import { uploadCenterServiceBaseUrl } from '@insight-ai/desktop-integration/host'
 import type {} from '@insight-ai/skill-center'
 import { currentTurnUploadsProjection, listLayeringSources, selectLayeringSource, selectUploadSource,
-  uploadTurnSeq } from './upload-source.ts'
+  uploadFileForSource, uploadTurnSeq } from './upload-source.ts'
 import { requestUploadSession, UploadFailure } from './upload-center.ts'
 import { putOssObject } from './oss-put.ts'
-import { layeringTasksProjection, registerImageLayeringTools } from './image-layering.ts'
+import { registerImageLayeringTools } from './image-layering.ts'
 
 /** Cordis loader identity for the Insight media upload capability. */
 export const name = 'insight-media-upload'
 /** Host capabilities required before the tool can be registered. */
 export const inject = ['tools', 'attachments', 'insightAccount', 'approval', 'permissionPresets',
-  'agents', 'sessionProjections', 'jobs', 'fs', 'workingDirectory', 'sandboxPolicy', 'insightPlatformSkills']
+  'agents', 'sessionProjections', 'jobs', 'fs', 'workingDirectory', 'sandboxPolicy', 'insightPlatformSkills',
+  'connection', 'sessionQuery']
 
 /** Product environment and bounded network deadlines. */
 export interface Config {
@@ -60,9 +63,9 @@ export interface UploadAttachmentResult {
   readonly url: string
   /** The plugin does not test whether the object can be read. */
   readonly urlAccess: 'unverified'
-  /** Sanitized filename of the stored original bytes. */
+  /** Stored filename; image uploads use the normalized encoding's extension. */
   readonly filename: string
-  /** Number of exact original bytes uploaded. */
+  /** Number of stored file or normalized image bytes uploaded. */
   readonly sizeBytes: number
 }
 
@@ -98,15 +101,13 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   if (ctx.get('insightPlatformSkills')) await skillFiber
   const projection = await ctx.sessionProjections.register(currentTurnUploadsProjection)
   ctx.effect(() => () => projection.dispose(), 'insight-media-upload: current-turn attachment projection')
-  const tasks = await ctx.sessionProjections.register(layeringTasksProjection)
-  ctx.effect(() => () => tasks.dispose(), 'insight-media-upload: image-layering task projection')
   const baseUrl = uploadCenterServiceBaseUrl(config.serviceEnvironment)
   const lifetime = new AbortController()
   const pending = new Set<Promise<UploadAttachmentResult>>()
   const uploaded = new WeakMap<object, { turnSeq: number; urls: Set<string> }>()
   const definition = defineTool({
     name: 'upload_attachment',
-    description: 'Upload one file attached by the user in the current turn to OSS. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object, not an enterprise attachment; read access is unverified.',
+    description: 'Upload one direct-user attachment from the current turn to OSS. Image messages upload their stored normalized encoding; file attachments upload exact bytes. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object; read access is unverified.',
     parameters: {
       attachmentIndex: { type: 'integer', description: '1-based position among direct-user attachments in this turn. Required when there is more than one.' },
     },
@@ -128,13 +129,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         signal.throwIfAborted()
         const agent = exec.agent
         if (!agent || !ctx.agents.roots().includes(agent)) throw new UploadFailure('AGENT_REQUIRED', 'Use this tool in the original user conversation.')
-        const file = selectUploadSource(agent, args.attachmentIndex, projection)
+        const source = selectUploadSource(agent, args.attachmentIndex, projection)
+        const sourceName = source.kind === 'file' ? source.ref.name : source.name ?? 'image'
         let approvedPreset: string | undefined
         const approve = async (): Promise<void> => {
           const outcome = await ctx.approval.request({ agent, toolName: 'upload_attachment', callId: exec.callId,
-            reason: `Upload ${file.name} (${String(file.bytes)} bytes) to OSS and disclose its object address.`,
-            displayReason: { en: `Upload ${file.name} (${String(file.bytes)} bytes) to OSS? Its object address will appear in this conversation.`,
-              zh: `将 ${file.name}（${String(file.bytes)} 字节）上传至 OSS？对象地址会出现在当前对话中。` }, signal })
+            reason: `Upload ${source.kind === 'image' ? 'the stored normalized image' : 'the file'} ${sourceName} (${String(source.ref.bytes)} bytes) to OSS and disclose its object address.`,
+            displayReason: { en: `Upload ${sourceName} (${String(source.ref.bytes)} bytes${source.kind === 'image' ? ', normalized image' : ''}) to OSS? Its object address will appear in this conversation.`,
+              zh: `将 ${sourceName}（${String(source.ref.bytes)} 字节${source.kind === 'image' ? '，归一化图片' : ''}）上传至 OSS？对象地址会出现在当前对话中。` }, signal })
           if (outcome !== 'allowed-once') throw new UploadFailure('APPROVAL_DENIED', 'Attachment upload was not approved.')
         }
         const authorize = async () => {
@@ -147,8 +149,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         await authorize()
         const turnSeq = uploadTurnSeq(agent, projection)
         if (turnSeq === undefined) throw new UploadFailure('AGENT_REQUIRED', 'The upload turn has ended.')
+        const file = await uploadFileForSource(ctx.attachments, source, signal)
         const result = await uploadAttachment(ctx, baseUrl, file, config, signal, authorize)
-        if (mimeType(file.name).startsWith('image/') && uploadTurnSeq(agent, projection) === turnSeq) {
+        if ((source.kind === 'image' || mimeType(file.name).startsWith('image/'))
+          && uploadTurnSeq(agent, projection) === turnSeq) {
           const previous = uploaded.get(agent.session)
           const urls = previous?.turnSeq === turnSeq ? previous.urls : new Set<string>()
           urls.add(result.url)
@@ -186,24 +190,17 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
       if (!agent || !ctx.agents.roots().includes(agent)) throw new Error('Use image layering in the original user conversation.')
       return selectLayeringSource(agent, sourceRef, projection)
     },
-    requestTurn(exec) {
-      const agent = exec.agent
-      if (!agent) throw new Error('Use image layering in the original user conversation.')
-      const turn = uploadTurnSeq(agent, projection)
-      if (turn === undefined) throw new Error('Image layering requires an open user turn.')
-      return turn
-    },
     async upload(exec, file) {
       return (await uploadAttachment(ctx, baseUrl, file, config,
         AbortSignal.any([exec.signal, lifetime.signal]))).url
     },
-  }, tasks)
+  })
 }
 
 /** Transfer one approved current-turn file, then return its non-secret OSS address.
  * @param ctx - Host attachment reader and account-token owner.
  * @param baseUrl - Fixed upload-center base including its gateway path.
- * @param file - Selected current-turn original file.
+ * @param file - Selected file or a stored normalized image copied to file storage.
  * @param config - Validated STS and OSS request deadlines.
  * @param signal - Combined tool and plugin-lifetime cancellation.
  * @returns Unverified OSS object address after a confirmed write.

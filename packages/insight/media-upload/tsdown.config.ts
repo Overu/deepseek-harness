@@ -1,5 +1,4 @@
-import { defineConfig } from 'tsdown'
+import { clientBundle } from '../../client/tsdown.client.ts'
 
-/** Build the Host-only Insight upload plugin. */
-export default defineConfig([{ entry: ['lib/types/index.js'], outDir: 'lib', format: ['esm'], platform: 'node',
-  target: 'es2024', fixedExtension: false, dts: false, clean: false }])
+/** Build the Host tool and plugin-owned result cards in their respective faces. */
+export default clientBundle(import.meta.dirname, ['lib/types/index.js'], { hostPhase: true })

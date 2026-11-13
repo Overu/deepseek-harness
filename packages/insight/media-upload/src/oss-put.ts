@@ -1,4 +1,4 @@
-/** Exact-byte OSS transfer using the upload center's temporary authority. */
+/** Stored-byte OSS transfer using the upload center's temporary authority. */
 
 import { createRequire } from 'node:module'
 import { Readable } from 'node:stream'

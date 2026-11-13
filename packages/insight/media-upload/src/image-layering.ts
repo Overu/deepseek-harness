@@ -1,55 +1,15 @@
 /** Authenticated image-layer generation through the enterprise skill proxy. */
 import { setTimeout as delay } from 'node:timers/promises'
-import { z } from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
-import { AttachmentId, type FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import type { FileAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { defineTool, type ToolRunContext } from '@deepseek-ai/dsh-tools'
 import type { JobOutcome } from '@deepseek-ai/dsh-jobs'
 import type {} from '@deepseek-ai/dsh-jobs'
-import type { ProjectionDefinition, ProjectionHandle } from '@deepseek-ai/dsh-session-projection'
-import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import { createInsightSkillProxyRequest, InsightSkillProxyError, skillProxyServiceBaseUrl } from '@insight-ai/desktop-integration/host'
 import type { Config } from './index.ts'
-import type { LayeringSource } from './upload-source.ts'
-import { cacheLayeringFiles, copyLayeringFilesToCurrentDirectory, prepareResultDirectory, ResultDownloadFailure } from './result-cache.ts'
-
-interface BoundTask {
-  readonly requestKey: string
-  readonly file: FileAttachmentRef
-  readonly prompt: string
-  readonly numLayers: number
-  readonly cwd: string
-  readonly accountScope: string
-  readonly attempt: 1 | 2
-  readonly state: 'reserved' | 'bound' | 'retry_eligible' | 'released'
-  readonly handle?: string | undefined
-  readonly firstHandle?: string | undefined
-}
-
-declare module '@deepseek-ai/dsh-session/types' {
-  interface SessionEventMap {
-    /** Durable reservation before a potentially paid image-layering creation. */
-    'insight/image-layering/task': { readonly task: BoundTask }
-  }
-}
-
-const taskSchema: z.ZodType<BoundTask> = z.object({
-  requestKey: z.string(), file: z.object({ attachmentId: z.string().regex(/^sha256:[a-f0-9]{64}$/u).transform(AttachmentId),
-    name: z.string(), bytes: z.number().int().positive() }),
-  prompt: z.string(), numLayers: z.number().int().nonnegative(), cwd: z.string(), accountScope: z.string(),
-  attempt: z.union([z.literal(1), z.literal(2)]),
-  state: z.enum(['reserved', 'bound', 'retry_eligible', 'released']),
-  handle: z.string().optional(), firstHandle: z.string().optional(),
-})
-
-/** Session-owned creation reservations and task bindings for restart-safe recovery. */
-export const layeringTasksProjection = {
-  key: 'insightImageLayeringTasks', stateVersion: 1,
-  stateSchema: z.record(z.string(), taskSchema),
-  init: () => ({}),
-  apply: (state, event: SessionEvent) => event.type === 'insight/image-layering/task'
-    ? { ...state, [event.data.task.requestKey]: event.data.task } : state,
-} satisfies ProjectionDefinition<'insightImageLayeringTasks', Record<string, BoundTask>>
+import { uploadFileForSource, type LayeringSource, type UploadSourceRef } from './upload-source.ts'
+import { prepareResultDirectory, saveLayeringManifest } from './result-cache.ts'
+import { registerResultDownload } from './result-download.ts'
 
 declare module '@deepseek-ai/dsh-jobs' {
   interface JobKindMap {
@@ -60,7 +20,7 @@ declare module '@deepseek-ai/dsh-jobs' {
 
 interface LayeringResult {
   readonly taskHandle: string
-  readonly status: 'running' | 'succeeded' | 'missing_psd' | 'failed' | 'cancelled' | 'retry_eligible' | 'query_unavailable'
+  readonly status: 'running' | 'succeeded' | 'missing_psd' | 'failed' | 'cancelled' | 'query_unavailable'
   readonly reason?: QueryFailureReason
   readonly businessCode?: number
   readonly remoteOutcome?: 'unknown'
@@ -103,7 +63,7 @@ export class ImageLayeringFailure extends Error {
 const output = {
   schema: { type: 'object', additionalProperties: false, properties: {
     taskHandle: { type: 'string', required: true },
-    status: { type: 'string', enum: ['running', 'succeeded', 'missing_psd', 'failed', 'cancelled', 'retry_eligible', 'query_unavailable'],
+    status: { type: 'string', enum: ['running', 'succeeded', 'missing_psd', 'failed', 'cancelled', 'query_unavailable'],
       description: 'State of this image task; query_unavailable stops local tracking without confirming the remote outcome.', required: true },
     reason: { type: 'string', enum: ['business_error', 'query_timeout', 'invalid_response', 'transport_error'],
       description: 'Why a status query became unavailable; only query_timeout receives one automatic same-handle retry.' },
@@ -338,11 +298,9 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
   uploadedInTurn: (exec: ToolRunContext, url: string) => boolean,
   source?: {
     list(exec: ToolRunContext): LayeringSource[]
-    select(exec: ToolRunContext, sourceRef: string | undefined): FileAttachmentRef
-    requestTurn(exec: ToolRunContext): number
+    select(exec: ToolRunContext, sourceRef: string | undefined): UploadSourceRef
     upload(exec: ToolRunContext, file: FileAttachmentRef): Promise<string>
-  },
-  tasks?: ProjectionHandle<Record<string, BoundTask>>): void {
+  }): void {
   const base = skillProxyServiceBaseUrl(config.serviceEnvironment)
   const lifetime = new AbortController()
   const watching = new Map<string, string>()
@@ -350,18 +308,6 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     const agent = exec.agent
     if (!agent || !ctx.agents.roots().includes(agent)) throw new Error('Use image layering in the original user conversation.')
     return agent
-  }
-  const findTask = (exec: ToolRunContext, handle: string): BoundTask | undefined => {
-    if (!tasks) return undefined
-    const agent = requireAgent(exec)
-    const task = Object.values(tasks.stateOf(agent.session)).find(item => item.handle === handle || item.firstHandle === handle)
-    if (task && task.accountScope !== ctx.insightAccount.getAccountScope()) {
-      throw new ImageLayeringFailure('AUTH_REQUIRED', 'This image-layering task belongs to another signed-in account.')
-    }
-    return task
-  }
-  const appendTask = (exec: ToolRunContext, task: BoundTask): void => {
-    requireAgent(exec).session.append('insight/image-layering/task', { task })
   }
   const getResult = async (handle: string, signal: AbortSignal, attempt = 1) => {
     const result = await requestProxy(ctx, base, '/v1/proxy_async_get_result',
@@ -379,6 +325,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
       ...diagnostic, proxyRequestId: result.proxyRequestId ?? null })}`)
     return { ...value, diagnostic }
   }
+  registerResultDownload(ctx, config, getResult)
   const readStatus = async (handle: string, signal: AbortSignal, deadline?: number): Promise<LayeringResult> => {
     for (let attempt = 1; attempt <= 2; attempt++) {
       try { return await getResult(handle, signal, attempt) }
@@ -393,34 +340,6 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
       }
     }
     throw new Error('Status query exceeded its retry limit.')
-  }
-  const cacheResult = async (exec: ToolRunContext, task: BoundTask, handle: string,
-    initial: LayeringResult, signal: AbortSignal) => {
-    const agent = requireAgent(exec)
-    let result = initial
-    if (result.status !== 'succeeded' && result.status !== 'missing_psd') {
-      throw new Error('Image-layering result is not ready for local caching.')
-    }
-    const download = (value: LayeringResult) => cacheLayeringFiles(ctx, agent, config, handle,
-      [...(value.psdUrls ?? []), ...(value.imageUrls ?? [])], task.cwd, signal)
-    let cached: Awaited<ReturnType<typeof download>>
-    try { cached = await download(result) }
-    catch (error) {
-      if (!(error instanceof ResultDownloadFailure) || signal.aborted) throw error
-      result = await getResult(handle, signal, 2)
-      if (result.status !== 'succeeded' && result.status !== 'missing_psd') {
-        throw new Error('Result download failed and the task could not provide refreshed file addresses.', { cause: error })
-      }
-      cached = await download(result)
-    }
-    let files = cached
-    let relocationFailed = false
-    if (ctx.workingDirectory.get(agent.session) !== task.cwd) {
-      try { files = await copyLayeringFilesToCurrentDirectory(ctx, agent, cached, signal) }
-      catch { if (signal.aborted) throw new Error('Result transfer was cancelled.'); relocationFailed = true }
-    }
-    return { complete: result.status === 'succeeded' && result.imageListValid === true
-      && files.some(file => file.kind === 'psd'), relocationFailed, files }
   }
   const startWatch = (exec: ToolRunContext, handle: string): string => {
     if (exec.signal.aborted || lifetime.signal.aborted) throw new Error('Local tracking is unavailable.')
@@ -456,36 +375,8 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
                 finish({ status: 'failed', detail: 'Local tracking stopped; remote status is unknown.',
                   result: JSON.stringify(value) }); return
               }
-              if (value.status === 'succeeded') {
-                const task = findTask(exec, handle)
-                if (task?.handle === handle) {
-                  try {
-                    const cache = await cacheResult(exec, task, handle, value, signal)
-                    finish({ status: cache.complete ? 'completed' : 'failed',
-                      ...(cache.complete ? {} : { detail: 'Image-layering files were not completely cached.' }),
-                      result: JSON.stringify({ ...value, cache }) })
-                  } catch (error) {
-                    finish({ status: 'failed', detail: 'Image-layering result caching failed; retry local caching by task handle.',
-                      result: JSON.stringify({ taskHandle: handle, status: 'cache_partial',
-                        error: error instanceof Error ? error.message : 'Local caching failed.' }) })
-                  }
-                  return
-                }
-                finish({ status: 'completed', result: JSON.stringify(value) }); return
-              }
+              if (value.status === 'succeeded') { finish({ status: 'completed', result: JSON.stringify(value) }); return }
               if (value.status === 'missing_psd' || value.status === 'failed') {
-                const task = findTask(exec, handle)
-                if (task?.handle === handle && (value.imageUrls?.length || value.psdUrls?.length)) {
-                  try {
-                    const cache = await cacheResult(exec, task, handle, { ...value, status: 'missing_psd' }, signal)
-                    finish({ status: 'failed', detail: value.error ?? 'No complete PSD result was returned.',
-                      result: JSON.stringify({ ...value, cache }) })
-                  } catch {
-                    finish({ status: 'failed', detail: 'Image-layering files were not completely cached; recover local files without resubmitting generation.',
-                      result: JSON.stringify({ taskHandle: handle, status: 'cache_partial' }) })
-                  }
-                  return
-                }
                 finish({ status: 'failed', detail: value.error ?? 'No PSD file was returned.', result: JSON.stringify(value) }); return
               }
               if (value.status === 'cancelled') {
@@ -520,7 +411,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
   }
   const submit = defineTool({
     name: 'submit_image_layering',
-    description: 'Submit one user image from the last three user turns. Use prepare_image_layering_source when multiple images exist. This tool uploads the selected original without separate upload approval. Keep taskHandle; never retry an uncertain submission.',
+    description: 'Submit one user image from the last three user turns. Use prepare_image_layering_source when multiple images exist. Ordinary image messages upload their stored normalized encoding; image file attachments keep exact bytes. No separate upload approval. Keep taskHandle; never retry an uncertain submission.',
     parameters: {
       sourceRef: { type: 'string', description: 'Source reference from prepare_image_layering_source; omit only when exactly one eligible image exists.' },
       imageUrl: { type: 'string', description: 'Legacy OSS URL from a successful upload_attachment in this turn.' },
@@ -535,32 +426,15 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
       const layers = args.numLayers ?? 0
       if (!Number.isSafeInteger(layers) || layers < 0) throw new Error('numLayers must be a nonnegative integer.')
       let imageUrl: string
-      let reservation: BoundTask | undefined
       if (args.imageUrl) {
         if (!safeUrl(args.imageUrl) || !uploadedInTurn(exec, args.imageUrl)) {
           throw new Error('Use the OSS image URL returned by upload_attachment in this turn.')
         }
         imageUrl = args.imageUrl
       } else if (source) {
-        if (!tasks) throw new Error('Image-layering task registry is unavailable.')
-        const file = source.select(exec, args.sourceRef)
-        const requestKey = `${String(source.requestTurn(exec))}:${String(file.attachmentId)}`
-        const existing = tasks.stateOf(agent.session)[requestKey]
-        if (existing && existing.state !== 'released') {
-          if (existing.accountScope !== ctx.insightAccount.getAccountScope()) {
-            throw new ImageLayeringFailure('AUTH_REQUIRED', 'This image-layering request belongs to another signed-in account.')
-          }
-          if (existing.prompt !== (args.prompt ?? '') || existing.numLayers !== layers) {
-            throw new Error('This image already has a task with different processing parameters in this user turn.')
-          }
-          if (existing.handle) return { taskHandle: existing.handle, status: 'running' }
-          throw new ImageLayeringFailure('SUBMISSION_UNKNOWN', 'A creation attempt is already reserved for this request; inspect proxy audit before another submission.')
-        }
-        const cwd = await prepareResultDirectory(ctx, agent, exec.signal)
-        const accountScope = ctx.insightAccount.getAccountScope()
-        reservation = { requestKey, file, prompt: args.prompt ?? '', numLayers: layers,
-          cwd, accountScope, attempt: 1, state: 'reserved' }
-        appendTask(exec, reservation)
+        const selected = source.select(exec, args.sourceRef)
+        await prepareResultDirectory(ctx, agent, exec.signal)
+        const file = await uploadFileForSource(ctx.attachments, selected, exec.signal)
         imageUrl = await source.upload(exec, file)
       } else throw new Error('No image source is available.')
       const result = await requestProxy(ctx, base, '/v1/proxy_async_create', {
@@ -574,7 +448,6 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
           `Creation returned no single usable task handle${result.proxyRequestId ? ` (request ${result.proxyRequestId})` : ''}; inspect proxy audit before retrying.`,
           { cause: error })
       }
-      if (reservation) appendTask(exec, { ...reservation, state: 'bound', handle })
       const submitted: LayeringResult = { taskHandle: handle, status: 'running',
         ...(result.proxyRequestId ? { proxyRequestId: result.proxyRequestId } : {}) }
       try { return { ...submitted, jobId: startWatch(exec, handle), monitoring: 'running' } }
@@ -583,7 +456,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
   })
   const get = defineTool({
     name: 'get_image_layering',
-    description: 'Read an image-layer task using its enterprise taskHandle. A query_unavailable result stops this image without resubmission; only a query timeout is retried once. Set watch=true to resume local tracking when no Job is active.',
+    description: 'Read an image-layer task using its enterprise taskHandle. A query_unavailable result stops this image without resubmission; only a query timeout is retried once. Set watch=true to resume local tracking when no Job is active. Save finished URLs with cache_image_layering_result.',
     parameters: {
       taskHandle: { type: 'string', required: true, description: 'Opaque taskHandle returned by submit_image_layering.' },
       watch: { type: 'boolean', description: 'Resume asynchronous tracking while the task is running.' },
@@ -593,8 +466,6 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     execute: async (args, exec): Promise<LayeringResult> => {
       requireAgent(exec)
       if (!taskHandle(args.taskHandle)) throw new Error('Invalid taskHandle.')
-      // Unbound handles remain query-only; cache and paid retry require a Session task record.
-      findTask(exec, args.taskHandle)
       const signal = AbortSignal.any([exec.signal, lifetime.signal])
       const value = await readStatus(args.taskHandle, signal)
       if (!args.watch || value.status !== 'running') return value
@@ -602,62 +473,44 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
       catch { return { ...value, monitoring: 'unavailable' } }
     },
   })
-  const retry = source && tasks && defineTool({
-    name: 'retry_image_layering',
-    description: 'Create one final image-layering attempt only after two confirmed terminal reads for the original task. Uses its bound image and parameters; never repeat an uncertain creation.',
-    parameters: { taskHandle: { type: 'string', required: true, description: 'Original taskHandle with retry_eligible status.' } },
-    output,
-    presentCall: () => ({ card: 'generic', kind: 'other', title: 'Retry image layering' }),
-    presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image layering retry failed' : 'Image layering retried' }),
-    execute: async (args, exec): Promise<LayeringResult> => {
-      const agent = requireAgent(exec)
-      const old = findTask(exec, args.taskHandle)
-      if (!old || old.handle !== args.taskHandle || old.attempt !== 1 || old.state !== 'retry_eligible') {
-        throw new Error('This task is not eligible for one automatic retry.')
-      }
-      await prepareResultDirectory(ctx, agent, exec.signal, old.cwd)
-      const reserved: BoundTask = { requestKey: old.requestKey, file: old.file, prompt: old.prompt,
-        numLayers: old.numLayers, cwd: old.cwd, accountScope: old.accountScope,
-        state: 'reserved', attempt: 2, firstHandle: old.handle }
-      appendTask(exec, reserved)
-      const imageUrl = await source.upload(exec, old.file)
-      const result = await requestProxy(ctx, base, '/v1/proxy_async_create', {
-        model_id: 'decompose-1.0-flash', task_type: 'async_tencent_multi_layer_create',
-        data: { prompt: old.prompt, image_url_list: [imageUrl], image_params: { num_layers: old.numLayers } },
-      }, config.generationRequestTimeoutMs, AbortSignal.any([exec.signal, lifetime.signal]))
-      const handle = parseTaskHandle(result.body)
-      appendTask(exec, { ...reserved, state: 'bound', handle })
-      const submitted: LayeringResult = { taskHandle: handle, status: 'running',
-        ...(result.proxyRequestId ? { proxyRequestId: result.proxyRequestId } : {}) }
-      try { return { ...submitted, jobId: startWatch(exec, handle), monitoring: 'running' } }
-      catch { return { ...submitted, monitoring: 'unavailable' } }
-    },
-  })
-  const cache = tasks && defineTool({
+  const cache = defineTool({
     name: 'cache_image_layering_result',
-    description: 'Download and verify all PSD and image results of a completed Session-owned task in the bound workspace. Present every returned local file path; do not show remote URLs in the final reply.',
-    parameters: { taskHandle: { type: 'string', required: true, description: 'Confirmed taskHandle returned by submit_image_layering.' } },
+    description: 'Save a completed task\'s PSD and image result URLs as a workspace JSON manifest and publish downloadable remote file cards. Call once per completed image after its Job settles. This does not download generated files.',
+    parameters: { taskHandle: { type: 'string', required: true, description: 'Confirmed taskHandle returned by submit_image_layering.' },
+      imageLabel: { type: 'string', required: true, description: 'Short original image label for the result card, such as 图片 1（photo.png）.' } },
     output: { schema: { type: 'object', additionalProperties: false, properties: {
+      taskHandle: { type: 'string', required: true },
+      accountScope: { type: 'string', required: true, description: 'Account scope recorded for download authorization.' },
+      imageLabel: { type: 'string', required: true },
+      manifestPath: { type: 'string', required: true },
       complete: { type: 'boolean', required: true },
-      relocationFailed: { type: 'boolean', required: true },
       files: { type: 'array', required: true, items: { type: 'object', additionalProperties: false, properties: {
-        path: { type: 'string', required: true }, kind: { type: 'string', enum: ['psd', 'png', 'jpg', 'webp'], required: true },
-        sizeBytes: { type: 'integer', required: true },
+        url: { type: 'string', required: true }, name: { type: 'string', required: true },
+        kind: { type: 'string', enum: ['psd', 'png', 'jpg', 'webp'], required: true },
       } } },
     } }, render: (_args, value) => [{ type: 'text' as const, text: JSON.stringify(value) }] },
-    presentCall: () => ({ card: 'generic', kind: 'other', title: 'Cache image layering files' }),
-    presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image files not cached' : 'Image files cached' }),
+    presentCall: () => ({ card: 'generic', kind: 'other', title: 'Save image layering links' }),
+    presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image links not saved' : 'Image links saved' }),
     execute: async (args, exec) => {
-      requireAgent(exec)
-      const task = findTask(exec, args.taskHandle)
-      if (!task || task.handle !== args.taskHandle) throw new Error('Task handle is not bound to this Session.')
+      const agent = requireAgent(exec)
+      if (!taskHandle(args.taskHandle)) throw new Error('Invalid taskHandle.')
+      const imageLabel = args.imageLabel.trim()
+      if (!imageLabel || imageLabel.length > 200) throw new Error('imageLabel must contain 1 to 200 characters.')
       const signal = AbortSignal.any([exec.signal, lifetime.signal])
-      return cacheResult(exec, task, args.taskHandle, await getResult(args.taskHandle, signal), signal)
+      const value = await getResult(args.taskHandle, signal)
+      if (value.status !== 'succeeded' && value.status !== 'missing_psd') {
+        throw new Error('Image-layering result is not ready for URL delivery.')
+      }
+      const { path, files } = await saveLayeringManifest(ctx, agent, config, args.taskHandle,
+        [...(value.psdUrls ?? []), ...(value.imageUrls ?? [])], signal)
+      return { taskHandle: args.taskHandle, accountScope: ctx.insightAccount.getAccountScope(), imageLabel, manifestPath: path,
+        complete: value.status === 'succeeded' && value.imageListValid === true
+          && files.some(file => file.kind === 'psd') && files.some(file => file.kind !== 'psd'), files }
     },
   })
   const prepare = source && defineTool({
     name: 'prepare_image_layering_source',
-    description: 'List original images uploaded directly by the user in the last three user turns. If several exist, ask the user which one to process before submitting. Listing does not upload.',
+    description: 'List stored image messages and image file attachments uploaded directly by the user in the last three user turns. If several exist, ask the user which one to process before submitting. Listing does not upload.',
     parameters: {},
     output: { schema: { type: 'object', additionalProperties: false, properties: {
       candidates: { type: 'array', required: true, items: { type: 'object', additionalProperties: false,
@@ -673,9 +526,8 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     try {
       const releaseGet = ctx.tools.register(get)
       const releasePrepare = prepare ? ctx.tools.register(prepare) : () => {}
-      const releaseRetry = retry ? ctx.tools.register(retry) : () => {}
-      const releaseCache = cache ? ctx.tools.register(cache) : () => {}
-      return () => { releaseCache(); releaseRetry(); releasePrepare(); releaseGet(); releaseSubmit(); lifetime.abort() }
+      const releaseCache = ctx.tools.register(cache)
+      return () => { releaseCache(); releasePrepare(); releaseGet(); releaseSubmit(); lifetime.abort() }
     } catch (error) { releaseSubmit(); lifetime.abort(); throw error }
   }, 'insight-media-upload: image-layering tools')
 }

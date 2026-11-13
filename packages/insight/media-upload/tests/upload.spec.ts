@@ -10,7 +10,7 @@ import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { uploadCenterServiceBaseUrl } from '@insight-ai/desktop-integration/host'
 import { apply } from '../src/index.ts'
 import { currentTurnUploadsProjection, listLayeringSources, selectLayeringSource,
-  selectUploadSource, uploadTurnSeq } from '../src/upload-source.ts'
+  selectUploadSource, uploadFileForSource, uploadTurnSeq } from '../src/upload-source.ts'
 import { objectFileType, requestUploadSession, type UploadSession } from '../src/upload-center.ts'
 import { putOssObject } from '../src/oss-put.ts'
 
@@ -83,7 +83,7 @@ describe('direct upload-center protocol', () => {
   })
 })
 
-describe('original-byte OSS PUT', () => {
+describe('stored-byte OSS PUT', () => {
   it('streams the exact file and requires full consumption plus HTTP 200', async () => {
     const attachments = { readFileStream: async function* () { yield Uint8Array.from([1, 2]); yield Uint8Array.from([3, 4]) } }
     const chunks: Buffer[] = []
@@ -114,6 +114,22 @@ describe('original-byte OSS PUT', () => {
 })
 
 describe('current-turn attachment authority', () => {
+  it('uploads verified normalized bytes with the encoding-matched filename', async () => {
+    const ref = { attachmentId: AttachmentId(`sha256:${'cd'.repeat(32)}`), mediaType: 'image/jpeg' as const,
+      bytes: 3, width: 1, height: 1 }
+    const data = Uint8Array.of(1, 2, 3)
+    const readImage = vi.fn(async () => ({ ref, data }))
+    const saved = { attachmentId: ref.attachmentId, name: 'portrait.jpg', bytes: 3 }
+    const saveFile = vi.fn(async () => saved)
+    const signal = new AbortController().signal
+    expect(await uploadFileForSource({ readImage, saveFile },
+      { kind: 'image', ref, name: 'portrait.png' }, signal)).toEqual(saved)
+    expect(readImage).toHaveBeenCalledWith(ref, signal)
+    expect(saveFile).toHaveBeenCalledWith({ data, name: 'portrait.jpg' })
+    expect(await uploadFileForSource({ readImage, saveFile }, { kind: 'file', ref: file }, signal)).toBe(file)
+    expect(readImage).toHaveBeenCalledOnce()
+  })
+
   it('retains images from exactly three user-message turns while ordinary upload stays current-turn only', async () => {
     const ctx = new Context()
     try {
@@ -133,17 +149,18 @@ describe('current-turn attachment authority', () => {
       expect(listLayeringSources(agent, projection).map(source => source.filename))
         .toEqual(['photo-1.png', 'photo-2.png', 'photo-3.png'])
       expect(() => selectLayeringSource(agent, undefined, projection)).toThrow('Choose one image')
-      expect(selectLayeringSource(agent, String(images[0]!.attachmentId), projection)).toEqual(images[0])
+      expect(selectLayeringSource(agent, `file:${String(images[0]!.attachmentId)}`, projection))
+        .toEqual({ kind: 'file', ref: images[0] })
       expect(() => selectUploadSource(agent, 1, projection)).toThrow('No user attachment')
       session.append('user/message', createUserMessage({ source: { kind: 'user' },
         content: [{ type: 'file', attachment: images[3]! }] }), { surfaceOp: 'append' })
       expect(listLayeringSources(agent, projection).map(source => source.filename))
         .toEqual(['photo-2.png', 'photo-3.png', 'photo-4.png'])
-      expect(() => selectLayeringSource(agent, String(images[0]!.attachmentId), projection)).toThrow('outside')
+      expect(() => selectLayeringSource(agent, `file:${String(images[0]!.attachmentId)}`, projection)).toThrow('outside')
       await projection.dispose()
     } finally { await ctx.fiber.dispose() }
   })
-  it('selects original image bytes, video, and text only from the open direct-user turn', async () => {
+  it('selects normalized images, video, and text only from the open direct-user turn', async () => {
     const ctx = new Context()
     try {
       await ctx.plugin(SessionProjectionRegistry)
@@ -156,17 +173,20 @@ describe('current-turn attachment authority', () => {
       const agent = { session: history } as Agent
       expect(() => selectUploadSource(agent, 1, projection)).toThrow('No user attachment')
       history.append('turn/start', { turn: 2 })
-      const original: FileAttachmentRef = { attachmentId: AttachmentId(`sha256:${'cd'.repeat(32)}`), name: 'photo.png', bytes: 8 }
       const text: FileAttachmentRef = { attachmentId: AttachmentId(`sha256:${'ef'.repeat(32)}`), name: 'note.txt', bytes: 3 }
       history.append('user/message', createUserMessage({ source: { kind: 'user' }, content: [
         { type: 'image', attachment: { attachmentId: AttachmentId('normalized'), mediaType: 'image/png',
-          bytes: 5, width: 1, height: 1 }, originalFile: original },
+          bytes: 5, width: 1, height: 1 } },
         { type: 'file', attachment: file }, { type: 'file', attachment: text },
       ] }), { surfaceOp: 'append' })
       expect(() => selectUploadSource(agent, undefined, projection)).toThrow('Specify attachmentIndex')
-      expect(selectUploadSource(agent, 1, projection)).toEqual(original)
-      expect(selectUploadSource(agent, 2, projection)).toEqual(file)
-      expect(selectUploadSource(agent, 3, projection)).toEqual(text)
+      expect(selectUploadSource(agent, 1, projection)).toEqual({ kind: 'image',
+        ref: { attachmentId: AttachmentId('normalized'), mediaType: 'image/png', bytes: 5, width: 1, height: 1 },
+        name: null })
+      expect(selectLayeringSource(agent, 'image:normalized', projection))
+        .toMatchObject({ kind: 'image', ref: { attachmentId: AttachmentId('normalized') } })
+      expect(selectUploadSource(agent, 2, projection)).toEqual({ kind: 'file', ref: file })
+      expect(selectUploadSource(agent, 3, projection)).toEqual({ kind: 'file', ref: text })
       const firstTurnSeq = uploadTurnSeq(agent, projection)
       expect(firstTurnSeq).toBeGreaterThan(0)
       expect(() => selectUploadSource(agent, 0, projection)).toThrow('positive integer')
@@ -180,7 +200,7 @@ describe('current-turn attachment authority', () => {
     } finally { await ctx.fiber.dispose() }
   })
 
-  it('drops a replaced image and refuses an image with no original bytes', async () => {
+  it('drops a replaced file and accepts a normalized image without original bytes', async () => {
     const ctx = new Context()
     try {
       await ctx.plugin(SessionProjectionRegistry)
@@ -194,7 +214,11 @@ describe('current-turn attachment authority', () => {
         content: [{ type: 'image', attachment: { attachmentId: AttachmentId('normalized'),
           mediaType: 'image/png', bytes: 4, width: 1, height: 1 } }] }),
       { surfaceOp: { op: 'replace', startSeq: first.seq, endSeq: first.seq }, sourceEventSeqs: [first.seq] })
-      expect(() => selectUploadSource(agent, 1, projection)).toThrow('original bytes')
+      expect(selectUploadSource(agent, 1, projection)).toMatchObject({ kind: 'image',
+        ref: { mediaType: 'image/png', bytes: 4 } })
+      expect(listLayeringSources(agent, projection)).toMatchObject([{
+        sourceRef: 'image:normalized', filename: 'image',
+      }])
       expect(() => selectUploadSource(agent, 2, projection)).toThrow('outside')
       await projection.dispose()
     } finally { await ctx.fiber.dispose() }
@@ -212,17 +236,21 @@ describe('tool authorization', () => {
       const session = Session.create(SessionId('approval-turn'))
       session.append('turn/start', { turn: 1 })
       session.append('user/message', createUserMessage({ source: { kind: 'user' },
-        content: [{ type: 'file', attachment: file }] }), { surfaceOp: 'append' })
+        content: [{ type: 'image', attachment: { attachmentId: AttachmentId(`sha256:${'cd'.repeat(32)}`),
+          mediaType: 'image/png', bytes: 3, width: 1, height: 1 } }] }), { surfaceOp: 'append' })
       const agent = { session } as Agent
       const register = vi.fn((_definition: ToolDefinition) => release)
       const request = vi.fn(async () => 'rejected' as const)
       const getAccessToken = vi.fn(async () => 'account-token')
+      const readImage = vi.fn()
+      const saveFile = vi.fn()
       ctx.provide('tools', { register } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
       ctx.provide('approval', { request } as never)
       ctx.provide('permissionPresets', { current: () => 'workspace-write' } as never)
       ctx.provide('insightAccount', { getAccessToken } as never)
-      ctx.provide('attachments', {} as never)
+      ctx.provide('attachments', { readImage, saveFile } as never)
+      ctx.provide('connection', { fetch: { register: () => () => {} } } as never)
       ctx.provide('insightPlatformSkills', { registerPackagedSkillRoot } as never)
       await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
         generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 })
@@ -241,8 +269,10 @@ describe('tool authorization', () => {
       await expect(definition?.execute({}, exec)).rejects.toMatchObject({ code: 'APPROVAL_DENIED' })
       expect(request).toHaveBeenCalledOnce()
       expect(getAccessToken).not.toHaveBeenCalled()
+      expect(readImage).not.toHaveBeenCalled()
+      expect(saveFile).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose() }
-    expect(release).toHaveBeenCalledTimes(6)
+    expect(release).toHaveBeenCalledTimes(5)
     expect(disposeSkill).toHaveBeenCalledOnce()
   })
 
@@ -264,6 +294,7 @@ describe('tool authorization', () => {
       ctx.provide('permissionPresets', { current: () => 'danger-full-access' } as never)
       ctx.provide('insightAccount', { getAccessToken } as never)
       ctx.provide('attachments', {} as never)
+      ctx.provide('connection', { fetch: { register: () => () => {} } } as never)
       await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
         generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 })
       const exec = { agent, callId: ToolCallId('call-1'), name: 'upload_attachment', arguments: {},
@@ -298,6 +329,7 @@ describe('tool authorization', () => {
         return 'account-token'
       } } as never)
       ctx.provide('attachments', {} as never)
+      ctx.provide('connection', { fetch: { register: () => () => {} } } as never)
       await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
         generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 })
       const exec = { agent, callId: ToolCallId('call-1'), name: 'upload_attachment', arguments: {},
