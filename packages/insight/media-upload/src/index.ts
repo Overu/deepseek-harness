@@ -86,8 +86,12 @@ function mimeType(name: string): string {
  * @param ctx - Host services for tools, attachments, approval, account, Agent and Session projection.
  * @param config - Validated upload-center environment and request deadlines.
  * @returns When the projection and tools have registered under the plugin fiber.
+ * @throws Before registration when production has no allowed result-object host.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
+  if (config.serviceEnvironment === 'production' && !config.generationResultHosts?.length) {
+    throw new Error('Insight media upload requires generationResultHosts in production.')
+  }
   const skillRoot = fileURLToPath(new URL('../guidance/image-layering/', import.meta.url))
   const skillFiber = ctx.inject(['insightPlatformSkills'], async (scope) => {
     for (const file of ['ui.json', 'scripts/download_psd.mjs']) {
