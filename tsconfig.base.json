@@ -42,6 +42,7 @@
       "dsh-prompt-enhance": ["./packages/insight/prompt-enhance/src/index.ts"],
       "dsh-prompt-enhance/client": ["./packages/insight/prompt-enhance/src/client/index.tsx"],
       "@insight-ai/desktop-canvas-plugin": ["./packages/insight/canvas/src/index.ts"],
+      "@insight-ai/desktop-media-upload-plugin": ["./packages/insight/media-upload/src/index.ts"],
       "@insight-ai/desktop-canvas-plugin/client": ["./packages/insight/canvas/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-file-actions": ["./packages/client/ui-file-actions/src/index.ts"],
       "@deepseek-ai/dsh-client-ui-file-actions/client": ["./packages/client/ui-file-actions/src/client/index.ts"],

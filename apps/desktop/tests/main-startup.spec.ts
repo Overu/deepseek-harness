@@ -1411,7 +1411,7 @@ describe('desktop main startup', () => {
     await harness.preparing.promise
     expect(harness.desktopPathCalls).toEqual(['insight-account-home'])
     expect(harness.projectManagerArguments[0]).toMatchObject([
-      { profile: 'desktop-test-profile' }, expect.anything(), ['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance', '@insight-ai/skill-center'],
+      { profile: 'desktop-test-profile' }, expect.anything(), ['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', '@insight-ai/desktop-media-upload-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance', '@insight-ai/skill-center'],
     ])
     harness.prepared.resolve()
     await harness.hostStarted.promise
@@ -1451,7 +1451,7 @@ describe('desktop main startup', () => {
     harness.prepared.resolve()
     await harness.hostStarted.promise
     expect(harness.hosts[0]!.environment?.DSH_PRODUCT_REQUIRED_BUNDLES)
-      .toBe(JSON.stringify(['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance', '@insight-ai/skill-center']))
+      .toBe(JSON.stringify(['@insight-ai/desktop-integration', '@insight-ai/desktop-canvas-plugin', '@insight-ai/desktop-media-upload-plugin', 'dsh-memory-evolve', 'dsh-prompt-enhance', '@insight-ai/skill-center']))
     expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_PRODUCT_REQUIRED_BUNDLES')).toEqual(['DSH_PRODUCT_REQUIRED_BUNDLES'])
     expect(harness.hosts[0]!.environment?.DSH_INSIGHT_SKILL_PROXY_NODE)
       .toBe(join('desktop-test-resources', 'runtime', 'primary-runtime', 'dependencies', 'node', 'bin', 'node.exe'))

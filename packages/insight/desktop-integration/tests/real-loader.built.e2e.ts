@@ -14,6 +14,7 @@ const observer = pathToFileURL(fileURLToPath(new URL('./fixtures/real-loader-obs
 const requiredBundles = [
   ['@insight-ai/desktop-integration', 'packages/insight/desktop-integration'],
   ['@insight-ai/desktop-canvas-plugin', 'packages/insight/canvas'],
+  ['@insight-ai/desktop-media-upload-plugin', 'packages/insight/media-upload'],
   ['dsh-memory-evolve', 'packages/insight/memory-evolve'],
   ['dsh-prompt-enhance', 'packages/insight/prompt-enhance'],
   ['@insight-ai/skill-center', 'packages/insight/skill-center'],
@@ -22,7 +23,8 @@ const requiredBundleNames = requiredBundles.map(([name]) => name)
 const requiredBundlesEnvironment = JSON.stringify(requiredBundleNames)
 const profileRegistry = 'https://registry.insight.example/'
 const builtArtifactsAvailable = requiredBundles.every(([, directory]) =>
-  existsSync(join(repoRoot, directory, 'lib/index.js')) && existsSync(join(repoRoot, directory, 'lib/client.js')),
+  existsSync(join(repoRoot, directory, 'lib/index.js'))
+  && (directory === 'packages/insight/media-upload' || existsSync(join(repoRoot, directory, 'lib/client.js'))),
 )
 const stopGraceMs = 5_000
 const stopKillMs = 5_000
@@ -45,6 +47,7 @@ interface CompositionObservation {
     readonly disablePlugin: { readonly application: string; readonly changed: boolean; readonly errorCode: string | undefined }
   }>
   readonly web: { readonly configuredProvider: string | undefined; readonly registeredProvider: boolean }
+  readonly uploadToolRegistered: boolean
   readonly registry: string | null
   readonly clientEntries: Array<{ readonly id: string; readonly status: number; readonly contentType: string | null }>
 }
@@ -232,11 +235,13 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
       disablePlugin: { application: 'failed', changed: false, errorCode: 'profile-required' },
     })))
     expect(observation.web).toEqual({ configuredProvider: 'insight-enterprise-search', registeredProvider: true })
+    expect(observation.uploadToolRegistered).toBe(true)
     expect(observation.registry).toBe(profileRegistry)
-    expect(observation.clientEntries.map(({ contentType: _contentType, ...entry }) => entry)).toEqual(requiredBundleNames.map(id => ({
-      id,
-      status: 200,
-    })))
+    expect(observation.clientEntries.map(({ contentType: _contentType, ...entry }) => entry)).toEqual(requiredBundleNames
+      .filter(id => id !== '@insight-ai/desktop-media-upload-plugin').map(id => ({
+        id,
+        status: 200,
+      })))
     for (const entry of observation.clientEntries) expect(entry.contentType?.includes('text/javascript')).toBe(true)
 
     loader.child.send('request-insight-token')

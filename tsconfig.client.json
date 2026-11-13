@@ -61,6 +61,7 @@
     { "path": "packages/insight/memory-evolve/tsconfig.client.json" },
     { "path": "packages/insight/prompt-enhance/tsconfig.client.json" },
     { "path": "packages/insight/canvas/tsconfig.client.json" },
+    { "path": "packages/insight/media-upload/tsconfig.client.json" },
     { "path": "packages/insight/skill-center/tsconfig.client.json" },
     { "path": "./packages/experimental/client-ui-action-cards" },
     { "path": "./packages/experimental/client-ui-creation-recommendations" },

@@ -31,6 +31,8 @@ Insight Desktop 使用此私有 bundle 提供产品品牌、Host 启动前认证
 
 Insight 应用在认证选出安全 Home 后，将 `@insight-ai/desktop-integration` 加入账号 profile。Profile 准备会给已有账号 profile 补上缺失声明，插件恢复则在禁用其他第三方 bundle 时保留本 bundle。本包为私有包，没有独立安装路径；官方 Desktop 组合保持不变。
 
+已打包的 Insight 在认证前从经过校验的应用元数据选择业务环境。隔离的[测试安装包](../../../apps/desktop/packaging/README.zh.md#configuration-and-local-builds)使用测试网关和持久化的测试认证分区；普通安装包使用生产环境。开发版使用测试网关及非持久化分区。
+
 ### 你得到什么
 
 在 Host 存在之前，原生登录窗口保留 Insight 品牌面板、交互点阵和短信/密码表单，并提供协议链接、凭据恢复和逐账号 Home 选择。窗口在恢复已保存凭据期间保持隐藏；认证及 Home 准备成功后直接进入工作区，凭据不可用或 Home 准入失败时才显示现有登录或恢复页面。Desktop Main 在已打包构建中把凭据保存在 Electron 加密存储中，只暴露渲染器安全的登录状态。 随包服务协议和隐私政策在登录窗口内打开，标题与页脚控件固定、正文独立滚动，支持 Escape 关闭并恢复焦点。阅读或关闭协议不会自动同意协议或提交登录。
@@ -79,6 +81,8 @@ Host 服务校验请求与响应字段、限制并发令牌请求、应用截止
 
 <a id="business-services"></a>
 ## 业务服务
+
+Host 账号服务提供 Desktop Main 选定账号 Home 的非凭据哈希。图像分层任务将该范围绑定到 Session 记录，账号切换后拒绝恢复；哈希不暴露令牌或原始账号 ID。
 
 Host 通过 DSH 的公开 Web 注册表挂载 Insight 企业搜索提供方。每次搜索均将当前 Insight 账号令牌通过 `Authorization: Bearer` 和 `x-api-key` 发送至企业 Gateway 的 `/messages` 端点。每次搜索均创建独立的上游提供方，并将该次搜索的取消信号传给令牌请求。停机时先注销提供方，再中止并等待已接收工作结束，最后才释放账号服务。
 

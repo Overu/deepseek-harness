@@ -17,6 +17,7 @@ export interface ProductPackagePolicy {
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
   'packages/insight/canvas': { category: 'insight-product', reason: 'Required by the Insight distribution; the official Desktop composition remains unchanged.' },
+  'packages/insight/media-upload': { category: 'insight-product', reason: 'Required authenticated attachment upload tool for the Insight Desktop distribution.' },
   'packages/insight/memory-evolve': { category: 'insight-product', reason: 'Fixed private memory source for the Insight distribution.' },
   'packages/insight/prompt-enhance': { category: 'insight-product', reason: 'Fixed private composer enhancement source for the Insight distribution.' },
   'packages/insight/skill-center': { category: 'insight-product', reason: 'Required account platform skill management for the Insight distribution.' },

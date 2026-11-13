@@ -1,0 +1,28 @@
+# Bilingual-pair consistency record for 2026-11-06-insight-original-image-file.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/persistence-changes/2026-11-06-insight-original-image-file.md
+/:
+  en: 3d5a424ae7d7e46b
+  zh: c22a8e4a62d8cc1a
+/2026-11-06-insight-original-image-file:
+  en: 633b627c9dded0a3
+  zh: e8f42fccefaff7f6
+/2026-11-06-insight-original-image-file/summary:
+  en: 0698a7f8bfb594f9
+  zh: 0c294e6bb5cbe3b8
+/2026-11-06-insight-original-image-file/table-of-contents:
+  en: 6cf314a069ceb451
+  zh: 9adff678e9ecab3b
+/2026-11-06-insight-original-image-file/declaration:
+  en: 6907136f28e48c90
+  zh: 02f8298485f3d8e7
+/2026-11-06-insight-original-image-file/compatibility:
+  en: 0ee007975fbd5771
+  zh: 97bf8fd2b2b8bdc5
+/2026-11-06-insight-original-image-file/verification:
+  en: a6c60f79c3ca9924
+  zh: 96debde57c577897
+/2026-11-06-insight-original-image-file/dev-note:
+  en: b75c8458928b72b9
+  zh: 003ba4e17b4b5269

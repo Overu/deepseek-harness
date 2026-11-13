@@ -36,6 +36,11 @@ Same-process service consumed only by trusted Host plugins. It has no Remote or 
  * @returns the token without persisting, logging, or exposing it through a remote service.
  */
 getAccessToken(signal?: AbortSignal): Promise<string>
+
+/** Return a noncredential identifier for the Main-selected account home.
+ * @returns Stable account scope for task ownership checks across Host restarts.
+ */
+getAccountScope(): string
 ```
 
 Source: [`packages/insight/desktop-integration/src/host/account-service.ts`](../../packages/insight/desktop-integration/src/host/account-service.ts)
@@ -109,11 +114,18 @@ async listLegacyCandidates(options: SkillLookupOptions): Promise<readonly SkillC
 @Remote('removeSkill') async remove(request: PlatformSkillRemovalRequest, signal: AbortSignal): Promise<PlatformSkillSnapshot>
 
 /**
- * List effective candidates from only payloads selected by committed records.
+ * List committed account candidates followed by package-owned skills, omitting a package candidate with an installed name.
  * @param options - Lookup cancellation and working-directory context.
  * @returns Complete candidates, or an explicitly incomplete observation.
  */
 async listCandidates(options: SkillLookupOptions): Promise<readonly SkillCandidate[] | SkillProviderObservation>
+
+/** Register a trusted package's single root skill below account installations and above legacy roots.
+ * @param root - Absolute package-owned skill directory containing SKILL.md.
+ * @param skillName - Expected invocation name in the skill frontmatter.
+ * @returns Disposer that removes this package's candidate and refreshes skill discovery.
+ */
+async registerPackagedSkillRoot(root: string, skillName: string): Promise<() => void>
 
 /**
  * Load one candidate previously returned by {@link listCandidates}.

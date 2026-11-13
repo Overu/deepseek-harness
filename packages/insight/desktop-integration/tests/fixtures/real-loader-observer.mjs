@@ -4,6 +4,7 @@ export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientM
 const requiredBundleNames = [
   '@insight-ai/desktop-integration',
   '@insight-ai/desktop-canvas-plugin',
+  '@insight-ai/desktop-media-upload-plugin',
   'dsh-memory-evolve',
   'dsh-prompt-enhance',
   '@insight-ai/skill-center',
@@ -45,7 +46,7 @@ async function observeComposition(ctx) {
 
   const graph = ctx.clientModules.graph()
   const clientEntries = []
-  for (const id of requiredBundleNames) {
+  for (const id of requiredBundleNames.filter(name => name !== '@insight-ai/desktop-media-upload-plugin')) {
     const entry = graph.entries.find(candidate => candidate.id === id)
     if (entry === undefined) {
       clientEntries.push({ id, status: 404, contentType: null })
@@ -62,6 +63,7 @@ async function observeComposition(ctx) {
       configuredProvider: ctx.web.config.searchProvider.get(),
       registeredProvider: ctx.web.searchProviders.has('insight-enterprise-search'),
     },
+    uploadToolRegistered: ctx.tools.get('upload_attachment')?.name === 'upload_attachment',
     registry: registries.registry,
     clientEntries,
   }

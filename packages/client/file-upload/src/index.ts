@@ -57,7 +57,6 @@ class PromptFileBindingGuard implements PromptFileBinding {
 /** Host service owning upload storage and receipts keyed by each receiving Agent's exact Session. */
 export class FileUploads extends TypertRemoteService {
   static inject = ['agents', 'attachments', 'commands', 'connection']
-
   private readonly stagedFiles = new WeakMap<Session, Map<FileUploadReceiptId, StagedFileUpload>>()
   // Inside a method called through `ctx.fileUploads`, Cordis returns a new proxy
   // for every function-valued property read from `this`, so `===` against the

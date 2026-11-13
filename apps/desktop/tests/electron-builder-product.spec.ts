@@ -27,6 +27,7 @@ describe('Insight electron-builder product', () => {
     })
     expect(config.extraMetadata.dshDesktopRuntimeVersion).toMatch(/^0\.2\./u)
     expect(config.extraResources).toContainEqual(expect.objectContaining({ to: 'branding' }))
+    expect(config.extraResources).not.toContainEqual(expect.objectContaining({ to: 'bundled-skills' }))
     expect(config.files).toEqual(expect.arrayContaining(['lib/preload-insight-login.cjs', 'lib/insight-login/**/*', 'renderer/**/*']))
     expect(config.mac.icon).toMatch(/packages[\\/]insight[\\/]desktop-integration[\\/]resources[\\/]branding[\\/]icon\.icns$/u)
     expect(config.win.icon).toMatch(/packages[\\/]insight[\\/]desktop-integration[\\/]resources[\\/]branding[\\/]icon\.ico$/u)

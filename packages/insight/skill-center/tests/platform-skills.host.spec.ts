@@ -57,6 +57,33 @@ async function collect(iterable: AsyncIterable<PlatformSkillInstallProgress>): P
   return frames
 }
 
+it('discovers a package-owned skill, prefers an account installation, and withdraws the package on unload', async () => {
+  const bytes = archive('Account instructions')
+  const { home, ctx, service } = await fixture(async url => response(bytes, requestUrl(url)))
+  const root = join(home, 'package-image-layering')
+  await mkdir(root)
+  await writeFile(join(root, 'SKILL.md'), '---\nname: expert-tool\ndescription: Packaged expert\n---\n\nPackage instructions\n')
+  const dispose = await service.registerPackagedSkillRoot(root, 'expert-tool')
+  expect((await ctx.skills.get('expert-tool'))?.content).toContain('Package instructions')
+  await collect(service.install(request('1.0.0', 'packaged-override'), new AbortController().signal))
+  const observation = await service.listCandidates({})
+  const candidates = 'candidates' in observation ? observation.candidates : observation
+  expect(candidates.filter(candidate => candidate.name === 'expert-tool')).toHaveLength(1)
+  expect((await ctx.skills.get('expert-tool'))?.content).toContain('Account instructions')
+  await service.remove({ id }, new AbortController().signal)
+  expect((await ctx.skills.get('expert-tool'))?.content).toContain('Package instructions')
+  dispose()
+  expect(await ctx.skills.get('expert-tool')).toBeUndefined()
+})
+
+it('rejects a package root whose declared skill name differs', async () => {
+  const { home, service } = await fixture(async url => response(archive('unused'), requestUrl(url)))
+  const root = join(home, 'invalid-package')
+  await mkdir(root)
+  await writeFile(join(root, 'SKILL.md'), '---\nname: another-name\ndescription: Invalid expert\n---\n\nBody\n')
+  await expect(service.registerPackagedSkillRoot(root, 'invoked-name')).rejects.toThrow('valid root SKILL.md')
+})
+
 it('installs and updates a technical-name record with a callable payload', async () => {
   let bytes = archive('First release')
   const { home, ctx, service } = await fixture(async url => response(bytes, requestUrl(url)))

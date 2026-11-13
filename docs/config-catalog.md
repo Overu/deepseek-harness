@@ -4831,6 +4831,35 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->
+<a id="insight-aidesktop-media-upload-plugin"></a>
+
+## `@insight-ai/desktop-media-upload-plugin`
+
+- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `permissionPresets` · `agents` · `sessionProjections` · `jobs` · `fs` · `workingDirectory` · `sandboxPolicy` · `insightPlatformSkills` · `connection` · `sessionQuery`
+- `source`: [`packages/insight/media-upload/src/index.ts:32`](../packages/insight/media-upload/src/index.ts)
+
+```ts config-catalog
+/** Product environment and bounded network deadlines. */
+export interface Config {
+  /** Selected fixed upload-center service environment. */
+  serviceEnvironment: 'test' | 'production'
+  /** Deadline for the upload-center STS request. */
+  requestTimeoutMs: number
+  /** Deadline for the OSS PUT. */
+  ossTimeoutMs: number
+  /** Deadline for each enterprise generation request. */
+  generationRequestTimeoutMs: number
+  /** Interval between generation status checks. */
+  generationPollIntervalMs: number
+  /** Maximum duration of local generation tracking. */
+  generationWatchTimeoutMs: number
+  /** Allowed result-object hosts; production must configure its result hosts. */
+  generationResultHosts?: string[]
+}
+```
+<!-- END GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->
+
 <!-- BEGIN GENERATED config-catalog:@insight-ai/skill-center -->
 <a id="insight-aiskill-center"></a>
 

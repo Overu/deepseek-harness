@@ -57,7 +57,12 @@ function serviceUrl(base: URL, path: string): string {
   return result.href
 }
 
-/** Build the fixed service-plane request function without retaining account tokens. */
+/** Build the fixed service-plane request function without retaining account tokens.
+ * @param baseUrl - HTTPS enterprise service base including its gateway path.
+ * @param account - Current Host account token capability.
+ * @param transport - Fetch implementation, replaceable for protocol tests.
+ * @returns A one-operation authenticated skill proxy request function.
+ */
 export function createInsightSkillProxyRequest(
   baseUrl: string,
   account: InsightSkillProxyAccount,

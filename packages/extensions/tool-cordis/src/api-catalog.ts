@@ -1773,6 +1773,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'signal', description: 'cancellation for this request only.' }],
         returns: 'the token without persisting, logging, or exposing it through a remote service.',
       },
+      {
+        signature: 'getAccountScope(): string',
+        description: 'Return a noncredential identifier for the Main-selected account home.',
+        parameters: [],
+        returns: 'Stable account scope for task ownership checks across Host restarts.',
+      },
     ],
   },
   {
@@ -1840,9 +1846,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async listCandidates(options: SkillLookupOptions): Promise<readonly SkillCandidate[] | SkillProviderObservation>',
-        description: 'List effective candidates from only payloads selected by committed records.',
+        description: 'List committed account candidates followed by package-owned skills, omitting a package candidate with an installed name.',
         parameters: [{ name: 'options', description: 'Lookup cancellation and working-directory context.' }],
         returns: 'Complete candidates, or an explicitly incomplete observation.',
+      },
+      {
+        signature: 'async registerPackagedSkillRoot(root: string, skillName: string): Promise<() => void>',
+        description: 'Register a trusted package\'s single root skill below account installations and above legacy roots.',
+        parameters: [{ name: 'root', description: 'Absolute package-owned skill directory containing SKILL.md.' }, { name: 'skillName', description: 'Expected invocation name in the skill frontmatter.' }],
+        returns: 'Disposer that removes this package\'s candidate and refreshes skill discovery.',
       },
       {
         signature: 'getCandidate(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined>',

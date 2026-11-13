@@ -1,5 +1,5 @@
 /** Host-only access to the Desktop Main-owned Insight account token. */
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { Context, Service } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import {
@@ -130,6 +130,15 @@ export class InsightAccount extends Service {
         this.settleFailure(requestId, 'unavailable', false)
       })
     })
+  }
+
+  /** Return a noncredential identifier for the Main-selected account home.
+   * @returns Stable account scope for task ownership checks across Host restarts.
+   */
+  getAccountScope(): string {
+    const home = process.env.DSH_HOME
+    if (!home) throw new InsightAccountAccessError('unavailable')
+    return createHash('sha256').update(`insight-account-home-v1\0${home}`).digest('hex')
   }
 
   /** Consume a Main response only after strict IPC validation. */

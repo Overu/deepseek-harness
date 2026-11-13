@@ -16,4 +16,7 @@ export {
   type InsightAccountServiceOptions,
   type InsightAccountTransport,
 } from './host/account-service.ts'
-export { desktopServiceEnvironment } from './shared/service-environment.ts'
+/** Fixed service bases shared by authenticated Host integrations. */
+export { desktopServiceEnvironment, skillProxyServiceBaseUrl, uploadCenterServiceBaseUrl } from './shared/service-environment.ts'
+/** Authenticated NDJSON transport shared by Host-only skill consumers. */
+export { createInsightSkillProxyRequest, InsightSkillProxyError } from './host/skill-proxy-request.ts'
