@@ -55,6 +55,9 @@ export default defineConfig([
   },
   {
     entry: ['lib/types/main.js'],
+    ...(process.env.DSH_INSIGHT_RC_BUILD === '1' && process.env.DSH_DESKTOP_PRODUCT === 'insight' ? {
+      alias: { './insight-developer.js': fileURLToPath(new URL('./lib/types/insight-developer-rc.js', import.meta.url)) },
+    } : {}),
     plugins: [packagedImportsPlugin(mainProcessImports)],
     define: clientVersionDefine,
     onSuccess: async () => {

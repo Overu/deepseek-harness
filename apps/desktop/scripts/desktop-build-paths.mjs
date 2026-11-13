@@ -38,7 +38,7 @@ function assertSupportedTarget(target) {
 /**
  * Return the mutable preparation and artifact directories owned by one release target.
  * @param {'mac-arm64' | 'mac-x64' | 'win-x64'} target - Supported Desktop target name.
- * @param {NodeJS.ProcessEnv} environment - Packaging environment with an optional absolute cache directory.
+ * @param {NodeJS.ProcessEnv} environment - Packaging environment with an optional absolute cache directory and internal RC artifact selection.
  * @returns {{ root: string, artifacts: string, unsignedArtifacts: string, unnotarizedArtifacts: string, runtime: string, packageSet: string, dsh: string, dshPnpm: string, electron: string, packedDsh: string, packedVendor: string, packedLandlock: string, downloads: string, pnpmStore: string }} Target paths plus shared download and package caches.
  */
 export function desktopTargetBuildPaths(target, environment = process.env) {
@@ -48,12 +48,13 @@ export function desktopTargetBuildPaths(target, environment = process.env) {
     throw new Error('desktop package: DSH_DESKTOP_PACKAGE_CACHE_DIR must be a nonempty absolute directory')
   }
   const root = join(BUILD_ROOT, 'targets', target)
+  const artifactRoot = environment.DSH_INSIGHT_RC_BUILD === '1' ? join(root, 'internal-rc') : root
   const packed = join(root, 'packed')
   return {
     root,
-    artifacts: join(root, 'artifacts'),
-    unsignedArtifacts: join(root, 'unsigned-artifacts'),
-    unnotarizedArtifacts: join(root, 'unnotarized-artifacts'),
+    artifacts: join(artifactRoot, 'artifacts'),
+    unsignedArtifacts: join(artifactRoot, 'unsigned-artifacts'),
+    unnotarizedArtifacts: join(artifactRoot, 'unnotarized-artifacts'),
     runtime: join(root, 'runtime'),
     packageSet: join(root, 'package-set'),
     dsh: join(root, 'dsh'),

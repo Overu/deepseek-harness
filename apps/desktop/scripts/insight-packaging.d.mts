@@ -19,7 +19,7 @@ export function resolveInsightPackaging(
 ): {
   readonly appId: 'com.insight-aigc.desktop'
   readonly productName: '因赛AI'
-  readonly artifactPrefix: 'insight'
+  readonly artifactPrefix: 'insight' | 'insight-internal-rc'
   readonly productVersion: string
   readonly target: 'darwin-arm64' | 'darwin-x64' | 'win32-x64' | undefined
   readonly update: { readonly channel: 'nightly' | 'latest', readonly publicUrl: string } | undefined

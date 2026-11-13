@@ -1,9 +1,9 @@
 /** Native Insight login gate; one immutable account owns each Desktop process. */
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { app, BrowserWindow, ipcMain, safeStorage, session, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, ipcMain, safeStorage, session, type IpcMainInvokeEvent, type RelaunchOptions } from 'electron'
 import {
-  AuthApiClient, AuthSessionManager, CredentialStore, prepareInsightAccountHome, resolveAuthEnvironment,
+  AuthApiClient, AuthSessionManager, CredentialStore, prepareInsightAccountHome, resolveAuthEnvironment, type AuthEnvironmentConfig,
 } from '@insight-ai/desktop-integration/desktop'
 import {
   INSIGHT_DESKTOP_IPC, type AccountSummary, type AuthCommandResult, type InsightAccountInfo,
@@ -12,6 +12,7 @@ import {
 import { resolveDesktopLocale } from './locale.ts'
 import { welcomeWindowOptions } from './welcome-window.ts'
 import type { InsightDesktopProduct } from './product.ts'
+import { insightDeveloper, insightDeveloperEnabled } from './insight-developer.ts'
 
 /** Startup cancellation caused by closing the login window before a Host exists. */
 export class InsightLoginClosedError extends Error {}
@@ -59,14 +60,19 @@ const invalidInput: AuthCommandResult = { ok: false, reason: 'invalid-input', me
  * @param product - Validated Insight product identity.
  * @param runtimeVersion - Bundled DSH version, independent of the Insight product version.
  * @param focus - Install the login-window focus callback while startup owns that window.
+ * @param environmentOverride - Require fresh login in this environment. Omit to restore credentials in the build's default environment.
+ * @param scheduleRelaunch - Schedule the RC login switch for after process exit. Omit to leave the login menu unchanged.
  * @returns One fixed account context; closing the login window rejects without starting a Host.
  */
 export async function prepareInsightDesktop(
   product: InsightDesktopProduct,
   runtimeVersion: string,
   focus: (callback: () => void) => void,
+  environmentOverride?: AuthEnvironmentConfig,
+  scheduleRelaunch?: (options: RelaunchOptions) => void,
 ): Promise<InsightDesktopContext> {
-  const environment = resolveAuthEnvironment({ packaged: app.isPackaged })
+  const freshLogin = insightDeveloperEnabled && environmentOverride !== undefined
+  const environment = freshLogin ? environmentOverride : resolveAuthEnvironment({ packaged: app.isPackaged })
   const authSession = session.fromPartition(environment.partition)
   authSession.setPermissionRequestHandler((_contents, _permission, callback) => { callback(false) })
   authSession.setPermissionCheckHandler(() => false)
@@ -75,6 +81,7 @@ export async function prepareInsightDesktop(
     await authSession.clearStorageData()
     await authSession.clearCache()
   }
+  if (freshLogin) await clearSession()
   const insightRoot = join(app.getPath('userData'), 'insight')
   let token: string | undefined
   const lifetime = new AbortController()
@@ -103,19 +110,21 @@ export async function prepareInsightDesktop(
   let closed = false
   const isClosed = (): boolean => closed
   let accepted = false
+  let switching = false
   let loginVisible = false
   let closeAccount = (): void => {}
   let revision = 0
   let workspace: InsightLoginState['workspace'] = { kind: 'idle' }
   let resolveContext!: (value: InsightDesktopContext) => void
-  let rejectContext!: (error: Error) => void
+  let rejectContext!: (error: unknown) => void
   const result = new Promise<InsightDesktopContext>((resolve, reject) => { resolveContext = resolve; rejectContext = reject })
   const current = (): InsightLoginState => ({ session: manager.current(), workspace })
   const publish = (): void => {
     if (!closed && !window.isDestroyed()) window.webContents.send(INSIGHT_DESKTOP_IPC.loginChanged, current())
   }
   const assertSender = (event: IpcMainInvokeEvent): void => {
-    if (closed || accepted || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) {
+    if (closed || accepted || (insightDeveloperEnabled && switching)
+      || event.sender !== window.webContents || event.senderFrame !== window.webContents.mainFrame) {
       throw new Error('Insight login rejected an unowned frame')
     }
   }
@@ -123,7 +132,7 @@ export async function prepareInsightDesktop(
     ipcMain.handle(channel, (event, ...args: unknown[]) => { assertSender(event); return action(...args) })
   }
   const revealLogin = (): void => {
-    if (closed || accepted || window.isDestroyed()) return
+    if (closed || accepted || (insightDeveloperEnabled && switching) || window.isDestroyed()) return
     loginVisible = true
     window.show()
     window.focus()
@@ -145,7 +154,7 @@ export async function prepareInsightDesktop(
   const stop = manager.subscribe((view) => {
     publish()
     const attempt = ++revision
-    if (view.kind !== 'authenticated') return
+    if ((insightDeveloperEnabled && switching) || view.kind !== 'authenticated') return
     const account = manager.getAccount()
     if (account === undefined) { revealLogin(); return }
     workspace = { kind: 'preparing' }; publish()
@@ -214,9 +223,25 @@ export async function prepareInsightDesktop(
     else app.quit()
   })
   try {
+    if (insightDeveloperEnabled && scheduleRelaunch !== undefined) {
+      window.on('close', (event) => { if (switching) event.preventDefault() })
+      insightDeveloper.installLoginMenu(insightDeveloper.menu(environment.name, () => loginVisible ? window : undefined,
+        async (options) => {
+          if (closed || accepted || switching) return
+          switching = true
+          ++revision
+          lifetime.abort()
+          await manager.signOut()
+          await clearSession()
+          dispose()
+          scheduleRelaunch(options)
+          rejectContext(new InsightLoginClosedError('Insight login restarted'))
+        }, rejectContext))
+    }
     await window.loadFile(join(app.getAppPath(), 'renderer', 'insight-login.html'))
     if (!isClosed()) {
-      void manager.restore().then(() => {
+      if (freshLogin) revealLogin()
+      else void manager.restore().then(() => {
         if (!isClosed() && manager.current().kind !== 'authenticated') revealLogin()
       }).catch((_error: unknown) => {
         publish()

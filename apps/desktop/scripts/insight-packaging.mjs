@@ -79,7 +79,7 @@ export function resolveInsightPackaging(env, platform, arch, options = {}) {
   return {
     appId: INSIGHT_PACKAGING_APP_ID,
     productName: INSIGHT_PACKAGING_PRODUCT_NAME,
-    artifactPrefix: INSIGHT_PACKAGING_ARTIFACT_PREFIX,
+    artifactPrefix: env.DSH_INSIGHT_RC_BUILD === '1' ? 'insight-internal-rc' : INSIGHT_PACKAGING_ARTIFACT_PREFIX,
     productVersion: version.version,
     target,
     update: target === undefined || origin === undefined ? undefined : {

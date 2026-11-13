@@ -46,6 +46,13 @@ describe('Insight electron-builder product', () => {
     expect(config.extraResources).not.toContainEqual(expect.objectContaining({ to: 'bundled-skills' }))
   })
 
+  it('keeps internal RC artifacts outside release collection paths', async () => {
+    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
+    const config = createElectronBuilderConfig({ ...insightEnvironment, DSH_INSIGHT_RC_BUILD: '1' }, 'darwin', 'arm64')
+    expect(config.directories.output).toMatch(/[\\/]mac-arm64[\\/]internal-rc[\\/]unsigned-artifacts$/u)
+    expect(config.artifactName).toBe('insight-internal-rc-${version}-${os}-${arch}-unsigned.${ext}')
+  })
+
   it.each(['', '0.2.2', '2.0.0', '1.3.0+local'])('requires an explicit 1.x product version: %j', async (version) => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     expect(() => createElectronBuilderConfig({ ...insightEnvironment, INSIGHT_DESKTOP_VERSION: version }, 'darwin', 'arm64'))

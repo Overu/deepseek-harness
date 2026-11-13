@@ -23,10 +23,12 @@ import {
   shell,
   type IpcMainInvokeEvent,
   type MenuItemConstructorOptions,
+  type RelaunchOptions,
 } from 'electron'
 import { INSIGHT_REQUIRED_BUNDLES, resolveDesktopProduct } from './product.ts'
 import { prepareInsightDesktop, InsightLoginClosedError, type InsightDesktopContext } from './insight-startup.ts'
 import { closeInsightAccount } from './insight-account-exit.ts'
+import { insightDeveloper, insightDeveloperEnabled } from './insight-developer.ts'
 import { insightNativeLocale, insightWindowTitle } from './insight-native-brand.ts'
 import { INSIGHT_DESKTOP_IPC } from '@insight-ai/desktop-integration/protocol'
 import { resolveDesktopPaths } from './paths.ts'
@@ -88,6 +90,12 @@ const insightIconPath = desktopProduct.kind !== 'insight' ? undefined : app.isPa
   ? join(process.resourcesPath, desktopProduct.branding.resourceIcon)
   : fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/app-icon.png', import.meta.url))
 
+function relaunchDesktop(options = insightDeveloperEnabled ? insightDeveloper.relaunchOptions() : undefined): void {
+  if (options === undefined) app.relaunch()
+  else app.relaunch(options)
+  quitWithoutConfirmation()
+}
+
 let focusPrimaryWindow = (): void => {}
 let stopForRecovery = async (): Promise<void> => { await stopOperationReports() }
 let shuttingDown = false
@@ -129,7 +137,7 @@ const recovery = new DesktopFatalRecovery({
     console.info('Desktop profile recovery completed:', { profilePatchBackup: backupPath ?? null, homePatch: 'unchanged' })
   } } : {}),
   exit: () => { quitWithoutConfirmation() },
-  restart: () => { app.relaunch(); quitWithoutConfirmation() },
+  restart: () => { relaunchDesktop() },
   writeReport: (error, source) => persistCrashReport(error, source),
   revealReport: async (path) => { await access(path); shell.showItemInFolder(path) },
 })
@@ -429,7 +437,8 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
       .filter(([key]) => {
         const normalized = key.toUpperCase()
         return normalized !== 'DSH_PRODUCT_REQUIRED_BUNDLES' && normalized !== 'DSH_INSIGHT_SKILL_PROXY_NODE'
-          && !(insight !== undefined && (normalized === 'DSH_BUNDLED_SKILL_DIR' || normalized === 'DSH_INSIGHT_LEGACY_SKILL_DIR'))
+          && !(insight !== undefined && (normalized === 'DSH_BUNDLED_SKILL_DIR' || normalized === 'DSH_INSIGHT_LEGACY_SKILL_DIR'
+            || normalized === 'DSH_INSIGHT_SERVICE_ENVIRONMENT'))
       }))
     const skillProxyNode = join(primaryRuntime, 'dependencies', 'node', 'bin', process.platform === 'win32' ? 'node.exe' : 'node')
     hostEnvironment = insight === undefined ? productEnvironment : { ...productEnvironment,
@@ -440,6 +449,7 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
     }
   }
   let quitting = false
+  let switchInsightEnvironment: ((options: RelaunchOptions) => Promise<void>) | undefined
   let startup: Promise<void> | undefined
   let workspaceRecovery: Promise<void> | undefined
   let mainWindow: BrowserWindow | undefined
@@ -1125,22 +1135,22 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
       { label: currentDesktopLocale().messages.reloadPageMenu, role: 'reload' as const },
       { label: currentDesktopLocale().messages.restartAppHostMenu, click: () => {
         if (quitting) return
-        app.relaunch()
-        quitWithoutConfirmation()
+        relaunchDesktop()
       } },
     ] : [],
     ...desktopProduct.kind === 'insight' ? [
       ...development ? [{ type: 'separator' as const }] : [],
       { label: currentDesktopLocale().messages.restartAppHostMenu, click: () => {
-        if (quitting) return
-        app.relaunch()
-        quitWithoutConfirmation()
+        if (quitting || insight?.active === false) return
+        relaunchDesktop()
       } },
       { label: '查看日志', click: () => {
         void shell.openPath(app.getPath('logs')).then((error) => {
           if (error !== '') console.error('desktop logs: unable to open directory', error)
         }).catch((error: unknown) => { console.error('desktop logs: unable to open directory', error) })
       } },
+      ...(insightDeveloperEnabled && insight !== undefined ? insightDeveloper.menu(insight.info.environment, currentMainWindow,
+        async (options) => { await switchInsightEnvironment?.(options) }, (error) => { reportFatal(error, 'main') }) : []),
       { type: 'separator' as const },
       { label: '放大', role: 'zoomIn' as const },
       { label: '缩小', role: 'zoomOut' as const },
@@ -1484,7 +1494,7 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
     let leavingAccount: Promise<void> | undefined
     let forceAccountExit = false
     const forcedExit = Promise.withResolvers<void>()
-    const leaveAccount = (confirm: boolean): Promise<void> => {
+    const leaveAccount = (confirm: boolean, restart = () => { relaunchDesktop() }): Promise<void> => {
       if (!confirm) { forceAccountExit = true; forcedExit.resolve() }
       leavingAccount ??= (async () => {
         if (confirm) {
@@ -1503,12 +1513,16 @@ async function main(insight?: InsightDesktopContext, insightUpdates?: InsightDes
           stop: [() => platformView.closeAndWait(), disposeFileDrag, () => backend.close()],
           clearAuthentication: () => insight.clearAuthentication(),
         })
-        app.relaunch()
-        quitWithoutConfirmation()
+        if (!isQuitting()) restart()
       })().catch((error: unknown) => {
         reportFatal(error, 'host')
       }).finally(() => { leavingAccount = undefined })
       return leavingAccount
+    }
+    if (insightDeveloperEnabled) {
+      switchInsightEnvironment = async (options) => {
+        if (leavingAccount === undefined && insight.active && !isQuitting()) await leaveAccount(false, () => { relaunchDesktop(options) })
+      }
     }
     const stopExpired = insight.onExpired(() => { void leaveAccount(false) })
     ipcMain.handle(INSIGHT_DESKTOP_IPC.accountCurrent, (event) => { assertProductSender(event); return insight.summary })
@@ -1580,7 +1594,9 @@ if (ownsDesktopInstance) void app.whenReady().then(async () => {
   if (desktopProduct.kind === 'official') { await main(); return }
   if (process.platform === 'darwin' && insightIconPath !== undefined) app.dock?.setIcon(insightIconPath)
   const insightUpdates = await createInsightDesktopUpdates()
-  const context = await prepareInsightDesktop(desktopProduct, desktopClientVersion(), (callback) => { focusPrimaryWindow = callback })
+  const context = await prepareInsightDesktop(desktopProduct, desktopClientVersion(), (callback) => { focusPrimaryWindow = callback },
+    insightDeveloperEnabled ? insightDeveloper.launchEnvironment() : undefined,
+    insightDeveloperEnabled ? (options) => { app.relaunch(options) } : undefined)
   insightUpdates.beginWorkspace()
   await main(context, insightUpdates)
 }).catch(async (error: unknown) => {

@@ -1444,7 +1444,7 @@ describe('desktop main startup', () => {
     harness.loginShell.mockResolvedValueOnce({ environment: {
       dSh_PrOdUcT_ReQuIrEd_BuNdLeS: '["untrusted"]', dSh_InSiGhT_sKiLl_PrOxY_nOdE: 'untrusted-node',
       DSH_BUNDLED_SKILL_DIR: 'untrusted-skills', dsh_bundled_skill_dir: 'also-untrusted-skills',
-      dsh_insight_legacy_skill_dir: 'untrusted-legacy-skills',
+      dsh_insight_legacy_skill_dir: 'untrusted-legacy-skills', dsh_insight_service_environment: 'production',
     }, failures: [] })
     await import('../src/main.ts')
     await harness.preparing.promise
@@ -1459,6 +1459,8 @@ describe('desktop main startup', () => {
     expect(harness.hosts[0]!.environment?.DSH_INSIGHT_LEGACY_SKILL_DIR).toBe(join('desktop-test-resources', 'bundled-skills'))
     expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_INSIGHT_LEGACY_SKILL_DIR'))
       .toEqual(['DSH_INSIGHT_LEGACY_SKILL_DIR'])
+    expect(Object.keys(harness.hosts[0]!.environment ?? {}).filter(key => key.toUpperCase() === 'DSH_INSIGHT_SERVICE_ENVIRONMENT'))
+      .toEqual(['DSH_INSIGHT_SERVICE_ENVIRONMENT'])
   })
 
   it('uses the prepared development primary-runtime Node for the Insight skill proxy', async () => {
@@ -1539,6 +1541,7 @@ describe('desktop main startup', () => {
   })
 
   it('adds Insight desktop controls without changing the official menu', async () => {
+    vi.stubGlobal('process', { ...process, argv: ['desktop', '--insight-rc-service-environment=test'] })
     selectInsightProduct()
     insightStartup.prepare.mockResolvedValueOnce(insightContext())
     await import('../src/main.ts')
@@ -1549,6 +1552,8 @@ describe('desktop main startup', () => {
     await harness.navigated.promise
 
     const items = applicationMenuItems()
+    expect(insightStartup.prepare.mock.calls[0]?.[3]).toBeUndefined()
+    expect(items.some(item => item.label === '开发者选项…')).toBe(false)
     expect(items).toEqual(expect.arrayContaining([
       expect.objectContaining({ label: '重启应用与 Host' }),
       expect.objectContaining({ label: '查看日志' }),
@@ -1561,6 +1566,39 @@ describe('desktop main startup', () => {
     logs.click()
     await vi.advanceTimersByTimeAsync(0)
     expect(harness.openPath).toHaveBeenCalledWith(harness.app.getPath('logs'))
+  })
+
+  it('switches an internal RC to a fresh login only after account cleanup', async () => {
+    vi.doMock('../src/insight-developer.ts', () => import('../src/insight-developer-rc.ts'))
+    const argument = '--insight-rc-service-environment='
+    vi.stubGlobal('process', { ...process, argv: ['desktop', `${argument}test`] })
+    try {
+      selectInsightProduct()
+      const context = insightContext()
+      insightStartup.prepare.mockResolvedValueOnce(context)
+      const host = await readyForUpdate()
+      expect(insightStartup.prepare.mock.calls[0]?.[3]).toMatchObject({ name: 'test' })
+      const cleanup = Promise.withResolvers<undefined>()
+      context.clearAuthentication.mockReturnValueOnce(cleanup.promise)
+      const item = applicationMenuItems().find(entry => entry.label === '开发者选项…')
+      expect(item?.click).toBeTypeOf('function')
+      await Reflect.apply(item!.click!, undefined, [])
+      expect(harness.dialog.showMessageBox.mock.lastCall?.[1]).toHaveProperty('detail',
+        '切换会停止当前任务、退出登录并重启。下次手动打开客户端时恢复生产环境。')
+      await host.stopping.promise
+      expect(harness.app.relaunch).not.toHaveBeenCalled()
+      host.exited.resolve()
+      await vi.waitFor(() => { expect(context.clearAuthentication).toHaveBeenCalledOnce() })
+      expect(harness.app.relaunch).not.toHaveBeenCalled()
+      cleanup.resolve(undefined)
+      await vi.waitFor(() => { expect(harness.app.relaunch).toHaveBeenCalledExactlyOnceWith({ args: [`${argument}production`] }) })
+      const { insightDeveloper } = await import('../src/insight-developer-rc.ts')
+      expect(insightDeveloper.relaunchOptions()).toEqual({ args: [] })
+      vi.stubGlobal('process', { ...process, argv: ['desktop'] })
+      expect(insightDeveloper.launchEnvironment()).toBeUndefined()
+    } finally {
+      vi.doUnmock('../src/insight-developer.ts')
+    }
   })
 
   it('forces an expired Insight account exit without waiting for a cancelled sign-out confirmation', async () => {
