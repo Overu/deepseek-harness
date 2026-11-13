@@ -6,8 +6,54 @@ permissions:
   contents: read
 
 jobs:
+  api:
+    name: Check Apple Notary API credentials
+    runs-on: ubuntu-24.04
+    environment: desktop-release
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Query Apple submission history
+        env:
+          APPLE_API_KEY_PEM: ${{ secrets.DESKTOP_APPLE_API_KEY }}
+          APPLE_KEY_ID: ${{ secrets.DESKTOP_APPLE_API_KEY_ID }}
+          APPLE_ISSUER: ${{ secrets.DESKTOP_APPLE_API_ISSUER }}
+        run: |
+          node --input-type=module <<'JS'
+          import { createPrivateKey, sign } from 'node:crypto'
+          const { APPLE_API_KEY_PEM, APPLE_KEY_ID, APPLE_ISSUER } = process.env
+          if (!APPLE_API_KEY_PEM || !APPLE_KEY_ID || !APPLE_ISSUER) throw new Error('Incomplete Apple API credentials')
+          const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url')
+          const iat = Math.floor(Date.now() / 1000)
+          const unsigned = encode({ alg: 'ES256', kid: APPLE_KEY_ID, typ: 'JWT' }) + '.'
+            + encode({ iss: APPLE_ISSUER, iat, exp: iat + 300, aud: 'appstoreconnect-v1' })
+          const key = createPrivateKey(APPLE_API_KEY_PEM)
+          const signature = sign('sha256', Buffer.from(unsigned), { key, dsaEncoding: 'ieee-p1363' })
+          const response = await fetch('https://appstoreconnect.apple.com/notary/v2/submissions', {
+            headers: { authorization: 'Bearer ' + unsigned + '.' + signature.toString('base64url') },
+            signal: AbortSignal.timeout(30_000),
+            redirect: 'error',
+          })
+          console.log('Apple Notary API HTTP ' + response.status)
+          if (!response.ok) {
+            const body = await response.json().catch(() => null)
+            for (const error of body?.errors ?? []) {
+              const code = typeof error.code === 'string' && /^[A-Z0-9_.]{1,80}$/.test(error.code) ? error.code : 'unclassified'
+              console.log(JSON.stringify({
+                code,
+                agreement: /agreement|contract/i.test(String(error.title) + ' ' + String(error.detail)),
+                authentication: /credential|authenticat|token|forbidden/i.test(String(error.title) + ' ' + String(error.detail)),
+              }))
+            }
+            process.exitCode = 1
+          }
+          JS
+
   authentication:
     name: Check Apple notarization authentication
+    needs: api
     runs-on: macos-15
     environment: desktop-release
     timeout-minutes: 10
