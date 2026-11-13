@@ -1,5 +1,4 @@
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { brandString } from '@deepseek-ai/dsh-brand'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SessionStore, { SESSION_FORMAT_VERSION, SessionId, SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
@@ -325,17 +324,6 @@ describe('Agent Teams projection events', () => {
       message: message({ content: [extension] }),
     }, SessionSeq(0))])
     expect(pending(state)[0]?.content).toEqual([extension])
-  })
-
-  it('retains a user image original-file reference in a queued Team message', () => {
-    const attachmentId = (digest: string) => brandString<Extract<ContentBlock, { type: 'image' }>['attachment']['attachmentId']>(digest)
-    const image = { type: 'image', attachment: { attachmentId: attachmentId(`sha256:${'ab'.repeat(32)}`),
-      mediaType: 'image/png', bytes: 3, width: 1, height: 1 }, originalFile: {
-      attachmentId: attachmentId(`sha256:${'cd'.repeat(32)}`), name: 'shot.png', bytes: 4 },
-    } satisfies ContentBlock
-    const queued = event('team/message/queued', { version: 2, teamId: TEAM,
-      message: message({ content: [image] }) }, SessionSeq(0))
-    expect(projectTeam(ROOT, [queued]).messages[0]?.content).toEqual([image])
   })
 
   it('preserves opaque JSON through projection and checkpoints', () => {

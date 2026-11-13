@@ -151,8 +151,7 @@ export abstract class AttachmentStore extends Service {
     return content.map((part) => {
       if (part.type === 'text') return { type: 'text', text: part.text }
       if (part.type === 'file') return { type: 'file', attachment: part.attachment }
-      if ('attachment' in part) return { type: 'image', attachment: part.attachment,
-        ...('originalFile' in part ? { originalFile: part.originalFile } : {}) }
+      if ('attachment' in part) return { type: 'image', attachment: part.attachment }
       return { type: 'image', attachment: refs[next++] as ImageAttachmentRef }
     })
   }

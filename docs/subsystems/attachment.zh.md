@@ -89,14 +89,14 @@ type PromptContentPart =
 type AttachmentAdmissionPart =
   | PromptContentPart
   | { readonly type: 'file'; readonly attachment: FileAttachmentRef }
-  | { readonly type: 'image'; readonly attachment: ImageAttachmentRef; readonly encodedBytes: number; readonly originalFile?: FileAttachmentRef }
+  | { readonly type: 'image'; readonly attachment: ImageAttachmentRef; readonly encodedBytes: number }
 ```
 
 ```ts type-equiv
 /** Host-admitted prompt content with every attachment represented by its durable reference. */
 type AdmittedPromptContentPart =
   | { readonly type: 'text'; readonly text: string }
-  | { readonly type: 'image'; readonly attachment: ImageAttachmentRef; readonly originalFile?: FileAttachmentRef }
+  | { readonly type: 'image'; readonly attachment: ImageAttachmentRef }
   | { readonly type: 'file'; readonly attachment: FileAttachmentRef }
 ```
 

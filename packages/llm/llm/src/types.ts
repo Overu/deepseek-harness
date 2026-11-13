@@ -87,8 +87,6 @@ export interface ImageBlock {
   type: 'image'
   /** Immutable bytes and intrinsic display metadata owned by the attachment service. */
   attachment: ImageAttachmentRef
-  /** Original uploaded bytes retained by an opt-in Host; never sent to model providers. */
-  originalFile?: FileAttachmentRef
   /**
    * Derived from a durable image-offload decision or preserved by a message
    * rewrite. Every route sends placeholder text naming the image and its

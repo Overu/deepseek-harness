@@ -4,7 +4,6 @@ import { randomUUID } from 'node:crypto'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
-import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-client-connection'
 import type { CommandFileReceiptResolver } from '@deepseek-ai/dsh-commands'
 import type { Session, SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
@@ -16,12 +15,6 @@ import type {
 } from './types.ts'
 
 export type * from './types.ts'
-
-/** Host upload options; the default keeps only normalized prompt images. */
-export interface FileUploadConfig {
-  /** Persist exact uploaded image bytes alongside normalized prompt images. */
-  retainOriginalImage: boolean
-}
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
@@ -64,10 +57,6 @@ class PromptFileBindingGuard implements PromptFileBinding {
 /** Host service owning upload storage and receipts keyed by each receiving Agent's exact Session. */
 export class FileUploads extends TypertRemoteService {
   static inject = ['agents', 'attachments', 'commands', 'connection']
-  static Config: z<Partial<FileUploadConfig>, FileUploadConfig> = z.object({
-    retainOriginalImage: z.boolean().default(false),
-  })
-
   private readonly stagedFiles = new WeakMap<Session, Map<FileUploadReceiptId, StagedFileUpload>>()
   // Inside a method called through `ctx.fileUploads`, Cordis returns a new proxy
   // for every function-valued property read from `this`, so `===` against the
@@ -75,7 +64,7 @@ export class FileUploads extends TypertRemoteService {
   private readonly agentResolution: { resolver: AgentResolver | undefined } = { resolver: undefined }
 
   /** @param ctx - Host context carrying Agent, attachment, command, and Connection services. */
-  constructor(ctx: Context, private readonly config: FileUploadConfig = { retainOriginalImage: false }) {
+  constructor(ctx: Context) {
     super(ctx, 'fileUploads')
     // Commands accept staged files only; an image receipt is unknown to them.
     const resolve: CommandFileReceiptResolver = (agent, receiptId) => {
@@ -189,13 +178,8 @@ export class FileUploads extends TypertRemoteService {
         ...(request.name === undefined ? {} : { name: request.name }),
       }])
       request.signal?.throwIfAborted()
-      const originalFile = this.config.retainOriginalImage
-        ? await this.ctx.attachments.saveFile({ data, ...(request.name === undefined ? {} : { name: request.name }) })
-        : undefined
-      request.signal?.throwIfAborted()
       // saveImages returns one reference per input, in input order.
-      return { type: 'image' as const, attachment: refs[0] as ImageAttachmentRef, encodedBytes: data.byteLength,
-        ...(originalFile === undefined ? {} : { originalFile }) }
+      return { type: 'image' as const, attachment: refs[0] as ImageAttachmentRef, encodedBytes: data.byteLength }
     })
     return { receiptId: this.stage(agent, staged), image: staged.attachment }
   }

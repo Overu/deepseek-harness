@@ -32,7 +32,7 @@ kind: "package-reference"
   name: '@deepseek-ai/dsh-client-file-upload'
 ```
 
-Host 的可选配置 `retainOriginalImage` 默认为 `false`。启用后，图片收据会在提示词接纳时一并携带持久的原始文件引用；归一化图片仍作为模型输入。`Blob` 在专用 Worker 内通过 XMLHttpRequest 发送，因此服务可以报告浏览器上传进度，并在浏览器提供总量时一并报告。`ReadableStream` 会转移给该 Worker，再增量传入 Fetch；进度只报告已消费字节，不包含总量。`AbortSignal` 会终止专用 Worker，或传递给页面自己提供的载体。精确字节使用生成的 Remote。
+图片收据携带供模型输入的已存储归一化图片。`Blob` 在专用 Worker 内通过 XMLHttpRequest 发送，因此服务可以报告浏览器上传进度，并在浏览器提供总量时一并报告。`ReadableStream` 会转移给该 Worker，再增量传入 Fetch；进度只报告已消费字节，不包含总量。`AbortSignal` 会终止专用 Worker，或传递给页面自己提供的载体。文件原始字节使用生成的 Remote。
 
 -----
 

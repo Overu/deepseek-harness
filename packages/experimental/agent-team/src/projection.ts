@@ -51,7 +51,6 @@ const contentBlockSchema: z.ZodType<ContentBlock> = z.lazy(() => z.union([
   z.object({ type: z.literal('text'), text: z.string() }).strict(),
   z.object({ type: z.literal('reasoning'), text: z.string() }).strict(),
   z.object({ type: z.literal('image'), attachment: imageAttachmentSchema,
-    originalFile: z.object({ attachmentId: z.string().min(1), name: z.string(), bytes: nonNegativeSafeInteger }).optional(),
     offloaded: z.literal(true).optional() }).strict(),
   z.object({
     type: z.literal('tool-call'),

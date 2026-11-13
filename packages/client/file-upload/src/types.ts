@@ -33,7 +33,7 @@ export interface ImageUploadValue {
  */
 export type StagedAttachment =
   | { readonly type: 'file'; readonly attachment: FileAttachmentRef }
-  | { readonly type: 'image'; readonly attachment: ImageAttachmentRef; readonly encodedBytes: number; readonly originalFile?: FileAttachmentRef }
+  | { readonly type: 'image'; readonly attachment: ImageAttachmentRef; readonly encodedBytes: number }
 
 /** Host-minted authority for one staged file upload in one Agent scope. */
 export type FileUploadReceiptId = Branded<'file-upload-receipt-id'>
