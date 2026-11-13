@@ -1563,12 +1563,6 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the outcome, including the version the write produced.',
       },
       {
-        signature: 'writeBytes(target: FsTarget, content: Uint8Array, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<{ version: FsVersion; size: number }>',
-        description: 'Atomically publish raw bytes under the same per-call sandbox policy as text writes.',
-        parameters: [{ name: 'target', description: 'Resolved destination in this execution world.' }, { name: 'content', description: 'Complete bounded binary content.' }, { name: 'signal', description: 'Cancellation before publication.' }, { name: 'sandboxPolicy', description: 'Effective Session mutation policy.' }],
-        returns: 'Metadata for the published file.',
-      },
-      {
         signature: 'abstract editText( target: FsTarget, edit: FsEditRequest, expected?: { version: FsVersion }, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsEditOutcome>',
         description: 'Atomically edit literal text. When supplied, the version guard is checked before matching so stale content reports `FS_STALE_VERSION`; omission edits the current content without a freshness precondition.',
         parameters: [{ name: 'target', description: 'the resolved target to edit.' }, { name: 'edit', description: 'the literal search/replace request.' }, { name: 'expected', description: 'the version guard; omit for an unconditional edit.' }, { name: 'signal', description: 'aborts before atomic publication takes effect.' }, { name: 'sandboxPolicy', description: 'the per-call mode and workspace root this edit runs under; a sandboxing backend fences the edit by it, the bare backend ignores it. Omit to leave the backend its own default.' }],
@@ -1802,9 +1796,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async listCandidates(options: SkillLookupOptions): Promise<readonly SkillCandidate[] | SkillProviderObservation>',
-        description: 'List effective candidates from only payloads selected by committed records.',
+        description: 'List committed account candidates followed by package-owned skills, omitting a package candidate with an installed name.',
         parameters: [{ name: 'options', description: 'Lookup cancellation and working-directory context.' }],
         returns: 'Complete candidates, or an explicitly incomplete observation.',
+      },
+      {
+        signature: 'async registerPackagedSkillRoot(root: string, skillName: string): Promise<() => void>',
+        description: 'Register a trusted package\'s single root skill below account installations and above legacy roots.',
+        parameters: [{ name: 'root', description: 'Absolute package-owned skill directory containing SKILL.md.' }, { name: 'skillName', description: 'Expected invocation name in the skill frontmatter.' }],
+        returns: 'Disposer that removes this package\'s candidate and refreshes skill discovery.',
       },
       {
         signature: 'getCandidate(candidate: SkillCandidate, options: SkillLookupOptions): Promise<SkillDefinition | undefined>',
@@ -5465,7 +5465,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AdmittedPromptContentPart',
-    declaration: 'export type AdmittedPromptContentPart = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly originalFile?: FileAttachmentRef;\n} | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n};',
+    declaration: 'export type AdmittedPromptContentPart = {\n    readonly type: \'text\';\n    readonly text: string;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n} | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n};',
   },
   {
     name: 'AfterScheduleRecord',
@@ -5649,7 +5649,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'AttachmentAdmissionPart',
-    declaration: 'export type AttachmentAdmissionPart = PromptContentPart | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n    readonly originalFile?: FileAttachmentRef;\n};',
+    declaration: 'export type AttachmentAdmissionPart = PromptContentPart | {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n};',
   },
   {
     name: 'AttachmentError',
@@ -6633,7 +6633,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ImageBlock',
-    declaration: 'export interface ImageBlock {\n    type: \'image\';\n    attachment: ImageAttachmentRef;\n    originalFile?: FileAttachmentRef;\n    offloaded?: true;\n}',
+    declaration: 'export interface ImageBlock {\n    type: \'image\';\n    attachment: ImageAttachmentRef;\n    offloaded?: true;\n}',
   },
   {
     name: 'ImageMediaType',
@@ -9073,7 +9073,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'StagedAttachment',
-    declaration: 'export type StagedAttachment = {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n    readonly originalFile?: FileAttachmentRef;\n};',
+    declaration: 'export type StagedAttachment = {\n    readonly type: \'file\';\n    readonly attachment: FileAttachmentRef;\n} | {\n    readonly type: \'image\';\n    readonly attachment: ImageAttachmentRef;\n    readonly encodedBytes: number;\n};',
   },
   {
     name: 'StopShareRequest',
