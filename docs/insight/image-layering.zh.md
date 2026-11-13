@@ -24,20 +24,20 @@ Insight 图像分层由专业技能、Host 媒体工具、已认证的企业技�
 
 | 模块 | 职责 | 源码 |
 | --- | --- | --- |
-| 专业技能 | 选择最多五张原图，分别确定层数模式或数值，并规定有限恢复、本地缓存与 `present` 调用；`ui.json` 提供展示名称与简介。 | [技能指令](../../bundled-skills/image-layering/SKILL.md)、[展示元数据](../../bundled-skills/image-layering/ui.json) |
+| 专业技能 | 选择最多五张原图，分别确定层数模式或数值，并规定有限恢复、本地缓存与 `present` 调用；`ui.json` 提供展示名称与简介。 | [技能指令](../../packages/insight/media-upload/guidance/image-layering/SKILL.md)、[展示元数据](../../packages/insight/media-upload/guidance/image-layering/ui.json) |
 | Insight media-upload Host 插件 | 注册通用上传及分层来源、提交、查询、重建、缓存工具；维护最近三个用户轮次的图片候选并轮询生成状态。 | [包说明](../../packages/insight/media-upload/README.zh.md)、[Desktop 产品组合](../../apps/desktop/src/product.ts) |
 | Desktop 账号与代理传输 | 仅在 Host 请求中提供当前账号令牌、发送已认证的代理调用；提交结果不明时不重放付费创建。 | [代理传输](../../packages/insight/desktop-integration/src/host/skill-proxy-request.ts) |
 | Session Jobs | 将轮询和成功后的缓存与 Agent 轮次分开，向任务所属 Agent 投递完成通知，或供其通过 `job_output` 读取结果。 | [Job 控制说明](../../packages/jobs/tool-jobs/README.zh.md) |
 | 本地结果与交付 | Host 通过沙箱文件系统下载并验证 PSD 和分层图像；`present` 登记可访问文件；客户端在轮次结束时渲染交付卡片。 | [结果缓存](../../packages/insight/media-upload/src/result-cache.ts)、[present 工具](../../packages/deliverables/tool-present/README.zh.md)、[客户端交付 UI](../../packages/client/ui-deliverables/README.zh.md) |
 
-Insight 技能中心可将共享 `bundled-skills` 目录作为旧版技能来源读取；同名调用技能若已安装到账号目录，则账号安装版本优先。工具是否可用取决于 Insight Host 组合，技能是否被发现则取决于当前 Desktop 配置。安装与优先级详见[技能中心](../../packages/insight/skill-center/README.zh.md)。
+媒体上传插件在 Host 启动时向 Insight 技能中心注册包内技能，因此“专家技能”会在“平台预置”中显示它。同名账号安装版优先于插件版，旧目录副本的优先级更低。工具可用性和技能发现均取决于 Insight Host 组合。安装与优先级详见[技能中心](../../packages/insight/skill-center/README.zh.md)。
 
 <a id="call-and-data-flow"></a>
 ## 调用与数据流程
 
 流程分为五个阶段：Host 工具完成选图、上传、提交、查询和缓存；会话 Job 跟踪远端任务；技能对已验证的本地文件调用 `present`。客户端不调用 `/api/files/sts`、`/api/generation/submit` 或 `/api/generation/{generation_id}`；后续转发由企业服务负责。
 
-1. **选原图与层数。** `prepare_image_layering_source` 列出同一 Session 最近三个含用户消息的轮次中用户直接上传的原图。存在多张时，技能先确定要处理的图片，再逐图确定层数策略；选中超过五张不同原图时请用户重选。某张图未明确层数或模式时，技能提供智能分层及两端均包含的 2–4、5–8、9–12、13–17 层选项；Agent 在所选区间内选择满足编辑目标的较少层数。层数越多费用可能越高，自动模式没有费用预估。明确指定的层数超出 2–17 时，技能在提交前提醒用户修正。普通 `upload_attachment` 仍仅接受本轮附件，只有有效“完全权限”预设可免其单独审批。分层提交会直接上传每张选中原图，不再重复申请普通上传审批。详见[技能指令](../../bundled-skills/image-layering/SKILL.md)、[来源选择](../../packages/insight/media-upload/src/upload-source.ts)、[STS 请求](../../packages/insight/media-upload/src/upload-center.ts)和[OSS PUT](../../packages/insight/media-upload/src/oss-put.ts)。
+1. **选原图与层数。** `prepare_image_layering_source` 列出同一 Session 最近三个含用户消息的轮次中用户直接上传的原图。存在多张时，技能先确定要处理的图片，再逐图确定层数策略；选中超过五张不同原图时请用户重选。某张图未明确层数或模式时，技能提供智能分层及两端均包含的 2–4、5–8、9–12、13–17 层选项；Agent 在所选区间内选择满足编辑目标的较少层数。层数越多费用可能越高，自动模式没有费用预估。明确指定的层数超出 2–17 时，技能在提交前提醒用户修正。普通 `upload_attachment` 仍仅接受本轮附件，只有有效“完全权限”预设可免其单独审批。分层提交会直接上传每张选中原图，不再重复申请普通上传审批。详见[技能指令](../../packages/insight/media-upload/guidance/image-layering/SKILL.md)、[来源选择](../../packages/insight/media-upload/src/upload-source.ts)、[STS 请求](../../packages/insight/media-upload/src/upload-center.ts)和[OSS PUT](../../packages/insight/media-upload/src/oss-put.ts)。
 2. **逐图提交生成任务。** 每次 `submit_image_layering` 接收一张选定原图的 `sourceRef`、可选 `prompt`（默认 `""`）与非负 `numLayers`（默认 `0`）；技能仅在自动模式下传 `0`，否则传 2–17 内的明确整数。工具预检工作区，在上传和代理 POST 前将创建名额写入 Session。已认证的 `POST /api/skill-proxy/call-insight-api` 携带 `path: "/v1/proxy_async_create"`、固定 `model_id: "decompose-1.0-flash"`、`task_type: "async_tencent_multi_layer_create"` 及 `data: { prompt, image_url_list: [imageUrl], image_params: { num_layers: numLayers } }`。`data.task_id_list` 中唯一的有效项成为 `taskHandle`；任务记录绑定原图、参数、账号范围及初始交付目录。分别提交后，独立 Job 的运行可以重叠。详见[生成工具](../../packages/insight/media-upload/src/image-layering.ts)。
 3. **启动本地跟踪。** 获得 `taskHandle` 后，工具尽可能启动会话所属的 `image-layering` Job，并返回 `status: "running"`、`jobId` 与 `monitoring: "running"`。若 Job 无法启动，仍返回句柄及 `monitoring: "unavailable"`。`proxyRequestId` 是审计标识，不是任务句柄。
 4. **读取与恢复。** Job 用绑定的 `taskHandle` 轮询 `path: "/v1/proxy_async_get_result"`；没有运行中的 Job 时，`get_image_layering` 可恢复跟踪。非超时查询错误在第一次读取后停止该图跟踪并返回 `query_unavailable`；明确的单次请求期限超时允许用同一句柄补查一次。远端明确失败、取消或结果不完整时不自动复查或重建。成功结果含图片但缺少 PSD 时，可保留已验证图片并标明不完整。之前已取得资格的 Session 任务仍可使用 `retry_image_layering`；新任务不再获得该资格。创建或查询结果不明、账号切换、任务取消时不重新创建付费任务。代理 HTTP 200 或 NDJSON `accepted` 不等于生成成功。
@@ -86,7 +86,7 @@ OSS PUT 前的失败、OSS 写入结果不明、远端提交结果不明、状�
 <a id="evidence-and-limits"></a>
 ## 佐证与限制
 
-[上传工具实现](../../packages/insight/media-upload/src/index.ts)、[生成工具实现](../../packages/insight/media-upload/src/image-layering.ts)、[技能指令](../../bundled-skills/image-layering/SKILL.md)和 [present 实现](../../packages/deliverables/tool-present/src/index.ts)支撑本文所述行为。各包说明负责完整的配置和错误细节；本文负责跨模块流程与会话交付规则。
+[上传工具实现](../../packages/insight/media-upload/src/index.ts)、[生成工具实现](../../packages/insight/media-upload/src/image-layering.ts)、[技能指令](../../packages/insight/media-upload/guidance/image-layering/SKILL.md)和 [present 实现](../../packages/deliverables/tool-present/src/index.ts)支撑本文所述行为。各包说明负责完整的配置和错误细节；本文负责跨模块流程与会话交付规则。
 
 本文说明的是源码行为及 PSD 文件卡片出现的条件，不断言所有部署环境都有代理路由、结果 OSS 主机白名单、可读取的 PSD URL 或已成功渲染的卡片。这些结果需要实际环境和可观察的 Session 结果验证。
 
