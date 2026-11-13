@@ -601,7 +601,7 @@ async function throwGuardedCreateFailure(
  */
 export async function writeFileAtomic(
   absolutePath: string,
-  content: string | Uint8Array,
+  content: string,
   mode: number | undefined,
   signal: AbortSignal | undefined,
   internals: FsIoInternals = {},

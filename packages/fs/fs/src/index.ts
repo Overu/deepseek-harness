@@ -271,22 +271,6 @@ export abstract class FileSystem extends Service {
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome>
 
-  /** Atomically publish raw bytes under the same per-call sandbox policy as text writes.
-   * @param target - Resolved destination in this execution world.
-   * @param content - Complete bounded binary content.
-   * @param signal - Cancellation before publication.
-   * @param sandboxPolicy - Effective Session mutation policy.
-   * @returns Metadata for the published file.
-   */
-  writeBytes(target: FsTarget, content: Uint8Array, signal?: AbortSignal,
-    sandboxPolicy?: SandboxExecutionPolicy): Promise<{ version: FsVersion; size: number }> {
-    void target
-    void content
-    void signal
-    void sandboxPolicy
-    return Promise.reject(new FsError('Binary writing is not supported by this provider.', 'FS_IO_ERROR'))
-  }
-
   /**
    * Atomically edit literal text. When supplied, the version guard is checked
    * before matching so stale content reports `FS_STALE_VERSION`; omission edits

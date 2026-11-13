@@ -73,13 +73,6 @@ describe('read-only', () => {
     expect(existsSync(path)).toBe(false)
   })
 
-  it('denies binary publication under read-only policy', async () => {
-    const path = join(workspace, 'denied.psd')
-    await expect(fs.writeBytes(await target(path), Uint8Array.of(0, 255)))
-      .rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
-    expect(existsSync(path)).toBe(false)
-  })
-
   it('denies edit of an existing file (the content is unchanged)', async () => {
     const path = join(workspace, 'file.txt')
     await writeFile(path, 'original')
@@ -97,16 +90,6 @@ describe('read-only', () => {
 
 describe('workspace-write containment', () => {
   beforeEach(() => boot('workspace-write'))
-
-  it('publishes exact binary bytes inside the workspace and denies an outside target', async () => {
-    const path = join(workspace, 'generated', 'layer.psd')
-    const bytes = Uint8Array.of(0, 255, 128, 1)
-    const result = await fs.writeBytes(await target(path), bytes)
-    expect(result.size).toBe(bytes.length)
-    expect(await readFile(path)).toEqual(Buffer.from(bytes))
-    await expect(fs.writeBytes(await target(join(outside, 'escape.psd')), bytes))
-      .rejects.toMatchObject({ code: 'FS_SANDBOX_DENIED' })
-  })
 
   it('rejects an extra directory replaced by a symlink to an ungranted sibling', async () => {
     const extra = join(workspace, 'extra')

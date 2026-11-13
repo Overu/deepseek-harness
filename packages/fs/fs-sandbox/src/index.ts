@@ -4,7 +4,7 @@
  * text-storage mechanics — resolve, stat, read/stream, list, the atomic
  * write and the read-match-write edit critical section — are the local
  * implementation's, verbatim; this package adds only the per-call POLICY fence
- * on text writes, binary writes, and edits. Reads pass through untouched: every mode permits
+ * on the two mutations. Reads pass through untouched: every mode permits
  * reading.
  *
  * The fence is a policy check in TRUSTED code over a MODEL-CONTROLLED path,
@@ -85,18 +85,6 @@ export class SandboxedFileSystem extends LocalFileSystem {
     sandboxPolicy?: SandboxExecutionPolicy,
   ): Promise<FsWriteOutcome> {
     return super.writeText(await this.checkedTarget(target, sandboxPolicy), content, expected, signal)
-  }
-
-  /** Fence a binary write with the effective Session sandbox policy.
-   * @param target - Resolved destination.
-   * @param content - Complete binary content.
-   * @param signal - Cancellation before publication.
-   * @param sandboxPolicy - Effective Session policy.
-   * @returns Resulting file version.
-   */
-  override async writeBytes(target: FsTarget, content: Uint8Array, signal?: AbortSignal,
-    sandboxPolicy?: SandboxExecutionPolicy): Promise<{ version: FsVersion; size: number }> {
-    return super.writeBytes(await this.checkedTarget(target, sandboxPolicy), content, signal)
   }
 
   /**

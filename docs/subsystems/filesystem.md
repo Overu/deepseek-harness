@@ -275,7 +275,7 @@ type FsErrorCode =
 
 ## The service and the plugin
 
-`FileSystem` (`ctx.fs`, abstract) owns the provider primitives: `resolve`, `processPath`, `processPathFromHostPath`, `fileUrl`, `contains`, `stat`, `lstat`, `readText`, `streamText`, `readBytes`, `readByteRange`, `listDir`, `writeText`, `writeBytes`, and `editText`. `writeBytes` has no model-facing observation intent; local and sandboxed providers publish caller-owned bytes atomically, while the base provider rejects unsupported binary writes. `dsh-fs-observation-policy` registers **no service** — it decides text write/edit intent through `fs/*` events and records observations. The executor is `dsh-tool-fs`; the generated [`ctx.fs` section](#ctxfs--filesystem-abstract-seam) shows exact signatures.
+`FileSystem` (`ctx.fs`, abstract) owns the provider primitives: `resolve`, `processPath`, `processPathFromHostPath`, `fileUrl`, `contains`, `stat`, `lstat`, `readText`, `streamText`, `readBytes`, `listDir`, `writeText`, and `editText`. `dsh-fs-observation-policy` registers **no service** — it is a plugin that adds policy through the `fs/*` event gate: it decides the write/edit intent waterfalls from unseen/absent/present state and records `FsObservation` values. The executor is `dsh-tool-fs`: it reads/writes/edits through `ctx.fs`, dispatches the waterfalls, and emits the recording event. The generated [`ctx.fs` section](#ctxfs--filesystem-abstract-seam) below shows the exact signatures.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -443,15 +443,6 @@ abstract listDir(target: FsTarget, signal?: AbortSignal): Promise<FsDirEntry[]>
  * @returns the outcome, including the version the write produced.
  */
 abstract writeText( target: FsTarget, content: string, expected?: FsWriteIntent, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy, ): Promise<FsWriteOutcome>
-
-/** Atomically publish raw bytes under the same per-call sandbox policy as text writes.
- * @param target - Resolved destination in this execution world.
- * @param content - Complete bounded binary content.
- * @param signal - Cancellation before publication.
- * @param sandboxPolicy - Effective Session mutation policy.
- * @returns Metadata for the published file.
- */
-writeBytes(target: FsTarget, content: Uint8Array, signal?: AbortSignal, sandboxPolicy?: SandboxExecutionPolicy): Promise<{ version: FsVersion; size: number }>
 
 /**
  * Atomically edit literal text. When supplied, the version guard is checked
