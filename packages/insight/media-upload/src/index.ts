@@ -1,5 +1,8 @@
 /** Insight Desktop's approved OSS upload and authenticated image-layer tools. */
 
+import { stat } from 'node:fs/promises'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -9,6 +12,7 @@ import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import { uploadCenterServiceBaseUrl } from '@insight-ai/desktop-integration/host'
+import type {} from '@insight-ai/skill-center'
 import { currentTurnUploadsProjection, listLayeringSources, selectLayeringSource, selectUploadSource,
   uploadTurnSeq } from './upload-source.ts'
 import { requestUploadSession, UploadFailure } from './upload-center.ts'
@@ -19,7 +23,7 @@ import { layeringTasksProjection, registerImageLayeringTools } from './image-lay
 export const name = 'insight-media-upload'
 /** Host capabilities required before the tool can be registered. */
 export const inject = ['tools', 'attachments', 'insightAccount', 'approval', 'permissionPresets',
-  'agents', 'sessionProjections', 'jobs', 'fs', 'workingDirectory', 'sandboxPolicy']
+  'agents', 'sessionProjections', 'jobs', 'fs', 'workingDirectory', 'sandboxPolicy', 'insightPlatformSkills']
 
 /** Product environment and bounded network deadlines. */
 export interface Config {
@@ -81,6 +85,17 @@ function mimeType(name: string): string {
  * @returns When the projection and tools have registered under the plugin fiber.
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
+  const skillRoot = fileURLToPath(new URL('../guidance/image-layering/', import.meta.url))
+  const skillFiber = ctx.inject(['insightPlatformSkills'], async (scope) => {
+    for (const file of ['ui.json', 'scripts/download_psd.mjs']) {
+      if (!(await stat(join(skillRoot, file))).isFile()) {
+        throw new Error(`Insight image-layering skill resource is not a file: ${file}`)
+      }
+    }
+    const dispose = await scope.insightPlatformSkills.registerPackagedSkillRoot(skillRoot, 'image-layering')
+    scope.effect(() => dispose, 'insight-media-upload: image-layering skill')
+  })
+  if (ctx.get('insightPlatformSkills')) await skillFiber
   const projection = await ctx.sessionProjections.register(currentTurnUploadsProjection)
   ctx.effect(() => () => projection.dispose(), 'insight-media-upload: current-turn attachment projection')
   const tasks = await ctx.sessionProjections.register(layeringTasksProjection)

@@ -26,6 +26,8 @@ kind: "package-bundle"
 
 本包仅由因赛 Desktop 产品组合加载。其补丁也仅为该产品启用 `file-upload.retainOriginalImage`，使图片提示词同时保留私有原图文件引用与归一化的模型图片。其他产品组合沿用默认值 `false`。`serviceEnvironment` 选择固定的测试或生产上传中心；`requestTimeoutMs` 和 `ossTimeoutMs` 限制外部请求时间。`generationResultHosts` 为空时，测试环境使用固定的测试 OSS 结果主机，生产环境拒绝下载结果；非空列表明确指定允许的主机。
 
+本包携带[图像分层技能指令](guidance/image-layering/SKILL.md)、[展示元数据](guidance/image-layering/ui.json)及 PSD 下载脚本。Host 启动时通过 Insight 技能中心注册该技能，使其可在会话和“专家技能 → 平台预置”中使用。脚本仅作为资源保留，当前 PSD 下载由 `src/result-cache.ts` 完成。同名账号安装版优先于插件版，旧目录副本的优先级更低。
+
 模型可提供 `attachmentIndex`，即当前轮次用户直接提供的文件和图片附件中的 1 基序号；有多个候选项时必须指定。粘贴文本、本地路径、Canvas 素材、继承消息和旧轮次都不构成上传授权。缺失原图引用的图片无法上传。上传中心收到文件名与路由类型，但不收到文件大小或 MIME；STS 成功响应不能证明其接受范围、写权限或大小上限。原企业附件策略不再参与本流程。
 
 <a id="implementation"></a>

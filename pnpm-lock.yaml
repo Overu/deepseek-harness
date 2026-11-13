@@ -13129,6 +13129,9 @@ importers:
       '@insight-ai/desktop-integration':
         specifier: workspace:*
         version: link:../desktop-integration
+      '@insight-ai/skill-center':
+        specifier: workspace:*
+        version: link:../skill-center
       '@types/node':
         specifier: 24.10.1
         version: 24.10.1

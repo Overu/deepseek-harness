@@ -16,7 +16,8 @@
     { "path": "../../fs/fs" },
     { "path": "../../session/working-directory" },
     { "path": "../../sandbox/sandbox-policy" },
-    { "path": "../desktop-integration/tsconfig.host.json" }
+    { "path": "../desktop-integration/tsconfig.host.json" },
+    { "path": "../skill-center/tsconfig.host.json" }
   ],
   "include": ["src/**/*.ts"]
 }

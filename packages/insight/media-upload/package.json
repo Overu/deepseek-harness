@@ -23,7 +23,8 @@
     "@deepseek-ai/dsh-fs": "workspace:*",
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "@deepseek-ai/dsh-sandbox-policy": "workspace:*",
-    "@insight-ai/desktop-integration": "workspace:*"
+    "@insight-ai/desktop-integration": "workspace:*",
+    "@insight-ai/skill-center": "workspace:*"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -40,10 +41,11 @@
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "@deepseek-ai/dsh-sandbox-policy": "workspace:*",
     "@insight-ai/desktop-integration": "workspace:*",
+    "@insight-ai/skill-center": "workspace:*",
     "@types/node": "24.10.1",
     "typescript": "5.9.2"
   },
   "dependencies": { "@deepseek-ai/schemastery": "workspace:~", "ali-oss": "6.20.0", "zod": "4.4.3" },
-  "files": ["lib/index.js", "lib/types/**/*.d.ts", "cordis.patch.yml", "README.md", "README.zh.md"],
+  "files": ["lib/index.js", "lib/types/**/*.d.ts", "guidance/**", "cordis.patch.yml", "README.md", "README.zh.md"],
   "scripts": { "bundle": "tsdown", "typecheck": "tsc -b tsconfig.json" }
 }

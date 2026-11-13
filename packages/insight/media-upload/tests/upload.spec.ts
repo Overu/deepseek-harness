@@ -205,6 +205,8 @@ describe('tool authorization', () => {
   it('requires a fresh approval before fetching account credentials or contacting OSS', async () => {
     const ctx = new Context()
     const release = vi.fn()
+    const disposeSkill = vi.fn()
+    const registerPackagedSkillRoot = vi.fn(async () => disposeSkill)
     try {
       await ctx.plugin(SessionProjectionRegistry)
       const session = Session.create(SessionId('approval-turn'))
@@ -221,8 +223,11 @@ describe('tool authorization', () => {
       ctx.provide('permissionPresets', { current: () => 'workspace-write' } as never)
       ctx.provide('insightAccount', { getAccessToken } as never)
       ctx.provide('attachments', {} as never)
+      ctx.provide('insightPlatformSkills', { registerPackagedSkillRoot } as never)
       await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
         generationRequestTimeoutMs: 15_000, generationPollIntervalMs: 10_000, generationWatchTimeoutMs: 3_900_000 })
+      expect(registerPackagedSkillRoot).toHaveBeenCalledWith(
+        expect.stringMatching(/media-upload[\\/]guidance[\\/]image-layering[\\/]?$/u), 'image-layering')
       const definition = register.mock.calls[0]?.[0]
       expect(definition?.name).toBe('upload_attachment')
       expect(definition?.output.schema.properties).not.toHaveProperty('attachmentId')
@@ -238,6 +243,7 @@ describe('tool authorization', () => {
       expect(getAccessToken).not.toHaveBeenCalled()
     } finally { await ctx.fiber.dispose() }
     expect(release).toHaveBeenCalledTimes(6)
+    expect(disposeSkill).toHaveBeenCalledOnce()
   })
 
   it('uses the effective Full access preset without requesting upload approval', async () => {
