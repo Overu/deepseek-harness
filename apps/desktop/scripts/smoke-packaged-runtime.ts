@@ -1,6 +1,5 @@
 /** Validate the assembled application, including native Office conversion outside ASAR. */
 import { fileURLToPath } from 'node:url'
-import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { desktopArtifactOutput, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
@@ -10,6 +9,7 @@ import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 import { INSIGHT_WINDOWS_EXECUTABLE_NAME } from './insight-packaging.mjs'
+import { readAsar } from 'app-builder-lib/out/asar/asar.js'
 
 type DesktopBuildTarget = ReturnType<typeof resolveDesktopBuildTarget>
 
@@ -46,9 +46,11 @@ async function main(): Promise<void> {
   const { application, resources, executable } = resolvePackagedApplicationPaths(target, artifacts, process.env)
   const insight = resolveDesktopProduct({ isPackaged: false, environment: process.env }).kind === 'insight'
   if (insight) {
-    for (const file of ['SKILL.md', join('scripts', 'download_psd.mjs')]) {
-      const path = join(resources, 'bundled-skills', 'image-layering', file)
-      if (!statSync(path).isFile()) throw new Error(`desktop package: missing Insight skill file ${path}`)
+    const archive = await readAsar(join(resources, 'app.asar'))
+    for (const file of ['SKILL.md', 'ui.json', join('scripts', 'download_psd.mjs')]) {
+      const path = join('dsh', 'node_modules', '@insight-ai',
+        'desktop-media-upload-plugin', 'guidance', 'image-layering', file)
+      if ((await archive.readFile(path)).byteLength === 0) throw new Error(`desktop package: empty Insight skill file ${path}`)
     }
   }
   const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,

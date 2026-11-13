@@ -185,7 +185,7 @@ macOS 和 Linux 从图形界面启动的程序只继承会话管理器提供的�
 
 <a id="insight-bundled-skills"></a>
 
-Insight 打包 `bundled-skills` 目录，包括图像分层技能及其 PSD 下载脚本；安装后可在“专家技能 → 用户技能”中使用。已登录用户也可在[技能中心](../../packages/insight/skill-center/README.zh.md)安装、更新和移除账号所属的平台技能；已提交技能保留在当前账号的本地数据中，并显示在“专家技能 → 平台预置”。若账号已安装同调用名称的技能，则优先使用账号安装的版本。
+Insight 将图像分层技能及其 PSD 下载脚本放在[媒体上传插件](../../packages/insight/media-upload/README.zh.md)内分发，插件启动时将技能注册到“专家技能 → 平台预置”。脚本仅作为资源保留，当前 PSD 下载由 Host 结果缓存完成。已登录用户仍可通过[技能中心](../../packages/insight/skill-center/README.zh.md)安装、更新和移除账号所属的平台技能；同调用名称的账号安装版优先于插件版。
 
 连接测试业务服务的可安装客户端使用独立应用标识，参见[打包指南](packaging/README.zh.md#configuration-and-local-builds)。
 

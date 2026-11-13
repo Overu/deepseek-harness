@@ -43,7 +43,6 @@ import {
 
 const INSIGHT_BRANDING_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/branding/', import.meta.url))
 const INSIGHT_INSTALLER_ASSETS_ROOT = fileURLToPath(new URL('../../../packages/insight/desktop-integration/resources/installer-assets/', import.meta.url))
-const INSIGHT_SKILLS_ROOT = fileURLToPath(new URL('../../../bundled-skills/', import.meta.url))
 
 /**
  * Create electron-builder configuration from one release environment.
@@ -190,7 +189,6 @@ export function createElectronBuilderConfig(
       { from: fileURLToPath(new URL('../resources/icon-windows.png', import.meta.url)), to: 'icon.png' },
       ...(insight === undefined ? [] : [{ from: INSIGHT_BRANDING_ROOT, to: 'branding' }]),
       ...(insight === undefined ? [] : [{ from: INSIGHT_UPDATE_RESOURCE_ROOT, to: 'insight-update' }]),
-      ...(insight === undefined ? [] : [{ from: INSIGHT_SKILLS_ROOT, to: 'bundled-skills' }]),
       // Windows tray bitmaps; macOS keeps the Dock and ships no menu bar icon.
       ...(packagesWindows ? [{ from: fileURLToPath(new URL('../resources/tray-windows.ico', import.meta.url)), to: 'tray.ico' }] : []),
     ],

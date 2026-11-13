@@ -185,7 +185,7 @@ Before starting the Host, Desktop removes every case variant of `DSH_PRODUCT_REQ
 
 <a id="insight-bundled-skills"></a>
 
-Insight packages the `bundled-skills` directory, including the image-layering skill and its PSD download script, so the skill is available after installation under Expert skills → User skills. Signed-in users can also install, update, and remove account-owned platform skills from [Skill center](../../packages/insight/skill-center/README.md); committed skills remain in the current account's local data and appear under Expert skills → Platform presets. An account-installed skill with the same invocation name takes precedence over the packaged copy.
+Insight packages the image-layering skill and its PSD download script inside the [media-upload plugin](../../packages/insight/media-upload/README.md), which registers the skill under Expert skills → Platform presets. The script is a packaged resource; the Host result cache performs the active PSD download. Signed-in users can also install, update, and remove account-owned platform skills from [Skill center](../../packages/insight/skill-center/README.md). An account-installed skill with the same invocation name takes precedence over the plugin copy.
 
 An installable client for the test business services uses the separate application identity described in the [packaging guide](packaging/README.md#configuration-and-local-builds).
 
