@@ -22,6 +22,7 @@ const suppressed = [
 const basePatch = fileURLToPath(new URL('../../../bundle/base/cordis.patch.yml', import.meta.url))
 const webPatch = fileURLToPath(new URL('../../../bundle/web-app/cordis.patch.yml', import.meta.url))
 const insightPatch = fileURLToPath(new URL('../cordis.patch.yml', import.meta.url))
+const mediaUploadPatch = fileURLToPath(new URL('../../media-upload/cordis.patch.yml', import.meta.url))
 const insightEntry = pathToFileURL(fileURLToPath(new URL('../lib/index.js', import.meta.url))).href
 const productRequiredBundles = [
   '@insight-ai/desktop-integration',
@@ -50,6 +51,26 @@ function composedInsightEntries() {
 }
 
 describe('Insight Desktop profile composition', () => {
+  it.each([
+    ['test', []],
+    ['production', ['game-ai-editor-videoassets-test.oss-cn-guangzhou.aliyuncs.com']],
+  ] as const)('configures image-layering result hosts in %s', async (environment, expectedHosts) => {
+    vi.stubEnv('DSH_INSIGHT_SERVICE_ENVIRONMENT', environment)
+    const entries = composeEntries([loadOverlayPatches('media-upload-composition', mediaUploadPatch)])
+    const mediaUpload = entries.find(entry => entry.id === 'insight-media-upload')
+    if (!mediaUpload) throw new Error('Insight media upload bundle row is missing.')
+    context = new Context()
+    context.baseUrl = 'file:///'
+    await context.plugin(Loader).await()
+    let loadedConfig: unknown
+    context.loader.builtins.mediaUploadProbe = {
+      name: 'mediaUploadProbe', inject: [],
+      apply(_ctx: Context, config: unknown) { loadedConfig = config },
+    }
+    await context.loader.root.update([{ ...mediaUpload, name: 'cordis:mediaUploadProbe' }])
+    expect(loadedConfig).toEqual({ serviceEnvironment: environment, generationResultHosts: expectedHosts })
+  })
+
   it.each(['skillProxyMaxActiveRequests', 'skillProxyMaxBufferedRequestBytes', 'skillProxyRequestTimeoutMs'])(
     'rejects fractional %s before mounting business services', (field) => {
       const config = {

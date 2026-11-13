@@ -3,3 +3,4 @@
       name: ./lib/index.js
       config:
         serviceEnvironment: !!js process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT
+        generationResultHosts: !!js "process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT === 'production' ? ['game-ai-editor-videoassets-test.oss-cn-guangzhou.aliyuncs.com'] : []"

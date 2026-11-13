@@ -24,7 +24,7 @@ kind: "package-bundle"
 <a id="use-this-package"></a>
 ## 使用本包
 
-本包仅由因赛 Desktop 产品组合加载。普通图片消息保留供模型输入的归一化图片；选中图片上传时，本插件读取该已存储版本。文件附件仍保留原始字节。`serviceEnvironment` 选择固定的测试或生产上传中心；`requestTimeoutMs` 和 `ossTimeoutMs` 限制外部请求时间。`generationResultHosts` 为空时，测试环境使用固定的测试 OSS 结果主机，生产环境拒绝下载结果；非空列表明确指定允许的主机。
+本包仅由因赛 Desktop 产品组合加载。普通图片消息保留供模型输入的归一化图片；选中图片上传时，本插件读取该已存储版本。文件附件仍保留原始字节。`serviceEnvironment` 选择固定的测试或生产上传中心；`requestTimeoutMs` 和 `ossTimeoutMs` 限制外部请求时间。`generationResultHosts` 为空时，测试环境使用固定的测试 OSS 结果主机；生产环境在插件启动时要求非空列表。随产品打包的生产配置允许 `game-ai-editor-videoassets-test.oss-cn-guangzhou.aliyuncs.com`，这是生产服务使用的结果主机。
 
 本包携带[图像分层技能指令](guidance/image-layering/SKILL.md)、[展示元数据](guidance/image-layering/ui.json)及不参与当前交付链路的旧 PSD 辅助脚本。Host 启动时通过 Insight 技能中心注册该技能，使其可在会话和“专家技能 → 平台预置”中使用。同名账号安装版优先于插件版，旧目录副本的优先级更低。
 

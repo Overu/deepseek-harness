@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import { Session, SessionId } from '@deepseek-ai/dsh-session'
-import { Config } from '../src/index.ts'
+import { apply, Config } from '../src/index.ts'
 import { prepareResultDirectory, saveLayeringManifest } from '../src/result-cache.ts'
 
 const host = 'game-ai-editor-videoassets-test.oss-cn-guangzhou.aliyuncs.com'
@@ -67,6 +67,14 @@ describe('sandboxed image-layering URL manifest', () => {
         Config({ serviceEnvironment: 'production', generationResultHosts: [host] }),
         'task-1', [url], new AbortController().signal)
       expect(saved.files).toMatchObject([{ kind: 'psd' }])
+    } finally { await ctx.fiber.dispose() }
+  })
+
+  it('rejects production startup without result hosts', async () => {
+    const ctx = new Context()
+    try {
+      await expect(apply(ctx, Config({ serviceEnvironment: 'production' })))
+        .rejects.toThrow('Insight media upload requires generationResultHosts in production.')
     } finally { await ctx.fiber.dispose() }
   })
 })
