@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use `present` to declare final files accessible through the Session filesystem, including files created through shell commands. Users open the current source files in their default application. The tool records paths, optional descriptions, and an optional heading shared by a group of deliveries without copying file contents.
+Use `present` to declare final files accessible through the Session filesystem, including files created through shell commands. Users open the current source files in their default application. The tool records paths and optional descriptions without copying file contents.
 
 ## Table of Contents
 
@@ -29,7 +29,7 @@ Shared output and file-link guidance comes from [`dsh-deliverable-file-reference
 
 `present` validates paths against the Session's current working directory and records absolute paths, so later directory changes do not redirect delivered files.
 
-The `standard`, `ptc`, and `cordis` agent presets mount this plugin. Call `present` with `files: [{ path, description? }]` after creating the files. Pass `groupTitle` when several calls should appear beneath one heading; use an identical title for each batch from the same source and a distinct title for each source. A blank title fails the call. Files must be regular files accessible through the Session filesystem. Relative paths resolve against the Session working directory; absolute paths may name files outside it, including `/tmp` or Downloads. Missing files, directories, final symbolic links, and provider-denied paths fail the call. Files in a shell sandbox’s private `/tmp` must first be written somewhere the Session filesystem can access.
+The `standard`, `ptc`, and `cordis` agent presets mount this plugin. Call `present` with `files: [{ path, description? }]` after creating the files. Files must be regular files accessible through the Session filesystem. Relative paths resolve against the Session working directory; absolute paths may name files outside it, including `/tmp` or Downloads. Missing files, directories, final symbolic links, and provider-denied paths fail the call. Files in a shell sandbox’s private `/tmp` must first be written somewhere the Session filesystem can access.
 
 Mount it in an agent's Cordis composition with `tools`, `fs`, and the `turnBoundary` Session projection available:
 
@@ -55,7 +55,7 @@ The file-count limit is validated at mount. The tool requires an agent Session w
 
 The tool resolves paths through the configured filesystem provider and checks regular-file metadata without reading contents. Successful final `tools/result` notifications append `deliverables/presented`, including nested calls. A later enclosing program failure does not revoke an already completed declaration. Blocked results publish none. Each plugin instance records only calls it executed; scoped tools with the same name cannot publish through another instance.
 
-The pure `./types` entry declares `PresentedFile` and the Session event without importing Host runtime code. The Web consumer validates persisted declarations before displaying or opening them. New declarations store absolute paths and an optional `groupTitle` on the event; events without that field retain the original flat card layout. Legacy relative declarations retain the viewed Session's original workspace as their base.
+The pure `./types` entry declares `PresentedFile` and the Session event without importing Host runtime code. The Web consumer validates persisted declarations before displaying or opening them. New declarations store absolute paths. Legacy relative declarations retain the viewed Session's original workspace as their base.
 
 </details>
 

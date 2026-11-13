@@ -34,7 +34,7 @@ export function apply(ctx: Context, config: Config): void {
   if (!Number.isSafeInteger(config.maxFiles) || config.maxFiles < 1) {
     throw new Error('present requires a positive integer maxFiles')
   }
-  const pending = new WeakMap<ToolExecution, { session: Session; turn: number; files: PresentedFile[]; groupTitle?: string }>()
+  const pending = new WeakMap<ToolExecution, { session: Session; turn: number; files: PresentedFile[] }>()
   ctx.tools.register(defineTool({
     name: 'present',
     description: 'Declare existing files as final deliverables for the user. '
@@ -43,7 +43,6 @@ export function apply(ctx: Context, config: Config): void {
       + 'Use it when the user needs a separate file, especially Office documents, spreadsheets, and slide decks; '
       + 'prefer your final response when that suffices. The user opens the current files; their contents are not copied.',
     parameters: {
-      groupTitle: { type: 'string', description: 'Optional heading for these files. Use the same heading across calls for files that belong together.' },
       files: {
         type: 'array', required: true,
         // 4 is the recommended per-call count; `maxFiles` is the enforced ceiling above it.
@@ -62,7 +61,6 @@ export function apply(ctx: Context, config: Config): void {
         type: 'object', additionalProperties: false,
         properties: {
           turn: { type: 'integer', required: true },
-          groupTitle: { type: 'string', description: 'Heading recorded with this delivery, when supplied.' },
           files: {
             type: 'array', required: true,
             items: {
@@ -82,8 +80,6 @@ export function apply(ctx: Context, config: Config): void {
       const boundary = ctx.agents.turnBoundaryOf(exec.agent.session)
       if (boundary.openTurnStartSeq === null) throw new Error('present requires an open turn')
       if (args.files.length === 0 || args.files.length > config.maxFiles) throw new Error(`present accepts 1 to ${config.maxFiles} files`)
-      const groupTitle = args.groupTitle?.trim()
-      if (args.groupTitle !== undefined && !groupTitle) throw new Error('present requires a non-empty groupTitle')
       const cwd = await ctx.workingDirectory.ensure(exec.agent, exec.signal)
       const options = { cwd, signal: exec.signal }
       const files: PresentedFile[] = []
@@ -98,18 +94,17 @@ export function apply(ctx: Context, config: Config): void {
         files.push({ ...file, path: ctx.fs.processPath(target) })
       }
       exec.signal.throwIfAborted()
-      pending.set(exec, { session: exec.agent.session, turn: boundary.lastTurn, files,
-        ...groupTitle === undefined ? {} : { groupTitle } })
-      return { turn: boundary.lastTurn, files, ...groupTitle === undefined ? {} : { groupTitle } }
+      pending.set(exec, { session: exec.agent.session, turn: boundary.lastTurn, files })
+      return { turn: boundary.lastTurn, files }
     },
   }))
   ctx.on('tools/result', (exec, result) => {
     const delivery = pending.get(exec)
     pending.delete(exec)
     if (delivery === undefined || result.isError) return
-    const { session, turn, files, groupTitle } = delivery
+    const { session, turn, files } = delivery
     session.append('deliverables/presented', {
-      turn, callId: exec.callId, files, ...groupTitle === undefined ? {} : { groupTitle },
+      turn, callId: exec.callId, files,
     })
   })
 }

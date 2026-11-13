@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-使用 `present` 声明交付 Session 文件系统可访问的最终文件，包括通过 shell 命令创建的文件。用户使用默认应用打开当前源文件。工具记录路径、可选说明和同组交付的可选标题，不复制文件内容。
+使用 `present` 声明交付Session 文件系统可访问的最终文件，包括通过 shell 命令创建的文件。用户使用默认应用打开当前源文件。工具记录路径和可选说明，不复制文件内容。
 
 ## 目录
 
@@ -29,7 +29,7 @@ kind: "package-reference"
 
 `present` 按 Session 的当前工作目录校验路径并记录绝对路径，因此后续目录切换不会让已交付文件指向其他位置。
 
-`standard`、`ptc` 与 `cordis` Agent preset 挂载本插件。创建文件后，以 `files: [{ path, description? }]` 调用 `present`。多次调用需要显示在同一标题下时传入 `groupTitle`；同一来源的每批使用完全相同的标题，不同来源使用不同标题。空白标题会导致调用失败。文件必须是 Session 文件系统可访问的普通文件。相对路径按 Session 工作目录解析；绝对路径可以指向工作区外的文件，包括 `/tmp` 或 Downloads。文件缺失、为目录、最终路径为符号链接或提供方拒绝访问时，调用失败。Shell 沙箱私有 `/tmp` 中的文件需要先写入 Session 文件系统可访问的位置。
+`standard`、`ptc` 与 `cordis` Agent preset 挂载本插件。创建文件后，以 `files: [{ path, description? }]` 调用 `present`。文件必须是 Session 文件系统可访问的普通文件。相对路径按 Session 工作目录解析；绝对路径可以指向工作区外的文件，包括 `/tmp` 或 Downloads。文件缺失、为目录、最终路径为符号链接或提供方拒绝访问时，调用失败。Shell 沙箱私有 `/tmp` 中的文件需要先写入 Session 文件系统可访问的位置。
 
 在 Agent 的 Cordis 组合中挂载，并提供 `tools`、`fs` 和 `turnBoundary` Session 投影：
 
@@ -55,7 +55,7 @@ kind: "package-reference"
 
 工具通过配置的文件系统提供方解析路径，检查普通文件元数据，不读取内容。成功的最终 `tools/result` 通知追加 `deliverables/presented`，嵌套调用也适用。外层程序随后失败不会撤销已完成的声明。被阻止的结果不发布声明。每个插件实例只记录其实际执行的调用；同名作用域工具不能通过其他实例发布交付。
 
-纯 `./types` 入口声明 `PresentedFile` 与 Session 事件，不导入 Host 运行时代码。Web 消费方在展示或打开文件前校验持久声明。新声明保存绝对路径和事件上的可选 `groupTitle`；缺少该字段的事件仍使用原来的平铺卡片布局。历史相对路径声明继续以当前查看的 Session 原始工作区作为基准。
+纯 `./types` 入口声明 `PresentedFile` 与 Session 事件，不导入 Host 运行时代码。Web 消费方在展示或打开文件前校验持久声明。新声明保存绝对路径。历史相对路径声明继续以当前查看的 Session 原始工作区作为基准。
 
 </details>
 
