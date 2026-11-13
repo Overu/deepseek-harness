@@ -48,19 +48,6 @@ describe('Insight electron-builder product', () => {
     expect(config.extraResources).not.toContainEqual(expect.objectContaining({ to: 'bundled-skills' }))
   })
 
-  it('embeds the test service marker and separate Windows installer identity', async () => {
-    const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
-    const config = createElectronBuilderConfig({ ...insightEnvironment,
-      DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop.test', DSH_DESKTOP_TARGET_PLATFORM: 'win32',
-      DSH_DESKTOP_TARGET_ARCH: 'x64',
-    }, 'win32', 'x64')
-    expect(config).toMatchObject({ appId: 'com.insight-aigc.desktop.test', productName: '因赛AI 测试版',
-      artifactName: 'insight-test-${version}-${os}-${arch}-unsigned.${ext}',
-      extraMetadata: { dshDesktopProduct: 'insight', dshDesktopAppId: 'com.insight-aigc.desktop.test',
-        dshInsightServiceEnvironment: 'test' }, publish: null })
-    expect(config.protocols).toBeUndefined()
-  })
-
   it.each(['', '0.2.2', '2.0.0', '1.3.0+local'])('requires an explicit 1.x product version: %j', async (version) => {
     const { createElectronBuilderConfig } = await import('../scripts/electron-builder-config.mjs')
     expect(() => createElectronBuilderConfig({ ...insightEnvironment, INSIGHT_DESKTOP_VERSION: version }, 'darwin', 'arm64'))

@@ -66,7 +66,7 @@ export async function prepareInsightDesktop(
   runtimeVersion: string,
   focus: (callback: () => void) => void,
 ): Promise<InsightDesktopContext> {
-  const environment = resolveAuthEnvironment({ packaged: app.isPackaged, serviceEnvironment: product.serviceEnvironment })
+  const environment = resolveAuthEnvironment({ packaged: app.isPackaged })
   const authSession = session.fromPartition(environment.partition)
   authSession.setPermissionRequestHandler((_contents, _permission, callback) => { callback(false) })
   authSession.setPermissionCheckHandler(() => false)

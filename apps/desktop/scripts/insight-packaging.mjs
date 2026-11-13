@@ -6,7 +6,6 @@ import { parse } from 'semver'
 
 export const INSIGHT_PACKAGING_PRODUCT = 'insight'
 export const INSIGHT_PACKAGING_APP_ID = 'com.insight-aigc.desktop'
-export const INSIGHT_TEST_PACKAGING_APP_ID = 'com.insight-aigc.desktop.test'
 export const INSIGHT_PACKAGING_PRODUCT_NAME = '因赛AI'
 export const INSIGHT_PACKAGING_ARTIFACT_PREFIX = 'insight'
 export const INSIGHT_WINDOWS_EXECUTABLE_NAME = 'insight-desktop'
@@ -53,7 +52,7 @@ export function resolveInsightPackagingTarget(platform, arch) {
  * @param {NodeJS.Platform} platform - Electron-builder target platform.
  * @param {string} arch - Electron-builder target architecture.
  * @param {{ requireAppId?: boolean, requireNativeTarget?: boolean }} options - Require the dotenv application identifier or signed native target when release validation owns them.
- * @returns {{ appId: string, productName: string, artifactPrefix: string, serviceEnvironment: 'test' | 'production', productVersion: string, target: 'darwin-arm64' | 'darwin-x64' | 'win32-x64' | undefined, update: { channel: 'nightly' | 'latest', publicUrl: string } | undefined } | undefined} Insight product settings.
+ * @returns {{ appId: string, productName: string, artifactPrefix: string, productVersion: string, target: 'darwin-arm64' | 'darwin-x64' | 'win32-x64' | undefined, update: { channel: 'nightly' | 'latest', publicUrl: string } | undefined } | undefined} Insight product settings.
  */
 export function resolveInsightPackaging(env, platform, arch, options = {}) {
   const selected = env.DSH_DESKTOP_PRODUCT?.trim()
@@ -65,12 +64,11 @@ export function resolveInsightPackaging(env, platform, arch, options = {}) {
     throw new Error(`desktop package: ${INSIGHT_DESKTOP_VERSION_ENV} must be a 1.x semantic version without build metadata`)
   }
   const configuredAppId = env.DSH_DESKTOP_APP_ID?.trim()
-  const testPackage = configuredAppId === INSIGHT_TEST_PACKAGING_APP_ID
-  if (options.requireAppId && configuredAppId !== INSIGHT_PACKAGING_APP_ID && !testPackage) {
-    throw new Error(`desktop package: DSH_DESKTOP_APP_ID must be ${INSIGHT_PACKAGING_APP_ID} or ${INSIGHT_TEST_PACKAGING_APP_ID} for Insight packaging`)
+  if (options.requireAppId && configuredAppId !== INSIGHT_PACKAGING_APP_ID) {
+    throw new Error(`desktop package: DSH_DESKTOP_APP_ID must be ${INSIGHT_PACKAGING_APP_ID} for Insight packaging`)
   }
-  if (!options.requireAppId && configuredAppId !== undefined && configuredAppId !== '' && configuredAppId !== INSIGHT_PACKAGING_APP_ID && !testPackage) {
-    throw new Error(`desktop package: DSH_DESKTOP_APP_ID must be ${INSIGHT_PACKAGING_APP_ID} or ${INSIGHT_TEST_PACKAGING_APP_ID} for Insight packaging`)
+  if (!options.requireAppId && configuredAppId !== undefined && configuredAppId !== '' && configuredAppId !== INSIGHT_PACKAGING_APP_ID) {
+    throw new Error(`desktop package: DSH_DESKTOP_APP_ID must be ${INSIGHT_PACKAGING_APP_ID} for Insight packaging`)
   }
   const target = (platform === 'darwin' && (arch === 'arm64' || arch === 'x64')) || (platform === 'win32' && arch === 'x64')
     ? resolveInsightPackagingTarget(platform, arch) : undefined
@@ -79,13 +77,12 @@ export function resolveInsightPackaging(env, platform, arch, options = {}) {
   const channel = version.prerelease.length === 0 ? 'latest' : 'nightly'
   const releaseRoot = channel === 'nightly' ? 'desktop/native/releases' : 'desktop/releases'
   return {
-    appId: testPackage ? INSIGHT_TEST_PACKAGING_APP_ID : INSIGHT_PACKAGING_APP_ID,
-    productName: testPackage ? '因赛AI 测试版' : INSIGHT_PACKAGING_PRODUCT_NAME,
-    artifactPrefix: testPackage ? 'insight-test' : INSIGHT_PACKAGING_ARTIFACT_PREFIX,
-    serviceEnvironment: testPackage ? 'test' : 'production',
+    appId: INSIGHT_PACKAGING_APP_ID,
+    productName: INSIGHT_PACKAGING_PRODUCT_NAME,
+    artifactPrefix: INSIGHT_PACKAGING_ARTIFACT_PREFIX,
     productVersion: version.version,
     target,
-    update: testPackage || target === undefined || origin === undefined ? undefined : {
+    update: target === undefined || origin === undefined ? undefined : {
       channel,
       publicUrl: `${origin}/${releaseRoot}/v${version.version}/targets/${target}/`,
     },

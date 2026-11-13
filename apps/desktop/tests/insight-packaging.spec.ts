@@ -29,15 +29,6 @@ describe('Insight packaging settings', () => {
     })
   })
 
-  it('selects an isolated test client only for its explicit application ID', () => {
-    expect(resolveInsightPackaging({ ...environment, DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop.test' },
-      'win32', 'x64', { requireAppId: true, requireNativeTarget: true })).toMatchObject({
-      appId: 'com.insight-aigc.desktop.test', productName: '因赛AI 测试版', artifactPrefix: 'insight-test',
-      serviceEnvironment: 'test', target: 'win32-x64', update: undefined,
-    })
-    expect(resolveInsightPackaging(environment, 'win32', 'x64')?.serviceEnvironment).toBe('production')
-  })
-
   it('rejects a split application identity and resolves the Windows distribution target', () => {
     expect(() => resolveInsightPackaging({ ...environment, DSH_DESKTOP_APP_ID: 'com.example.other' }, 'darwin', 'arm64', {
       requireAppId: true,
