@@ -10,10 +10,9 @@ const environment = {
   GITHUB_TOKEN: 'test-github-token',
   INSIGHT_RELEASE_VERSION: '1.0.12-rc.1',
   INSIGHT_SOURCE_COMMIT: 'a'.repeat(40),
+  INSIGHT_RELEASE_TARGET: 'all',
   GITHUB_ACTOR: 'initial-operator',
   GITHUB_TRIGGERING_ACTOR: 'release-operator',
-  GITHUB_SERVER_URL: 'https://github.com',
-  GITHUB_REPOSITORY: 'Overu/deepseek-harness',
   GITHUB_RUN_ID: '123',
   GITHUB_RUN_ATTEMPT: '2',
 }
@@ -60,24 +59,50 @@ it('checks platform jobs and sends one signed summary for the exact run attempt'
     sign: '8+AD5scD8fIa8VJ+zWT5Bsd8iQwKT/D2d1mzhKogGP8=',
     msg_type: 'text',
     content: { text: [
-      'Insight Candidate 发布汇总',
+      'Insight 测试版 发布汇总',
       '版本：1.0.12-rc.1',
-      '平台：darwin-arm64=success、darwin-x64=success、win32-x64=success',
+      '平台：',
+      'darwin-arm64=https://updates.insight-aigc.com/desktop/native/releases/v1.0.12-rc.1/targets/darwin-arm64/insight-1.0.12-rc.1-mac-arm64.dmg',
+      'darwin-x64=https://updates.insight-aigc.com/desktop/native/releases/v1.0.12-rc.1/targets/darwin-x64/insight-1.0.12-rc.1-mac-x64.dmg',
+      'win32-x64=https://updates.insight-aigc.com/desktop/native/releases/v1.0.12-rc.1/targets/win32-x64/insight-1.0.12-rc.1-win-x64.exe',
       '结果：三个平台均发布成功',
       `源码：${'a'.repeat(40)}`,
       '操作人：release-operator',
-      '运行：https://github.com/Overu/deepseek-harness/actions/runs/123/attempts/2',
     ].join('\n') },
   })
   expect(messageBody(fetch)).not.toContain(environment.GITHUB_TOKEN)
   expect(messageBody(fetch)).not.toContain(environment.FEISHU_BOT_SIGNING_SECRET)
 })
 
-it.each(['failure', 'cancelled', 'skipped', 'timed_out'])('does not report all-platform success when one platform is %s', async (result) => {
+it.each([
+  ['all', '测试版', targets.map(target => job(target))],
+  ['stable', '正式版', [job('stable')]],
+] as const)('links final-version installers for target %s', async (target, channel, jobs) => {
+  const fetch = transport(jobs)
+  await notifyInsightPublication({ ...environment, INSIGHT_RELEASE_TARGET: target, INSIGHT_RELEASE_VERSION: '1.0.12' }, fetch)
+  expect(JSON.parse(messageBody(fetch))).toMatchObject({ content: { text: [
+    `Insight ${channel} 发布汇总`,
+    '版本：1.0.12',
+    '平台：',
+    'darwin-arm64=https://updates.insight-aigc.com/desktop/releases/v1.0.12/targets/darwin-arm64/insight-1.0.12-mac-arm64.dmg',
+    'darwin-x64=https://updates.insight-aigc.com/desktop/releases/v1.0.12/targets/darwin-x64/insight-1.0.12-mac-x64.dmg',
+    'win32-x64=https://updates.insight-aigc.com/desktop/releases/v1.0.12/targets/win32-x64/insight-1.0.12-win-x64.exe',
+    '结果：三个平台均发布成功',
+    `源码：${'a'.repeat(40)}`,
+    '操作人：release-operator',
+  ].join('\n') } })
+})
+
+it('requires a successful Stable job before sending a formal release summary', async () => {
+  const fetch = transport([...targets.map(target => job(target)), job('stable', 'failure')])
+  await expect(notifyInsightPublication({ ...environment, INSIGHT_RELEASE_TARGET: 'stable', INSIGHT_RELEASE_VERSION: '1.0.12' }, fetch)).rejects.toThrow('stable')
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+it.each(['failure', 'cancelled', 'skipped', 'timed_out'])('does not send when one platform is %s', async (result) => {
   const fetch = transport([job(targets[0]!, result), ...targets.slice(1).map(target => job(target))])
-  await notifyInsightPublication(environment, fetch)
-  expect(messageBody(fetch)).toContain(`darwin-arm64=${result}`)
-  expect(messageBody(fetch)).toContain('三个平台未全部发布成功')
+  await expect(notifyInsightPublication(environment, fetch)).rejects.toThrow(`darwin-arm64=${result}`)
+  expect(fetch).toHaveBeenCalledTimes(1)
 })
 
 it.each([
@@ -85,11 +110,10 @@ it.each([
   ['unfinished:queued', [job(targets[0]!, null, 2, 'queued'), ...targets.slice(1).map(target => job(target))]],
   ['unfinished:success', [job(targets[0]!, 'success', 2, 'success'), ...targets.slice(1).map(target => job(target))]],
   ['unknown', [job(targets[0]!, null), ...targets.slice(1).map(target => job(target))]],
-])('reports %s instead of trusting a matrix aggregate', async (label, jobs) => {
+])('does not send when one platform is %s', async (label, jobs) => {
   const fetch = transport(jobs)
-  await notifyInsightPublication(environment, fetch)
-  expect(messageBody(fetch)).toContain(`darwin-arm64=${label}`)
-  expect(messageBody(fetch)).not.toContain('三个平台均发布成功')
+  await expect(notifyInsightPublication(environment, fetch)).rejects.toThrow(`darwin-arm64=${label}`)
+  expect(fetch).toHaveBeenCalledTimes(1)
 })
 
 it('keeps previous successes and uses the rerun result instead of an old failure', async () => {
@@ -103,9 +127,8 @@ it('keeps previous successes and uses the rerun result instead of an old failure
 
 it('does not hide a new failure behind an older success', async () => {
   const fetch = transport([...targets.map(target => job(target, 'success', 1)), job(targets[0]!, 'failure', 2)])
-  await notifyInsightPublication(environment, fetch)
-  expect(messageBody(fetch)).toContain('darwin-arm64=failure')
-  expect(messageBody(fetch)).not.toContain('三个平台均发布成功')
+  await expect(notifyInsightPublication(environment, fetch)).rejects.toThrow('darwin-arm64=failure')
+  expect(fetch).toHaveBeenCalledTimes(1)
 })
 
 it('reads all pages before selecting the latest platform results', async () => {
@@ -139,7 +162,7 @@ it.each([
   expect(fetch).toHaveBeenCalledTimes(1)
 })
 
-it.each(['FEISHU_BOT_WEBHOOK', 'FEISHU_BOT_SIGNING_SECRET', 'GITHUB_TOKEN', 'GITHUB_RUN_ATTEMPT'])('rejects missing %s before sending', async (name) => {
+it.each(['FEISHU_BOT_WEBHOOK', 'FEISHU_BOT_SIGNING_SECRET', 'INSIGHT_RELEASE_TARGET', 'GITHUB_TOKEN', 'GITHUB_RUN_ATTEMPT'])('rejects missing %s before sending', async (name) => {
   const fetch = transport()
   await expect(notifyInsightPublication({ ...environment, [name]: '' }, fetch)).rejects.toThrow(name)
   expect(fetch).not.toHaveBeenCalled()
@@ -232,7 +255,7 @@ it('waits for the whole matrix and shares target locks with single-platform publ
   expect(workflow.jobs.publish.strategy.matrix.target).toBe('${{ fromJSON(inputs.target == \'all\' && \'["darwin-arm64","darwin-x64","win32-x64"]\' || format(\'["{0}"]\', inputs.target)) }}')
   expect(workflow.jobs.publish.concurrency).toEqual({ group: 'insight-oss-${{ matrix.target }}', 'cancel-in-progress': false, queue: 'max' })
   expect(workflow.jobs.notify.needs).toBe('publish')
-  expect(workflow.jobs.notify.if).toBe("always() && inputs.target == 'all' && github.ref == 'refs/heads/insight'")
+  expect(workflow.jobs.notify.if).toBe("success() && (inputs.target == 'all' || inputs.target == 'stable') && github.ref == 'refs/heads/insight'")
   expect(workflow.jobs.notify.permissions).toEqual({ contents: 'read', actions: 'read' })
   const send = workflow.jobs.notify.steps.find(step => step.run === 'node scripts/insight-release/notify-feishu.ts')
   expect(send?.env).toEqual({
@@ -240,6 +263,7 @@ it('waits for the whole matrix and shares target locks with single-platform publ
     FEISHU_BOT_SIGNING_SECRET: '${{ secrets.FEISHU_BOT_SIGNING_SECRET }}',
     INSIGHT_RELEASE_VERSION: '${{ inputs.version }}',
     INSIGHT_SOURCE_COMMIT: '${{ inputs.source_commit }}',
+    INSIGHT_RELEASE_TARGET: '${{ inputs.target }}',
     GITHUB_TRIGGERING_ACTOR: '${{ github.triggering_actor }}',
     GITHUB_TOKEN: '${{ github.token }}',
   })

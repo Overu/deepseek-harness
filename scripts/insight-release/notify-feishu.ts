@@ -1,12 +1,19 @@
-/** Send one signed Feishu summary after an all-platform Insight Candidate publication. */
+/** Send one signed Feishu summary after a successful three-platform Insight publication. */
 import { createHmac } from 'node:crypto'
+import distribution from '../../packages/insight/desktop-integration/resources/update/update-distribution.json' with { type: 'json' }
+
+const installerSuffixes = {
+  'darwin-arm64': 'mac-arm64.dmg',
+  'darwin-x64': 'mac-x64.dmg',
+  'win32-x64': 'win-x64.exe',
+}
 
 /**
  * Send one request without retries; transport failures leave delivery unknown.
  * @param environment - Workflow metadata, read-only GitHub token, and Feishu repository secrets.
  * @param fetchImplementation - HTTP transport; defaults to the global fetch implementation.
  * @returns Resolves only when Feishu acknowledges the message with code zero.
- * @throws If configuration is missing, the request fails, or Feishu rejects the message.
+ * @throws If configuration is invalid, publication success cannot be confirmed, or Feishu does not acknowledge the message.
  */
 export async function notifyInsightPublication(
   environment: NodeJS.ProcessEnv,
@@ -23,17 +30,26 @@ export async function notifyInsightPublication(
   }
   const sourceCommit = required(environment, 'INSIGHT_SOURCE_COMMIT')
   if (!/^[0-9a-f]{40}$/u.test(sourceCommit)) throw new Error('INSIGHT_SOURCE_COMMIT must be a full lowercase commit ID.')
-  const results = await publicationResults(environment, fetchImplementation)
-  const summary = [...results.values()].every(result => result === 'success')
-    ? '三个平台均发布成功' : '三个平台未全部发布成功，请查看运行详情'
+  const releaseTarget = required(environment, 'INSIGHT_RELEASE_TARGET')
+  if (releaseTarget !== 'all' && releaseTarget !== 'stable') {
+    throw new Error('INSIGHT_RELEASE_TARGET must be all or stable for the Feishu publication summary.')
+  }
+  const targets = releaseTarget === 'stable' ? ['stable'] : Object.keys(installerSuffixes)
+  const results = await publicationResults(environment, fetchImplementation, targets)
+  const unsuccessful = [...results].filter(([, result]) => result !== 'success')
+  if (unsuccessful.length > 0) {
+    throw new Error(`GitHub publication success could not be confirmed (${unsuccessful.map(([target, result]) => `${target}=${result}`).join(', ')}). Check Actions before rerunning the notification job.`)
+  }
+  const releaseRoot = version.includes('-') ? 'desktop/native/releases' : 'desktop/releases'
   const text = [
-    'Insight Candidate 发布汇总',
+    `Insight ${releaseTarget === 'stable' ? '正式版' : '测试版'} 发布汇总`,
     `版本：${version}`,
-    `平台：${[...results].map(([target, result]) => `${target}=${result}`).join('、')}`,
-    `结果：${summary}`,
+    '平台：',
+    ...Object.entries(installerSuffixes).map(([target, suffix]) =>
+      `${target}=${distribution.updateOrigin}/${releaseRoot}/v${version}/targets/${target}/insight-${version}-${suffix}`),
+    '结果：三个平台均发布成功',
     `源码：${sourceCommit}`,
     `操作人：${required(environment, 'GITHUB_TRIGGERING_ACTOR')}`,
-    `运行：${required(environment, 'GITHUB_SERVER_URL')}/${required(environment, 'GITHUB_REPOSITORY')}/actions/runs/${required(environment, 'GITHUB_RUN_ID')}/attempts/${required(environment, 'GITHUB_RUN_ATTEMPT')}`,
   ].join('\n')
   const timestamp = String(Math.floor(Date.now() / 1000))
   const sign = createHmac('sha256', `${timestamp}\n${secret}`).update('').digest('base64')
@@ -67,12 +83,15 @@ export async function notifyInsightPublication(
   }
 }
 
-async function publicationResults(environment: NodeJS.ProcessEnv, fetchImplementation: typeof fetch): Promise<Map<string, string>> {
+async function publicationResults(
+  environment: NodeJS.ProcessEnv,
+  fetchImplementation: typeof fetch,
+  targets: readonly string[],
+): Promise<Map<string, string>> {
   const run = required(environment, 'GITHUB_RUN_ID')
   const attempt = Number(required(environment, 'GITHUB_RUN_ATTEMPT'))
   if (!/^[1-9][0-9]*$/u.test(run) || !Number.isSafeInteger(attempt) || attempt < 1) throw new Error('GitHub run ID and attempt must be positive integers.')
   const token = required(environment, 'GITHUB_TOKEN')
-  const targets = ['darwin-arm64', 'darwin-x64', 'win32-x64']
   const latest = new Map<string, { attempt: number; result: string }>()
   // All attempts preserve successful platforms when only failed jobs are rerun.
   for (let page = 1; ; page += 1) {

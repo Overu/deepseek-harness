@@ -50,7 +50,9 @@ Windows job 受产品门控，并按 Insight 产品决定不使用 Authenticode�
 
 发布工作流的 target 输入决定渠道：平台目标发布 Candidate；`all` 并行发布全部三个目标的 Candidate；`stable` 为全部三个目标发布 Stable。Candidate 接受 final 或 prerelease 版本；只有规范的 `1.x.y-rc.N` 构建可来自 `insight` 以外的分支。发布器自身始终从 `insight` 运行。Stable 要求从 `insight` 构建的 final 版本，且三个经过校验的 `distribution` 目标具有相同版本、源码提交和 DSH 运行时版本。
 
-使用 `target=all` 时，某个平台失败不会取消其余平台。工作流等待三个发布 job 全部结束后，向飞书发送一条汇总消息，包含版本、源码提交、整体结果、本次运行尝试的操作人和链接。版本和提交输入不能插入额外的消息行。它通过 GitHub jobs API 读取每个平台截至当前运行尝试的最新结果，包括仅重跑失败任务时沿用的成功平台；缺失、取消或未结束的平台不能产生全部成功的通知。单平台与 Stable 发布不发送此通知。配置仓库 Actions secrets `FEISHU_BOT_WEBHOOK`（自定义机器人 Webhook URL）和 `FEISHU_BOT_SIGNING_SECRET`（机器人签名密钥），并在机器人中启用签名校验。通知 job 不接收更新签名私钥或 OIDC 写入权限。通知被拒绝或未获确认时，其 job 失败，但不撤销发布；请求不会自动重试，因为消息可能已经送达。重新运行通知 job 会再次发送请求，因此应先核对群消息。
+三个平台全部发布成功后，`target=all` 向飞书发送一条测试版发布汇总，`target=stable` 发送一条正式版发布汇总。汇总包含版本、三个平台的 OSS 安装包下载地址、源码提交和本次运行尝试的操作人。通知 job 检查各发布 job 截至当前运行尝试的最新结果，包括仅重跑失败任务时沿用的成功结果。单平台发布不发送汇总。
+
+配置仓库 Actions secrets `FEISHU_BOT_WEBHOOK`（自定义机器人 Webhook URL）和 `FEISHU_BOT_SIGNING_SECRET`（机器人签名密钥），并在机器人中启用签名校验。通知 job 不接收更新签名私钥或 OIDC 写入权限。通知被拒绝或未获确认时，其 job 失败，但不撤销发布；请求不会自动重试，因为消息可能已经送达。重新运行通知 job 会再次发送请求，因此应先核对群消息。
 
 第二阶段在读取或发布附件前拒绝 draft Release。其轻量运行时不会重新构建、打包、公证或安装应用。Actions artifact 下载请求 GitHub JSON 媒体类型以获取归档重定向；Release 附件下载请求 octet-stream 字节。
 
