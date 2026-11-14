@@ -1,6 +1,8 @@
 - insert:
     - id: canvas-text-run-fixture
       name: '../../../packages/insight/canvas/test/fixtures/text-run-snapshot.ts'
+    - id: insight-media-upload-snapshot-fixture
+      name: '../../../packages/insight/media-upload/tests/fixtures/snapshot.ts'
 
 - id: headless-runner
   config:

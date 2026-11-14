@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import { LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
 
-it('mounts all private Insight Host artifacts and rejects unauthenticated HTTP requests', async () => {
+it('mounts Canvas, Memory, and Prompt Host artifacts and rejects unauthenticated HTTP requests', async () => {
   const driver = fileURLToPath(new URL('./fixtures/insight-intake.ts', import.meta.url))
   const result = await runLoaderSmoke({
     label: 'Insight Host intake',
@@ -14,7 +14,7 @@ it('mounts all private Insight Host artifacts and rejects unauthenticated HTTP r
     configPath: driver,
     sourceImport: 'tsx/esm',
     tsconfigPath: fileURLToPath(new URL('../../../../../tsconfig.json', import.meta.url)),
-    env: { DSH_TELEMETRY_DISABLED: '1' },
+    env: { DSH_TELEMETRY_DISABLED: '1', DSH_INSIGHT_SERVICE_ENVIRONMENT: 'test' },
   })
   expect(result.stdout).toContain('Insight Host intake verified')
 }, LOADER_SMOKE_TEST_TIMEOUT_MS)

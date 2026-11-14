@@ -4,11 +4,12 @@ import { join } from 'node:path'
 import { parseArgs } from 'node:util'
 import { desktopArtifactOutput, resolveDesktopBuildTarget, resolveDesktopTargetBuildPaths } from './desktop-build-paths.mjs'
 import { readDesktopRuntime, verifyDesktopRuntime } from '../src/runtime-tree.ts'
-import { resolveDesktopProduct } from '../src/product.ts'
+import { INSIGHT_REQUIRED_BUNDLES, resolveDesktopProduct } from '../src/product.ts'
 import { verifyWindowsCode } from './windows-runtime-signature.mjs'
 import { smokePreparedRuntime } from './smoke-prepared-runtime.ts'
 import { resolveDesktopPackageTarget } from './package-target.ts'
 import { INSIGHT_WINDOWS_EXECUTABLE_NAME } from './insight-packaging.mjs'
+import { readAsar } from 'app-builder-lib/out/asar/asar.js'
 
 type DesktopBuildTarget = ReturnType<typeof resolveDesktopBuildTarget>
 
@@ -43,8 +44,23 @@ async function main(): Promise<void> {
   const target = resolveDesktopBuildTarget()
   const artifacts = desktopArtifactOutput(paths, { unsigned: values.unsigned, skipNotarization: values['skip-notarization'] }).directory
   const { application, resources, executable } = resolvePackagedApplicationPaths(target, artifacts, process.env)
+  const insight = resolveDesktopProduct({ isPackaged: false, environment: process.env }).kind === 'insight'
+  if (insight) {
+    const archive = await readAsar(join(resources, 'app.asar'))
+    for (const file of ['SKILL.md', 'ui.json', join('scripts', 'download_psd.mjs')]) {
+      const path = join('dsh', 'node_modules', '@insight-ai',
+        'desktop-media-upload-plugin', 'guidance', 'image-layering', file)
+      if ((await archive.readFile(path)).byteLength === 0) throw new Error(`desktop package: empty Insight skill file ${path}`)
+    }
+  }
   const descriptor = await verifyDesktopRuntime(paths.dsh, readDesktopRuntime(paths.dsh).release.version,
     resolveDesktopPackageTarget(target))
+  if (insight) {
+    const packages = new Set(descriptor.sharedPackages.map(entry => entry.name))
+    for (const name of INSIGHT_REQUIRED_BUNDLES) {
+      if (!packages.has(name)) throw new Error(`desktop package: missing Insight bundle ${name}`)
+    }
+  }
   if (shouldVerifyWindowsCode(target, values.unsigned, process.env)) await verifyWindowsCode(application)
   await smokePreparedRuntime(join(resources, 'app.asar', 'dsh'), executable, join(resources, 'runtime'), descriptor)
 }

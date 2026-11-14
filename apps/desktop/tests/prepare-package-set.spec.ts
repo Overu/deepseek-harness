@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DESKTOP_HOST_RUNTIME_FILES, DESKTOP_PACKAGES_DIR } from '../src/core-package-set.ts'
+import { INSIGHT_REQUIRED_BUNDLES } from '../src/product.ts'
 import { INSIGHT_PRODUCT_PACKAGES } from '../../../scripts/insight-package-policy.ts'
 import {
   assertDesktopHostPackageFiles,
@@ -87,6 +88,10 @@ describe('desktop package-set selection', () => {
 
   it('includes the exact private Insight components from Desktop pack inputs', () => {
     const names = Object.values(INSIGHT_PRODUCT_PACKAGES)
+    const hostManifest = JSON.parse(readFileSync(new URL('../../desktop-host/package.json', import.meta.url), 'utf8')) as {
+      dependencies: Record<string, string>
+    }
+    for (const name of INSIGHT_REQUIRED_BUNDLES) expect(hostManifest.dependencies).toHaveProperty(name)
     const available = new Map<string, PackedDesktopPackage>([
       ['@deepseek-ai/dsh', packed('@deepseek-ai/dsh')],
       ['@deepseek-ai/dsh-desktop-host', packed('@deepseek-ai/dsh-desktop-host', {

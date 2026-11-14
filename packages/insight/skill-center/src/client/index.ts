@@ -18,8 +18,10 @@ import { createSkillCenterToastSource, SkillCenterToast } from './SkillCenterToa
 import { en, zh } from './locales.ts'
 import { Config } from '../config.ts'
 import { skillCatalogResourceProvider } from './skill-catalog-resource.ts'
+import { customSkillResourceProvider } from './custom-skill-resource.ts'
 import { platformSkillInstallationResourceProvider } from './skill-installation-resource.ts'
 import type { PlatformSkillInstallRequest, PlatformSkillOperationId, PlatformSkillRemovalRequest, SkillIdentity } from '../shared/skill-installation.ts'
+import type { InsightCustomSkillId } from '../shared/skill-inventory.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -29,7 +31,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required browser services for localized slot registrations. */
-export const inject = ['slots', 'locale', 'resources', 'remote']
+export const inject = ['slots', 'locale', 'resources', 'remote', 'layout']
 
 /**
  * Register the skill center immediately after Plugins and its matching main panel.
@@ -49,6 +51,7 @@ function registerSkillCenter(ctx: Context): void {
   const panelId = 'insight-skill-center' as MainPanelId
   ctx.effect(() => ctx.locale.register(namespace, { en, zh }))
   ctx.effect(() => ctx.resources.register(skillCatalogResourceProvider(config)))
+  ctx.effect(() => ctx.resources.register(customSkillResourceProvider(ctx.remote.insightSkills)))
   ctx.effect(() => ctx.resources.register(platformSkillInstallationResourceProvider(ctx.remote.insightPlatformSkills)))
   const t = ctx.locale.bind(namespace)
   const notices = createSkillCenterToastSource()
@@ -64,6 +67,7 @@ function registerSkillCenter(ctx: Context): void {
       installations,
       hooks: { revision: installations.hooks.revision },
       remove: (request: PlatformSkillRemovalRequest, signal?: AbortSignal) => ctx.remote.insightPlatformSkills.removeSkill(request, signal),
+      removeCustom: (request: { readonly id: InsightCustomSkillId }) => ctx.remote.insightSkills.removeCustom(request),
     }),
   }, SkillCenterPage))
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
@@ -76,21 +80,27 @@ function registerSkillCenter(ctx: Context): void {
   }, SkillCenterToast))
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'insight-skill-center.installation', locale: namespace,
-    inject: () => ({ cancel: () => { installations.cancel() }, hooks: { active: installations.hooks.active } }),
+    inject: () => ({
+      cancel: () => { installations.cancel() }, hooks: { active: installations.hooks.active, presets: installations.hooks.presets },
+    }),
   }, SkillInstallOverlay))
   if (config.presetSkillIds.length > 0) {
     ctx.slots.inject('shell.overlay', () => ctx.slots.register({
       name: 'shell.overlay', id: 'insight-skill-center.presets',
       inject: () => ({
         installations,
-        listPendingPresets: (catalogue: readonly SkillIdentity[]) => ctx.remote.insightPlatformSkills.listPendingPresets(catalogue),
-        waitForInstallation: (identity: SkillIdentity) => ctx.remote.insightPlatformSkills.waitForInstallation(identity),
+        claim: () => ctx.remote.insightPlatformSkills.claimPresetInstallation(),
+        listPendingPresets: (catalogue: readonly SkillIdentity[], signal?: AbortSignal) =>
+          ctx.remote.insightPlatformSkills.listPendingPresets(catalogue, signal),
+        waitForInstallation: (identity: SkillIdentity, signal?: AbortSignal) =>
+          ctx.remote.insightPlatformSkills.waitForInstallation(identity, signal),
       }),
     }, PresetSkillBootstrap))
   }
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
-    name: 'conversation.input.left', id: 'insight-skills', order: -100,
+    name: 'conversation.input.left', id: 'insight-skills', order: -100, locale: namespace,
     inject: (): InsightSkillPickerInjected => ({
+      openSkillCenter: () => { ctx.layout.selectPanel(panelId) },
       loadInventory: async (sessionId, signal) => {
         const result = await ctx.remote.insightSkills.list({ sessionId }, signal)
         if (!result.ok) throw new Error(result.error.message)

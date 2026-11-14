@@ -31,6 +31,8 @@ Insight Desktop uses this private bundle for product branding, authentication be
 
 The Insight application adds `@insight-ai/desktop-integration` to its account profile after authentication selects a safe Home. Profile preparation adds a missing declaration to an existing account profile, and plugin recovery retains the bundle while disabling other third-party bundles. The package is private and has no standalone installation path; the official Desktop composition remains unchanged.
 
+Packaged Insight selects its service environment from validated application metadata before authentication. The isolated [test installer](../../../apps/desktop/packaging/README.md#configuration-and-local-builds) uses the test gateway and persistent test authentication partition; the ordinary package uses production. Development uses the test gateway with a nonpersistent partition.
+
 ### What you get
 
 Before a Host exists, the native login window retains the Insight brand panel, interactive dot field, and SMS/password forms, with consent links, credential restoration, and account-scoped Home selection. The window stays hidden while saved credentials are restored; successful authentication and Home preparation enter the workspace directly, while unavailable credentials or Home admission failures show the existing login or recovery surface. Desktop Main keeps the credential in encrypted Electron storage for packaged builds and exposes only renderer-safe login state. Bundled service and privacy documents open inside the login window with fixed header and footer controls, a scrolling reading area, Escape dismissal, and focus restoration. Reading or closing a document does not accept it or submit authentication.
@@ -54,6 +56,8 @@ The native update window uses the same regular checks as the background schedule
 Desktop Main selects the Insight product before Electron reads `userData`, completes login, validates the account Home, and then starts one Host with an immutable account context. The standalone login surface is exported as `@insight-ai/desktop-integration/client/login`, and its stylesheet is exported under `@insight-ai/desktop-integration/client/*.css`; both stay on the Client compiler face. The bundle patch disables the upstream account route and official brand occupants only in the Insight profile. The official product starts with its existing profile and account composition.
 
 This package is both the selected profile bundle and the owner of its Host plugin. Its `cordis.patch.yml` must mount that plugin as `./lib/index.js`; bundle patch parsing anchors the relative path beside the patch file. DSH runtime package lookup excludes a selected bundle package itself, so the row must never use the self-package name `@insight-ai/desktop-integration`. This is a package-resolution requirement, not a Loader ordering requirement.
+
+Main selects the service environment and passes it to the Host at startup. Desktop login and Canvas Host resolve their gateway origin from the same [service configuration](src/shared/service-environment.ts).
 
 The Host service validates request and response fields, limits concurrent token requests, applies a deadline, and cancels pending requests when the caller aborts or the IPC channel closes. Desktop Main accepts requests only from the current Host child and discards late responses after shutdown or replacement. Sign-out revokes new account access, hides the workspace, stops account-owned resources, clears authentication, and relaunches into the login gate only after shutdown completes.
 
@@ -79,6 +83,8 @@ Update discovery verifies an Ed25519-signed rollout, release or target manifest,
 
 <a id="business-services"></a>
 ## Business services
+
+The Host account service exposes a noncredential hash of the Main-selected account Home. Image-layering tasks bind this scope to their Session record and refuse recovery after an account switch; it does not expose a token or raw account ID.
 
 The Host mounts an Insight enterprise search provider through DSH's public Web registry. Each search sends the current Insight account token as `Authorization: Bearer` and `x-api-key` to the enterprise Gateway's `/messages` endpoint. Each search creates an isolated upstream provider whose token request receives that search's cancellation signal. Shutdown unregisters the provider, aborts admitted work, and waits for it before the account service is released.
 
@@ -134,6 +140,26 @@ The fixed `yinsai-gateway/deepseek-flash` provider uses normal Agent request tok
 #### KV Cache effect
 
 No direct effect. Account presentation and authentication state stay outside model requests.
+
+### Tool argument recovery
+
+#### What the model sees
+
+When the Gateway returns completed tool arguments that fail JSON parsing, the Host retries the model request once in the same Agent step. The Session records the retry context. A second parse failure ends the step before any tool from either failed attempt runs.
+
+##### Retry prompt
+
+```markdown
+The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.
+```
+
+#### Token effect
+
+Recovery uses one additional model request with a short context message.
+
+#### KV Cache effect
+
+The retry appends runtime context after the existing request history.
 
 ## Known Limitations and Deferred Work
 

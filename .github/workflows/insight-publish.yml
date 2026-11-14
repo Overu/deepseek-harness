@@ -73,7 +73,7 @@ jobs:
   notify:
     name: Notify Feishu
     needs: publish
-    if: always() && inputs.target == 'all' && github.ref == 'refs/heads/insight'
+    if: success() && (inputs.target == 'all' || inputs.target == 'stable') && github.ref == 'refs/heads/insight'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -93,6 +93,7 @@ jobs:
           FEISHU_BOT_SIGNING_SECRET: ${{ secrets.FEISHU_BOT_SIGNING_SECRET }}
           INSIGHT_RELEASE_VERSION: ${{ inputs.version }}
           INSIGHT_SOURCE_COMMIT: ${{ inputs.source_commit }}
+          INSIGHT_RELEASE_TARGET: ${{ inputs.target }}
           GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/insight-release/notify-feishu.ts

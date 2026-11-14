@@ -6,6 +6,7 @@ import type { HostObservable, InjectFace, PropsLocale, PropsRuntime } from '@dee
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 
 type NoticeKind = 'installSuccess' | 'updateSuccess' | 'removeSuccess' | 'installFailure' | 'removeFailure'
+  | 'presetSuccess' | 'presetFailure' | 'presetCancelled'
 type Notice = { readonly kind: NoticeKind; readonly sequence: number }
 
 /** The narrow actions page controls use to report a settled outcome. */
@@ -43,7 +44,7 @@ export function SkillCenterToast({ useNotice, dismiss, t }: SkillCenterToastProp
   const notice = useNotice(current => current)
   if (notice === null) return null
   const text = t(notice.kind)
-  return notice.kind === 'installSuccess' || notice.kind === 'updateSuccess' || notice.kind === 'removeSuccess'
+  return notice.kind === 'installSuccess' || notice.kind === 'updateSuccess' || notice.kind === 'removeSuccess' || notice.kind === 'presetSuccess'
     ? <Toast key={`skill-center-${String(notice.sequence)}`} text={text} tone="success" onDone={dismiss} />
     : <Toast key={`skill-center-${String(notice.sequence)}`} text={text} icon={<IconWarningOutlineRegular />} onDone={dismiss} />
 }

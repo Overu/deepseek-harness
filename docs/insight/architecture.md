@@ -34,7 +34,7 @@ flowchart LR
   Main --> Auth["Insight account API"]
 ```
 
-The login renderer receives a narrow preload API for session state, SMS/password commands, agreement windows, and local sign-out. After admission, Desktop Main starts the Host with the fixed account Home in `DSH_HOME`, keeps the access token in Main-owned authentication state, and activates the four product-required bundles: Integration, Canvas, Memory, and Prompt.
+The login renderer receives a narrow preload API for session state, SMS/password commands, agreement windows, and local sign-out. After admission, Desktop Main starts the Host with the fixed account Home in `DSH_HOME`, keeps the access token in Main-owned authentication state, and activates the [product-required bundles](baseline-changes.md#baseline-synchronization).
 
 The Host bundle mounts `ctx.insightAccount`. A trusted Host consumer requests an access token over the private child-process channel with a branded request id. Both peers validate exact message fields, bound concurrent requests, support cancellation and deadlines, and ignore duplicate or late responses. Desktop Main answers only the current live Host child; tokens are not logged, retained in Host diagnostics, exposed through Remote, or sent to a renderer.
 

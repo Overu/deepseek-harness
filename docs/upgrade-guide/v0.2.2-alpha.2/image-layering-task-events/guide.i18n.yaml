@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for guide.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/upgrade-guide/v0.2.2-alpha.2/image-layering-task-events/guide.md
+/:
+  en: 03397aab4ea81c72
+  zh: daadf56160fe5836
+/image-layering-task-events:
+  en: cc4aba2e668866a6
+  zh: 135ddd90e9bfde95
+/image-layering-task-events/change:
+  en: b238e7b99831ceda
+  zh: aa55988af677362f
+/image-layering-task-events/migration:
+  en: f880904988109cbd
+  zh: d6c183ef4074077c

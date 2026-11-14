@@ -3,6 +3,11 @@ import { strToU8, zipSync } from 'fflate'
 
 const archiveUrl = 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip'
 const identityArchiveUrl = 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip'
+const presetNames = new Map([
+  ['https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/preset-14-fixture.zip', 'wrong-preset-name'],
+  ['https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/preset-15-fixture.zip', 'preset-15'],
+  ['https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/preset-16-fixture.zip', 'preset-16'],
+])
 
 /**
  * Replace only this scenario's public archive response inside its isolated Host process.
@@ -13,10 +18,11 @@ export function apply(ctx) {
   let release = 0
   const fetcher = async (input, options) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-    if (url !== archiveUrl && url !== identityArchiveUrl) return original(input, options)
+    if (url !== archiveUrl && url !== identityArchiveUrl && !presetNames.has(url)) return original(input, options)
     options?.signal?.throwIfAborted()
     release++
-    const name = url === identityArchiveUrl ? 'influencer-integration' : release === 1 ? 'browser-installed-expert' : 'browser-updated-expert'
+    const name = presetNames.get(url)
+      ?? (url === identityArchiveUrl ? 'influencer-integration' : 'browser-installed-expert')
     const bytes = zipSync({
       'fixture/SKILL.md': strToU8(`---\nname: ${name}\ndescription: Browser installation fixture\n---\n\nInstalled through the real Remote API.\n\nArchive release ${release}.\n`),
     })

@@ -43,9 +43,9 @@ Mount the plugin with no required configuration. The defaults below define what 
 | `maxMessageImageBytes` | `200 MiB` | Maximum aggregate encoded source bytes in one submitted message |
 | `maxImagePixels` | `64,000,000` | Maximum source width multiplied by height |
 | `maxImageDimension` | `65,535` | Maximum source width or height; the default leaves admission to `maxImagePixels`, and normalization downscales long sides |
-| `normalizedImageMaxPixels` | `2048 × 2048` | Total-pixel budget of the stored normalized image |
+| `normalizedImageMaxPixels` | `8,294,400` (3840 × 2160) | Total-pixel budget of the stored normalized image |
 | `normalizedImageMaxDimension` | `8192` | Maximum long edge after applying the total-pixel budget |
-| `normalizedImageMaxBytes` | `4 MiB` | Encoded-byte target; the smallest quality-ladder output is kept when none fits |
+| `normalizedImageMaxBytes` | `50 MiB` | Encoded-byte target. The store keeps the smallest quality-ladder output when none fits. |
 | `imageCompressionConcurrency` | `2` | FIFO limit for concurrent normalization and request transforms |
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-attachment-local) is the exhaustive source for every accepted field and its JSDoc.
@@ -85,7 +85,7 @@ Objects land at `<DSH_HOME>/attachments/v1/objects/<sha256-prefix>/<sha256>`; eq
 
 Image reads receive a complete reference with a canonical `sha256:` ID, derive the object path within this storage tree, verify the complete digest, and probe the image header. The actual format, byte length, width, and height must match the supplied reference. The returned reference preserves optional `name` and `originalDimensions` as caller-supplied display information; these fields are not verified against the object. Reads neither consult Session history nor reapply admission limits; a missing object or failed verification rejects the read.
 
-Admission accepts up to 20 images and 200 MiB of source bytes per message; one source may use up to 50 MiB, 64 million pixels, and 65,535 pixels per side. It applies orientation, removes metadata and color profiles, and normalizes under a 2048×2048 total-pixel budget, an 8192-pixel long edge, and a 4 MiB encoded-byte target. Extreme aspect ratios therefore retain their short-edge resolution. Clean single-frame 8-bit sRGB/sRGBA PNG, JPEG, or WebP input already within those limits passes through byte-identically; GIF, animation, metadata, orientation, 16-bit PNG, and incompatible color spaces force conversion.
+The store checks source images against the admission limits before applying the separate normalization limits in the table above. A single-frame 8-bit sRGB/sRGBA PNG, JPEG, or WebP without metadata passes through byte for byte if it fits the normalization limits. The default total-pixel budget accommodates 4K UHD (3840 × 2160). GIF, animation, metadata, EXIF orientation, 16-bit PNG, and incompatible color spaces trigger conversion.
 
 Request versions live below `<DSH_HOME>/cache/attachments/request-images/`, resolved by `dshCachePath`; an explicit `dshHome` setting applies to both cache and durable storage. Clearing this cache between requests preserves durable attachments, and later reads regenerate the variants. `readImageRequest` scales without enlargement to the route-chosen target, resizing by the long edge only so the encoder derives the short edge as the route predicts, then applies a separate encoded-byte target through the same alpha routing and quality ladder. Its cache identity includes the attachment id, transform version, target dimensions, byte target, and fixed encoder settings; cached bytes are header-probed for format, 8-bit sRGB/sRGBA, dimensions, and alpha facts, and a mismatch regenerates the entry. Concurrent callers share one transform and cache write, while cancellation stops shared work only when no waiter remains. `imageHostPath` derives the normalized object's host path, and the mounted filesystem may map that path into its execution world without writing it to durable history.
 

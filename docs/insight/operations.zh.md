@@ -72,7 +72,7 @@ final Candidate 在汇总后还需核对 GitHub Release 为 prerelease 且非 la
 
 ## 发布已验证制品
 
-Insight 常规内测发布默认从 `insight` 分支运行 `Publish Insight update`，选择 `target=all`。三个平台的发布任务结束后，工作流会发送一条飞书汇总通知。发布请求指定单个平台时，选择对应目标。见[发布工作流说明](../../scripts/insight-release/README.zh.md#publish-workflow)。
+Insight 常规内测发布默认从 `insight` 分支运行 `Publish Insight update`，选择 `target=all`。发布请求指定单个平台时，选择对应目标。见[发布工作流说明及飞书通知条件](../../scripts/insight-release/README.zh.md#publish-workflow)。
 
 打包的 Apple 六项材料和发布的 Ed25519 私钥配置在 GitHub 仓库 `Settings → Environments → desktop-release → Environment secrets`。名称以[打包 workflow](../../.github/workflows/insight-package.yml)和[发布 workflow](../../.github/workflows/insight-publish.yml)的 `secrets` 引用为准；Apple `.p8` 与更新清单私钥用途不同，不互相替代。材料内容不进入文档或日志。
 

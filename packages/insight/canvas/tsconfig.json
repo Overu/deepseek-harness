@@ -1,4 +1,6 @@
 {
+  // Let tsx resolve Host test imports to workspace source.
+  "extends": "../../../tsconfig.base.json",
   "files": [],
   "references": [
     {

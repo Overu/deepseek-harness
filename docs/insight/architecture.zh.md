@@ -34,7 +34,7 @@ flowchart LR
   Main --> Auth["Insight account API"]
 ```
 
-登录渲染器只获得 session 状态、短信/密码命令、协议窗口和本地退出所需的窄 preload API。准入后，Desktop Main 使用固定账号 Home 作为 `DSH_HOME` 启动 Host，在 Main 自有认证状态中保存访问令牌，并激活产品必需的 Integration、Canvas、Memory 和 Prompt 四个 bundle。
+登录渲染器只获得 session 状态、短信/密码命令、协议窗口和本地退出所需的窄 preload API。准入后，Desktop Main 使用固定账号 Home 作为 `DSH_HOME` 启动 Host，在 Main 自有认证状态中保存访问令牌，并激活[产品必需的 bundle](baseline-changes.zh.md#baseline-synchronization)。
 
 Host bundle 挂载 `ctx.insightAccount`。可信 Host 消费方通过私有子进程通道，用品牌化请求 id 请求访问令牌。两端都校验精确消息字段、限制并发请求、支持取消与截止时间，并忽略重复或迟到响应。Desktop Main 只回答当前存活 Host 子进程；令牌不会写入日志、保留在 Host 诊断中、通过 Remote 暴露或发送给渲染器。
 

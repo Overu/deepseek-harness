@@ -55,7 +55,7 @@ test('canvas/get in a packaged client uses the production Gateway and Web origin
       call = { url, init }
       return new Response(JSON.stringify(envelope), { status: 200 })
     })
-    assert.equal(call.url, 'https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/get')
+    assert.equal(call.url, 'https://gapi-dsh.idealead.com/game-ai-editor-center/api/canvas/get')
     assert.equal(call.init.headers.origin, 'https://dynsight.insight-aigc.com')
     assert.equal(call.init.headers.token, 'production-token')
   } finally {

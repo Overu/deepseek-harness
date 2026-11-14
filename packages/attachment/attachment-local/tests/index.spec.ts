@@ -26,6 +26,8 @@ describe('local attachment service', () => {
     expect(DEFAULT_MAX_MESSAGE_IMAGE_BYTES).toBe(200 * 1024 * 1024)
     expect(DEFAULT_MAX_IMAGE_PIXELS).toBe(64_000_000)
     expect(DEFAULT_MAX_IMAGE_DIMENSION).toBe(65_535)
+    expect(DEFAULT_NORMALIZED_IMAGE_MAX_PIXELS).toBe(8_294_400)
+    expect(DEFAULT_NORMALIZED_IMAGE_MAX_BYTES).toBe(50 * 1024 * 1024)
     expect(service.imageLimits).toEqual({
       maxImageBytes: DEFAULT_MAX_IMAGE_BYTES,
       maxImagesPerMessage: DEFAULT_MAX_IMAGES_PER_MESSAGE,
@@ -126,6 +128,26 @@ describe('local attachment service', () => {
       expect(refs.map(ref => ref.name)).toEqual(['first.png', 'second.png'])
       await expect(Promise.all(refs.map(ref => service.readImage(ref))))
         .resolves.toHaveLength(2)
+    } finally {
+      await rm(dshHome, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves the bytes of a 4K UHD PNG above 4 MiB with default limits', async () => {
+    const dshHome = await mkdtemp(join(tmpdir(), 'dsh-attachment-4k-'))
+    try {
+      const service = new LocalAttachmentStore(new Context(), { dshHome })
+      const width = 3840
+      const height = 2160
+      const source = await sharp({
+        create: { width, height, channels: 3, background: { r: 12, g: 34, b: 56 } },
+      }).png({ compressionLevel: 0 }).toBuffer()
+      expect(source.byteLength).toBeGreaterThan(4 * 1024 * 1024)
+
+      const ref = await service.saveImage({ data: source, mediaType: 'image/png' })
+      expect(ref).toMatchObject({ width, height, mediaType: 'image/png', bytes: source.byteLength })
+      const stored = await service.readImage(ref)
+      expect(source.equals(stored.data)).toBe(true)
     } finally {
       await rm(dshHome, { recursive: true, force: true })
     }

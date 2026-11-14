@@ -1,0 +1,4 @@
+{
+  "displayName": "图像分层",
+  "shortDescription": "将上传图片按要求拆分图层，异步交付 PSD 文件。"
+}

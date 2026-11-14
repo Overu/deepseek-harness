@@ -1,0 +1,19 @@
+- region "技能中心":
+  - paragraph: 以专业为引擎，让团队与 AI 共成长
+  - heading "找到适合你的 AI 技能" [level=1]
+  - search:
+    - searchbox "搜索技能名称或简介"
+    - button "搜索"
+  - tablist "技能来源":
+    - tab "官方技能"
+    - tab "自定义技能" [selected]
+  - paragraph: 共 2 个技能
+  - tabpanel "自定义技能":
+    - article:
+      - heading "我的达人整合" [level=3]
+      - paragraph: 个人营销模板
+      - button "我的达人整合，查看详情": 详情
+    - article:
+      - heading "shared-brief" [level=3]
+      - paragraph: 整理团队共享的营销简报。
+      - button "shared-brief，查看详情": 详情

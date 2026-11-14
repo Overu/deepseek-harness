@@ -64,7 +64,7 @@ For a final Candidate, also verify after finalization that the GitHub Release is
 
 ## Publishing a verified release
 
-For a routine Insight Candidate release, run `Publish Insight update` from `insight` with `target=all`. The workflow sends one Feishu summary after all three platform jobs finish. Choose a single target when the release request specifies one platform. See [publish workflow details](../../scripts/insight-release/README.md#publish-workflow).
+For a routine Insight Candidate release, run `Publish Insight update` from `insight` with `target=all`. Choose a single target when the release request specifies one platform. See [publish workflow details and Feishu notification conditions](../../scripts/insight-release/README.md#publish-workflow).
 
 Configure the six Apple packaging inputs and the Ed25519 publication private key under GitHub repository `Settings → Environments → desktop-release → Environment secrets`. The `secrets` references in the [package workflow](../../.github/workflows/insight-package.yml) and [publish workflow](../../.github/workflows/insight-publish.yml) own the names. The Apple `.p8` key and update-manifest private key serve different purposes and cannot replace each other. Keep their contents out of documentation and logs.
 

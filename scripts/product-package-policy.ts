@@ -17,6 +17,7 @@ export interface ProductPackagePolicy {
  */
 export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolicy>> = {
   'packages/insight/canvas': { category: 'insight-product', reason: 'Required by the Insight distribution; the official Desktop composition remains unchanged.' },
+  'packages/insight/media-upload': { category: 'insight-product', reason: 'Required authenticated attachment upload tool for the Insight Desktop distribution.' },
   'packages/insight/memory-evolve': { category: 'insight-product', reason: 'Fixed private memory source for the Insight distribution.' },
   'packages/insight/prompt-enhance': { category: 'insight-product', reason: 'Fixed private composer enhancement source for the Insight distribution.' },
   'packages/insight/skill-center': { category: 'insight-product', reason: 'Required account platform skill management for the Insight distribution.' },
@@ -40,6 +41,7 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/web/web-search-perplexity': { category: 'optional', reason: 'Alternative search provider requiring its own API credentials.' },
   'packages/context/tmux-context': { category: 'optional', reason: 'Context contribution requiring a tmux pane.' },
   'packages/fs/tool-str-replace-editor': { category: 'optional', reason: 'Explicit alternative to the default filesystem editing tools.' },
+  'packages/fs/fs-observation-policy': { category: 'optional', reason: 'Read-before-mutation guard that a deployment enables on the disabled dsh-base row.' },
   'packages/sdk/client': { category: 'sdk', reason: 'Published TypeScript embedding client runs in the consumer process.' },
   'packages/typert/generator': { category: 'build', reason: 'Build-time generation of type metadata.' },
   'packages/test-support/agent-loop-testkit': { category: 'test', reason: 'Published agent-loop test harness.' },

@@ -8,6 +8,7 @@ export const INSIGHT_DESKTOP_PRODUCT = 'insight'
 export const INSIGHT_REQUIRED_BUNDLES: readonly string[] = [
   '@insight-ai/desktop-integration',
   '@insight-ai/desktop-canvas-plugin',
+  '@insight-ai/desktop-media-upload-plugin',
   'dsh-memory-evolve',
   'dsh-prompt-enhance',
   '@insight-ai/skill-center',

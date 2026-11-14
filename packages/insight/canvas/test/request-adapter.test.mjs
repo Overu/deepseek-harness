@@ -68,7 +68,7 @@ test('canvas request reports expired desktop login and rejects direct remote URL
     headers: { 'content-type': 'application/json' },
   })
   await assert.rejects(request('game-ai-editor-center/api/canvas/get', { id: '2873' }), AuthExpiredError)
-  await assert.rejects(request('https://gapi.insight-aigc.com/game-ai-editor-center/api/canvas/get', {}),
+  await assert.rejects(request('https://gapi-dsh.idealead.com/game-ai-editor-center/api/canvas/get', {}),
     /必须经桌面客户端转发/u)
 })
 

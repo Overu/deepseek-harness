@@ -12,12 +12,12 @@
 | --- | --- | --- |
 | `apps/desktop/src/main.ts` 与 `tests/main-startup.spec.ts`（安装确认） | macOS 必要提示使用更新窗口；Insight 安装按钮对精确目标版本的授权可在无活动任务时免去重复确认 | 用户授权的 Main 接入。Windows 或更新窗口关闭后保留原宿主。直接/官方入口、目标变化、活动任务和强更仍需确认；任务检查、锁定、新任务出现时中止及关停不变。Insight 授权仅存在于一次协调器安装尝试，所有结束路径均清除。上游确认组件或任务流程变化时复核 |
 | `packages/client/ui-conversation/src/client/locales.ts`、`skeleton/EmptyHero.tsx`、`skeleton/HeroShell.module.css` 及测试/快照 | 直接在共享字典使用 Insight 中文欢迎语，并移除预览标签及无用样式；不新增标题插槽 API | 用户明确接受共享 Web/Desktop 品牌变化。同步基线时保留中文标题与标签移除，其他语言的标题翻译继续沿用上游 |
-| `apps/desktop-host/package.json`、`apps/desktop/package.json` | 让四个私有 Insight 包进入既有递归运行时与 Main 进程依赖闭包 | Insight 组件随桌面运行时交付期间保留 |
+| `apps/desktop-host/package.json`、`apps/desktop/package.json` | 让私有 Insight 包进入既有递归运行时与 Main 进程依赖闭包 | Insight 组件随桌面运行时交付期间保留 |
 | `apps/desktop/src/main.ts` 及其测试 | 在 `userData` 前选择产品，要求 Insight 登录先于 Host 启动，把一个账号 Home 与凭据回调绑定到 Host，暴露渲染器安全账号操作，应用品牌，并且只在账号关停后重启 | 保持 Insight 生命周期分支显式，同时让官方路径不变 |
 | `apps/desktop/src/product.ts`、`insight-startup.ts`、`insight-account-exit.ts`、`insight-native-brand.ts` 及其测试 | 在上游 Main 流程外负责经校验的产品/运行时标识、隔离认证、隐藏的已保存登录态恢复、native Home 准入、有序账号拆除与产品原生标签 | 保持为产品模块，避免把 Insight 状态分散到通用 Desktop 服务中 |
 | `apps/desktop/src/host-process.ts` 及其测试 | 只在当前 Host 子进程与 Desktop Main 之间承载有界、经校验且可取消的账号令牌请求 | 为每个 Host 消费方保留令牌隔离、当前子进程校验与拆除取消 |
 | `apps/desktop/src/preload-app.ts`、`preload-insight-login.ts`、`client/insight-login.tsx`、其测试与 `tsdown.config.ts` | 构建登录渲染器桥接，并且只向已认证顶层 Insight 工作区暴露账号摘要与退出；通过仓库源码 alias 解析渲染器工作区导入 | 让两个渲染器上下文都无法获得令牌或不受限 Main IPC，并使冷 Desktop 构建不依赖预构建工作区 `lib/` 输出 |
-| `apps/desktop/src/project-manager.ts`、`fatal-recovery.ts` 及其测试 | 在 profile 创建、已有 profile 准备和插件恢复时保留产品必需的四个 bundle；只在登录后安装账号范围恢复 | 绝不让认证前恢复打开官方 Home 或其他账号 Home |
+| `apps/desktop/src/project-manager.ts`、`fatal-recovery.ts` 及其测试 | 在 profile 创建、已有 profile 准备和插件恢复时保留产品必需的 bundle；只在登录后安装账号范围恢复 | 绝不让认证前恢复打开官方 Home 或其他账号 Home |
 | `apps/desktop/scripts/dev.ts`、`development-app.ts`、`electron-builder-config.mjs`、其声明及测试 | 应用 Insight 应用 id、名称、图标、与 Shell 兼容的开发 userData、包元数据和产品/运行时版本拆分 | 保持构建标识为条件行为，让官方制品和签名输入不变 |
 | `apps/desktop/scripts/installer.nsh`、`apps/desktop/installer/path.nsh` 及定向安装器测试 | 仅 Insight appId 在相同 HKCU 已登记目录内识别旧 Windows 程序名，并在替换前检查新旧完整程序路径 | 保留路径校验、当前用户安装、appId/GUID、旧安装目录及未登记非空目录拒绝；不终止进程，不增加全局安装支持 |
 | `apps/desktop/scripts/package-target.ts` 及其测试 | 在桌面闭包选择前打入精确私有组件，并把 Insight 产品版本与 DSH 运行时版本分别记录 | 保持私有桌面打包和发布标识与公开发布成员独立 |
@@ -67,11 +67,14 @@ Insight 技能中心拥有平台技能安装和展示。它在每个账号本地
 
 [画布来源确认记录](../persistence-changes/2026-10-28-insight-canvas-attribution.zh.md) 记录读者兼容性，不改变 Session 写入版本，也不迁移用户数据。
 
+<a id="baseline-synchronization"></a>
 ## 基线同步
+
+DSH 运行时基线为 [`dsh-v0.2.2-rc.1`](https://github.com/deepseek-ai/deepseek-harness/releases/tag/dsh-v0.2.2-rc.1)。Desktop 菜单保留 Insight 操作，并提供上游的开发者工具命令。五个私有工作区包跟随 DSH 运行时版本，Insight 安装包使用独立的产品版本。
 
 逐项对照引入的基线，只有替代实现保留表中的产品选择、登录顺序、账号隔离、凭据限制、发布标识与发布保证后才删除本地改动。既有官方文件变化时更新本记录，私有包内部改动由包文档、来源记录和 Git 历史追踪。
 
-更新工作不改变 P4 的账号 Home 决定或四个必需组件。Insight 仍打开账号既有的 `harness` 目录，Integration、Canvas、Memory 和 Prompt 仍是随客户端更新的受保护产品组件。
+Insight 打开账号既有的 `harness` 目录。Integration、Canvas、Memory、Prompt 和技能中心仍是随客户端更新的受保护 bundle。
 
 ## Host 值依赖分类
 
@@ -87,7 +90,7 @@ Insight 技能中心拥有平台技能安装和展示。它在每个账号本地
 | --- | --- | --- |
 | 业务 Host 前登录并复用旧账号 Home | Host 插件无法控制 Host 启动前的 Electron 生命周期，也不能拥有原生加密凭据 | 保留 Main/Host 接入，不另建 launcher 或客户端。Main 接线是实际同步后再评估的维护成本，不据此提前建立框架 |
 | 托管模型认证 | 引入基线中的 Pi AI 包未公开网关所需的既有 profile/认证 helper | 公开三个 helper，避免复制实现；上游提供等价导出后删除本地差异 |
-| 四个必需组件 | 默认安装或界面禁用无法阻止 Host/工具/API 删除和替换，旧 profile 配置可能覆盖普通 bundle config | 保留执行端保护和 Main 固定策略。当前拒绝无法识别包身份的安装来源，包括超限本地归档，属于需单独取舍的产品限制 |
+| 必需组件 | 默认安装或界面禁用无法阻止 Host/工具/API 删除和替换，旧 profile 配置可能覆盖普通 bundle config | 保留执行端保护和 Main 固定策略。当前拒绝无法识别包身份的安装来源，包括超限本地归档，属于需单独取舍的产品限制 |
 | 与 Shell 一致的技能选择 | 整段替换草稿会丢失原子引用、引文或摘录，既有公开动作无法安全切换任意位置技能 token | 保留已批准的 toggleSkill/selectedSkills 扩展；代价是共享输入 API 引入技能概念，上游改变编辑器投影时需复核 |
 | Canvas 历史节点引用 | 来源装饰链只能增加呈现，无法在保留完整原生消息行的同时替换带标签的正文 | 保留完整消息 Factory，避免 Canvas 复制原生消息行。来源链拥有者变化属于共享语义变化，需要回归覆盖 |
 | 签名 OSS 发现与唯一 updater | 内置来源选择无法将 Insight 已验证 metadata 和渠道决定绑定到现有更新候选 | 在串行协调器中保留 custom provider 和目标绑定，保持下载/安装分别授权及生命周期归属 |

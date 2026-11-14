@@ -1,5 +1,7 @@
 /** Cordis plugin mounting the Host-only Insight account-token capability. */
 import type { Context } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-agent'
+import type { Session } from '@deepseek-ai/dsh-session'
 import Schema from '@deepseek-ai/schemastery'
 import { InsightAccount } from '../host.ts'
 import type { AuthEnvironment } from '../shared/auth-contracts.ts'
@@ -36,7 +38,7 @@ export const Config = Schema.object({
 })
 
 /**
- * Register the Host-only account service, managed model, and authenticated Web services.
+ * Register the Host-only account service, managed model with pre-dispatch recovery, and authenticated Web services.
  * @param ctx - Host context that owns the composed integration lifecycle.
  * @param config - Validated product deployment settings.
  * @returns when all child providers are active, or rejects after rolling back their resources.
@@ -58,6 +60,27 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         unregister()
         await adapter.dispose()
       }, 'insight-desktop: model gateway')
+      gatewayCtx.inject(['systemPrompt'], function toolArgumentRecovery(retryCtx) {
+        const retrying = new WeakSet<Session>()
+        retryCtx.systemPrompt.context({
+          name: 'insight-tool-argument-retry',
+          order: 0,
+          required: true,
+          text: ({ agent }) => agent && retrying.has(agent.session)
+            ? 'The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.'
+            : '',
+        })
+        retryCtx.on('agent/request-error', ({ agent, provider, failure, signal }, next) => {
+          // On this route pi-ai uses this code for invalid completed tool arguments.
+          if (provider !== INSIGHT_MODEL_PROVIDER || failure.code !== 'MALFORMED_RESPONSE') return next()
+          if (signal.aborted || retrying.has(agent.session)) return Promise.resolve(undefined)
+          retrying.add(agent.session)
+          return Promise.resolve({ kind: 'retry' })
+        }, { global: true })
+        retryCtx.on('session/event', (session, event) => {
+          if (event.type === 'step/end') retrying.delete(session)
+        }, { global: true })
+      })
     })
     yield gatewayFiber.dispose
 

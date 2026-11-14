@@ -1,0 +1,17 @@
+{
+  "formatVersion": 2,
+  "roots": [
+    {"key":"event:deliverables/presented","kind":"event","event":"deliverables/presented","surface":false,"digest":"13d3d180f977bf78081d487ffa0ecb75857349bcab29a5a3fb48189fca2a6176"}
+  ],
+  "types": [],
+  "nodes": {
+    "0657d3ca5ac4e7bf": {"kind":"primitive","type":"number"},
+    "13d3d180f977bf78": {"kind":"object","properties":[{"name":"data","type":"1528539c63db8b23","optional":false},{"name":"ignorable","type":"dacf3d5f3e4ff619","optional":true},{"name":"seq","type":"0657d3ca5ac4e7bf","optional":false},{"name":"time","type":"0657d3ca5ac4e7bf","optional":false},{"name":"type","type":"1a2718b00937b236","optional":false}],"indices":[]},
+    "1528539c63db8b23": {"kind":"object","properties":[{"name":"callId","type":"4cd48f3e5108bd6e","optional":false},{"name":"files","type":"1d9cb3caa96100b1","optional":false},{"name":"turn","type":"0657d3ca5ac4e7bf","optional":false}],"indices":[]},
+    "1a2718b00937b236": {"kind":"literal","value":"deliverables/presented"},
+    "1d9cb3caa96100b1": {"kind":"array","element":"b8fc636a2121df9d"},
+    "4cd48f3e5108bd6e": {"kind":"primitive","type":"string"},
+    "b8fc636a2121df9d": {"kind":"object","properties":[{"name":"description","type":"4cd48f3e5108bd6e","optional":true},{"name":"path","type":"4cd48f3e5108bd6e","optional":false}],"indices":[]},
+    "dacf3d5f3e4ff619": {"kind":"literal","value":true}
+  }
+}

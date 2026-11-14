@@ -36,6 +36,11 @@ Same-process service consumed only by trusted Host plugins. It has no Remote or 
  * @returns the token without persisting, logging, or exposing it through a remote service.
  */
 getAccessToken(signal?: AbortSignal): Promise<string>
+
+/** Return a noncredential identifier for the Main-selected account home.
+ * @returns Stable account scope for task ownership checks across Host restarts.
+ */
+getAccountScope(): string
 ```
 
 Source: [`packages/insight/desktop-integration/src/host/account-service.ts`](../../packages/insight/desktop-integration/src/host/account-service.ts)
@@ -57,11 +62,18 @@ initialize(): Promise<void>
 @Remote listInstalled(): Promise<PlatformSkillSnapshot>
 
 /**
+ * Admit one automatic preset installation during this account Host lifetime.
+ * @returns True only for the first caller, including when that attempt later fails.
+ */
+@Remote claimPresetInstallation(): boolean
+
+/**
  * List configured platform skills eligible for this account's first automatic installation.
  * @param catalogue - Published identities used to resolve configured selectors.
+ * @param signal - Optional cancellation of this eligibility read.
  * @returns Identities absent from both installed records and account installation history.
  */
-@Remote listPendingPresets(catalogue: readonly SkillIdentity[]): Promise<readonly SkillIdentity[]>
+@Remote listPendingPresets(catalogue: readonly SkillIdentity[], signal?: AbortSignal): Promise<readonly SkillIdentity[]>
 
 /**
  * Observe another client's admitted installation without cancelling its work.
@@ -95,18 +107,25 @@ async listLegacyCandidates(options: SkillLookupOptions): Promise<readonly SkillC
 
 /**
  * Remove one committed skill selection and then reclaim its immutable payload.
- * @param request - Local key and current catalogue identity of the installation to remove.
+ * @param request - Technical name of the installation to remove.
  * @param signal - Cancellation is honored before record removal commits.
  * @returns current committed installation state.
  */
 @Remote('removeSkill') async remove(request: PlatformSkillRemovalRequest, signal: AbortSignal): Promise<PlatformSkillSnapshot>
 
 /**
- * List effective candidates from only payloads selected by committed records.
+ * List committed account candidates followed by package-owned skills, omitting a package candidate with an installed name.
  * @param options - Lookup cancellation and working-directory context.
  * @returns Complete candidates, or an explicitly incomplete observation.
  */
 async listCandidates(options: SkillLookupOptions): Promise<readonly SkillCandidate[] | SkillProviderObservation>
+
+/** Register a trusted package's single root skill below account installations and above legacy roots.
+ * @param root - Absolute package-owned skill directory containing SKILL.md.
+ * @param skillName - Expected invocation name in the skill frontmatter.
+ * @returns Disposer that removes this package's candidate and refreshes skill discovery.
+ */
+async registerPackagedSkillRoot(root: string, skillName: string): Promise<() => void>
 
 /**
  * Load one candidate previously returned by {@link listCandidates}.

@@ -43,9 +43,9 @@ kind: "package-reference"
 | `maxMessageImageBytes` | `200 MiB` | 单条提交消息接受的最大编码源图字节总数 |
 | `maxImagePixels` | `64,000,000` | 源图宽度与高度乘积的最大值 |
 | `maxImageDimension` | `65,535` | 源图接受的最大宽度或高度；默认值让 `maxImagePixels` 单独把关，长边由规范化缩小 |
-| `normalizedImageMaxPixels` | `2048 × 2048` | 已存规范化图片的总像素预算 |
+| `normalizedImageMaxPixels` | `8,294,400`（3840 × 2160） | 已存规范化图片的总像素预算 |
 | `normalizedImageMaxDimension` | `8192` | 应用总像素预算后的最大长边 |
-| `normalizedImageMaxBytes` | `4 MiB` | 编码字节目标；没有候选满足时保留质量阶梯中的最小输出 |
+| `normalizedImageMaxBytes` | `50 MiB` | 编码字节目标。没有候选满足时，存储服务保留质量阶梯中的最小输出。 |
 | `imageCompressionConcurrency` | `2` | 并发规范化与请求变换的 FIFO 上限 |
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-attachment-local)完整列出了所有受支持的字段及其 JSDoc。
@@ -85,7 +85,7 @@ kind: "package-reference"
 
 图片读取接收包含规范 `sha256:` ID 的完整引用，在该存储目录内推导对象路径，校验完整摘要，并探测图片文件头。实际格式、字节数、宽度和高度必须与传入引用一致。返回的引用把可选的 `name` 和 `originalDimensions` 作为调用方提交的显示信息原样保留，不根据对象校验这两个字段。读取不查询 Session 历史，也不重新应用准入限制；对象缺失或校验失败都会拒绝读取。
 
-准入允许每条消息最多 20 张图片与 200 MiB 源字节；单个源图最多 50 MiB、6400 万像素与单边 65,535 像素。系统应用方向、移除元数据与色彩配置，并把规范化结果限制在 2048×2048 总像素预算、8192 像素长边和 4 MiB 编码字节目标内，因此，即使宽高比极端，图片也会保留短边分辨率。已经满足限制的干净、单帧、8-bit sRGB/sRGBA PNG、JPEG 或 WebP 会逐字节直通；GIF、动画、元数据、方向、16-bit PNG 与不兼容色彩空间会触发转换。
+存储服务先按准入限制检查源图，再应用上表中独立的规范化限制。无元数据的单帧 8-bit sRGB/sRGBA PNG、JPEG 或 WebP 在符合规范化限制时逐字节保存。默认总像素预算可容纳 4K UHD（3840 × 2160）。GIF、动画、元数据、EXIF 方向、16-bit PNG 和不兼容的色彩空间会触发转换。
 
 请求版本位于由 `dshCachePath` 解析的 `<DSH_HOME>/cache/attachments/request-images/`；显式 `dshHome` 设置同时适用于缓存与持久存储。在两次请求之间清空此缓存会保留持久附件，后续读取会重新生成请求版本。`readImageRequest` 在不放大的前提下缩放到路由选定的目标尺寸，缩放只按长边给定，短边由编码器按路由预测的方式推出，随后通过相同的 alpha 路由与质量阶梯应用独立编码字节目标。缓存身份包含附件 id、变换版本、目标尺寸、字节目标与固定编码参数；缓存字节会先通过文件头探测格式、8-bit sRGB/sRGBA、尺寸与 alpha 信息，不匹配时重新生成。并发调用方共享一次变换与缓存写入，且只在没有等待方时由取消停止共享工作。`imageHostPath` 派生规范化对象的宿主路径，挂载的文件系统可以把该路径映射进执行世界，而不会写入持久历史。
 
