@@ -5,6 +5,7 @@ import type { Session } from '@deepseek-ai/dsh-session'
 import Schema from '@deepseek-ai/schemastery'
 import { InsightAccount } from '../host.ts'
 import type { AuthEnvironment } from '../shared/auth-contracts.ts'
+import { toolArgumentFailure } from '../shared/tool-argument-failure.ts'
 import { startInsightBusinessServices } from './business-services.ts'
 import { createInsightModelGatewayAdapter, INSIGHT_MODEL_PROVIDER } from './model-gateway.ts'
 
@@ -61,24 +62,29 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         await adapter.dispose()
       }, 'insight-desktop: model gateway')
       gatewayCtx.inject(['systemPrompt'], function toolArgumentRecovery(retryCtx) {
-        const retrying = new WeakSet<Session>()
+        const retrying = new WeakMap<Session, string>()
+        const diagnostics = new WeakMap<Session, ReturnType<typeof toolArgumentFailure>>()
         retryCtx.systemPrompt.context({
           name: 'insight-tool-argument-retry',
           order: 0,
           required: true,
-          text: ({ agent }) => agent && retrying.has(agent.session)
-            ? 'The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.'
-            : '',
+          text: ({ agent }) => agent === undefined ? '' : retrying.get(agent.session) ?? '',
         })
         retryCtx.on('agent/request-error', ({ agent, provider, failure, signal }, next) => {
           // On this route pi-ai uses this code for invalid completed tool arguments.
           if (provider !== INSIGHT_MODEL_PROVIDER || failure.code !== 'MALFORMED_RESPONSE') return next()
           if (signal.aborted || retrying.has(agent.session)) return Promise.resolve(undefined)
-          retrying.add(agent.session)
+          const diagnostic = diagnostics.get(agent.session)
+          const detail = diagnostic === undefined ? '' : ` Tool call "${diagnostic.name}": ${diagnostic.detail}.`
+          retrying.set(agent.session, `The previous tool call arguments could not be parsed as JSON.${detail} No tools ran in that attempt. Regenerate valid JSON according to the tool schema.`)
           return Promise.resolve({ kind: 'retry' })
         }, { global: true })
         retryCtx.on('session/event', (session, event) => {
-          if (event.type === 'step/end') retrying.delete(session)
+          if (event.type === 'assistant/attempt') diagnostics.set(session, toolArgumentFailure(event.data.stream))
+          if (event.type === 'step/end') {
+            diagnostics.delete(session)
+            retrying.delete(session)
+          }
         }, { global: true })
       })
     })

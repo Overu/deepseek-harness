@@ -250,7 +250,7 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
 
     loader.child.send('observe-tool-argument-retry')
     const feedback = { name: 'insight-tool-argument-retry',
-      text: 'The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.' }
+      text: 'The previous tool call arguments could not be parsed as JSON. Tool call "insight_retry_probe": Expected \',\' or \'}\' after property value in JSON at position 33 (line 1 column 34). No tools ran in that attempt. Regenerate valid JSON according to the tool schema.' }
     await expect(loader.toolArgumentRetry).resolves.toMatchObject([
       {
         feedbackAtRequest: [false, true, false],

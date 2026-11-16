@@ -82,7 +82,7 @@ function changeObservation(change) {
 async function observeToolArgumentRetry(ctx) {
   const name = 'insight_retry_probe'
   const good = '{"ops":[{"params":{"gen_count":1}}]}'
-  const malformed = '{"ops":[{"params":{"gen_count":1}}}},{"params":{"gen_count":1}}]}'
+  const malformed = good.replace('}}]', '}]')
   const gateway = 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1/chat/completions'
   const results = []
   let executions = []
@@ -139,7 +139,7 @@ async function observeToolArgumentRetry(ctx) {
         await agent.whenIdle()
         results.push({
           feedbackAtRequest: requests.map(request => request.messages.map(message => JSON.stringify(message.content))
-            .findLast(content => content?.includes('Current runtime context'))?.includes('The previous tool call arguments could not be parsed as JSON.') ?? false),
+            .findLast(content => content?.includes('Current runtime context'))?.includes(`Tool call \\"${name}\\": Expected`) ?? false),
           countAtRequest,
           executions,
           calls: events.filter(event => event.type === 'tool/call').map(event => event.data.callId),
