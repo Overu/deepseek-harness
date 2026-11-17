@@ -884,7 +884,7 @@ index fafb86c..0000000
 -3. **Inside vs outside, complementary collaboration**: internal sessions handle context-heavy work, external agents handle one-shot heavy work; memory, rooms, and prompts chain them into a pipeline.
 diff --git a/README.i18n.yaml b/README.i18n.yaml
 new file mode 100644
-index 0000000..9352db2
+index 0000000..011a25a
 --- /dev/null
 +++ b/README.i18n.yaml
 @@ -0,0 +1,43 @@
@@ -905,8 +905,8 @@ index 0000000..9352db2
 +  en: 76368b6b1da79c80
 +  zh: 52384aee991ac542
 +/dsh-memory-evolve/use-this-package:
-+  en: 36cf13c3dacef542
-+  zh: d98f04ca7ffca8df
++  en: 5ad5af0542be804a
++  zh: 63321078b3046702
 +/dsh-memory-evolve/understand-the-implementation:
 +  en: 3403ccfa4307f776
 +  zh: ffe930f02d14246c
@@ -932,10 +932,10 @@ index 0000000..9352db2
 +  en: d54467a34f0b85b4
 +  zh: debd7c3cad85acad
 diff --git a/README.md b/README.md
-index ffe4e2f..fd5c19f 100644
+index ffe4e2f..112366a 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,319 +1,76 @@
+@@ -1,319 +1,78 @@
 -# dsh-memory-evolve 使用场景指南
 -
 -> **一句话**：让 DSH 里的 AI 拥有跨会话的长期记忆、帮你管理待办与技能、还能拉起一群 AI 会话和外部 AI 代理协同干活——**越用越懂你，换会话不丢上下文**。
@@ -1068,6 +1068,8 @@ index ffe4e2f..fd5c19f 100644
 +The bundle patch inserts the retained `dsh-memory-evolve` plugin identifier. Profile composition and product activation are owned by the Insight integration package.
 +
 +Skill auto-harvest is on by default. In the Memory settings, turn it off and save to send subsequent skills created by `skill_manage` to the pending queue for approval. A saved choice takes precedence over the default after restart.
++
++Branch and project lookups use Git when available. Without usable Git, the snapshot reads project memory by working directory and skips branch filtering. On macOS, these lookups avoid the system Git installer.
 
 -**怎么用**：
 +-----
@@ -1302,10 +1304,10 @@ index ffe4e2f..fd5c19f 100644
 +</details>
 diff --git a/README.zh.md b/README.zh.md
 new file mode 100644
-index 0000000..4e1427a
+index 0000000..9231ddd
 --- /dev/null
 +++ b/README.zh.md
-@@ -0,0 +1,76 @@
+@@ -0,0 +1,78 @@
 +---
 +description: "Memory Evolve 为 Insight DSH 组合提供分层本地记忆、技能与待办管理及其工作区界面。"
 +kind: "package-bundle"
@@ -1335,6 +1337,8 @@ index 0000000..4e1427a
 +bundle patch 插入保留的 `dsh-memory-evolve` 插件标识符。profile 组合和产品启用由 Insight integration 包负责。
 +
 +技能自动沉淀默认开启。在记忆设置中关闭并保存后，`skill_manage` 后续新建的技能会进入待确认队列。重启后，已保存的设置优先于默认值。
++
++分支和项目查询在 Git 可用时使用 Git。Git 不可用时，快照按工作目录读取项目记忆，并跳过分支筛选。macOS 上的这些查询不会触发系统 Git 安装提示。
 +
 +-----
 +
@@ -94386,10 +94390,84 @@ index 788cc39..2956fe0 100644
 -          // the live skills dir when the user approves it in the panel.
 -          // Applies to every session (the review runs in the main session).
            if (!config.skillReviewEnabled) {
+diff --git a/src/host/git.js b/src/host/git.js
+new file mode 100644
+index 0000000..d0ef5ce
+--- /dev/null
++++ b/src/host/git.js
+@@ -0,0 +1,35 @@
++/** Resolve Git for background queries without opening the macOS installer. */
++import { spawnSync } from 'node:child_process'
++import { accessSync, constants, realpathSync, statSync } from 'node:fs'
++import { isAbsolute, join, resolve } from 'node:path'
++
++/** @returns {string | undefined} The canonical path of an executable file. */
++function executablePath(path) {
++  try {
++    accessSync(path, constants.X_OK)
++    return statSync(path).isFile() ? realpathSync(path) : undefined
++  } catch {
++    return undefined
++  }
++}
++
++/**
++ * Resolve the Git command for a local background query.
++ * @param {string} cwd - Working directory used for relative PATH entries.
++ * @returns {string | undefined} The command to run, or undefined when unavailable.
++ */
++export function resolveGit(cwd) {
++  if (process.platform !== 'darwin') return 'git'
++  for (const entry of (process.env.PATH ?? '/usr/bin:/bin').split(':')) {
++    const candidate = resolve(cwd, entry, 'git')
++    const executable = executablePath(candidate)
++    if (!executable) continue
++    if (executable !== '/usr/bin/git') return candidate
++    const developer = spawnSync('/usr/bin/xcode-select', ['-p'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 1000 })
++    if (developer.status !== 0 || !isAbsolute(developer.stdout.trim())) continue
++    const installed = join(developer.stdout.trim(), 'usr/bin/git')
++    const git = executablePath(installed)
++    if (git && git !== '/usr/bin/git') return installed
++  }
++  return undefined
++}
 diff --git a/lib/store.js b/src/host/store.js
-similarity index 100%
+similarity index 99%
 rename from lib/store.js
 rename to src/host/store.js
+index 6c9ead0..57a827d 100644
+--- a/lib/store.js
++++ b/src/host/store.js
+@@ -33,6 +33,7 @@ const stt = (key, params) => translate(STORE_TAIL_DICT, key, params, getLocale()
+ import { spawnSync } from 'node:child_process'
+ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+ import { dirname, join } from 'node:path'
++import { resolveGit } from './git.js'
+ import { extractEntryId, genEntryId, legacyIdFor, stripEntryId } from './sync/entryid.js'
+ 
+ /** Entry delimiter, byte-compatible with Hermes MEMORY.md / USER.md. */
+@@ -485,7 +486,9 @@ export function projectLabel(cwd) {
+ export function gitBranch(cwd) {
+   if (!cwd) return undefined
+   try {
+-    const result = spawnSync('git', ['branch', '--show-current'], {
++    const git = resolveGit(cwd)
++    if (!git) return undefined
++    const result = spawnSync(git, ['branch', '--show-current'], {
+       cwd, encoding: 'utf8', timeout: 1000, stdio: ['ignore', 'pipe', 'ignore'],
+     })
+     if (result.error || result.status !== 0) return undefined
+@@ -505,7 +508,9 @@ export function gitBranch(cwd) {
+ export function gitBranchList(cwd) {
+   if (!cwd) return []
+   try {
+-    const result = spawnSync('git', ['branch', '--format=%(refname:short)'], {
++    const git = resolveGit(cwd)
++    if (!git) return []
++    const result = spawnSync(git, ['branch', '--format=%(refname:short)'], {
+       cwd, encoding: 'utf8', timeout: 1000, stdio: ['ignore', 'pipe', 'ignore'],
+     })
+     if (result.error || result.status !== 0) return []
 diff --git a/lib/sync/entryid.js b/src/host/sync/entryid.js
 similarity index 100%
 rename from lib/sync/entryid.js
@@ -94399,9 +94477,92 @@ similarity index 100%
 rename from lib/sync/filesets.js
 rename to src/host/sync/filesets.js
 diff --git a/lib/sync/identity.js b/src/host/sync/identity.js
-similarity index 100%
+similarity index 94%
 rename from lib/sync/identity.js
 rename to src/host/sync/identity.js
+index d4414a5..3ee0c4a 100644
+--- a/lib/sync/identity.js
++++ b/src/host/sync/identity.js
+@@ -23,6 +23,7 @@ import { createHash } from 'node:crypto'
+ import { spawnSync } from 'node:child_process'
+ import { existsSync } from 'node:fs'
+ import { join } from 'node:path'
++import { resolveGit } from '../git.js'
+ import { projectHash, projectLabel } from '../store.js'
+ 
+ /**
+@@ -133,21 +134,24 @@ export function sanitizeRemoteUrl(url) {
+  */
+ export function resolveMainRemote(cwd) {
+   if (typeof cwd !== 'string' || cwd === '') return null
++  const git = resolveGit(cwd)
++  if (!git) return null
++  const query = (args) => runGit(git, args, cwd)
+ 
+   // origin 优先（git remote get-url 输出即完整 URL；无 get-url 的老版本
+   // git 用 `git config --get remote.<name>.url` 兜底）
+   let name = 'origin'
+-  let url = gitRemoteUrl(cwd, name)
++  let url = gitRemoteUrl(query, name)
+   if (url === undefined) {
+     // 无 origin → 取 git remote 列表第一个
+-    const names = gitRemoteNames(cwd)
++    const names = gitRemoteNames(query)
+     if (names.length === 0) return null
+     name = names[0]
+-    url = gitRemoteUrl(cwd, name)
++    url = gitRemoteUrl(query, name)
+   }
+   if (url === undefined) return null
+ 
+-  return { name, url, root: gitTopLevel(cwd) }
++  return { name, url, root: query(['rev-parse', '--show-toplevel']) }
+ }
+ 
+ /**
+@@ -231,34 +235,30 @@ export function resolveProjectDir(memoryDir, cwd) {
+ /* ---------------- 内部 git 查询辅助（全部本地、同步、毫秒级） ---------------- */
+ 
+ /** `git remote get-url <name>`（老 git 兜底 `git config --get remote.<name>.url`）。 */
+-function gitRemoteUrl(cwd, name) {
+-  let result = runGit(['remote', 'get-url', name], cwd)
++function gitRemoteUrl(query, name) {
++  let result = query(['remote', 'get-url', name])
+   if (result === undefined) {
+-    result = runGit(['config', '--get', `remote.${name}.url`], cwd)
++    result = query(['config', '--get', `remote.${name}.url`])
+   }
+   return result
+ }
+ 
+ /** `git remote`（列出全部 remote 名）。 */
+-function gitRemoteNames(cwd) {
+-  const out = runGit(['remote'], cwd)
++function gitRemoteNames(query) {
++  const out = query(['remote'])
+   if (out === undefined) return []
+   return out.split('\n').map((n) => n.trim()).filter((n) => n.length > 0)
+ }
+ 
+-/** `git rev-parse --show-toplevel`（仓库根；非仓库/无 git 时 undefined）。 */
+-function gitTopLevel(cwd) {
+-  return runGit(['rev-parse', '--show-toplevel'], cwd)
+-}
+-
+ /**
+  * 执行本地 git 命令。失败返回 undefined（调用方区分"无输出"与"命令失败"）。
++ * @param {string} git
+  * @param {string[]} args
+  * @param {string} cwd
+  */
+-function runGit(args, cwd) {
++function runGit(git, args, cwd) {
+   try {
+-    const result = spawnSync('git', args, {
++    const result = spawnSync(git, args, {
+       cwd, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'],
+     })
+     if (result.error || result.status !== 0) return undefined
 diff --git a/lib/sync/index.js b/src/host/sync/index.js
 similarity index 99%
 rename from lib/sync/index.js
@@ -117889,5 +118050,91 @@ index 0000000..4276633
 +    await reopened.expectSkill('queued-after-restart', false)
 +  } finally {
 +    reopened.dispose()
++  }
++})
+diff --git a/tests/git-probes.test.mjs b/tests/git-probes.test.mjs
+new file mode 100644
+index 0000000..ae94377
+--- /dev/null
++++ b/tests/git-probes.test.mjs
+@@ -0,0 +1,80 @@
++import assert from 'node:assert/strict'
++import childProcess from 'node:child_process'
++import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
++import { syncBuiltinESMExports } from 'node:module'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import test from 'node:test'
++import { renderSnapshot } from '../src/host/index.js'
++import { ENTRY_DELIMITER, MemoryStore, gitBranchList, projectHash } from '../src/host/store.js'
++import { resolveProjectId } from '../src/host/sync/identity.js'
++import { makeProjectDirResolver } from '../src/host/sync/index.js'
++
++test('macOS memory snapshots bypass the installer and use available Git', { skip: process.platform !== 'darwin' }, (t) => {
++  const cwd = mkdtempSync(join(tmpdir(), 'dsh-memory-git-'))
++  t.after(() => rmSync(cwd, { recursive: true, force: true }))
++  const originalPath = process.env.PATH
++  const spawnSync = childProcess.spawnSync
++  const stub = join(cwd, 'shim', 'git')
++  mkdirSync(join(cwd, 'shim'))
++  symlinkSync('/usr/bin/git', stub)
++  const launches = []
++  let developerDir
++  t.mock.method(childProcess, 'spawnSync', (program, args, options) => {
++    if (program === '/usr/bin/xcode-select') {
++      return developerDir ? { status: 0, stdout: developerDir + '\n' } : { status: 1, stdout: '' }
++    }
++    launches.push(program)
++    if (['git', '/usr/bin/git', stub].includes(program)) return { status: 1, stdout: '' }
++    return spawnSync(program, args, options)
++  })
++  syncBuiltinESMExports()
++  try {
++    process.env.PATH = 'shim'
++    const config = { memoryDir: join(cwd, 'memory') }
++    const agent = { session: { header: { cwd } } }
++    const projectDirResolver = makeProjectDirResolver(config)
++    const store = new MemoryStore(config.memoryDir, { projectDirResolver })
++    const entries = ['[branch:main] Primary branch fact', '[branch:other] Other branch fact'].join(ENTRY_DELIMITER)
++    const memoryPath = join(config.memoryDir, 'projects', projectHash(cwd))
++    mkdirSync(memoryPath, { recursive: true })
++    writeFileSync(join(memoryPath, 'KEY.md'), entries)
++    assert.match(renderSnapshot(config, store, agent), /Other branch fact/u)
++    assert.deepEqual(gitBranchList(cwd), [])
++    assert.equal(resolveProjectId(cwd).kind, 'fallback')
++    assert.deepEqual(launches, [])
++
++    const installedDeveloperDir = join(cwd, 'Developer')
++    const gitDir = join(installedDeveloperDir, 'usr', 'bin')
++    mkdirSync(gitDir, { recursive: true })
++    writeFileSync(join(gitDir, 'git'), `#!/bin/sh
++case "$*" in
++  'branch --show-current') printf 'main\\n' ;;
++  'branch --format=%(refname:short)') printf 'main\\nother\\n' ;;
++  'remote get-url origin') printf 'https://example.com/team/project.git\\n' ;;
++  'rev-parse --show-toplevel') pwd ;;
++  *) exit 1 ;;
++esac
++`, { mode: 0o700 })
++    for (const [path, selectedDir] of [
++      ['shim', installedDeveloperDir],
++      ['Developer/usr/bin:shim', undefined],
++      ['shim:Developer/usr/bin', join(cwd, 'missing-developer-tools')],
++    ]) {
++      process.env.PATH = path
++      developerDir = selectedDir
++      const identity = resolveProjectId(cwd)
++      assert.equal(identity.key, 'example.com/team/project')
++      const snapshot = renderSnapshot(config, store, agent)
++      assert.match(snapshot, /Primary branch fact/u)
++      assert.doesNotMatch(snapshot, /Other branch fact/u)
++      assert.deepEqual(gitBranchList(cwd), ['main', 'other'])
++    }
++    assert.deepEqual([...new Set(launches)], [join(gitDir, 'git')])
++  } finally {
++    if (originalPath === undefined) delete process.env.PATH
++    else process.env.PATH = originalPath
++    t.mock.restoreAll()
++    syncBuiltinESMExports()
 +  }
 +})
