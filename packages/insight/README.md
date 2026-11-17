@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This group keeps the Insight Desktop integration together with fixed Canvas, media upload, memory, and prompt enhancement sources. These private components are delivered through the desktop distribution and are excluded from the public npm baseline. The Insight profile requires Integration, Canvas, Media Upload, Memory, and Prompt; component-internal feature switches remain available. The official Desktop profile activates none of them.
+This group keeps the private Insight Desktop components delivered with the Insight profile. Desktop loads the product bundles on startup and retains them through recovery. Each component owns its internal feature switches.
 
 ## Table of Contents
 
@@ -31,6 +31,8 @@ The components belong to one Insight product distribution.
 | [media-upload](media-upload/README.md) | Approved attachment uploads to OSS and authenticated image-layer generation tools |
 | [memory-evolve](memory-evolve/README.md) | Fixed memory, skills, and task-management source |
 | [prompt-enhance](prompt-enhance/README.md) | Composer prompt enhancement |
+| [skill-center](skill-center/README.md) | Account platform skill installation and discovery |
+| [builtin-skill-extensions](builtin-skill-extensions/README.md) | Supplemental guidance for built-in Office workflows |
 
 <a id="related-documentation"></a>
 ## Related documentation

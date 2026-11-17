@@ -12,6 +12,7 @@ export const INSIGHT_REQUIRED_BUNDLES: readonly string[] = [
   'dsh-memory-evolve',
   'dsh-prompt-enhance',
   '@insight-ai/skill-center',
+  '@insight-ai/builtin-skill-extensions',
 ]
 
 /** Environment variable that selects the Insight product for development. */

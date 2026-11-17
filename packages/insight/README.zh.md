@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 摘要
 
-本组集中维护 Insight Desktop 集成以及固定的 Canvas、媒体上传、记忆和提示词增强源码。私有组件随桌面发行版交付，不进入公开 npm 基线。Insight profile 将 Integration、Canvas、Media Upload、Memory 和 Prompt 作为必需组件，保留组件内部功能开关。官方 Desktop profile 不激活其中任何组件。
+本组维护随 Insight profile 交付的私有 Insight Desktop 组件。Desktop 在启动时加载产品组合，恢复时保留这些组合。各组件负责自己的内部功能开关。
 
 ## 目录
 
@@ -31,6 +31,8 @@ kind: "package-group"
 | [media-upload](media-upload/README.zh.md) | 经审批将当前轮次附件上传至 OSS，并提供登录态图像分层工具 |
 | [memory-evolve](memory-evolve/README.zh.md) | 固定的记忆、技能和任务管理源码 |
 | [prompt-enhance](prompt-enhance/README.zh.md) | 输入区提示词增强 |
+| [skill-center](skill-center/README.zh.md) | 账号平台技能的安装与发现 |
+| [builtin-skill-extensions](builtin-skill-extensions/README.zh.md) | 内置 Office 工作流的补充指引 |
 
 <a id="related-documentation"></a>
 ## 相关文档

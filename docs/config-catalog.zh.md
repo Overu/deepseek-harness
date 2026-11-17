@@ -4833,6 +4833,33 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@insight-ai/builtin-skill-extensions -->
+<a id="insight-aibuiltin-skill-extensions"></a>
+
+## `@insight-ai/builtin-skill-extensions`
+
+- `inject`: `systemPrompt` · `tools` · `fs` · `workingDirectory` · `sandbox` · `sandboxPolicy` · `subprocess`
+- `source`: [`packages/insight/builtin-skill-extensions/src/index.ts:15`](../packages/insight/builtin-skill-extensions/src/index.ts)
+
+```ts config-catalog
+/** Resource limits for Office tools. */
+export interface Config {
+  /** Maximum PDF input bytes read per call. */
+  readonly pdfMaxInputBytes: number
+  /** Maximum consecutive pages read per call. */
+  readonly pdfMaxPagesPerCall: number
+  /** Maximum UTF-8 bytes in one extraction result. */
+  readonly pdfMaxOutputBytes: number
+  /** Maximum size of a saved PPTX eligible for one render retry, in bytes. */
+  readonly pptxRetryMaxInputBytes: number
+  /** Deadline in milliseconds for the complete visual review command. */
+  readonly pptxRenderTimeoutMs: number
+  /** Grace period in milliseconds before forced termination. */
+  readonly pptxRenderGraceMs: number
+}
+```
+<!-- END GENERATED config-catalog:@insight-ai/builtin-skill-extensions -->
+
 <!-- BEGIN GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->
 <a id="insight-aidesktop-media-upload-plugin"></a>
 

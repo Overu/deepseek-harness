@@ -8,4 +8,5 @@ export const INSIGHT_PRODUCT_PACKAGES: Readonly<Record<string, string>> = {
   'packages/insight/memory-evolve': 'dsh-memory-evolve',
   'packages/insight/prompt-enhance': 'dsh-prompt-enhance',
   'packages/insight/skill-center': '@insight-ai/skill-center',
+  'packages/insight/builtin-skill-extensions': '@insight-ai/builtin-skill-extensions',
 }
