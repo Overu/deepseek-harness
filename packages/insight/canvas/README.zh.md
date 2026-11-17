@@ -30,6 +30,8 @@ kind: "package-bundle"
 
 画布根据已连线的媒体节点判断生成模式，空节点也参与判断。提示词引用和实际生成输入需要已有内容的素材。
 
+点击助手回复中的画布链接，可在当前会话的右侧栏打开画布。
+
 iframe 从 `canvas-app` 构建；guidance 归本包拥有。[upstream.json](upstream.json) 记录源码输入和保留的标识。
 
 <a id="understand-the-implementation"></a>
