@@ -26,6 +26,8 @@ kind: "package-bundle"
 
 bundle patch 插入保留的 `dsh-memory-evolve` 插件标识符。profile 组合和产品启用由 Insight integration 包负责。
 
+技能自动沉淀默认开启。在记忆设置中关闭并保存后，`skill_manage` 后续新建的技能会进入待确认队列。重启后，已保存的设置优先于默认值。
+
 -----
 
 <a id="understand-the-implementation"></a>

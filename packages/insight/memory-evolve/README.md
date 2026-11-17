@@ -26,6 +26,8 @@ This package carries the fixed Memory Evolve source snapshot for Insight. Its ho
 
 The bundle patch inserts the retained `dsh-memory-evolve` plugin identifier. Profile composition and product activation are owned by the Insight integration package.
 
+Skill auto-harvest is on by default. In the Memory settings, turn it off and save to send subsequent skills created by `skill_manage` to the pending queue for approval. A saved choice takes precedence over the default after restart.
+
 -----
 
 <a id="understand-the-implementation"></a>
