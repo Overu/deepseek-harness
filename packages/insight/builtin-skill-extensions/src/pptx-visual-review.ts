@@ -30,6 +30,11 @@ type ProcessResult = { readonly exitCode: number | null; readonly stdout: string
 const OUTPUT_BYTES = 2 * 1024 * 1024
 const RENDERER_MAX_PAGES = 100
 
+/**
+ * Read the renderer's last structured failure, ignoring diagnostic text.
+ * @param stderr - Renderer standard error.
+ * @returns The last reported failure code, or undefined if absent.
+ */
 function failureCode(stderr: string): string | undefined {
   for (const line of stderr.trim().split('\n').reverse()) {
     try {
@@ -42,6 +47,11 @@ function failureCode(stderr: string): string | undefined {
   return undefined
 }
 
+/**
+ * Decode the renderer's image manifest as a complete list.
+ * @param stdout - Renderer standard output.
+ * @returns Image paths and one-based slide numbers, or undefined if any entry is invalid.
+ */
 function imagesFromManifest(stdout: string): RenderImage[] | undefined {
   try {
     const manifest: unknown = JSON.parse(stdout)
