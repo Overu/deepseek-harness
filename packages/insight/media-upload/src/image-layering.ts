@@ -289,7 +289,7 @@ export function parseLayeringResult(value: unknown, handle: string, proxyRequest
     ...(diagnostic ? { diagnostic } : {}) }
 }
 
-/** Register submission and recovery tools beside the approved OSS upload tool.
+/** Register submission and recovery tools beside the general OSS upload tool.
  * @param ctx - Host tool, account, Agent, and Jobs services.
  * @param config - Validated environment and tracking limits.
  * @param uploadedInTurn - Check that the URL came from this turn's successful upload.
