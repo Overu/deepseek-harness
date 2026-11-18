@@ -49,8 +49,8 @@ media-upload Host 插件启动时通过因赛技能中心注册包内技能，�
 | `running` | 远端任务仍待执行或正在运行。 | 等待 Job；没有活跃 Job 时才查询同一句柄。 |
 | `succeeded` | 远端结果包含 PSD 和图片 URL。 | 保存 URL 清单并显示文件卡片。 |
 | `missing_psd` | 远端成功，但没有 PSD，可能仍有图片。 | 把已有图片 URL 保存为不完整结果，并说明缺少 PSD。 |
-| `failed`、`cancelled` | 远端任务失败或取消。 | 停止该图的自动调用，继续其他图。 |
-| `query_unavailable` | 状态查询失败，远端结果未知。 | 非超时错误一次后停止；超时仅允许所述补查；不重新提交。 |
+| `failed`、`cancelled` | 远端任务失败或取消。业务码非零但明确返回 `failed` 时，失败状态仍已确认。 | 确认版权限制时简要说明处理失败并请用户换图；停止该图的自动调用。 |
+| `query_unavailable` | 状态查询失败且任务结果未确认；单靠业务码不能认定版权限制。 | 非超时错误一次后停止；超时仅允许所述补查；重新提交前先核对原任务。 |
 
 <a id="conversation-delivery"></a>
 ## 会话交付
@@ -66,7 +66,7 @@ Host 只接受配置允许的结果主机；`generationResultHosts` 为空时，
 | --- | --- | --- |
 | 上传授权或 OSS PUT | 没有确认的源图 OSS URL。 | 排查登录或服务错误；结果不明的写入不自动重复。 |
 | 付费代理创建 | `SUBMISSION_UNKNOWN` 或没有确认的句柄。 | 有代理审计 ID 时先用它排查；未查明前不重新提交。 |
-| 状态查询或本地 Job | `query_unavailable`、`monitoring_unknown` 或账号失败。 | 保留句柄，按技能的有限重试规则停止该图；其他图片继续。 |
+| 状态查询或本地 Job | 已确认 `failed`、`query_unavailable`、`monitoring_unknown` 或账号失败。 | 确认版权限制时简短提示换图；结果未知时保留句柄，按有限重试规则停止该图，其他图片继续。 |
 | 清单写入 | 远端 URL 已有，但本地清单或结果卡片未记录。 | 修复工作区权限或主机配置后，使用同一句柄重新保存。 |
 | 用户下载 | 卡片已有，但远端文件无法获取或校验。 | 在卡片显示失败并允许再次点击；下载失败不会触发新的付费生成。 |
 
@@ -74,6 +74,8 @@ Host 只接受配置允许的结果主机；`generationResultHosts` 为空时，
 ## 证据与限制
 
 [media-upload 实现](../../packages/insight/media-upload/src/index.ts)、[下载路由](../../packages/insight/media-upload/src/result-download.ts)、[客户端卡片](../../packages/insight/media-upload/src/client/LayeringResultCards.tsx)和[技能指令](../../packages/insight/media-upload/guidance/image-layering/SKILL.md)定义当前流程。源码和聚焦测试覆盖本地行为；远端文件可读、代理路由已部署及最终浏览器下载仍需实机验证。远端任务句柄的服务有效期约 24 小时，不是客户端保证。
+
+Host 在运行日志中记录有界、脱敏的查询失败信息，包括上游消息和代理请求 ID。下载的会话日志 ZIP 不含 Host logger 输出；其中的安全工具和 Job 结果可凭代理请求 ID 与 Host 日志或上游审计关联。测试客户端须保留或单独收集 Host 日志，才能在运行结束后查看原始消息。
 
 ## 开发备注
 

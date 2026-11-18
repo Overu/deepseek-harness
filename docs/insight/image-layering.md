@@ -49,8 +49,8 @@ The media-upload Host plugin registers its packaged skill with Insight Skill cen
 | `running` | Remote task is pending or running. | Await its Job; query the same handle only when no Job is active. |
 | `succeeded` | Remote result contains PSD and image URLs. | Save the URL manifest and show file cards. |
 | `missing_psd` | Remote success lacks a PSD, though images may exist. | Save available image URLs as incomplete and report the missing PSD. |
-| `failed`, `cancelled` | Remote task failed or was cancelled. | Stop automatic calls for that image; continue other images. |
-| `query_unavailable` | Status read failed; remote outcome is unknown. | Stop after one non-timeout failure or the permitted timeout retry; do not resubmit. |
+| `failed`, `cancelled` | Remote task failed or was cancelled. An explicit `failed` status remains conclusive when the business code is nonzero. | For a confirmed copyright restriction, explain the processing failure and ask for a different image; stop automatic calls for that image. |
+| `query_unavailable` | Status read failed without a confirmed task outcome; a business code alone does not identify a copyright restriction. | Stop after one non-timeout failure or the permitted timeout retry; check the original task before resubmitting. |
 
 <a id="conversation-delivery"></a>
 ## Conversation delivery
@@ -66,7 +66,7 @@ The Host accepts only configured result hosts; an empty `generationResultHosts` 
 | --- | --- | --- |
 | Upload authorization or OSS PUT | No confirmed source OSS URL. | Resolve login or service errors; do not repeat an unknown write automatically. |
 | Paid proxy creation | `SUBMISSION_UNKNOWN` or no confirmed handle. | Use the proxy audit ID when available; do not submit again without resolving the uncertain outcome. |
-| Status query or local Job | `query_unavailable`, `monitoring_unknown`, or account failure. | Preserve the handle; stop this image according to the skill's bounded retry rule while other images continue. |
+| Status query or local Job | Confirmed `failed`, `query_unavailable`, `monitoring_unknown`, or account failure. | A confirmed copyright restriction gets a short replacement-image prompt. For an unknown outcome, preserve the handle and stop according to the bounded retry rule while other images continue. |
 | Manifest write | Remote URL exists, but no local manifest or result card was recorded. | Correct workspace access or host configuration, then retry saving under the same handle. |
 | User download | Card exists, but the remote file cannot be fetched or verified. | Show the card error and allow another click; never recreate a paid generation task for a download failure. |
 
@@ -74,6 +74,8 @@ The Host accepts only configured result hosts; an empty `generationResultHosts` 
 ## Evidence and limits
 
 The [media-upload implementation](../../packages/insight/media-upload/src/index.ts), [download route](../../packages/insight/media-upload/src/result-download.ts), [client cards](../../packages/insight/media-upload/src/client/LayeringResultCards.tsx), and [skill instructions](../../packages/insight/media-upload/guidance/image-layering/SKILL.md) define the current flow. Source and focused tests establish the behavior; a readable remote file, deployed proxy route, and final browser download still require live-environment verification. The remote task handle has an approximate 24-hour service lifetime, not a client guarantee.
+
+The Host records bounded, redacted query-failure details, including the upstream message and proxy request ID, in its runtime logger. A downloaded Session-log ZIP does not include Host logger output; its safe tool and Job results can be matched to the Host log or upstream audit by proxy request ID. The test client must retain or separately collect Host logs to recover the original message after a run.
 
 ## Dev Note
 

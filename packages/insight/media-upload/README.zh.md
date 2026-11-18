@@ -33,7 +33,7 @@ kind: "package-bundle"
 <a id="implementation"></a>
 ## 实现
 
-`src/image-layering.ts` 通过已认证代理提交任务，收到任务句柄后启动 Session Job。插件不再持久记录任务预留或绑定；重复调用提交工具可能创建另一个付费任务。非超时查询错误在第一次读取后停止该图 Job；单次查询达到请求期限时才用同一句柄补查一次。远端明确失败或结果不完整时不自动复查或重建。`job_kill`、关闭或重启只停止本地跟踪，不取消远端任务；已知句柄在有效期内仍可查询。Job 结束后，`cache_image_layering_result` 重新查询同一句柄，由 `src/result-cache.ts` 通过 Session 沙箱文本文件系统把校验过的服务 URL 写入当前工作区 `generated/image-layering/`。创建清单时不下载 PSD 或图片字节。客户端从已记录的工具结果恢复分组卡片；`src/result-download.ts` 在下载时核对会话记录、当前账号范围、最新任务结果、允许的 OSS 主机、大小和文件签名，再流式返回文件。认证下载路由只接收会话定位信息和文件序号，不接收客户端传入的 URL。
+`src/image-layering.ts` 通过已认证代理提交任务，收到任务句柄后启动 Session Job。插件不再持久记录任务预留或绑定；重复调用提交工具可能创建另一个付费任务。非超时查询错误在第一次读取后停止该图 Job；单次查询达到请求期限时才用同一句柄补查一次。查询响应明确标记远端任务失败时，即使业务码非零，也按已确认失败处理；只有非零业务码而没有明确终态时，远端结果仍未知。两种情况都不自动重建付费任务。Host 把已确认的版权限制消息映射成简短换图提示，并记录带代理请求 ID 的有界、脱敏查询诊断。`job_kill`、关闭或重启只停止本地跟踪，不取消远端任务；已知句柄在有效期内仍可查询。Job 结束后，`cache_image_layering_result` 重新查询同一句柄，由 `src/result-cache.ts` 通过 Session 沙箱文本文件系统把校验过的服务 URL 写入当前工作区 `generated/image-layering/`。创建清单时不下载 PSD 或图片字节。客户端从已记录的工具结果恢复分组卡片；`src/result-download.ts` 在下载时核对会话记录、当前账号范围、最新任务结果、允许的 OSS 主机、大小和文件签名，再流式返回文件。认证下载路由只接收会话定位信息和文件序号，不接收客户端传入的 URL。
 
 `src/upload-source.ts` 将已提交 Session 事件分别折叠为通用上传的当前轮次附件列表，以及分层使用的最近三个用户轮次图片列表。工具需要上传时才读取并校验归一化图片，再把相同字节按实际编码的扩展名保存为文件，供既有 OSS 路径读取。`src/index.ts` 检查根 Agent；普通上传除有效“完全权限”预设外申请一次性审批，分层上传则依据用户对选定图片的处理请求执行。`src/upload-center.ts` 校验固定上传网关的 STS 响应，不暴露凭据。`src/oss-put.ts` 使用关闭 SDK 重试的流式写入。通用工具仅在 OSS HTTP 200 且已存储字节完整消费后返回 URL；结果不明时不自动重复 PUT。
 
@@ -72,7 +72,7 @@ OSS PUT 明确成功后返回 `url`、`urlAccess: "unverified"`、`filename` 和
 
 #### 模型看到的内容
 
-`prepare_image_layering_source` 列出合格的已存储图片，多张不同图片时先选定。`submit_image_layering` 接收 `sourceRef`、可选 `prompt` 和非负 `numLayers`（默认 `0`），在 Host 内上传并提交，不再请求通用上传的单独审批。兼容路径仍接受同轮普通上传得到的 `imageUrl`。`get_image_layering` 使用 `taskHandle` 和可选 `watch` 查询；查询失败返回 `query_unavailable`，包含结构化原因、可选业务码与代理请求 ID，以及 `remoteOutcome: "unknown"`。代理创建返回 HTTP 5xx 时按结果未知处理，不自动重建。`cache_image_layering_result` 接收已知句柄和原图短标签，在当前工作区写入 URL 清单，并返回清单路径、完整标志、账号范围及供客户端卡片展示的 PSD/图片信息。用户点击卡片时才查询同一句柄的最新结果并下载选中的文件；不重新创建付费任务，也不弹二次确认。诊断指明无效字段与原因，不记录带签名的 URL。
+`prepare_image_layering_source` 列出合格的已存储图片，多张不同图片时先选定。`submit_image_layering` 接收 `sourceRef`、可选 `prompt` 和非负 `numLayers`（默认 `0`），在 Host 内上传并提交，不再请求通用上传的单独审批。兼容路径仍接受同轮普通上传得到的 `imageUrl`。`get_image_layering` 使用 `taskHandle` 和可选 `watch` 查询；已确认失败的任务返回 `failed` 和简短安全的 `error`，无法确认结果的查询错误才返回 `query_unavailable`，附结构化原因、可选业务码与代理请求 ID，以及 `remoteOutcome: "unknown"`。上游消息原文不进入工具或 Job 结果。确认版权限制时，技能只回复固定安全提示，不追加解释或其他建议。代理创建返回 HTTP 5xx 时按结果未知处理，不自动重建。`cache_image_layering_result` 接收已知句柄和原图短标签，在当前工作区写入 URL 清单，并返回清单路径、完整标志、账号范围及供客户端卡片展示的 PSD/图片信息。用户点击卡片时才查询同一句柄的最新结果并下载选中的文件；不重新创建付费任务，也不弹二次确认。诊断指明无效字段与原因，不记录带签名的 URL。
 
 #### Token 影响
 
@@ -89,6 +89,7 @@ OSS PUT 明确成功后返回 `url`、`urlAccess: "unverified"`、`filename` 和
 - 私有桶可能拒绝直接读取所返回的 URL。正式上线前仍需在隔离环境核验 STS 写权限、对象键唯一性、桶版本控制及无企业登记对象的清理。
 - 图片归一化可能缩小尺寸或重新编码；OSS 对象和返回大小对应已存储的归一化图片。只有选中图片实际进入上传工具时，插件才另存供上传使用的文件副本。
 - 代理任务句柄约 24 小时后过期。目标 Gateway 必须部署 `call-insight-api` 连接；本地服务仓库代码不能证明目标环境已经部署。上游可能仅返回 PNG，任务成功不保证取得 PSD。卡片只证明已记录结果 URL；远端文件过期或拒绝访问时下载仍会失败。JSON 清单包含完整 URL，包括可能存在的签名查询参数，工作区的读取者可查看。生产环境结果 OSS 主机须配置到 `generationResultHosts`。
+- Host 运行日志诊断与会话日志 ZIP 分开保存。ZIP 中保留可凭代理请求 ID 关联的安全工具和 Job 结果，但不含上游失败消息原文；要查看该原文，需取得 Host 运行日志或上游代理审计。
 
 <a id="dev-note"></a>
 ### 开发备注
