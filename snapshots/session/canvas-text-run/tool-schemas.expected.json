@@ -906,7 +906,7 @@
     },
     {
       "name": "upload_attachment",
-      "description": "Upload one direct-user attachment from the current turn to OSS. Image messages upload their stored normalized encoding; file attachments upload exact bytes. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object; read access is unverified.",
+      "description": "Upload one direct-user attachment from the current turn to OSS when the user task needs a remote file address. This tool transfers the selected attachment without a separate approval prompt. If several attachments are present and the intended one is unclear, ask the user to choose. Image messages upload their stored normalized encoding; file attachments upload exact bytes. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object; read access is unverified.",
       "parameters": {
         "type": "object",
         "properties": {

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Insight Desktop loads this bundle to register a general OSS upload tool and image-layering source, submission, query, and result-link tools. General upload accepts a direct user attachment from the current turn: Full access proceeds without a separate approval prompt; other permission presets retain their approval behavior. Image layering selects an image from the last three user-message turns, uploads its stored bytes as part of submission, and tracks the enterprise task in a Session Job. The plugin saves result URLs in a workspace JSON manifest and renders grouped PSD and image cards; clicking Download immediately fetches that file without another confirmation.
+Insight Desktop loads this bundle to register a general OSS upload tool and image-layering source, submission, query, and result-link tools. A call to the general upload tool transfers a selected direct user attachment from the current turn without a separate approval prompt, regardless of the Session permission preset. Image layering selects an image from the last three user-message turns, uploads its stored bytes as part of submission, and tracks the enterprise task in a Session Job. The plugin saves result URLs in a workspace JSON manifest and renders grouped PSD and image cards; clicking Download immediately fetches that file without another confirmation.
 
 ## Table of Contents
 
@@ -30,12 +30,14 @@ The package carries [image-layering instructions](guidance/image-layering/SKILL.
 
 The model may provide `attachmentIndex`, a one-based position among direct-user file and image attachments in the current turn. It must provide the index when there are multiple candidates. Text pasted in a prompt, local paths, Canvas assets, inherited messages, and older turns provide no upload authority. An image uses its verified normalized bytes and a filename matching that encoding; the plugin does not reconstruct its original file. The upload center receives a filename and routing type, but no file size or MIME type. Its accepted extensions, write permissions, and size limits are not established by an STS success response; the former enterprise attachment policy no longer applies.
 
+The model may infer that a user task needs a remote address even when the user did not explicitly say “upload to OSS.” Invoking `upload_attachment` then sends the selected current-turn attachment to the configured OSS environment without another user confirmation. The Host enforces attachment provenance and selection but does not prove the user's textual intent to upload.
+
 <a id="implementation"></a>
 ## Implementation
 
 `src/image-layering.ts` submits through the authenticated proxy and starts a Session Job after receiving a task handle. It does not persist a task reservation or binding; a repeated submit can create another paid task. A non-timeout query error stops that image's Job after one read; a request-deadline timeout permits one further read under the same handle. Confirmed remote failure or incomplete output is not automatically queried again or recreated. `job_kill`, shutdown, or restart stops local tracking without cancelling the remote task; a known handle can be queried again while valid. After the Job settles, `cache_image_layering_result` re-queries the known handle and `src/result-cache.ts` writes the validated service URLs to `generated/image-layering/` in the current workspace through the Session sandboxed text filesystem. No PSD or image bytes are fetched during manifest creation. The client derives grouped file cards from the recorded tool result; `src/result-download.ts` checks the recorded Session result, current account scope, fresh task result, allowed OSS host, file size, and signature before streaming a clicked file. The authenticated download route accepts a Session coordinate and file index, never a caller-provided URL.
 
-`src/upload-source.ts` folds committed Session events into a Host-only current-turn list for ordinary uploads and a separate three-user-turn image list for layering. It reads and verifies a selected normalized image only when a tool needs it, then stores those same bytes as a file with an encoding-matched extension for the existing OSS path. `src/index.ts` checks the root Agent; ordinary upload requests one-time approval except under the effective Full access preset, while layering upload follows the user's request to process the selected image. `src/upload-center.ts` validates the fixed gateway's STS response without exposing credentials. `src/oss-put.ts` streams stored bytes with SDK retries disabled. The general tool returns an OSS URL only after confirmed HTTP 200 and complete source consumption; uncertain PUT results are not repeated automatically.
+`src/upload-source.ts` folds committed Session events into a Host-only current-turn list for ordinary uploads and a separate three-user-turn image list for layering. It reads and verifies a selected normalized image only when a tool needs it, then stores those same bytes as a file with an encoding-matched extension for the existing OSS path. `src/index.ts` checks the root Agent; ordinary upload starts when the model invokes `upload_attachment` for a user task that needs a remote file address. It does not request separate approval and does not upload merely because an attachment was added to the conversation. Image-layering submission uses its own upload call. `src/upload-center.ts` validates the fixed gateway's STS response without exposing credentials. `src/oss-put.ts` streams stored bytes with SDK retries disabled. The general tool returns an OSS URL only after confirmed HTTP 200 and complete source consumption; uncertain PUT results are not repeated automatically.
 
 <a id="model-experience"></a>
 ## Model Experience
@@ -44,7 +46,7 @@ The model may provide `attachmentIndex`, a one-based position among direct-user 
 
 #### What the model sees
 
-The mounted plugin contributes `upload_attachment` with an optional one-based `attachmentIndex`. Its description limits use to current-turn user attachments and explains that the returned OSS address has unverified read access.
+The mounted plugin contributes `upload_attachment` with an optional one-based `attachmentIndex`. Its description limits use to current-turn user attachments, tells the model to clarify ambiguous multi-attachment selection, and states that calling it transfers the selected attachment without another prompt. The returned OSS address has unverified read access.
 
 #### Token effect
 
@@ -58,7 +60,7 @@ An unchanged tool definition preserves the existing request prefix. Loading or u
 
 #### What the model sees
 
-A confirmed OSS PUT returns `url`, `urlAccess: "unverified"`, `filename`, and `sizeBytes`. It does not register an enterprise attachment or a Canvas asset. Rejected approval, failed authorization, and uncertain transfer produce an error result without credentials or a success URL.
+A confirmed OSS PUT returns `url`, `urlAccess: "unverified"`, `filename`, and `sizeBytes`. It does not register an enterprise attachment or a Canvas asset. Missing account authorization, failed upload-center authorization, and uncertain transfer produce an error result without credentials or a success URL.
 
 #### Token effect
 
