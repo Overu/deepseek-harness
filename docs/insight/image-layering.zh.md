@@ -33,7 +33,7 @@ media-upload Host 插件启动时通过因赛技能中心注册包内技能，�
 <a id="call-and-data-flow"></a>
 ## 调用与数据流程
 
-1. **选择图片和层数。** `prepare_image_layering_source` 列出最近三个用户消息轮次的合格图片。多图选择不明时先确认；超过五张时请用户缩减。可选智能分层或 2–17 的整数；未指定时展示智能分层和四个闭区间：2–4、5–8、9–12、13–17。更多层可能产生更高费用。普通 `upload_attachment` 只处理当前轮次附件，且只有有效“完全权限”免单独审批；分层上传依据用户对已选图片的处理请求执行。
+1. **选择图片和层数。** `prepare_image_layering_source` 列出最近三个用户消息轮次的合格图片。多图选择不明时先确认；超过五张时请用户缩减。可选智能分层或 2–17 的整数；未指定时展示智能分层和四个闭区间：2–4、5–8、9–12、13–17。普通 `upload_attachment` 被调用时直接上传选中的当前轮次附件，不再单独弹窗审批；分层上传依据用户对已选图片的处理请求执行。
 2. **逐图提交生成。** `submit_image_layering` 接收 `sourceRef`、可选 `prompt` 及 `numLayers`（智能分层为 `0`）。工具先检查工作区文本写入权限，再上传已存储图片，通过已认证的 `POST /api/skill-proxy/call-insight-api` 转发 `/v1/proxy_async_create`。确认返回的 `taskHandle` 标识一个付费任务。插件不再持久保存创建预留；重复提交可能再次创建并计费。
 3. **独立跟踪任务。** 每个已确认句柄尽可能启动一个 `image-layering` 会话 Job。Job 查询 `/v1/proxy_async_get_result`。非超时查询错误在一次读取后停止该图；明确的请求超时仅允许同一句柄再查一次。没有活跃 Job 时可用 `get_image_layering` 恢复跟踪。一张图失败不会中断其他图。
 4. **保存并展示结果地址。** 每张图片取得完整或部分成功的远端结果后，技能调用 `cache_image_layering_result({taskHandle,imageLabel})`。Host 重新查询同一句柄，校验 HTTPS 结果主机和扩展名，通过会话沙箱文本文件系统把 PSD/图片 URL 写入当前工作区 `generated/image-layering/<句柄哈希>.json`。工具结果同时记录账号范围、原图标签、完整标志及有序文件信息。客户端从工具事件恢复分组文件卡片。此时不下载生成的二进制文件；技能不会把 OSS URL 传给 `present`。

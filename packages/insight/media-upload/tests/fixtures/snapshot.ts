@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import * as MediaUpload from '../../src/index.ts'
 
 export const name = 'insight-media-upload-snapshot-fixture'
-export const inject = ['tools', 'attachments', 'approval', 'agents', 'sessionProjections']
+export const inject = ['tools', 'attachments', 'agents', 'sessionProjections']
 
 /** Register the production tool with an inert account provider; the snapshot exercises tool discovery only. */
 export async function apply(ctx: Context): Promise<void> {
