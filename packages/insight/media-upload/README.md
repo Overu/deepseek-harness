@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Insight Desktop loads this bundle to register a general OSS upload tool and image-layering source, submission, query, and result-link tools. A call to the general upload tool transfers a selected direct user attachment from the current turn without a separate approval prompt, regardless of the Session permission preset. Image layering selects an image from the last three user-message turns, uploads its stored bytes as part of submission, and tracks the enterprise task in a Session Job. The plugin saves result URLs in a workspace JSON manifest and renders grouped PSD and image cards; clicking Download immediately fetches that file without another confirmation.
+Insight Desktop loads this bundle's OSS upload and image-layering tools. A call to the general upload tool transfers a selected direct user attachment from the current turn without a separate approval prompt, regardless of the Session permission preset. Image layering selects an image from the last three user-message turns, uploads its stored bytes as part of submission, and tracks the enterprise task in a Session Job. The plugin saves result URLs in a workspace JSON manifest and renders grouped PSD and image cards; clicking Download immediately fetches that file without another confirmation.
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@ The package carries [image-layering instructions](guidance/image-layering/SKILL.
 
 The model may provide `attachmentIndex`, a one-based position among direct-user file and image attachments in the current turn. It must provide the index when there are multiple candidates. Text pasted in a prompt, local paths, Canvas assets, inherited messages, and older turns provide no upload authority. An image uses its verified normalized bytes and a filename matching that encoding; the plugin does not reconstruct its original file. The upload center receives a filename and routing type, but no file size or MIME type. Its accepted extensions, write permissions, and size limits are not established by an STS success response; the former enterprise attachment policy no longer applies.
 
-The model may infer that a user task needs a remote address even when the user did not explicitly say “upload to OSS.” Invoking `upload_attachment` then sends the selected current-turn attachment to the configured OSS environment without another user confirmation. The Host enforces attachment provenance and selection but does not prove the user's textual intent to upload.
+The model may infer that a user task needs a remote address even when the user did not explicitly say “upload to OSS.” Invoking `upload_attachment` then sends the selected current-turn attachment to the configured OSS environment without another user confirmation. The Host checks that the attachment came from the current user turn and resolves the selection, but does not prove the user's textual intent to upload.
 
 <a id="implementation"></a>
 ## Implementation
