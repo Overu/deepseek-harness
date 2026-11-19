@@ -232,6 +232,51 @@ it('builds Insight Windows distribution without the unsigned debug suffix or Win
   expect(writeFileSync).not.toHaveBeenCalled()
 })
 
+it.each([
+  ['mac-arm64', undefined],
+  ['mac-arm64', '--unsigned'],
+  ['win-x64', '--prepare-only'],
+] as const)('builds the Insight Canvas page before packing it (%s)', async (target, mode) => {
+  const { run, stages } = supervisor()
+  const built = Promise.withResolvers<undefined>()
+  const buildStage = '--dir packages/insight/canvas run build:web'
+  const packStage = '--dir packages/insight/canvas pack --pack-destination '
+  run.run.mockImplementation(async (stage) => {
+    stages.push(stage)
+    if (stage === buildStage) await built.promise
+  })
+  const platform = target === 'win-x64' ? 'win32' : 'darwin'
+  const invocation = parseDesktopPackageInvocation([target, ...(mode === undefined ? [] : [mode])], platform,
+    platform === 'win32' ? 'x64' : 'arm64')
+  const outcome = packageTarget(invocation, {
+    ...environment, DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop',
+    INSIGHT_DESKTOP_VERSION: '1.0.12-rc.1',
+  }, run).then(() => undefined, (error: unknown) => error)
+  try {
+    await vi.waitFor(() => { expect(stages).toContain(buildStage) })
+    expect(stages.some(stage => stage.startsWith(packStage))).toBe(false)
+    built.resolve(undefined)
+    expect(await outcome).toBeUndefined()
+    expect(stages.filter(stage => stage === buildStage)).toHaveLength(1)
+    expect(stages.findIndex(stage => stage.startsWith(packStage))).toBeGreaterThan(stages.indexOf(buildStage))
+  } finally {
+    built.resolve(undefined)
+    await outcome
+  }
+})
+
+it('stops Insight packaging when the Canvas page build fails', async () => {
+  const buildStage = '--dir packages/insight/canvas run build:web'
+  const { run, stages } = supervisor(buildStage)
+  await expect(packageTarget(parseDesktopPackageInvocation(['mac-arm64'], 'darwin', 'arm64'), {
+    ...environment, DSH_DESKTOP_PRODUCT: 'insight', DSH_DESKTOP_APP_ID: 'com.insight-aigc.desktop',
+    INSIGHT_DESKTOP_VERSION: '1.0.12-rc.1',
+  }, run)).rejects.toThrow('stage refused')
+  expect(stages.some(stage => stage.startsWith('--dir packages/insight/canvas pack '))).toBe(false)
+  expect(stages).not.toContain('run prepare:packages')
+  expect(writeFileSync).not.toHaveBeenCalled()
+})
+
 it.each(['mac-arm64', 'mac-x64'] as const)('builds official Insight artifacts before packaging %s', async (target) => {
   const { run, stages } = supervisor()
   await packageTarget(parseDesktopPackageInvocation([target], 'darwin', target === 'mac-arm64' ? 'arm64' : 'x64'), {
@@ -264,6 +309,7 @@ it.each(['mac-arm64', 'mac-x64', 'win-x64'] as const)('selects branding from the
     expect(build).toBe(unsigned ? 'run build --profile local' : 'run build:official')
     expect(stages.some(stage => stage.startsWith('exec tsx apps/desktop/scripts/pack-local-packages.ts'))).toBe(unsigned)
     expect(stages.some(stage => stage.startsWith('run release:pack --family dsh'))).toBe(!unsigned)
+    expect(stages).not.toContain('--dir packages/insight/canvas run build:web')
     for (const component of ['canvas', 'memory-evolve', 'prompt-enhance']) {
       expect(stages.some(stage => stage.startsWith(`--dir packages/insight/${component} pack --pack-destination `))).toBe(true)
     }

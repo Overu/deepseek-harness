@@ -1,0 +1,10 @@
+version: 1
+scenario: canvas-media-schema
+profile: headless
+composition: canvas-media-schema
+recording: authored
+header:
+  class: default
+  pin: true
+  systemPromptSource: text-turn
+  toolSchemasSource: canvas-text-run

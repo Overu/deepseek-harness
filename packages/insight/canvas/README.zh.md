@@ -32,6 +32,8 @@ kind: "package-bundle"
 
 点击助手回复中的画布链接，可在当前会话的右侧栏打开画布。
 
+图片和视频参数按当前模型 schema 适配：枚举使用允许的选项，数字输入使用声明的范围和步长，`visible_when` 决定适用字段。隐藏字段不阻塞配置，未知输入类型保留原生默认值并只读。切换输出格式后，通过 `canvas_get` 读取当前可编辑字段。
+
 iframe 从 `canvas-app` 构建；guidance 归本包拥有。[upstream.json](upstream.json) 记录源码输入和保留的标识。
 
 <a id="understand-the-implementation"></a>
@@ -41,6 +43,8 @@ iframe 从 `canvas-app` 构建；guidance 归本包拥有。[upstream.json](upst
 <summary>实现细节</summary>
 
 Host 拥有工具、本地路由、桥接所有权和结果持久化，Client 拥有画布导航、引用及常驻页面服务。已有页面与可见 iframe 共享 Canvas context。插件两面使用官方工作区编译器与 Client bundler，iframe 在根依赖锁下保留独立 Vite 构建。共享上传文件名使用 DSH 的 UUID helper，兼容普通 HTTP 浏览器页面。Host 从 `ctx.insightAccount` 获取凭证，不再单独拥有 Desktop token IPC 客户端。
+
+Insight 桌面打包在打包插件前重建 Canvas iframe。本地页面开发运行 `pnpm --dir packages/insight/canvas run build:web`；根目录构建不会重建这个独立页面。
 
 Canvas 使用 [Desktop Integration 的网关配置](../desktop-integration/README.zh.md#understand-the-implementation)，并负责自己的 Web、抠图和模型参数 CDN 地址。
 

@@ -522,6 +522,9 @@ export async function packageTarget(
     catch (error) { preparationFailure ??= { error }; throw error }
   }
   const pack = async (): Promise<void> => {
+    if (insight !== undefined) {
+      await executePreparation(['--dir', 'packages/insight/canvas', 'run', 'build:web'], buildEnv, REPOSITORY_ROOT)
+    }
     await executePreparation([
       ...(invocation.unsigned
         ? ['exec', 'tsx', 'apps/desktop/scripts/pack-local-packages.ts']

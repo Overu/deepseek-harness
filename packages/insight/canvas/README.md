@@ -32,6 +32,8 @@ Canvas uses connected media nodes to select generation modes even before those n
 
 Click a Canvas link in an assistant reply to open the Canvas in the current conversation's right sidebar.
 
+Image and video parameters follow the active model schema: choices use the allowed values, numeric inputs use their declared limits and steps, and `visible_when` controls which fields apply. Hidden fields do not block configuration. Unknown input types retain native defaults and remain read-only. After changing the output format, use `canvas_get` to read the currently editable fields.
+
 The iframe builds from `canvas-app`; its guidance remains package-owned. [upstream.json](upstream.json) records the source input and retained identity.
 
 <a id="understand-the-implementation"></a>
@@ -41,6 +43,8 @@ The iframe builds from `canvas-app`; its guidance remains package-owned. [upstre
 <summary>Implementation internals</summary>
 
 The Host owns tools, local routes, bridge ownership, and result persistence. The Client owns Canvas navigation, references, and the resident page service. The existing page shares its Canvas context with the visible iframe. Both plugin halves use the official workspace compiler and Client bundler; the iframe retains its own Vite build under the root dependency lock. Shared upload names use DSH’s UUID helper, which remains available on plain-HTTP browser pages. The Host obtains credentials from `ctx.insightAccount`; it does not own another Desktop token IPC client.
+
+Insight desktop packaging rebuilds the Canvas iframe before packing the plugin. For local page development, run `pnpm --dir packages/insight/canvas run build:web`; the root build does not rebuild this separate page.
 
 Canvas uses the [Desktop Integration gateway configuration](../desktop-integration/README.md#understand-the-implementation) and owns its Web, matting, and model-parameter CDN addresses.
 

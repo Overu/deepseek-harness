@@ -2,7 +2,7 @@ import type { Node } from '@xyflow/react'
 import type { useFlowStore } from '../legacy/src/store/flowStore'
 import { getAgentNodeGeometry } from './agent-node-placement'
 import util, { applyEmptyMediaNodeDimensions, type SelectParam } from '../legacy/src/components/canvasFlow/utils/util'
-import { buildMediaNodeParamState, isMediaParamValueUnavailable, validateMediaNodesForRun,
+import { buildMediaNodeParamState, isMediaParamValueUnavailable, isMediaInputParamValueValid, validateMediaNodesForRun,
   getImageSvgUnsupportedReason, getImageModelTypeMismatchReason, getVideoModelTypeMismatchReason, getAudioModelTypeMismatchReason, type MediaModelsMap, type MediaNodeType } from '../legacy/src/components/canvasFlow/utils/mediaNodeModelUtil'
 import { getChoiceFlag, isChoiceUsable, isModelSelectable, validateBasicNodesParamsForRun } from '../legacy/src/components/canvasFlow/utils/modelPermission'
 import { preserveNodeTitle, validateNodeTitle } from '../legacy/src/components/canvasFlow/utils/nodeNaming'
@@ -24,7 +24,7 @@ const paramsOf = (node: Node): Record<string, unknown> => {
 const isMedia = (node: Node): node is Node & { type: MediaNodeType } => node.type === 'image' || node.type === 'video'
 const supported = (node: Node) => STANDARD_NODE_TYPES.some(type => type === node.type) && !isNonGenerativeMedia(String(node.data.type ?? ''))
 
-function mediaParams(state: AgentNodeState, node: Node & { type: MediaNodeType }, params = paramsOf(node)) {
+function mediaParams(state: AgentNodeState, node: { type: MediaNodeType }, params: Record<string, unknown>) {
   // The native Store declares the older flat map; image/video actually use the native two-level map.
   const modelsMap = state.modelsMap as MediaModelsMap
   const configured = modelsMap[node.type]?.find(mode => mode.value === params.modelType)?.params.find(model => model.value === params.model)
@@ -33,13 +33,37 @@ function mediaParams(state: AgentNodeState, node: Node & { type: MediaNodeType }
   }
   return buildMediaNodeParamState(modelsMap, node.type, params, state.modelNodePermission)
 }
-function simpleFields(state: AgentNodeState, node: Node & { type: MediaNodeType }, params: Record<string, unknown>): SelectParam[] {
+function simpleFields(state: AgentNodeState, node: { type: MediaNodeType }, params: Record<string, unknown>): SelectParam[] {
   const parsed = mediaParams(state, node, params)
-  return [...parsed.otherParams, parsed.timeParam].filter(field => field.key && !FORBIDDEN_PARAM_FIELDS.has(field.key))
+  return [...parsed.otherParams, ...parsed.inputParams, parsed.timeParam]
+    .filter(field => field.key && !FORBIDDEN_PARAM_FIELDS.has(field.key))
 }
-function usableChoices(state: AgentNodeState, node: Node, params: Record<string, unknown>, field: SelectParam): JsonScalar[] {
+const editableInput = (field: SelectParam) => ['number', 'string', 'switch', 'boolean'].includes(field.type ?? '')
+function usableChoices(state: AgentNodeState, node: { type?: string }, params: Record<string, unknown>, field: SelectParam): JsonScalar[] {
   return (field.option ?? []).map(choice => choice.value).filter(value => scalar(value)
     && isChoiceUsable(getChoiceFlag(state.modelNodePermission, node.type ?? '', String(params.model), field.key, value)))
+}
+
+/** Describe the active model fields for catalog and node reads.
+ * @param state - Model catalog and account permissions.
+ * @param type - Image or video node type.
+ * @param params - Current parameter values, including visibility selectors.
+ * @returns Active fields with editable choices or scalar constraints.
+ */
+export function getAgentMediaParamHints(state: AgentNodeState, type: MediaNodeType, params: Record<string, unknown>): ParamHint[] {
+  return simpleFields(state, { type }, params).map((field) => {
+    if (field.schema) {
+      if (!editableInput(field)) return { field: field.key, editable: false, choices: [] }
+      const { min, max, step, default: defaultValue, maxLength } = field.schema
+      return { field: field.key, editable: true,
+        ...(field.type === 'number' ? { ...(min !== undefined ? { min } : {}), ...(max !== undefined ? { max } : {}), ...(step !== undefined ? { step } : {}) } : {}),
+        ...(field.type === 'string' ? { type: 'string' as const, ...(maxLength !== undefined ? { maxLength } : {}) } : {}),
+        ...(['switch', 'boolean'].includes(field.type!) ? { choices: [true, false].filter(value => isChoiceUsable(getChoiceFlag(state.modelNodePermission, type, String(params.model), field.key, value))) } : {}),
+        ...(scalar(defaultValue) && isMediaInputParamValueValid(field.schema, defaultValue) ? { default: defaultValue } : {}) }
+    }
+    const choices = usableChoices(state, { type }, params, field)
+    return { field: field.key, editable: choices.length > 0, choices }
+  })
 }
 function positiveCount(value: unknown): number | null {
   // Preserve the native strict choice value type; digit strings are valid only if the model offers them.
@@ -50,6 +74,13 @@ function positiveCount(value: unknown): number | null {
 function validateMediaParams(state: AgentNodeState, node: Node & { type: MediaNodeType }, params: Record<string, unknown>): void {
   const fields = simpleFields(state, node, params)
   for (const field of fields) {
+    if (field.schema) {
+      if (!isMediaInputParamValueValid(field.schema, params[field.key])
+        || !isChoiceUsable(getChoiceFlag(state.modelNodePermission, node.type, String(params.model), field.key, params[field.key]))) {
+        throw new CanvasAgentError('INVALID_ARGUMENT', '参数 ' + field.key + ' 不符合当前模型的类型、范围或步长')
+      }
+      continue
+    }
     const choices = usableChoices(state, node, params, field)
     if (isMediaParamValueUnavailable(params[field.key], field.option)
       || !choices.some(choice => Object.is(choice, params[field.key]))) {
@@ -100,9 +131,9 @@ export function resolveAgentNodePatch(state: AgentNodeState, node: Node, input: 
       Object.assign(params, patch.data.params)
     }
     if (changes.params !== undefined && isMedia(node)) {
-      const fields = simpleFields(state, node, params)
+      const hints = getAgentMediaParamHints(state, node.type, params)
       for (const key of Object.keys(changes.params)) {
-        if (!fields.some(field => field.key === key && usableChoices(state, node, params, field).length > 0)) {
+        if (!hints.some(field => field.field === key && field.editable)) {
           throw new CanvasAgentError('INVALID_ARGUMENT', '本期不开放参数 ' + key)
         }
       }
@@ -233,10 +264,7 @@ export function describeAgentNode(state: AgentNodeState, node: Node): NodeDetail
   }
   if (supported(node) && isMedia(node)) {
     try {
-      for (const field of simpleFields(state, node, params)) {
-        const choices = usableChoices(state, node, params, field)
-        paramHints.push({ field: field.key, editable: choices.length > 0, choices })
-      }
+      paramHints.push(...getAgentMediaParamHints(state, node.type, params))
     } catch (error) { if (!(error instanceof CanvasAgentError)) throw error }
   }
   const scalarParams = Object.fromEntries(Object.entries(params).filter(([key, value]) => !['__proto__', 'constructor', 'prototype'].includes(key) && scalar(value))

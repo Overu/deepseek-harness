@@ -1,13 +1,13 @@
 import type { Node } from '@xyflow/react'
 import util, { applyEmptyMediaNodeDimensions } from '../legacy/src/components/canvasFlow/utils/util'
-import { applyMediaModelTypeChange, buildMediaNodeParamState, creareDefaultParamsV2, getTransformItems,
+import { applyMediaModelTypeChange, creareDefaultParamsV2, getTransformItems,
   getImageModelTypeMismatchReason, getVideoModelTypeMismatchReason, getAudioModelTypeMismatchReason, resolveParamsOnModelChange,
   type V2ModelsMap, type MediaNodeType } from '../legacy/src/components/canvasFlow/utils/mediaNodeModelUtil'
-import { getChoiceFlag, isChoiceUsable, isModelSelectable, getModelRow } from '../legacy/src/components/canvasFlow/utils/modelPermission'
+import { isModelSelectable, getModelRow } from '../legacy/src/components/canvasFlow/utils/modelPermission'
 import { isNonGenerativeMedia } from '../legacy/src/components/canvasFlow/utils/type'
-import { CanvasAgentError, parseCanvasOperation, parseNodeConfiguration, FORBIDDEN_PARAM_FIELDS,
-  type CanvasOperation, type JsonScalar, type ModelCatalogSnapshot, type NodeConfiguration, type ParamHint } from '../../src/shared/canvas-agent-protocol'
-import { getAgentMediaParamFields, validateAgentMediaParams, type AgentNodeState } from './agent-node-policy'
+import { CanvasAgentError, parseCanvasOperation, parseNodeConfiguration,
+  type CanvasOperation, type ModelCatalogSnapshot, type NodeConfiguration } from '../../src/shared/canvas-agent-protocol'
+import { getAgentMediaParamFields, getAgentMediaParamHints, validateAgentMediaParams, type AgentNodeState } from './agent-node-policy'
 import { agentAudioModes, createAgentAudioDefaults, getAgentAudioParamHints, resolveAgentAudioConfiguration } from './agent-audio-policy'
 
 type ModelsQuery = Extract<CanvasOperation, { action: 'canvas.models.read' }>
@@ -15,8 +15,6 @@ const paramsOf = (node: Node): Record<string, unknown> => node.data.params && ty
   && !Array.isArray(node.data.params) ? node.data.params as Record<string, unknown> : {}
 const mediaMap = (state: AgentNodeState) => state.modelsMap as V2ModelsMap
 const isMedia = (node: Node): node is Node & { type: MediaNodeType } => node.type === 'image' || node.type === 'video'
-const scalar = (value: unknown): value is JsonScalar => value === null || typeof value === 'string'
-  || typeof value === 'boolean' || (typeof value === 'number' && Number.isFinite(value))
 
 function canonical(value: unknown): unknown {
   if (value instanceof Map) return [...value.entries()].sort(([a], [b]) => String(a).localeCompare(String(b)))
@@ -25,16 +23,6 @@ function canonical(value: unknown): unknown {
   if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).sort()
     .map(key => [key, canonical((value as Record<string, unknown>)[key])]))
   return value
-}
-
-function paramHints(state: AgentNodeState, type: MediaNodeType, params: Record<string, unknown>): ParamHint[] {
-  const parsed = buildMediaNodeParamState(mediaMap(state), type, params, state.modelNodePermission)
-  return [...parsed.otherParams, parsed.timeParam].filter(field => field.key && !FORBIDDEN_PARAM_FIELDS.has(field.key))
-    .map((field) => {
-      const choices = (field.option ?? []).map(choice => choice.value).filter(value => scalar(value)
-        && isChoiceUsable(getChoiceFlag(state.modelNodePermission, type, String(params.model), field.key, value)))
-      return { field: field.key, editable: choices.length > 0, choices }
-    })
 }
 
 /** Snapshot pages share a digest of the native model and permission configuration. */
@@ -79,7 +67,7 @@ export async function readAgentModels(state: AgentNodeState, input: ModelsQuery)
     models: models.slice(modelOffset, modelOffset + limit).map(model => ({ value: String(model.value), label: model.label })),
     modelCount: models.length, modelOffset, nextModelOffset: modelOffset + limit < models.length ? modelOffset + limit : null,
     model: selectedModel ? String(selectedModel.value) : null,
-    paramHints: defaults ? query.nodeType === 'audio' ? getAgentAudioParamHints(state, defaults).paramHints : paramHints(state, query.nodeType, defaults) : [],
+    paramHints: defaults ? query.nodeType === 'audio' ? getAgentAudioParamHints(state, defaults).paramHints : getAgentMediaParamHints(state, query.nodeType, defaults) : [],
     ...(query.nodeType === 'audio' && defaults ? { seniorParamHints: getAgentAudioParamHints(state, defaults).seniorParamHints,
       ...(selectedMode?.value === 'tts' ? { voiceSelection: { required: true, customizable: getModelRow(state.modelNodePermission, 'audio', String(selectedModel!.value))?._voiceCustomizable ?? true } } : {}) } : {}) }
 }
@@ -125,9 +113,10 @@ export function resolveAgentNodeConfiguration(state: AgentNodeState, node: Node,
     params = resolveParamsOnModelChange(modelsMap, node.type, modelKey, params, state.modelNodePermission)
   }
   const explicit = configuration.params ?? {}
-  const fields = getAgentMediaParamFields(state, node, params)
+  const fields = getAgentMediaParamFields(state, node, { ...params, ...explicit })
+  const hints = getAgentMediaParamHints(state, node.type, { ...params, ...explicit })
   for (const key of Object.keys(explicit)) {
-    if (!fields.some(field => field.key === key)) {
+    if (!hints.some(field => field.field === key && field.editable)) {
       throw new CanvasAgentError('INVALID_ARGUMENT', '本期不开放参数 ' + key)
     }
   }
