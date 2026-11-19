@@ -32,6 +32,8 @@ Canvas uses connected media nodes to select generation modes even before those n
 
 Click a Canvas link in an assistant reply to open the Canvas in the current conversation's right sidebar.
 
+The Canvas header shows the signed-in account's remaining points as an icon and number, including purchased and gifted points. The balance refreshes when the page opens and after generation activity; click it to refresh manually. A failed refresh keeps the last successful balance and offers a retry; an unavailable initial balance is never shown as zero.
+
 Image and video parameters follow the active model schema: choices use the allowed values, numeric inputs use their declared limits and steps, and `visible_when` controls which fields apply. Hidden fields do not block configuration. Unknown input types retain native defaults and remain read-only. After changing the output format, use `canvas_get` to read the currently editable fields.
 
 The iframe builds from `canvas-app`; its guidance remains package-owned. [upstream.json](upstream.json) records the source input and retained identity.
