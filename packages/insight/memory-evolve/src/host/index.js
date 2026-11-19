@@ -112,7 +112,7 @@ export const DEFAULTS = {
   reviewEnabled: false,
   reviewInterval: 5,
   reviewMode: 'suggest', // 'suggest' | 'auto' — suggest = global facts go through memory_suggest (user confirms); auto = direct memory writes
-  skillReviewEnabled: false, // off by default: skill creations queue for user confirmation (on = direct, no approval)
+  skillReviewEnabled: true,
   memoryTabEnabled: true, // session memory tab in the web GUI (default ON — the settings-panel entry is gone, the tab is the only surface)
   suggestionsFile: null, // null → <memoryDir>/SUGGESTIONS.jsonl
   stateFile: null, // null → <memoryDir>/plugin-state.json (runtime config overrides)
@@ -1685,7 +1685,7 @@ export function apply(ctx, rawConfig = {}) {
   // 2b. The skill management tool (always registered: useful in ordinary
   //     sessions too — "把这个流程做成技能" — and required by the review
   //     subagent for the skill track).
-  ctx.effect(() => ctx.tools.register(skillManageTool(ctx, config)), 'dsh-memory-evolve: skill tool')
+  ctx.effect(() => ctx.tools.register(skillManageTool(ctx, runtime)), 'dsh-memory-evolve: skill tool')
 
   // 2c. The todo capability（todoEnabled 运行时开关）：控制器只负责工具注册；
   // 存储刻意留在控制器外——禁用完全可逆，不触碰既有待办数据文件，也不

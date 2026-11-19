@@ -30,6 +30,8 @@ Text nodes support two independent edits: `changes.prompt` updates the generatio
 
 Canvas uses connected media nodes to select generation modes even before those nodes produce content. Prompt references and generation inputs require actual media.
 
+Click a Canvas link in an assistant reply to open the Canvas in the current conversation's right sidebar.
+
 The iframe builds from `canvas-app`; its guidance remains package-owned. [upstream.json](upstream.json) records the source input and retained identity.
 
 <a id="understand-the-implementation"></a>

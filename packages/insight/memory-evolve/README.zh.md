@@ -26,6 +26,10 @@ kind: "package-bundle"
 
 bundle patch 插入保留的 `dsh-memory-evolve` 插件标识符。profile 组合和产品启用由 Insight integration 包负责。
 
+技能自动沉淀默认开启。在记忆设置中关闭并保存后，`skill_manage` 后续新建的技能会进入待确认队列。重启后，已保存的设置优先于默认值。
+
+分支和项目查询在 Git 可用时使用 Git。Git 不可用时，快照按工作目录读取项目记忆，并跳过分支筛选。macOS 上的这些查询不会触发系统 Git 安装提示。
+
 -----
 
 <a id="understand-the-implementation"></a>

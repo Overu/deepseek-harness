@@ -884,7 +884,7 @@ index fafb86c..0000000
 -3. **Inside vs outside, complementary collaboration**: internal sessions handle context-heavy work, external agents handle one-shot heavy work; memory, rooms, and prompts chain them into a pipeline.
 diff --git a/README.i18n.yaml b/README.i18n.yaml
 new file mode 100644
-index 0000000..4e3af66
+index 0000000..011a25a
 --- /dev/null
 +++ b/README.i18n.yaml
 @@ -0,0 +1,43 @@
@@ -905,8 +905,8 @@ index 0000000..4e3af66
 +  en: 76368b6b1da79c80
 +  zh: 52384aee991ac542
 +/dsh-memory-evolve/use-this-package:
-+  en: b74331529812c9be
-+  zh: aca005670e68d583
++  en: 5ad5af0542be804a
++  zh: 63321078b3046702
 +/dsh-memory-evolve/understand-the-implementation:
 +  en: 3403ccfa4307f776
 +  zh: ffe930f02d14246c
@@ -932,10 +932,10 @@ index 0000000..4e3af66
 +  en: d54467a34f0b85b4
 +  zh: debd7c3cad85acad
 diff --git a/README.md b/README.md
-index ffe4e2f..fa1d2d6 100644
+index ffe4e2f..112366a 100644
 --- a/README.md
 +++ b/README.md
-@@ -1,319 +1,74 @@
+@@ -1,319 +1,78 @@
 -# dsh-memory-evolve 使用场景指南
 -
 -> **一句话**：让 DSH 里的 AI 拥有跨会话的长期记忆、帮你管理待办与技能、还能拉起一群 AI 会话和外部 AI 代理协同干活——**越用越懂你，换会话不丢上下文**。
@@ -1066,6 +1066,10 @@ index ffe4e2f..fa1d2d6 100644
 
 -**适合谁**：想把 AI 用成「团队」的人——一个主会话指挥美工、前端、后端、测试多个子会话。
 +The bundle patch inserts the retained `dsh-memory-evolve` plugin identifier. Profile composition and product activation are owned by the Insight integration package.
++
++Skill auto-harvest is on by default. In the Memory settings, turn it off and save to send subsequent skills created by `skill_manage` to the pending queue for approval. A saved choice takes precedence over the default after restart.
++
++Branch and project lookups use Git when available. Without usable Git, the snapshot reads project memory by working directory and skips branch filtering. On macOS, these lookups avoid the system Git installer.
 
 -**怎么用**：
 +-----
@@ -1300,10 +1304,10 @@ index ffe4e2f..fa1d2d6 100644
 +</details>
 diff --git a/README.zh.md b/README.zh.md
 new file mode 100644
-index 0000000..a638b8d
+index 0000000..9231ddd
 --- /dev/null
 +++ b/README.zh.md
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,78 @@
 +---
 +description: "Memory Evolve 为 Insight DSH 组合提供分层本地记忆、技能与待办管理及其工作区界面。"
 +kind: "package-bundle"
@@ -1331,6 +1335,10 @@ index 0000000..a638b8d
 +## 使用本包
 +
 +bundle patch 插入保留的 `dsh-memory-evolve` 插件标识符。profile 组合和产品启用由 Insight integration 包负责。
++
++技能自动沉淀默认开启。在记忆设置中关闭并保存后，`skill_manage` 后续新建的技能会进入待确认队列。重启后，已保存的设置优先于默认值。
++
++分支和项目查询在 Git 可用时使用 Git。Git 不可用时，快照按工作目录读取项目记忆，并跳过分支筛选。macOS 上的这些查询不会触发系统 Git 安装提示。
 +
 +-----
 +
@@ -83385,7 +83393,7 @@ index 0000000..cc21f67
 +  }
 +}
 diff --git a/package.json b/package.json
-index d39e25e..a43a726 100644
+index d39e25e..134dbda 100644
 --- a/package.json
 +++ b/package.json
 @@ -1,29 +1,73 @@
@@ -83394,7 +83402,7 @@ index d39e25e..a43a726 100644
 -  "version": "0.1.0",
 -  "description": "为 DeepSeek Harness 带来分层记忆（全局 / 用户 / 项目 / GIT 分支 / 每日）与自我进化（经验沉淀 + 技能自动创建）和技能管理、待办管理、CLI 调度（kimi/codex/grok/hermes 等外部 AI 统一调度）、临时信息便签，带 WebUI 管理界面。Hermes-style long-term memory, self-evolution, skills, todos and external CLI agent dispatch for DeepSeek Harness.",
 +  "description": "Layered memory, skill and task management for Insight workspaces",
-+  "version": "0.2.2-alpha.2",
++  "version": "0.2.2-rc.1",
    "private": true,
    "type": "module",
    "main": "lib/index.js",
@@ -91156,7 +91164,7 @@ index 0000000..57847f3
 +  return typeof body.error === 'string' ? body.error : undefined
 +}
 diff --git a/src/client/index.ts b/src/client/index.ts
-index b4fcd94..f495ceb 100644
+index b4fcd94..bc5ba9c 100644
 --- a/src/client/index.ts
 +++ b/src/client/index.ts
 @@ -14,16 +14,17 @@
@@ -91335,6 +91343,18 @@ index b4fcd94..f495ceb 100644
    'panel.guide.advisor.title': '会话评审（Advisor）',
    'panel.guide.advisor.desc': '给每个会话挂一个独立评审员——它只观察你在界面上看到的对话（不含思考 / 工具调用），每轮实时评审，需要时以「用户指令」的形式提醒你（info / nit / concern / blocker 四级；info 默认仅记录；对话流中以折叠行 [severity] 显示，方便你认出哪些话是评审员说的）。评审员是持续会话——记住全部历史、永不截断；面板里可新建评审会话（重头开始）、直接提问、设置四层级约束（系统提示词 / 项目约束 / 会话约束 / 本次评审会话约束，越局部越优先）。默认关闭：先在「配置」打开总闸，再在会话页悬浮面板里为本会话手动启用；评审模型缺省继承当前会话模型，可单独配置。',
    'panel.guide.broadcast.title': '会话广播（de_broadcast）',
+@@ -765,4 +667,4 @@ export const zh = {
+   'panel.guide.sync.desc': '让项目记忆跨设备一致——办公室和家里的电脑共享同一份项目关键记忆 / 日志 / 归档 / 项目待办。在「记忆同步」Tab 打开「本项目同步」并点「开始同步」：默认用你的代码仓库的专属分支，零配置；也可填一个共享记忆仓库地址，一个仓库装所有项目的记忆（全局记忆也能同步）。另一台电脑打开项目自动认亲、拉取即可继续用。模块开关在「配置」里；同步永远由你手动触发，没开同步的项目不受影响。',
+-  'panel.guide.confirm.title': '确认制（为什么 AI 不能直接写）',
+-  'panel.guide.confirm.desc': 'AI 自建的记忆、待办、技能都先进待确认队列，等你确认才生效。因为这些写入会真实改变 AI 的行为：记忆会进入上下文、待办是给你派的活、技能会改变 AI 的能力库——如果 AI 擅自写入，可能把它的误判当事实沉淀、或自作主张给你派活。你是最终把关者：AI 只提议，你决定。',
++  'panel.guide.confirm.title': '待确认建议',
++  'panel.guide.confirm.desc': '你可以采纳或拒绝队列中的记忆、待办和技能建议。关闭「技能自动沉淀」后，AI 新建的技能会进入待确认队列。',
+   'panel.guide.best.title': '怎么用得最好',
+@@ -809,3 +711,3 @@ export const zh = {
+   'panel.config.skillReviewEnabled': '技能自动沉淀',
+-  'panel.config.skillReviewEnabled.hint': '关（默认）：审查创建的新技能进入待确认队列，采纳后才进入技能库；开：审查直接创建技能，无需确认（技能注入所有会话，请谨慎开启）',
++  'panel.config.skillReviewEnabled.hint': '默认开启，AI 新建的技能直接加入技能库。关闭并保存后，新技能需经你采纳才会加入技能库。',
+   'panel.config.perTurnWriteGuard': '记忆写入看门狗',
 @@ -862,8 +764,6 @@ export const zh = {
    'panel.config.sessionEnabled.hint': '启用会话编排（de_session）：让 AI **程序化创建/唤醒 DSH 会话**——spawn 新建标准会话（与手动打开完全同构：系统提示词/工具/记忆快照/持久化，出现在左侧会话列表可接管），prompt=完整提示词（角色/任务自由组合的长文本），创建后立即自动开跑，可选 cwd/加入广播房间/覆盖模型；wake 唤醒已有会话（等价替用户发消息，对方 AI 自动醒来处理，进程重启后自动恢复）；status/list 查状态；**会话头部「⧉ 复制会话ID」「✎ 别名」按钮随本开关**（会话身份功能，曾误挂在广播下）。**独立子模块**（默认关闭；依赖 DSH agents 服务，仅同进程会话可唤醒；关闭时工具对模型不可见）',
    'panel.config.promptsEnabled': '提示词管理器',
@@ -91467,6 +91487,18 @@ index b4fcd94..f495ceb 100644
    'panel.guide.broadcast.title': 'Session broadcast (de_broadcast)',
    'panel.guide.broadcast.desc': 'Message passing between DSH sessions: copy your session ID (⧉ button in the session header), send it to another session and let its AI use de_broadcast send to reach you — the receiver snapshot gets a targeted unread notice (visible only to the receiver), the AI reads the full text via list / read, auto-deleted once everyone has read it; very long content is stored to a file. Rooms support multi-member collaboration across working directories; project groups reach a whole directory. Off by default: enable "Session broadcast" under Config.',
    'panel.guide.session.title': 'Session search (de_session_search)',
+@@ -1580,4 +1383,4 @@ export const en: Record<MemoryEvolveKey, string> = {
+   'panel.guide.sync.desc': 'Keep project memory consistent across devices — share the same key facts / logs / archives / project todos between office and home machines. In the "Memory sync" tab enable "sync this project" and click start: by default it uses a dedicated branch of your code repo (zero config); or fill in a shared memory repo — one repo for all projects (global tracks too). Another machine recognizes the project automatically and pulls to continue. The module switch lives under Config; sync is always triggered by you, and projects with sync off are unaffected.',
+-  'panel.guide.confirm.title': 'The confirmation system (why the AI cannot write directly)',
+-  'panel.guide.confirm.desc': 'AI-proposed memory, todos and skills all enter a pending queue and take effect only after your confirmation. These writes genuinely change AI behavior: memory enters the context, todos are work assigned to you, skills alter the AI capability set — unchecked writes could canonize mistakes or assign you work unprompted. You are the final gate: the AI proposes, you decide.',
++  'panel.guide.confirm.title': 'Pending suggestions',
++  'panel.guide.confirm.desc': 'You can approve or reject queued memory, to-do, and skill suggestions. Turn off skill auto-harvest to review new AI-created skills before they take effect.',
+   'panel.guide.best.title': 'Tips for the best experience',
+@@ -1624,3 +1427,3 @@ export const en: Record<MemoryEvolveKey, string> = {
+   'panel.config.skillReviewEnabled': 'Skill auto-harvest',
+-  'panel.config.skillReviewEnabled.hint': 'Off (default): new skills from review go to the pending queue and only install when approved; On: review creates skills directly without confirmation (skills are injected into every session — enable with care)',
++  'panel.config.skillReviewEnabled.hint': 'On by default. New AI-created skills go straight to the skill library. Turn this off and save to require approval for new skills.',
+   'panel.config.perTurnWriteGuard': 'Memory write watchdog',
 @@ -1677,8 +1480,6 @@ export const en: Record<MemoryEvolveKey, string> = {
    'panel.config.sessionEnabled.hint': 'Enable session orchestration (de_session): lets AI **programmatically create/wake DSH sessions** — spawn creates a standard session (identical to one opened manually: system prompt/tools/memory snapshot/persistence, appears in the left session list and can be taken over), prompt = the full instruction text (role/task freely composed), it starts running immediately; optional cwd / join a broadcast room / model override; wake wakes an existing session (equivalent to sending a message on its behalf — its AI wakes up and processes it, auto-resumed after process restart); status/list inspect state; the header **"⧉ Copy session ID" / "✎ alias" buttons follow this switch** (session-identity features, previously mis-housed under broadcast). **Independent submodule** (off by default; depends on the DSH agents service, only same-process sessions can be woken; when off the tool is invisible to the model)',
    'panel.config.promptsEnabled': 'Prompt manager',
@@ -93777,7 +93809,7 @@ diff --git a/lib/index.js b/src/host/index.js
 similarity index 96%
 rename from lib/index.js
 rename to src/host/index.js
-index f532df1..14d2911 100644
+index f532df1..0b8a62c 100644
 --- a/lib/index.js
 +++ b/src/host/index.js
 @@ -37,12 +37,10 @@ import { installSession } from './session-orch.js'
@@ -93805,6 +93837,11 @@ index f532df1..14d2911 100644
 
  /** Plugin config defaults (conservative: review off, memory on). */
  export const DEFAULTS = {
+@@ -119,3 +114,3 @@ export const DEFAULTS = {
+   reviewMode: 'suggest', // 'suggest' | 'auto' — suggest = global facts go through memory_suggest (user confirms); auto = direct memory writes
+-  skillReviewEnabled: false, // off by default: skill creations queue for user confirmation (on = direct, no approval)
++  skillReviewEnabled: true,
+   memoryTabEnabled: true, // session memory tab in the web GUI (default ON — the settings-panel entry is gone, the tab is the only surface)
 @@ -185,13 +180,6 @@ export const DEFAULTS = {
    sessionDataDir: null,       // null → <memoryDir>/session-orch
    promptsEnabled: false,      // 提示词管理器总开关（默认禁用，与本地搜索/COI 一致；开启后「提示词」Tab、注入轨与 de_prompts 工具生效）
@@ -93896,6 +93933,11 @@ index f532df1..14d2911 100644
      uiSettingsCtrl.sync() // DSH UI 设置随 uiSettingsEnabled 即时安装/卸载
      bookmarkCtrl.sync() // 会话书签随 bookmarkEnabled 即时安装/卸载
      syncCtrl.sync() // 记忆同步随 syncEnabled 即时安装/卸载（含 store.entryIdMode 动态切换）
+@@ -1714,3 +1687,3 @@ export function apply(ctx, rawConfig = {}) {
+   //     subagent for the skill track).
+-  ctx.effect(() => ctx.tools.register(skillManageTool(ctx, config)), 'dsh-memory-evolve: skill tool')
++  ctx.effect(() => ctx.tools.register(skillManageTool(ctx, runtime)), 'dsh-memory-evolve: skill tool')
+
 @@ -1723,44 +1696,9 @@ export function apply(ctx, rawConfig = {}) {
    // for both the snapshot instructions and the paired tool surface.
    reviewCtrl.sync()
@@ -94329,13 +94371,103 @@ index 3dcda05..6f6f78b 100644
          const pathname = url.pathname
          const query = url.searchParams
 diff --git a/lib/skills.js b/src/host/skills.js
-similarity index 100%
+similarity index 97%
 rename from lib/skills.js
 rename to src/host/skills.js
+index 788cc39..2956fe0 100644
+--- a/lib/skills.js
++++ b/src/host/skills.js
+@@ -255,3 +255,3 @@ export function hasReadSkill(agent, toolName, name) {
+  *   service used by the disabled-skill check).
+- * @param {object} config - resolved plugin config (skillDir etc.).
++ * @param {object} config - live plugin config, including the skill auto-harvest setting.
+  * @returns {object} a ToolDefinition-shaped object for ctx.tools.register.
+@@ -388,7 +388,2 @@ export function skillManageTool(ctx, config) {
+           }
+-          // Skill creations go through the pending queue unless the user
+-          // enabled direct auto-harvest: the skill lands in
+-          // <memoryDir>/pending-skills/ and is installed by moving it into
+-          // the live skills dir when the user approves it in the panel.
+-          // Applies to every session (the review runs in the main session).
+           if (!config.skillReviewEnabled) {
+diff --git a/src/host/git.js b/src/host/git.js
+new file mode 100644
+index 0000000..d0ef5ce
+--- /dev/null
++++ b/src/host/git.js
+@@ -0,0 +1,35 @@
++/** Resolve Git for background queries without opening the macOS installer. */
++import { spawnSync } from 'node:child_process'
++import { accessSync, constants, realpathSync, statSync } from 'node:fs'
++import { isAbsolute, join, resolve } from 'node:path'
++
++/** @returns {string | undefined} The canonical path of an executable file. */
++function executablePath(path) {
++  try {
++    accessSync(path, constants.X_OK)
++    return statSync(path).isFile() ? realpathSync(path) : undefined
++  } catch {
++    return undefined
++  }
++}
++
++/**
++ * Resolve the Git command for a local background query.
++ * @param {string} cwd - Working directory used for relative PATH entries.
++ * @returns {string | undefined} The command to run, or undefined when unavailable.
++ */
++export function resolveGit(cwd) {
++  if (process.platform !== 'darwin') return 'git'
++  for (const entry of (process.env.PATH ?? '/usr/bin:/bin').split(':')) {
++    const candidate = resolve(cwd, entry, 'git')
++    const executable = executablePath(candidate)
++    if (!executable) continue
++    if (executable !== '/usr/bin/git') return candidate
++    const developer = spawnSync('/usr/bin/xcode-select', ['-p'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 1000 })
++    if (developer.status !== 0 || !isAbsolute(developer.stdout.trim())) continue
++    const installed = join(developer.stdout.trim(), 'usr/bin/git')
++    const git = executablePath(installed)
++    if (git && git !== '/usr/bin/git') return installed
++  }
++  return undefined
++}
 diff --git a/lib/store.js b/src/host/store.js
-similarity index 100%
+similarity index 99%
 rename from lib/store.js
 rename to src/host/store.js
+index 6c9ead0..57a827d 100644
+--- a/lib/store.js
++++ b/src/host/store.js
+@@ -33,6 +33,7 @@ const stt = (key, params) => translate(STORE_TAIL_DICT, key, params, getLocale()
+ import { spawnSync } from 'node:child_process'
+ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+ import { dirname, join } from 'node:path'
++import { resolveGit } from './git.js'
+ import { extractEntryId, genEntryId, legacyIdFor, stripEntryId } from './sync/entryid.js'
+ 
+ /** Entry delimiter, byte-compatible with Hermes MEMORY.md / USER.md. */
+@@ -485,7 +486,9 @@ export function projectLabel(cwd) {
+ export function gitBranch(cwd) {
+   if (!cwd) return undefined
+   try {
+-    const result = spawnSync('git', ['branch', '--show-current'], {
++    const git = resolveGit(cwd)
++    if (!git) return undefined
++    const result = spawnSync(git, ['branch', '--show-current'], {
+       cwd, encoding: 'utf8', timeout: 1000, stdio: ['ignore', 'pipe', 'ignore'],
+     })
+     if (result.error || result.status !== 0) return undefined
+@@ -505,7 +508,9 @@ export function gitBranch(cwd) {
+ export function gitBranchList(cwd) {
+   if (!cwd) return []
+   try {
+-    const result = spawnSync('git', ['branch', '--format=%(refname:short)'], {
++    const git = resolveGit(cwd)
++    if (!git) return []
++    const result = spawnSync(git, ['branch', '--format=%(refname:short)'], {
+       cwd, encoding: 'utf8', timeout: 1000, stdio: ['ignore', 'pipe', 'ignore'],
+     })
+     if (result.error || result.status !== 0) return []
 diff --git a/lib/sync/entryid.js b/src/host/sync/entryid.js
 similarity index 100%
 rename from lib/sync/entryid.js
@@ -94345,9 +94477,92 @@ similarity index 100%
 rename from lib/sync/filesets.js
 rename to src/host/sync/filesets.js
 diff --git a/lib/sync/identity.js b/src/host/sync/identity.js
-similarity index 100%
+similarity index 94%
 rename from lib/sync/identity.js
 rename to src/host/sync/identity.js
+index d4414a5..3ee0c4a 100644
+--- a/lib/sync/identity.js
++++ b/src/host/sync/identity.js
+@@ -23,6 +23,7 @@ import { createHash } from 'node:crypto'
+ import { spawnSync } from 'node:child_process'
+ import { existsSync } from 'node:fs'
+ import { join } from 'node:path'
++import { resolveGit } from '../git.js'
+ import { projectHash, projectLabel } from '../store.js'
+ 
+ /**
+@@ -133,21 +134,24 @@ export function sanitizeRemoteUrl(url) {
+  */
+ export function resolveMainRemote(cwd) {
+   if (typeof cwd !== 'string' || cwd === '') return null
++  const git = resolveGit(cwd)
++  if (!git) return null
++  const query = (args) => runGit(git, args, cwd)
+ 
+   // origin 优先（git remote get-url 输出即完整 URL；无 get-url 的老版本
+   // git 用 `git config --get remote.<name>.url` 兜底）
+   let name = 'origin'
+-  let url = gitRemoteUrl(cwd, name)
++  let url = gitRemoteUrl(query, name)
+   if (url === undefined) {
+     // 无 origin → 取 git remote 列表第一个
+-    const names = gitRemoteNames(cwd)
++    const names = gitRemoteNames(query)
+     if (names.length === 0) return null
+     name = names[0]
+-    url = gitRemoteUrl(cwd, name)
++    url = gitRemoteUrl(query, name)
+   }
+   if (url === undefined) return null
+ 
+-  return { name, url, root: gitTopLevel(cwd) }
++  return { name, url, root: query(['rev-parse', '--show-toplevel']) }
+ }
+ 
+ /**
+@@ -231,34 +235,30 @@ export function resolveProjectDir(memoryDir, cwd) {
+ /* ---------------- 内部 git 查询辅助（全部本地、同步、毫秒级） ---------------- */
+ 
+ /** `git remote get-url <name>`（老 git 兜底 `git config --get remote.<name>.url`）。 */
+-function gitRemoteUrl(cwd, name) {
+-  let result = runGit(['remote', 'get-url', name], cwd)
++function gitRemoteUrl(query, name) {
++  let result = query(['remote', 'get-url', name])
+   if (result === undefined) {
+-    result = runGit(['config', '--get', `remote.${name}.url`], cwd)
++    result = query(['config', '--get', `remote.${name}.url`])
+   }
+   return result
+ }
+ 
+ /** `git remote`（列出全部 remote 名）。 */
+-function gitRemoteNames(cwd) {
+-  const out = runGit(['remote'], cwd)
++function gitRemoteNames(query) {
++  const out = query(['remote'])
+   if (out === undefined) return []
+   return out.split('\n').map((n) => n.trim()).filter((n) => n.length > 0)
+ }
+ 
+-/** `git rev-parse --show-toplevel`（仓库根；非仓库/无 git 时 undefined）。 */
+-function gitTopLevel(cwd) {
+-  return runGit(['rev-parse', '--show-toplevel'], cwd)
+-}
+-
+ /**
+  * 执行本地 git 命令。失败返回 undefined（调用方区分"无输出"与"命令失败"）。
++ * @param {string} git
+  * @param {string[]} args
+  * @param {string} cwd
+  */
+-function runGit(args, cwd) {
++function runGit(git, args, cwd) {
+   try {
+-    const result = spawnSync('git', args, {
++    const result = spawnSync(git, args, {
+       cwd, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'],
+     })
+     if (result.error || result.status !== 0) return undefined
 diff --git a/lib/sync/index.js b/src/host/sync/index.js
 similarity index 99%
 rename from lib/sync/index.js
@@ -117729,3 +117944,197 @@ index 0000000..d13ff05
 +  "patch": "../../../patches/insight/memory-evolve.patch",
 +  "purpose": "Pinned source intake and account-scoped DSH Desktop adaptation; local changes replay from the parent patch"
 +}
+diff --git a/src/host/index.d.ts b/src/host/index.d.ts
+new file mode 100644
+index 0000000..b7c5bbb
+--- /dev/null
++++ b/src/host/index.d.ts
+@@ -0,0 +1,6 @@
++/**
++ * Mount the Memory Evolve Host plugin from the archived JavaScript implementation.
++ * @param ctx - Host context with Memory Evolve's required services.
++ * @param rawConfig - Loader configuration to resolve and validate.
++ */
++export function apply(ctx: object, rawConfig?: Record<string, unknown>): void
+diff --git a/tests/skill-auto-harvest.host.spec.ts b/tests/skill-auto-harvest.host.spec.ts
+new file mode 100644
+index 0000000..4276633
+--- /dev/null
++++ b/tests/skill-auto-harvest.host.spec.ts
+@@ -0,0 +1,90 @@
++/** Skill creation follows saved settings in a running plugin and after restart. */
++import { existsSync, mkdtempSync, rmSync } from 'node:fs'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import { Readable } from 'node:stream'
++import { expect, it } from 'vitest'
++import { apply } from '../src/host/index.js'
++
++type SkillTool = {
++  name: string
++  execute(args: { action: 'create'; name: string; body: string }, exec: object): Promise<{ ok: boolean; message: string }>
++}
++
++type ConfigRoute = (request: Readable, response: { writeHead(status: number): void; end(): void }) => Promise<void>
++
++function mount(memoryDir: string, skillDir: string) {
++  const tools = new Map<string, SkillTool>()
++  const routes = new Map<string, ConfigRoute>()
++  const disposers: Array<() => void> = []
++  const ctx = {
++    effect(setup: () => (() => void) | undefined) {
++      const dispose = setup()
++      if (dispose !== undefined) disposers.push(dispose)
++      return dispose
++    },
++    on: () => () => {},
++    get: (name: string) => name === 'connection' ? { requestRejection: () => undefined } : undefined,
++    inject(names: readonly string[], setup: (context: object) => void) {
++      if (names.length === 1 && names[0] === 'webServer') setup(ctx)
++    },
++    webServer: {
++      register({ path, handler }: { path: string; handler: ConfigRoute }) {
++        routes.set(path, handler)
++        return () => { routes.delete(path) }
++      },
++    },
++    tools: {
++      register(tool: SkillTool) {
++        tools.set(tool.name, tool)
++        return () => { tools.delete(tool.name) }
++      },
++    },
++  }
++  apply(ctx, { memoryDir, skillDir, injectMemory: false })
++  const tool = tools.get('skill_manage')
++  const configRoute = routes.get('/memory-evolve')
++  if (!tool || !configRoute) throw new Error('Missing skill tool or settings route')
++  return {
++    async saveSkillAutoHarvest(enabled: boolean) {
++      const body = Buffer.from(JSON.stringify({ patch: { skillReviewEnabled: enabled } }))
++      const request = Object.assign(Readable.from([body]), { method: 'POST', url: '/memory-evolve/api/config' })
++      let status: number | undefined
++      await configRoute(request, { writeHead(code) { status = code }, end() {} })
++      expect(status).toBe(200)
++    },
++    async expectSkill(name: string, installed: boolean) {
++      const body = `---\nname: ${name}\ndescription: A fixture skill\n---\n\n# Fixture skill\n`
++      const result = await tool.execute({ action: 'create', name, body }, {})
++      expect(result.ok, result.message).toBe(true)
++      expect(existsSync(join(skillDir, name, 'SKILL.md')), result.message).toBe(installed)
++      expect(existsSync(join(memoryDir, 'pending-skills', name, 'SKILL.md')), result.message).toBe(!installed)
++    },
++    dispose() { disposers.reverse().forEach((dispose) => { dispose() }) },
++  }
++}
++
++it('applies the default, updates when saved, and retains a saved off setting across restart', async ({ onTestFinished }) => {
++  const root = mkdtempSync(join(tmpdir(), 'dsh-skill-auto-harvest-'))
++  onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
++  const memoryDir = join(root, 'memory')
++  const skillDir = join(root, 'skills')
++  const initial = mount(memoryDir, skillDir)
++  try {
++    await initial.expectSkill('default-skill', true)
++    await initial.saveSkillAutoHarvest(false)
++    await initial.expectSkill('queued-skill', false)
++    await initial.saveSkillAutoHarvest(true)
++    await initial.expectSkill('enabled-skill', true)
++    await initial.saveSkillAutoHarvest(false)
++  } finally {
++    initial.dispose()
++  }
++
++  const reopened = mount(memoryDir, skillDir)
++  try {
++    await reopened.expectSkill('queued-after-restart', false)
++  } finally {
++    reopened.dispose()
++  }
++})
+diff --git a/tests/git-probes.test.mjs b/tests/git-probes.test.mjs
+new file mode 100644
+index 0000000..ae94377
+--- /dev/null
++++ b/tests/git-probes.test.mjs
+@@ -0,0 +1,80 @@
++import assert from 'node:assert/strict'
++import childProcess from 'node:child_process'
++import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
++import { syncBuiltinESMExports } from 'node:module'
++import { tmpdir } from 'node:os'
++import { join } from 'node:path'
++import test from 'node:test'
++import { renderSnapshot } from '../src/host/index.js'
++import { ENTRY_DELIMITER, MemoryStore, gitBranchList, projectHash } from '../src/host/store.js'
++import { resolveProjectId } from '../src/host/sync/identity.js'
++import { makeProjectDirResolver } from '../src/host/sync/index.js'
++
++test('macOS memory snapshots bypass the installer and use available Git', { skip: process.platform !== 'darwin' }, (t) => {
++  const cwd = mkdtempSync(join(tmpdir(), 'dsh-memory-git-'))
++  t.after(() => rmSync(cwd, { recursive: true, force: true }))
++  const originalPath = process.env.PATH
++  const spawnSync = childProcess.spawnSync
++  const stub = join(cwd, 'shim', 'git')
++  mkdirSync(join(cwd, 'shim'))
++  symlinkSync('/usr/bin/git', stub)
++  const launches = []
++  let developerDir
++  t.mock.method(childProcess, 'spawnSync', (program, args, options) => {
++    if (program === '/usr/bin/xcode-select') {
++      return developerDir ? { status: 0, stdout: developerDir + '\n' } : { status: 1, stdout: '' }
++    }
++    launches.push(program)
++    if (['git', '/usr/bin/git', stub].includes(program)) return { status: 1, stdout: '' }
++    return spawnSync(program, args, options)
++  })
++  syncBuiltinESMExports()
++  try {
++    process.env.PATH = 'shim'
++    const config = { memoryDir: join(cwd, 'memory') }
++    const agent = { session: { header: { cwd } } }
++    const projectDirResolver = makeProjectDirResolver(config)
++    const store = new MemoryStore(config.memoryDir, { projectDirResolver })
++    const entries = ['[branch:main] Primary branch fact', '[branch:other] Other branch fact'].join(ENTRY_DELIMITER)
++    const memoryPath = join(config.memoryDir, 'projects', projectHash(cwd))
++    mkdirSync(memoryPath, { recursive: true })
++    writeFileSync(join(memoryPath, 'KEY.md'), entries)
++    assert.match(renderSnapshot(config, store, agent), /Other branch fact/u)
++    assert.deepEqual(gitBranchList(cwd), [])
++    assert.equal(resolveProjectId(cwd).kind, 'fallback')
++    assert.deepEqual(launches, [])
++
++    const installedDeveloperDir = join(cwd, 'Developer')
++    const gitDir = join(installedDeveloperDir, 'usr', 'bin')
++    mkdirSync(gitDir, { recursive: true })
++    writeFileSync(join(gitDir, 'git'), `#!/bin/sh
++case "$*" in
++  'branch --show-current') printf 'main\\n' ;;
++  'branch --format=%(refname:short)') printf 'main\\nother\\n' ;;
++  'remote get-url origin') printf 'https://example.com/team/project.git\\n' ;;
++  'rev-parse --show-toplevel') pwd ;;
++  *) exit 1 ;;
++esac
++`, { mode: 0o700 })
++    for (const [path, selectedDir] of [
++      ['shim', installedDeveloperDir],
++      ['Developer/usr/bin:shim', undefined],
++      ['shim:Developer/usr/bin', join(cwd, 'missing-developer-tools')],
++    ]) {
++      process.env.PATH = path
++      developerDir = selectedDir
++      const identity = resolveProjectId(cwd)
++      assert.equal(identity.key, 'example.com/team/project')
++      const snapshot = renderSnapshot(config, store, agent)
++      assert.match(snapshot, /Primary branch fact/u)
++      assert.doesNotMatch(snapshot, /Other branch fact/u)
++      assert.deepEqual(gitBranchList(cwd), ['main', 'other'])
++    }
++    assert.deepEqual([...new Set(launches)], [join(gitDir, 'git')])
++  } finally {
++    if (originalPath === undefined) delete process.env.PATH
++    else process.env.PATH = originalPath
++    t.mock.restoreAll()
++    syncBuiltinESMExports()
++  }
++})

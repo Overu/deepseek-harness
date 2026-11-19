@@ -1,0 +1,9 @@
+version: 1
+scenario: insight-builtin-skill-extensions
+profile: headless
+composition: insight-builtin-skill-extensions
+recording: authored
+header:
+  class: default
+  pin: true
+  systemPromptSource: text-turn

@@ -1,0 +1,11 @@
+# Live counterpart for the standalone Insight built-in skill extension.
+- insert:
+    - id: insight-builtin-skill-extensions
+      name: ../../../packages/insight/builtin-skill-extensions/lib/index.js
+      config:
+        pdfMaxInputBytes: 67108864
+        pdfMaxPagesPerCall: 100
+        pdfMaxOutputBytes: 98304
+        pptxRetryMaxInputBytes: 167772160
+        pptxRenderTimeoutMs: 120000
+        pptxRenderGraceMs: 1000

@@ -23,6 +23,7 @@ import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { resolveGit } from '../git.js'
 import { projectHash, projectLabel } from '../store.js'
 
 /**
@@ -133,21 +134,24 @@ export function sanitizeRemoteUrl(url) {
  */
 export function resolveMainRemote(cwd) {
   if (typeof cwd !== 'string' || cwd === '') return null
+  const git = resolveGit(cwd)
+  if (!git) return null
+  const query = (args) => runGit(git, args, cwd)
 
   // origin 优先（git remote get-url 输出即完整 URL；无 get-url 的老版本
   // git 用 `git config --get remote.<name>.url` 兜底）
   let name = 'origin'
-  let url = gitRemoteUrl(cwd, name)
+  let url = gitRemoteUrl(query, name)
   if (url === undefined) {
     // 无 origin → 取 git remote 列表第一个
-    const names = gitRemoteNames(cwd)
+    const names = gitRemoteNames(query)
     if (names.length === 0) return null
     name = names[0]
-    url = gitRemoteUrl(cwd, name)
+    url = gitRemoteUrl(query, name)
   }
   if (url === undefined) return null
 
-  return { name, url, root: gitTopLevel(cwd) }
+  return { name, url, root: query(['rev-parse', '--show-toplevel']) }
 }
 
 /**
@@ -231,34 +235,30 @@ export function resolveProjectDir(memoryDir, cwd) {
 /* ---------------- 内部 git 查询辅助（全部本地、同步、毫秒级） ---------------- */
 
 /** `git remote get-url <name>`（老 git 兜底 `git config --get remote.<name>.url`）。 */
-function gitRemoteUrl(cwd, name) {
-  let result = runGit(['remote', 'get-url', name], cwd)
+function gitRemoteUrl(query, name) {
+  let result = query(['remote', 'get-url', name])
   if (result === undefined) {
-    result = runGit(['config', '--get', `remote.${name}.url`], cwd)
+    result = query(['config', '--get', `remote.${name}.url`])
   }
   return result
 }
 
 /** `git remote`（列出全部 remote 名）。 */
-function gitRemoteNames(cwd) {
-  const out = runGit(['remote'], cwd)
+function gitRemoteNames(query) {
+  const out = query(['remote'])
   if (out === undefined) return []
   return out.split('\n').map((n) => n.trim()).filter((n) => n.length > 0)
 }
 
-/** `git rev-parse --show-toplevel`（仓库根；非仓库/无 git 时 undefined）。 */
-function gitTopLevel(cwd) {
-  return runGit(['rev-parse', '--show-toplevel'], cwd)
-}
-
 /**
  * 执行本地 git 命令。失败返回 undefined（调用方区分"无输出"与"命令失败"）。
+ * @param {string} git
  * @param {string[]} args
  * @param {string} cwd
  */
-function runGit(args, cwd) {
+function runGit(git, args, cwd) {
   try {
-    const result = spawnSync('git', args, {
+    const result = spawnSync(git, args, {
       cwd, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'],
     })
     if (result.error || result.status !== 0) return undefined

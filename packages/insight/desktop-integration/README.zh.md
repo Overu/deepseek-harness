@@ -143,12 +143,12 @@ GitHub Release 构建和 OSS 发布是相互独立的操作，详见 [Insight �
 
 #### 模型看到什么
 
-当 Gateway 返回的完整工具参数无法解析为 JSON 时，Host 在同一个 Agent 步骤内重新请求模型一次。Session 记录纠错上下文。若再次解析失败，该步骤结束，两次失败响应中的工具都不会执行。
+当 Gateway 返回的完整工具参数无法解析为 JSON 时，Host 在同一个 Agent 步骤内重新请求模型一次。Session 记录纠错上下文，诊断可用时包含工具名和解析错误。若再次解析失败，该步骤结束，两次失败响应中的工具都不会执行。轨迹显示被拒绝的工具名和未执行状态。
 
 ##### 纠错提示
 
 ```markdown
-The previous tool call arguments could not be parsed as JSON. No tools ran in that attempt. Regenerate valid JSON. If the tool supports batching, submit a smaller batch.
+The previous tool call arguments could not be parsed as JSON. Tool call "{name}": {parser diagnostic}. No tools ran in that attempt. Regenerate valid JSON according to the tool schema.
 ```
 
 #### Token 影响

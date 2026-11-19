@@ -32,7 +32,8 @@
     "dsh-memory-evolve": "workspace:~",
     "dsh-prompt-enhance": "workspace:~",
     "@insight-ai/desktop-integration": "workspace:*",
-    "@insight-ai/skill-center": "workspace:~"
+    "@insight-ai/skill-center": "workspace:~",
+    "@insight-ai/builtin-skill-extensions": "workspace:~"
   },
   "devDependencies": {
     "@deepseek-ai/cordis-plugin-loader": "workspace:~",

@@ -1,0 +1,46 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/insight/builtin-skill-extensions/README.md
+/:
+  en: 84223dd9bfb8761a
+  zh: 0e72bed50e94c6ac
+/insight-ai-builtin-skill-extensions:
+  en: 6009f170897c28cd
+  zh: 9fc49114963c00d2
+/insight-ai-builtin-skill-extensions/summary:
+  en: a8efbc3420496305
+  zh: ef0bbb0e7e2c5c39
+/insight-ai-builtin-skill-extensions/table-of-contents:
+  en: 122f0d41696980b1
+  zh: 1db43417f4c6de57
+/insight-ai-builtin-skill-extensions/use-this-package:
+  en: 0fd6d74a4a73edd9
+  zh: c4da1272cbb598b6
+/insight-ai-builtin-skill-extensions/understand-the-implementation:
+  en: d97b8675f96fa2da
+  zh: 52a2850b01a5a838
+/insight-ai-builtin-skill-extensions/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/insight-ai-builtin-skill-extensions/model-experience/office-workflow-guidance:
+  en: 9d684860a2e787f3
+  zh: 439a674d19997204
+/insight-ai-builtin-skill-extensions/model-experience/office-workflow-guidance/what-the-model-sees:
+  en: 5381ed844b0e6e2e
+  zh: 575ef36e9dfe70fc
+/insight-ai-builtin-skill-extensions/model-experience/office-workflow-guidance/what-the-model-sees/office-guidance:
+  en: e6d7b655909e9ff5
+  zh: f36cdfea07fba28f
+/insight-ai-builtin-skill-extensions/model-experience/office-workflow-guidance/token-effect:
+  en: 66bb54835aade5b0
+  zh: 18b4fd5bdcc766fe
+/insight-ai-builtin-skill-extensions/model-experience/office-workflow-guidance/kv-cache-effect:
+  en: 24c623f82cbfba40
+  zh: e8b5f3051d7ee2de
+/insight-ai-builtin-skill-extensions/known-limitations-and-deferred-work:
+  en: f00dd4d10280e816
+  zh: 42de66aab1873cad
+/insight-ai-builtin-skill-extensions/known-limitations-and-deferred-work/dev-note:
+  en: 0a1253c6f7b5e8b9
+  zh: 9f56528562c7c914
