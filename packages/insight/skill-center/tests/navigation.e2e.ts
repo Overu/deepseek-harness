@@ -577,8 +577,18 @@ it('browses official and local skills through the real shell in both themes and 
         expect(await tabList.locator(':scope > [aria-hidden="true"]').isVisible()).toBe(false)
         expect(await officialTab.evaluate(element => getComputedStyle(element).borderTopWidth)).toBe('0px')
         expect(await region.getByText('达', { exact: true }).evaluate(element => getComputedStyle(element).backgroundImage)).toContain('radial-gradient(')
-        for (const [width, columns] of [[1440, 2], [1000, 2], [390, 1]] as const) {
+        for (const [width, columns] of [[1920, 2], [1440, 2], [1000, 2], [390, 1]] as const) {
           await page.setViewportSize({ width, height: 1000 })
+          await expect.poll(() => hands.evaluate((element) => {
+            if (!(element instanceof HTMLCanvasElement)) throw new Error('Expected the hands canvas')
+            const bounds = element.getBoundingClientRect()
+            const hero = element.parentElement!.getBoundingClientRect()
+            const scale = Math.min(2, devicePixelRatio)
+            return bounds.x === hero.x && bounds.y === hero.y
+              && bounds.width === hero.width && bounds.height === hero.height
+              && element.width === Math.round(bounds.width * scale)
+              && element.height === Math.round(bounds.height * scale)
+          }), { message: `${theme}, viewport ${width}: canvas fills hero and redraws at display resolution` }).toBe(true)
           await expect.poll(() => region.getByRole('article').evaluateAll((elements) => {
             const top = elements[0]!.getBoundingClientRect().top
             return elements.filter(element => Math.abs(element.getBoundingClientRect().top - top) < 1).length

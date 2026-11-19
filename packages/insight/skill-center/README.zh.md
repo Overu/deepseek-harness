@@ -28,7 +28,7 @@ kind: "package-bundle"
 
 目录请求默认在 15 秒后超时，包含 JSON 正文读取。可在 `cordis.yml` 的插件配置中通过 `catalogRequestTimeoutMs` 修改这一正数毫秒预算；页面重新加载后生效。
 
-指针扫过搜索框后方的双手时，经过的点阵会亮起。启用减少动态效果后，双手保持静止，只有指针附近的点阵亮起。
+搜索框后方的双手背景铺满顶部区域，并随其宽度变化重新绘制。指针扫过双手时，经过的点阵会亮起。启用减少动态效果后，双手保持静止，只有指针附近的点阵亮起。
 
 Host 还会分别限制单个技能归档的请求时长、压缩字节数、归档条目数、解压字节数和可下载来源。配置方式见 [config.ts](src/config.ts) 中的 `packageRequestTimeoutMs`、`packageMaxDownloadBytes`、`packageMaxEntries`、`packageMaxExtractedBytes` 和 `packageAllowedOrigins`。
 

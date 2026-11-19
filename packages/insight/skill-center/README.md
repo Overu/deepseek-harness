@@ -28,7 +28,7 @@ Open **Skill center** below **Plugins** in the Insight sidebar to browse officia
 
 Directory requests time out after 15 seconds, including the JSON body. Set `catalogRequestTimeoutMs` in the plugin configuration in `cordis.yml` to change this positive millisecond budget; the page adopts it on reload.
 
-The hands behind search light up along the pointer. With reduced motion enabled, the hands stay still and only the dots near the pointer light up.
+The hands behind search fill the hero and redraw as its width changes. They light up along the pointer. With reduced motion enabled, the hands stay still and only the dots near the pointer light up.
 
 The Host separately limits one skill archive's request duration, compressed bytes, archive entries, extracted bytes, and allowed download origins. Configure `packageRequestTimeoutMs`, `packageMaxDownloadBytes`, `packageMaxEntries`, `packageMaxExtractedBytes`, and `packageAllowedOrigins` as described by [config.ts](src/config.ts).
 
