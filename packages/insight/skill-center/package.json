@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
-  "description": "Insight skill market reading the published OSS catalog",
+  "description": "Insight skill market reading the authenticated desktop catalog API",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
   "exports": {
@@ -58,7 +58,10 @@
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "@deepseek-ai/dsh-agent-preset-registry": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
-    "@deepseek-ai/dsh-typert-protocol": "workspace:*"
+    "@deepseek-ai/dsh-typert-protocol": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-host-webserver": "workspace:*",
+    "@insight-ai/desktop-integration": "workspace:~"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -90,7 +93,9 @@
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-typert-registry": "workspace:*",
     "@types/yauzl": "^2.10.3",
-    "fflate": "^0.8.2"
+    "fflate": "^0.8.2",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@insight-ai/desktop-integration": "workspace:~"
   },
   "scripts": {
     "bundle": "tsdown",

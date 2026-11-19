@@ -13526,6 +13526,12 @@ importers:
         specifier: 3.4.0
         version: 3.4.0
     devDependencies:
+      '@deepseek-ai/dsh-client-connection':
+        specifier: workspace:*
+        version: link:../../client/connection
+      '@insight-ai/desktop-integration':
+        specifier: workspace:~
+        version: link:../desktop-integration
       '@deepseek-ai/cordis':
         specifier: workspace:~
         version: link:../../../vendor/cordis

@@ -1,71 +1,88 @@
-/** Deterministic OSS response for skill-center UI tests. */
+/** Deterministic API records for skill-center UI tests. */
 export const CATALOG_FIXTURE = {
   'skills': [
     {
       'id': 1,
-      'skill_id': 'influencer-integration',
+      'skillId': 'influencer-integration',
       'name': '达人整合',
-      'skill_desc': '匹配合适的创作者，并整理可执行的达人合作方案。',
-      'version': '1.2.0',
+      'summary': '匹配合适的创作者，并整理可执行的达人合作方案。',
+      'packageVersion': '1.2.0',
       'description_markdown': '根据品牌、目标人群和传播目标，梳理达人筛选、合作分层与内容方向。\n输出可继续完善的整合营销提案。',
-      'download_url': 'https://example.com/skills/influencer-integration.zip',
+      'packageUrl': 'https://example.com/skills/influencer-integration.zip',
       'enabled': 1,
       'sort': 10,
     },
     {
       'id': 2,
-      'skill_id': 'insight-prestrategy-analysis',
+      'skillId': 'insight-prestrategy-analysis',
       'name': '品牌策略分析',
-      'skill_desc': '从品类、竞品与用户洞察中形成清晰的品牌策略起点。',
-      'version': '1.0.0',
+      'summary': '从品类、竞品与用户洞察中形成清晰的品牌策略起点。',
+      'packageVersion': '1.0.0',
       'description_markdown': '整理市场信息、竞品表现和目标用户需求。\n用结构化结论支持后续策略与创意工作。',
-      'download_url': 'https://example.com/skills/insight-prestrategy-analysis.zip',
+      'packageUrl': 'https://example.com/skills/insight-prestrategy-analysis.zip',
       'enabled': 1,
       'sort': 20,
     },
     {
       'id': 3,
-      'skill_id': 'category-competitor-insight',
+      'skillId': 'category-competitor-insight',
       'name': '品类竞品洞察',
-      'skill_desc': '快速归纳品类机会、竞品策略与值得关注的市场信号。',
-      'version': '1.1.0',
+      'summary': '快速归纳品类机会、竞品策略与值得关注的市场信号。',
+      'packageVersion': '1.1.0',
       'description_markdown': '聚合竞品定位、沟通重点和可观察的内容趋势。\n适合在项目启动阶段建立共同的市场认知。',
-      'download_url': 'https://example.com/skills/category-competitor-insight.zip',
+      'packageUrl': 'https://example.com/skills/category-competitor-insight.zip',
       'enabled': 1,
       'sort': 30,
     },
     {
       'id': 4,
-      'skill_id': 'creator-recommendation',
+      'skillId': 'creator-recommendation',
       'name': '创作者推荐',
-      'skill_desc': '根据品牌调性和传播需求，推荐适合合作的创作者组合。',
-      'version': '1.0.0',
+      'summary': '根据品牌调性和传播需求，推荐适合合作的创作者组合。',
+      'packageVersion': '1.0.0',
       'description_markdown': '从内容风格、受众匹配度和合作场景出发说明推荐原因。\n提供可供讨论的创作者候选方向。',
-      'download_url': 'https://example.com/skills/creator-recommendation.zip',
+      'packageUrl': 'https://example.com/skills/creator-recommendation.zip',
       'enabled': 1,
       'sort': 40,
     },
     {
       'id': 5,
-      'skill_id': 'canvas-workflow-builder',
+      'skillId': 'canvas-workflow-builder',
       'name': '创意工作流搭建与评估',
-      'skill_desc': '设计从需求拆解到创意交付的 AI 协作流程，并评估其效果。',
-      'version': '1.3.0',
+      'summary': '设计从需求拆解到创意交付的 AI 协作流程，并评估其效果。',
+      'packageVersion': '1.3.0',
       'description_markdown': '识别工作流的输入、关键步骤和交付物。\n针对团队协作方式给出可测试、可迭代的流程建议。',
-      'download_url': 'https://example.com/skills/canvas-workflow-builder.zip',
+      'packageUrl': 'https://example.com/skills/canvas-workflow-builder.zip',
       'enabled': 1,
       'sort': 50,
     },
     {
       'id': 6,
-      'skill_id': 'marketing-integrated',
+      'skillId': 'marketing-integrated',
       'name': '整合营销战役规划',
-      'skill_desc': '把品牌目标转化为跨渠道、可执行的整合营销战役规划。',
-      'version': '1.0.0',
+      'summary': '把品牌目标转化为跨渠道、可执行的整合营销战役规划。',
+      'packageVersion': '1.0.0',
       'description_markdown': '围绕目标、受众、主题与渠道安排营销动作。\n帮助团队从策略衔接到节奏和内容执行。',
-      'download_url': 'https://example.com/skills/marketing-integrated.zip',
+      'packageUrl': 'https://example.com/skills/marketing-integrated.zip',
       'enabled': 1,
       'sort': 60,
     },
   ],
+}
+
+/** Encode one successful paginated skill API response. */
+export function catalogResponse(catalog: { readonly skills: readonly unknown[] }, total = catalog.skills.length) {
+  return { code: 'SUCCESS', data: { records: catalog.skills, total, emptyFallback: [] } }
+}
+
+/** Reply only to list requests with published package metadata. */
+export function catalogApiResponse(catalog: { readonly skills: readonly unknown[] }, url: string) {
+  const path = new URL(url, 'http://localhost').pathname
+  if (!path.endsWith('/skills')) throw new Error(`Unexpected catalogue request ${path}`)
+  return catalogResponse(catalog)
+}
+
+/** Fetch a fresh response body for each list request. */
+export function catalogTransport(catalog: { readonly skills: readonly unknown[] }): typeof fetch {
+  return async input => Response.json(catalogApiResponse(catalog, typeof input === 'string' ? input : input instanceof URL ? input.href : input.url))
 }

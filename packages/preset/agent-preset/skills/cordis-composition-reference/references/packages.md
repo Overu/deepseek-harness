@@ -299,7 +299,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 |---|---|---|
 | `@insight-ai/builtin-skill-extensions` | yes | Insight workflow guidance for built-in DeepSeek Harness skills |
 | `@insight-ai/desktop-media-upload-plugin` | yes | Insight Desktop OSS attachment upload and image-layer generation tools |
-| `@insight-ai/skill-center` | yes | Insight skill market reading the published OSS catalog |
+| `@insight-ai/skill-center` | yes | Insight skill market reading the authenticated desktop catalog API |
 | `dsh-memory-evolve` | yes | Layered memory, skill and task management for Insight workspaces |
 | `dsh-prompt-enhance` | yes | Prompt enhancement for the DSH composer |
 

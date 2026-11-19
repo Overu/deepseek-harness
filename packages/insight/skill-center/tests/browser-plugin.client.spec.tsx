@@ -10,7 +10,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import * as plugin from '../src/client/index.ts'
 import { apply as resourcesApply, inject as resourcesInject } from '@deepseek-ai/dsh-client-resources/src/client/index.ts'
-import { CATALOG_FIXTURE } from './fixtures/catalog.ts'
+import { CATALOG_FIXTURE, catalogResponse, catalogTransport } from './fixtures/catalog.ts'
 import { SkillInstallProgressModal } from '../src/client/SkillInstallProgressModal.tsx'
 import { zh } from '../src/client/locales.ts'
 
@@ -38,7 +38,7 @@ function inventoryRemote() {
 }
 
 async function mountMarket(
-  fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(Response.json(CATALOG_FIXTURE)), settle = true,
+  fetchImplementation = vi.fn(catalogTransport(CATALOG_FIXTURE)), settle = true,
   platform = platformRemote(),
   inventory = inventoryRemote(),
   expectedCardCount = 6,
@@ -182,23 +182,23 @@ it('keeps the install operation modal blocking while cancellation settles', () =
 
 it.each([null, 14])('retains one progress dialog and final toast through sixteen presets with failure %s', async (failedId) => {
   const skills = Array.from({ length: 16 }, (_, index) => ({
-    ...CATALOG_FIXTURE.skills[0]!, id: index + 1, skill_id: `preset-skill-${index + 1}`, name: `预置技能 ${index + 1}`,
+    ...CATALOG_FIXTURE.skills[0]!, id: index + 1, skillId: `preset-skill-${index + 1}`, name: `预置技能 ${index + 1}`,
   }))
-  vi.stubGlobal('__INSIGHT_SKILL_CENTER_CONFIG__', { presetSkillIds: skills.map(skill => skill.skill_id) })
+  vi.stubGlobal('__INSIGHT_SKILL_CENTER_CONFIG__', { presetSkillIds: skills.map(skill => skill.skillId) })
   let completed = 0
   let snapshot = installed()
   const platform = RemoteMock.create()
     .unary('insightPlatformSkills/claimPresetInstallation', ok(true))
     .unary('insightPlatformSkills/listPendingPresets', () => ok(skills.filter(skill =>
       skill.id > completed || skill.id === failedId).map(skill => ({
-      id: brandString<InsightSkillId>(skill.skill_id),
+      id: brandString<InsightSkillId>(skill.skillId),
     }))))
     .unary('insightPlatformSkills/listInstalled', () => ok(snapshot))
     .unary('insightPlatformSkills/waitForInstallation', () => ok(snapshot))
     .unary('insightPlatformSkills/removeSkill', ok(snapshot))
     .unary('insightPlatformSkills/cancel', ok({ kind: 'cancelled', operationId: 'unused' } as never))
     .stream('insightPlatformSkills/installSkill', openStream())
-  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json({ skills })), true, platform, undefined, 16)
+  const { view } = await mountMarket(vi.fn(catalogTransport({ skills })), true, platform, undefined, 16)
   const dialog = await view.findByRole('dialog', { name: '正在安装预置技能' })
   for (let index = 0; index < skills.length; index++) {
     await platform.streams.opened('insightPlatformSkills/installSkill', index + 1)
@@ -208,7 +208,7 @@ it.each([null, 14])('retains one progress dialog and final toast through sixteen
     if (request === undefined) throw new Error('Missing preset install request')
     completed++
     snapshot = installed(skills.slice(0, completed).filter(skill => skill.id !== failedId).map(skill => ({
-      id: skill.skill_id, version: skill.version,
+      id: skill.skillId, version: skill.packageVersion,
     })))
     if (completed === failedId) {
       platform.streams.fail('insightPlatformSkills/installSkill', new Error('invalid package'))
@@ -312,25 +312,25 @@ it('removes an installed skill by its technical name after confirmation', async 
 })
 
 it('treats a technical-name rename as a new skill', async () => {
-  const catalogue = { skills: [{ ...CATALOG_FIXTURE.skills[0], skill_id: 'renamed-integration' }] }
+  const catalogue = { skills: [{ ...CATALOG_FIXTURE.skills[0], skillId: 'renamed-integration' }] }
   const platform = platformRemote(installed([{ id: 'influencer-integration', version: '1.2.0' }]))
-  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, platform, undefined, 2)
+  const { view } = await mountMarket(vi.fn(catalogTransport(catalogue)), true, platform, undefined, 2)
   expect(within(view.getAllByRole('article')[0]!).getByRole('button', { name: '安装' })).toBeTruthy()
 })
 
-it.each([undefined, 'changed-id', 'duplicated-id', {}, 1])('ignores external OSS id %j for installation matching', async (id) => {
+it.each([undefined, 'changed-id', 'duplicated-id', {}, 1])('ignores external API id %j for installation matching', async (id) => {
   const catalogue = { skills: [{ ...CATALOG_FIXTURE.skills[0], id }] }
   const platform = platformRemote(installed([{ id: 'influencer-integration', version: '1.2.0' }]))
-  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, platform, undefined, 1)
+  const { view } = await mountMarket(vi.fn(catalogTransport(catalogue)), true, platform, undefined, 1)
   expect(within(view.getByRole('article')).getByText('已安装', { exact: true })).toBeTruthy()
 })
 
-it('accepts duplicate external OSS ids when technical names are distinct', async () => {
+it('accepts duplicate external API ids when technical names are distinct', async () => {
   const catalogue = { skills: [
     { ...CATALOG_FIXTURE.skills[0], id: 'duplicated-id' },
     { ...CATALOG_FIXTURE.skills[1], id: 'duplicated-id' },
   ] }
-  const { view } = await mountMarket(vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogue)), true, undefined, undefined, 2)
+  const { view } = await mountMarket(vi.fn(catalogTransport(catalogue)), true, undefined, undefined, 2)
   expect(view.getAllByRole('article')).toHaveLength(2)
 })
 
@@ -369,7 +369,7 @@ it('keeps installed skills removable while the catalogue is unavailable', async 
   await waitFor(() => { expect(view.queryByRole('heading', { name: 'retired-platform-skill' })).toBeNull() })
 })
 
-it('localizes page controls while preserving catalog text from OSS', async () => {
+it('localizes page controls while preserving catalog text from the API', async () => {
   const { view, locale } = await mountMarket()
   const input = view.getByRole('searchbox')
   fireEvent.change(input, { target: { value: 'workflow' } })
@@ -389,7 +389,7 @@ it('localizes page controls while preserving catalog text from OSS', async () =>
 it('shows a loading state, reports request failure, and retries only after the user requests it', async () => {
   const pending = Promise.withResolvers<Response>()
   const fetchImplementation = vi.fn<typeof fetch>().mockReturnValueOnce(pending.promise)
-    .mockResolvedValueOnce(Response.json(CATALOG_FIXTURE))
+    .mockImplementation(catalogTransport(CATALOG_FIXTURE))
   const { view } = await mountMarket(fetchImplementation, false)
   expect(view.queryAllByRole('article')).toHaveLength(0)
   expect(view.getByRole('status')).toBeTruthy()
@@ -398,11 +398,11 @@ it('shows a loading state, reports request failure, and retries only after the u
   expect(fetchImplementation).toHaveBeenCalledOnce()
   fireEvent.click(view.getByRole('button', { name: '重试' }))
   await waitFor(() => { expect(view.getAllByRole('article')).toHaveLength(6) })
-  expect(fetchImplementation).toHaveBeenCalledTimes(2)
+  expect(fetchImplementation.mock.calls.filter(([url]) => typeof url === 'string' && url.includes('/skills?'))).toHaveLength(2)
 })
 
 it('distinguishes an empty published catalog from unmatched search results', async () => {
-  const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(Response.json({ skills: [] }))
+  const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(Response.json(catalogResponse({ skills: [] })))
   const { view } = await mountMarket(fetchImplementation, false)
   await view.findByText('暂时还没有已上架技能')
   expect(view.queryByText(/没有找到/)).toBeNull()
@@ -417,7 +417,7 @@ it('aborts the catalog request and removes its provider when the plugin unloads'
   expect(signal?.aborted).toBe(false)
   await act(() => feature.dispose())
   expect(signal?.aborted).toBe(true)
-  await act(async () => { pending.resolve(Response.json(CATALOG_FIXTURE)) })
+  await act(async () => { pending.resolve(Response.json(catalogResponse(CATALOG_FIXTURE))) })
   expect(view.queryAllByRole('article')).toHaveLength(0)
   expect(runtime.slots.entries('main')).toHaveLength(0)
 })

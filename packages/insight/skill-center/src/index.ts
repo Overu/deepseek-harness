@@ -4,6 +4,7 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type { Config } from './config.ts'
 import { InsightPlatformSkills } from './host/platform-skills.ts'
 import { InsightSkillInventory } from './host/skill-inventory.ts'
+import { registerSkillCatalogRoute } from './host/catalog-route.ts'
 
 export { Config } from './config.ts'
 export { InsightPlatformSkills } from './host/platform-skills.ts'
@@ -24,7 +25,7 @@ export type {
 export const name = 'insight-skill-center'
 
 /** Installation contributes an ordinary provider to the global skill registry. */
-export const inject = ['skills']
+export const inject = ['skills', 'insightAccount', 'webServer', 'connection']
 
 /**
  * Start account skill storage and the injected expert inventory, then publish browser configuration.
@@ -33,6 +34,7 @@ export const inject = ['skills']
  */
 export async function apply(ctx: Context, config: Config): Promise<void> {
   validateAllowedOrigins(config.packageAllowedOrigins)
+  registerSkillCatalogRoute(ctx, config)
   const desktopLegacyDirectory = process.env.DSH_INSIGHT_LEGACY_SKILL_DIR
   const effectiveConfig = Object.assign({}, config, {
     legacySkillDirs: [...new Set([...config.legacySkillDirs, ...desktopLegacyDirectory === undefined ? [] : [desktopLegacyDirectory]])],

@@ -2,14 +2,16 @@
 import z from '@deepseek-ai/schemastery'
 import { PLATFORM_SKILL_ID_PATTERN } from './shared/skill-installation.ts'
 
-/** Deployment policy for OSS directory requests. */
+/** Deployment policy for skill catalogue requests. */
 export interface Config {
   /** Technical skill names selected for first automatic installation. */
   presetSkillIds: string[]
   /** Absolute previous application skill directories discovered read-only for compatibility. */
   legacySkillDirs: string[]
-  /** Maximum time for the response headers and JSON body, in milliseconds. */
+  /** Maximum time for all catalogue pages, including JSON bodies, in milliseconds. */
   catalogRequestTimeoutMs: number
+  /** Maximum bytes buffered from one catalogue API response by the Host. */
+  catalogMaxResponseBytes: number
   /** Maximum time for downloading one skill archive, in milliseconds. */
   packageRequestTimeoutMs: number
   /** Maximum compressed bytes accepted for one skill archive. */
@@ -27,6 +29,7 @@ export const Config: z<Partial<Config>, Config> = z.object({
   presetSkillIds: z.array(z.string().pattern(PLATFORM_SKILL_ID_PATTERN)).default([]),
   legacySkillDirs: z.array(z.string().pattern(/^(?:\/|[a-z]:[\\/]|\\\\)/iu)).default([]),
   catalogRequestTimeoutMs: z.natural().min(1).max(2_147_483_647).default(15_000),
+  catalogMaxResponseBytes: z.natural().min(1).max(1024 * 1024 * 1024).default(30 * 1024 * 1024),
   packageRequestTimeoutMs: z.natural().min(1).max(2_147_483_647).default(120_000),
   packageMaxDownloadBytes: z.natural().min(1).max(1024 * 1024 * 1024).default(64 * 1024 * 1024),
   packageMaxEntries: z.natural().min(1).max(100_000).default(10_000),
