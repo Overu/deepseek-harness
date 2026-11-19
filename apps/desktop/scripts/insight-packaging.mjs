@@ -52,7 +52,7 @@ export function resolveInsightPackagingTarget(platform, arch) {
  * @param {NodeJS.Platform} platform - Electron-builder target platform.
  * @param {string} arch - Electron-builder target architecture.
  * @param {{ requireAppId?: boolean, requireNativeTarget?: boolean }} options - Require the dotenv application identifier or signed native target when release validation owns them.
- * @returns {{ appId: string, productName: string, artifactPrefix: string, productVersion: string, target: 'darwin-arm64' | 'darwin-x64' | 'win32-x64' | undefined, update: { channel: 'nightly' | 'latest', publicUrl: string } | undefined } | undefined} Insight product settings.
+ * @returns {{ appId: string, productName: string, artifactPrefix: string, productVersion: string, developerControls: boolean, target: 'darwin-arm64' | 'darwin-x64' | 'win32-x64' | undefined, update: { channel: 'nightly' | 'latest', publicUrl: string } | undefined } | undefined} Insight product settings.
  */
 export function resolveInsightPackaging(env, platform, arch, options = {}) {
   const selected = env.DSH_DESKTOP_PRODUCT?.trim()
@@ -81,6 +81,8 @@ export function resolveInsightPackaging(env, platform, arch, options = {}) {
     productName: INSIGHT_PACKAGING_PRODUCT_NAME,
     artifactPrefix: env.DSH_INSIGHT_RC_BUILD === '1' ? 'insight-internal-rc' : INSIGHT_PACKAGING_ARTIFACT_PREFIX,
     productVersion: version.version,
+    developerControls: env.DSH_INSIGHT_RC_BUILD === '1'
+      || (value === version.version && /^1\.\d+\.\d+-rc\.\d+$/u.test(version.version)),
     target,
     update: target === undefined || origin === undefined ? undefined : {
       channel,

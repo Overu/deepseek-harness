@@ -241,8 +241,8 @@ export function createElectronBuilderConfig(
       if (insight !== undefined) {
         const archive = await readAsar(join(resourcesDir, 'app.asar'))
         const main = await archive.readFile(join('lib', 'main.js'))
-        if (main.includes('--insight-rc-service-environment=') !== insightRc
-          || main.includes('开发者选项') !== insightRc) {
+        if (main.includes('--insight-rc-service-environment=') !== insight.developerControls
+          || main.includes('开发者选项') !== insight.developerControls) {
           throw new Error('desktop package: assembled Insight application does not match its RC build selection')
         }
       }
