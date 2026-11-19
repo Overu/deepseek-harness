@@ -83,6 +83,90 @@ describe('image layering proxy', () => {
       expect(session.snapshotEvents().map(event => event.type)).toEqual(['turn/start'])
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
   })
+  it('reports an explicit copyright failure and keeps the upstream message in Host diagnostics', async () => {
+    const ctx = new Context()
+    const definitions: ToolDefinition[] = []
+    const agent = { id: SessionId('layer-agent'), session: Session.create(SessionId('copyright-layering-task')) } as Agent
+    const warnings: string[] = []
+    ctx.logger.warn = ((message: unknown) => { warnings.push(String(message)) }) as typeof ctx.logger.warn
+    const transport = vi.fn(async () => ndjson({ code: 3099,
+      message: '输出图像可能涉及版权限制，任务无法完成', status: 'failed', data: {} }))
+    vi.stubGlobal('fetch', transport)
+    try {
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
+      ctx.provide('jobs', { start: () => JobId('job') } as never)
+      registerForTest(ctx, config, () => true)
+      const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
+        signal: new AbortController().signal } as ToolRunContext
+      const result = await definitions.find(tool => tool.name === 'get_image_layering')!
+        .execute({ taskHandle: handle }, exec)
+      expect(result).toMatchObject({ taskHandle: handle, status: 'failed', businessCode: 3099,
+        error: '因版权相关限制，这张图片的分层处理失败。请更换一张图片再试。',
+        proxyRequestId: '123e4567-e89b-12d3-a456-426614174000' })
+      expect(JSON.stringify(result)).not.toContain('输出图像可能涉及版权限制，任务无法完成')
+      expect(transport).toHaveBeenCalledTimes(1)
+      expect(warnings).toHaveLength(1)
+      const logged: unknown = JSON.parse(warnings[0]!.split('query diagnostic ')[1]!)
+      expect(logged).toMatchObject({ sessionId: 'copyright-layering-task', queryAttempt: 1,
+        path: '/v1/proxy_async_get_result', proxyHttpStatus: 200, upstreamStatus: 200,
+        eventType: 'result', businessCode: 3099, bodyStatus: 'failed', bodyData: {},
+        bodyMessage: { text: '输出图像可能涉及版权限制，任务无法完成', redacted: false, truncated: false },
+        classification: 'failed/copyright_restriction',
+        proxyRequestId: '123e4567-e89b-12d3-a456-426614174000' })
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
+  })
+
+  it('redacts unexpected upstream text without turning it into a copyright diagnosis', async () => {
+    const ctx = new Context()
+    const definitions: ToolDefinition[] = []
+    const agent = { id: SessionId('layer-agent'), session: Session.create(SessionId('other-layering-task')) } as Agent
+    const warnings: string[] = []
+    ctx.logger.warn = ((message: unknown) => { warnings.push(String(message)) }) as typeof ctx.logger.warn
+    vi.stubGlobal('fetch', vi.fn(async () => ndjson({ code: 3099, status: 'failed',
+      message: 'Try https://example.test/file?token=private and token=private', data: { psd_url: psd } })))
+    try {
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
+      ctx.provide('jobs', { start: () => JobId('job') } as never)
+      registerForTest(ctx, config, () => true)
+      const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
+        signal: new AbortController().signal } as ToolRunContext
+      const result = await definitions.find(tool => tool.name === 'get_image_layering')!
+        .execute({ taskHandle: handle }, exec)
+      expect(result).toMatchObject({ status: 'failed', error: '这张图片的分层处理未能完成，请稍后再试。' })
+      expect(JSON.stringify(result)).not.toContain('private')
+      expect(warnings).toHaveLength(1)
+      expect(warnings[0]).not.toContain('private')
+      expect(warnings[0]).not.toContain(psd)
+      expect(JSON.parse(warnings[0]!.split('query diagnostic ')[1]!)).toMatchObject({
+        bodyMessage: { redacted: true }, bodyData: { fieldCount: 1, fields: [{ name: 'psd_url', type: 'string' }] },
+        classification: 'failed/other',
+      })
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
+  })
+  it('keeps an explicit failure when Host diagnostic logging is unavailable', async () => {
+    const ctx = new Context()
+    const definitions: ToolDefinition[] = []
+    const agent = { id: SessionId('layer-agent'), session: Session.create(SessionId('logger-failure-task')) } as Agent
+    ctx.logger.warn = (() => { throw new Error('logger unavailable') }) as typeof ctx.logger.warn
+    vi.stubGlobal('fetch', vi.fn(async () => ndjson({ code: 3099,
+      message: '输出图像可能涉及版权限制，任务无法完成', status: 'failed', data: {} })))
+    try {
+      ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
+      ctx.provide('agents', { roots: () => [agent] } as never)
+      ctx.provide('insightAccount', { getAccessToken: async () => 'account-token' } as never)
+      ctx.provide('jobs', { start: () => JobId('job') } as never)
+      registerForTest(ctx, config, () => true)
+      const exec = { agent, callId: ToolCallId('call-1'), rootCallId: ToolCallId('root-1'),
+        signal: new AbortController().signal } as ToolRunContext
+      expect(await definitions.find(tool => tool.name === 'get_image_layering')!
+        .execute({ taskHandle: handle }, exec)).toMatchObject({ status: 'failed',
+        error: '因版权相关限制，这张图片的分层处理失败。请更换一张图片再试。' })
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
+  })
   it('keeps a partial result without downloading files before delivery', async () => {
     const ctx = new Context()
     const definitions: ToolDefinition[] = []
@@ -298,7 +382,8 @@ describe('image layering proxy', () => {
         return ndjson({ code: 0, data: { task_id_list: [handles[creates - 1]] } })
       }
       queries.push(request.body.task_id!)
-      return ndjson(request.body.task_id === handle ? { code: 3099 } :
+      return ndjson(request.body.task_id === handle ? { code: 3099,
+        message: '输出图像可能涉及版权限制，任务无法完成', status: 'failed', data: {} } :
         { code: 0, status: 'success', data: { image_list: [psd] } })
     })
     vi.stubGlobal('fetch', transport)
@@ -318,7 +403,8 @@ describe('image layering proxy', () => {
         append: () => {}, updateProgress: () => {} }).done))
       expect(outcomes.map(outcome => outcome.status)).toEqual(['completed', 'failed', 'completed'])
       expect(JSON.parse(outcomes[1]?.result ?? '{}')).toMatchObject({ taskHandle: handle,
-        status: 'query_unavailable', reason: 'business_error', businessCode: 3099, remoteOutcome: 'unknown' })
+        status: 'failed', businessCode: 3099,
+        error: '因版权相关限制，这张图片的分层处理失败。请更换一张图片再试。' })
       expect(queries).toEqual(['good-1', handle, 'good-3'])
       expect(creates).toBe(3)
     } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }

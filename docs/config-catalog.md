@@ -4836,8 +4836,8 @@ export interface Config {
 
 ## `@insight-ai/desktop-media-upload-plugin`
 
-- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `permissionPresets` · `agents` · `sessionProjections` · `jobs` · `fs` · `workingDirectory` · `sandboxPolicy` · `insightPlatformSkills` · `connection` · `sessionQuery`
-- `source`: [`packages/insight/media-upload/src/index.ts:32`](../packages/insight/media-upload/src/index.ts)
+- `inject`: `tools` · `attachments` · `insightAccount` · `agents` · `sessionProjections` · `jobs` · `fs` · `workingDirectory` · `sandboxPolicy` · `insightPlatformSkills` · `connection` · `sessionQuery`
+- `source`: [`packages/insight/media-upload/src/index.ts:30`](../packages/insight/media-upload/src/index.ts)
 
 ```ts config-catalog
 /** Product environment and bounded network deadlines. */
