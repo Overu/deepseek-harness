@@ -29,7 +29,10 @@ it('defaults the request budget and rejects invalid timer values', () => {
     packageMaxDownloadBytes: 64 * 1024 * 1024,
     packageMaxEntries: 10_000,
     packageMaxExtractedBytes: 256 * 1024 * 1024,
-    packageAllowedOrigins: ['https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com'],
+    packageAllowedOrigins: [
+      'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com',
+      'https://insight-gpt.oss-cn-shenzhen.aliyuncs.com',
+    ],
   })
   for (const value of [0, -1, 1.5, Infinity, NaN, 2_147_483_648]) {
     expect(() => Config({ catalogRequestTimeoutMs: value })).toThrow()

@@ -30,7 +30,7 @@ Directory requests time out after 15 seconds, including all pages and their JSON
 
 The hands behind search fill the hero and redraw as its width changes. They light up along the pointer. With reduced motion enabled, the hands stay still and only the dots near the pointer light up.
 
-The Host separately limits one skill archive's request duration, compressed bytes, archive entries, extracted bytes, and allowed download origins. Configure `packageRequestTimeoutMs`, `packageMaxDownloadBytes`, `packageMaxEntries`, `packageMaxExtractedBytes`, and `packageAllowedOrigins` as described by [config.ts](src/config.ts).
+The Host separately limits one skill archive's request duration, compressed bytes, archive entries, extracted bytes, and allowed download origins. Downloads default to the Insight update bucket `https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com` and skill-upload bucket `https://insight-gpt.oss-cn-shenzhen.aliyuncs.com`. Configure `packageRequestTimeoutMs`, `packageMaxDownloadBytes`, `packageMaxEntries`, `packageMaxExtractedBytes`, and `packageAllowedOrigins` as described by [config.ts](src/config.ts).
 
 Removing a skill deletes its installation record and its skill-specific payload directory, including leftover releases. Startup also reclaims abandoned releases and empty skill directories. Shared account storage directories remain available for other installations. Cleanup failures are logged and retried at the next startup.
 

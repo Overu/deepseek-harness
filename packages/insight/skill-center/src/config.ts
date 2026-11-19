@@ -36,5 +36,6 @@ export const Config: z<Partial<Config>, Config> = z.object({
   packageMaxExtractedBytes: z.natural().min(1).max(4 * 1024 * 1024 * 1024).default(256 * 1024 * 1024),
   packageAllowedOrigins: z.array(z.string()).default([
     'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com',
+    'https://insight-gpt.oss-cn-shenzhen.aliyuncs.com',
   ]),
 })

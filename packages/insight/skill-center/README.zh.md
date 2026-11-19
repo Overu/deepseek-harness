@@ -30,7 +30,7 @@ kind: "package-bundle"
 
 搜索框后方的双手背景铺满顶部区域，并随其宽度变化重新绘制。指针扫过双手时，经过的点阵会亮起。启用减少动态效果后，双手保持静止，只有指针附近的点阵亮起。
 
-Host 还会分别限制单个技能归档的请求时长、压缩字节数、归档条目数、解压字节数和可下载来源。配置方式见 [config.ts](src/config.ts) 中的 `packageRequestTimeoutMs`、`packageMaxDownloadBytes`、`packageMaxEntries`、`packageMaxExtractedBytes` 和 `packageAllowedOrigins`。
+Host 还会分别限制单个技能归档的请求时长、压缩字节数、归档条目数、解压字节数和可下载来源。默认允许从 Insight 更新桶 `https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com` 和技能上传桶 `https://insight-gpt.oss-cn-shenzhen.aliyuncs.com` 下载。配置方式见 [config.ts](src/config.ts) 中的 `packageRequestTimeoutMs`、`packageMaxDownloadBytes`、`packageMaxEntries`、`packageMaxExtractedBytes` 和 `packageAllowedOrigins`。
 
 移除技能会删除安装记录及该技能专属的内容目录，包括遗留版本。启动时也会清理废弃版本和空技能目录。账号共享存储目录会保留，供其他安装使用。清理失败会记录日志，并在下次启动时重试。
 
