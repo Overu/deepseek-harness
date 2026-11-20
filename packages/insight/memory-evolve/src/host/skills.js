@@ -253,7 +253,7 @@ export function hasReadSkill(agent, toolName, name) {
  * Build the `skill_manage` tool definition.
  * @param {object} ctx - the plugin context (for the optional `skills`
  *   service used by the disabled-skill check).
- * @param {object} config - resolved plugin config (skillDir etc.).
+ * @param {object} config - live plugin config, including the skill auto-harvest setting.
  * @returns {object} a ToolDefinition-shaped object for ctx.tools.register.
  */
 export function skillManageTool(ctx, config) {
@@ -386,11 +386,6 @@ export function skillManageTool(ctx, config) {
           if (readSkill(dir, name) !== undefined) {
             return { ok: false, message: smt('skillmsg.existsUsePatch', { name }) }
           }
-          // Skill creations go through the pending queue unless the user
-          // enabled direct auto-harvest: the skill lands in
-          // <memoryDir>/pending-skills/ and is installed by moving it into
-          // the live skills dir when the user approves it in the panel.
-          // Applies to every session (the review runs in the main session).
           if (!config.skillReviewEnabled) {
             if (readSkill(pendingDir, name) !== undefined) {
               return { ok: false, message: smt('skillmsg.pendingDuplicate', { name }) }

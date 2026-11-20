@@ -4,7 +4,7 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
 /** Technical skill identifiers admit no filesystem separators. */
 export const PLATFORM_SKILL_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u
 
-/** Technical name shared by the catalogue skill_id and SKILL.md.name. */
+/** Technical name shared by the catalogue skillId and SKILL.md.name. */
 export type InsightSkillId = Branded<'InsightSkillId'>
 
 /** Installation identity independent of the catalogue numeric ID. */

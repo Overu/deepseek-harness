@@ -51,6 +51,12 @@
     },
     {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../client/connection/tsconfig.host.json"
+    },
+    {
+      "path": "../desktop-integration/tsconfig.host.json"
     }
   ]
 }

@@ -12,7 +12,7 @@ import { apply } from '../src/index.ts'
 import { currentTurnUploadsProjection, listLayeringSources, selectLayeringSource,
   selectUploadSource, uploadFileForSource, uploadTurnSeq } from '../src/upload-source.ts'
 import { objectFileType, requestUploadSession, type UploadSession } from '../src/upload-center.ts'
-import { putOssObject } from '../src/oss-put.ts'
+import * as ossPut from '../src/oss-put.ts'
 
 const file: FileAttachmentRef = { attachmentId: AttachmentId(`sha256:${'ab'.repeat(32)}`), name: 'clip.mp4', bytes: 4 }
 const serviceBaseUrl = 'https://gapi-test.insight-aigc.com/game-ai-editor-center'
@@ -87,7 +87,7 @@ describe('stored-byte OSS PUT', () => {
   it('streams the exact file and requires full consumption plus HTTP 200', async () => {
     const attachments = { readFileStream: async function* () { yield Uint8Array.from([1, 2]); yield Uint8Array.from([3, 4]) } }
     const chunks: Buffer[] = []
-    await putOssObject(attachments, file, session, 'video/mp4', 60_000, new AbortController().signal,
+    await ossPut.putOssObject(attachments, file, session, 'video/mp4', 60_000, new AbortController().signal,
       async (authority, stream, type, bytes) => {
         expect(authority.objectKey).toBe('users/stored-clip.mp4')
         expect(type).toBe('video/mp4')
@@ -100,14 +100,14 @@ describe('stored-byte OSS PUT', () => {
 
   it('reports an unconfirmed transfer when the PUT response arrives before the stream is consumed', async () => {
     const attachments = { readFileStream: async function* () { yield Uint8Array.from([1, 2, 3, 4]) } }
-    await expect(putOssObject(attachments, file, session, 'video/mp4', 60_000, new AbortController().signal,
+    await expect(ossPut.putOssObject(attachments, file, session, 'video/mp4', 60_000, new AbortController().signal,
       async () => ({ res: { status: 200 } }))).rejects.toMatchObject({ code: 'OSS_RESULT_UNKNOWN' })
   })
 
   it('destroys the source and reports an unconfirmed result when cancelled after PUT starts', async () => {
     const controller = new AbortController()
     const attachments = { readFileStream: async function* () { yield Uint8Array.from([1, 2, 3, 4]) } }
-    await expect(putOssObject(attachments, file, session, 'video/mp4', 60_000, controller.signal,
+    await expect(ossPut.putOssObject(attachments, file, session, 'video/mp4', 60_000, controller.signal,
       async (_authority, stream) => { controller.abort(); expect(stream.destroyed).toBe(true)
         return { res: { status: 200 } } })).rejects.toMatchObject({ code: 'OSS_RESULT_UNKNOWN' })
   })
@@ -225,29 +225,37 @@ describe('current-turn attachment authority', () => {
   })
 })
 
-describe('tool authorization', () => {
-  it('requires a fresh approval before fetching account credentials or contacting OSS', async () => {
+describe('general upload tool', () => {
+  it('uploads a current-turn attachment without an approval service', async () => {
     const ctx = new Context()
     const release = vi.fn()
     const disposeSkill = vi.fn()
     const registerPackagedSkillRoot = vi.fn(async () => disposeSkill)
+    const imageRef = { attachmentId: AttachmentId(`sha256:${'cd'.repeat(32)}`), mediaType: 'image/jpeg' as const,
+      bytes: 3, width: 1, height: 1, name: 'portrait.png' }
+    const storedImage = { attachmentId: imageRef.attachmentId, name: 'portrait.jpg', bytes: 3 }
+    const imageUrl = 'https://company-files.oss-cn-shanghai.aliyuncs.com/users/stored-photo.jpg'
+    const put = vi.spyOn(ossPut, 'putOssObject').mockResolvedValue()
+    const transport = vi.fn(async (_url: URL | RequestInfo, init?: RequestInit) => {
+      expect(init?.headers).toMatchObject({ token: 'account-token' })
+      return Response.json({ code: 'SUCCESS', data: { ...session.credentials,
+        endPoint: 'oss-cn-shanghai.aliyuncs.com', dir: 'users/', fileName: 'stored-photo.jpg', fileType: 'image',
+        expiration: new Date(Date.now() + 300_000).toISOString(), url: null } })
+    })
+    vi.stubGlobal('fetch', transport)
     try {
       await ctx.plugin(SessionProjectionRegistry)
-      const session = Session.create(SessionId('approval-turn'))
-      session.append('turn/start', { turn: 1 })
-      session.append('user/message', createUserMessage({ source: { kind: 'user' },
-        content: [{ type: 'image', attachment: { attachmentId: AttachmentId(`sha256:${'cd'.repeat(32)}`),
-          mediaType: 'image/png', bytes: 3, width: 1, height: 1 } }] }), { surfaceOp: 'append' })
-      const agent = { session } as Agent
+      const currentSession = Session.create(SessionId('direct-upload-turn'))
+      currentSession.append('turn/start', { turn: 1 })
+      currentSession.append('user/message', createUserMessage({ source: { kind: 'user' },
+        content: [{ type: 'image', attachment: imageRef }] }), { surfaceOp: 'append' })
+      const agent = { session: currentSession } as Agent
       const register = vi.fn((_definition: ToolDefinition) => release)
-      const request = vi.fn(async () => 'rejected' as const)
       const getAccessToken = vi.fn(async () => 'account-token')
-      const readImage = vi.fn()
-      const saveFile = vi.fn()
+      const readImage = vi.fn(async () => ({ ref: imageRef, data: Uint8Array.of(1, 2, 3) }))
+      const saveFile = vi.fn(async () => storedImage)
       ctx.provide('tools', { register } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
-      ctx.provide('approval', { request } as never)
-      ctx.provide('permissionPresets', { current: () => 'workspace-write' } as never)
       ctx.provide('insightAccount', { getAccessToken } as never)
       ctx.provide('attachments', { readImage, saveFile } as never)
       ctx.provide('connection', { fetch: { register: () => () => {} } } as never)
@@ -266,32 +274,32 @@ describe('tool authorization', () => {
       }])
       const exec = { agent, callId: ToolCallId('call-1'), name: 'upload_attachment', arguments: {},
         signal: new AbortController().signal } as ToolRunContext
-      await expect(definition?.execute({}, exec)).rejects.toMatchObject({ code: 'APPROVAL_DENIED' })
-      expect(request).toHaveBeenCalledOnce()
-      expect(getAccessToken).not.toHaveBeenCalled()
-      expect(readImage).not.toHaveBeenCalled()
-      expect(saveFile).not.toHaveBeenCalled()
-    } finally { await ctx.fiber.dispose() }
+      await expect(definition?.execute({}, exec)).resolves.toEqual({ url: imageUrl,
+        urlAccess: 'unverified', filename: storedImage.name, sizeBytes: storedImage.bytes })
+      expect(getAccessToken).toHaveBeenCalledOnce()
+      expect(readImage).toHaveBeenCalledOnce()
+      expect(saveFile).toHaveBeenCalledWith({ data: Uint8Array.of(1, 2, 3), name: storedImage.name })
+      expect(transport).toHaveBeenCalledOnce()
+      expect(put).toHaveBeenCalledWith(expect.anything(), storedImage,
+        expect.objectContaining({ uploadUrl: imageUrl }), 'image/jpeg', 180_000, expect.any(AbortSignal))
+    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals(); vi.restoreAllMocks() }
     expect(release).toHaveBeenCalledTimes(5)
     expect(disposeSkill).toHaveBeenCalledOnce()
   })
 
-  it('uses the effective Full access preset without requesting upload approval', async () => {
+  it('still requires an account before contacting the upload center', async () => {
     const ctx = new Context()
     try {
       await ctx.plugin(SessionProjectionRegistry)
-      const session = Session.create(SessionId('full-access-upload'))
+      const session = Session.create(SessionId('account-required-upload'))
       session.append('turn/start', { turn: 1 })
       session.append('user/message', createUserMessage({ source: { kind: 'user' },
         content: [{ type: 'file', attachment: file }] }), { surfaceOp: 'append' })
       const agent = { session } as Agent
       const definitions: ToolDefinition[] = []
-      const request = vi.fn(async () => 'rejected' as const)
       const getAccessToken = vi.fn(async () => { throw new Error('No account') })
       ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
-      ctx.provide('approval', { request } as never)
-      ctx.provide('permissionPresets', { current: () => 'danger-full-access' } as never)
       ctx.provide('insightAccount', { getAccessToken } as never)
       ctx.provide('attachments', {} as never)
       ctx.provide('connection', { fetch: { register: () => () => {} } } as never)
@@ -301,33 +309,22 @@ describe('tool authorization', () => {
         signal: new AbortController().signal } as ToolRunContext
       await expect(definitions.find(tool => tool.name === 'upload_attachment')?.execute({}, exec))
         .rejects.toMatchObject({ code: 'AUTH_REQUIRED' })
-      expect(request).not.toHaveBeenCalled()
       expect(getAccessToken).toHaveBeenCalledOnce()
     } finally { await ctx.fiber.dispose() }
   })
 
-  it('asks again when Full access ends before the STS request', async () => {
+  it('rejects a missing current-turn attachment before requesting credentials', async () => {
     const ctx = new Context()
-    const transport = vi.fn()
-    vi.stubGlobal('fetch', transport)
     try {
       await ctx.plugin(SessionProjectionRegistry)
-      const session = Session.create(SessionId('changed-upload-preset'))
-      session.append('turn/start', { turn: 1 })
-      session.append('user/message', createUserMessage({ source: { kind: 'user' },
-        content: [{ type: 'file', attachment: file }] }), { surfaceOp: 'append' })
-      const agent = { session } as Agent
+      const currentSession = Session.create(SessionId('missing-upload-source'))
+      currentSession.append('turn/start', { turn: 1 })
+      const agent = { session: currentSession } as Agent
       const definitions: ToolDefinition[] = []
-      const request = vi.fn(async () => 'rejected' as const)
-      let preset = 'danger-full-access'
+      const getAccessToken = vi.fn(async () => 'account-token')
       ctx.provide('tools', { register(definition: ToolDefinition) { definitions.push(definition); return () => {} } } as never)
       ctx.provide('agents', { roots: () => [agent] } as never)
-      ctx.provide('approval', { request } as never)
-      ctx.provide('permissionPresets', { current: () => preset } as never)
-      ctx.provide('insightAccount', { getAccessToken: async () => {
-        preset = 'workspace-write'
-        return 'account-token'
-      } } as never)
+      ctx.provide('insightAccount', { getAccessToken } as never)
       ctx.provide('attachments', {} as never)
       ctx.provide('connection', { fetch: { register: () => () => {} } } as never)
       await apply(ctx, { serviceEnvironment: 'test', requestTimeoutMs: 15_000, ossTimeoutMs: 180_000,
@@ -335,9 +332,8 @@ describe('tool authorization', () => {
       const exec = { agent, callId: ToolCallId('call-1'), name: 'upload_attachment', arguments: {},
         signal: new AbortController().signal } as ToolRunContext
       await expect(definitions.find(tool => tool.name === 'upload_attachment')?.execute({}, exec))
-        .rejects.toMatchObject({ code: 'APPROVAL_DENIED' })
-      expect(request).toHaveBeenCalledOnce()
-      expect(transport).not.toHaveBeenCalled()
-    } finally { await ctx.fiber.dispose(); vi.unstubAllGlobals() }
+        .rejects.toThrow('No user attachment is available in the current turn.')
+      expect(getAccessToken).not.toHaveBeenCalled()
+    } finally { await ctx.fiber.dispose() }
   })
 })

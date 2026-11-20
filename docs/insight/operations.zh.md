@@ -46,11 +46,13 @@ Candidate 和 Stable 是发布渠道，final 语义版本可先在 Candidate 验
 
 ## 本地开发
 
-在仓库根目录运行 `npm run dev:insight`。启动器选择 Insight 产品，并默认将开发产品版本设为 1.0.11。它复用 Desktop 开发启动器，并使用与 Shell 兼容的 Insight 开发 userData 位置。
+在仓库根目录运行 `pnpm run dev:insight`。该命令复用 Desktop 开发启动器，使用与 Shell 兼容的 Insight 开发 userData 位置。它包含内部 RC 的开发者菜单，正常启动时默认连接测试环境。
 
 开发登录流程不持久化凭据。已打包应用在隐藏窗口恢复并校验保存的凭据；有效账号和账号 Home 会打开工作区，无效凭据、离线请求或 Home 保护失败会显示登录或恢复页面。不要因为本地存在 token 文件而跳过服务端校验。
 
 开发模式刻意不检查已打包应用更新。它的更新入口会显示开发模式提示，因为源码启动没有已打包更新来源。使用已安装的发布版本验证更新发现、下载或安装。
+
+构建内部 RC 时，设置 `INSIGHT_DESKTOP_VERSION` 并运行 `pnpm run package:desktop:insight-rc`。该命令沿用现有目标和签名选项，把 `insight-internal-rc` 制品写到目标目录的 `internal-rc/` 下。登录页和工作区均可通过 **因赛 AI → 开发者选项**查看当前服务环境。确认切换会停止正在运行的 Host、清除当前登录凭据和会话，再重启到目标环境的登录页。打包后的 RC 正常启动时默认连接生产环境。发布工作流也会为规范的 `1.x.y-rc.N` 产品版本包含这些选项，使用常规发布文件名和目录。final 和其他预发布版本排除这些选项，除非显式构建为内部 RC。收集发布制品前，打包流程会按这一版本选择检查组装完成的应用。
 
 <a id="building-github-release-artifacts"></a>
 

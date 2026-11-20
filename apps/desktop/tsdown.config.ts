@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { repositoryClientBuildEnvironment, resolveClientBuildEnvironment } from '../../scripts/client-build-environment.ts'
 import { packagedImportsPlugin } from './scripts/desktop-bundle-imports.mjs'
 import { desktopRendererSourcePaths } from './scripts/desktop-renderer-source-paths.mjs'
+import { resolveInsightPackaging } from './scripts/insight-packaging.mjs'
 
 // This config runs after the workspace tsdown pass, not inside it: the main bundle inlines
 // workspace devDependencies from their lib/ output, which the concurrent workspace pass does
@@ -32,6 +33,8 @@ if (clientVersion === undefined) throw new Error('desktop build: the client envi
 
 /** Inline the one public build value the Node entry reads; every other variable stays a runtime lookup. */
 const clientVersionDefine = { 'process.env.DSH_CLIENT_VERSION': JSON.stringify(clientVersion) }
+const insight = process.env.DSH_DESKTOP_PRODUCT?.trim() === 'insight'
+  ? resolveInsightPackaging(process.env, process.platform, process.arch) : undefined
 
 export default defineConfig([
   {
@@ -55,6 +58,9 @@ export default defineConfig([
   },
   {
     entry: ['lib/types/main.js'],
+    ...(insight?.developerControls ? {
+      alias: { './insight-developer.js': fileURLToPath(new URL('./lib/types/insight-developer-rc.js', import.meta.url)) },
+    } : {}),
     plugins: [packagedImportsPlugin(mainProcessImports)],
     define: clientVersionDefine,
     onSuccess: async () => {

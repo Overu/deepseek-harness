@@ -193,6 +193,48 @@ function register(rt: ReturnType<typeof service>, viewId = 'view1') {
 }
 
 describe('complete no-view native canvas service', () => {
+  it('switches an existing image to GPT Image 2.6 and saves conditional GIF parameters', async () => {
+    const choices = (values: Array<string | number>) => values.map(value => ({ value, label: String(value) }))
+    api.models.mockResolvedValue(success([{ config: JSON.stringify({ image: {
+      text_to_image: { name: '文生图', models: { fixture: model } },
+      reference_image_to_image: { name: '图生图', models: {
+        'gpt-image-2.6-sunburst-i2i': { model_name: 'GPT Image 2.6 Sunburst', parameters: {
+          gen_count: { type: 'choices', choices: choices([1]), default: 1 },
+          resolution: { type: 'choices', choices: choices(['1K', '2K']), default: '2K' },
+          mime_type: { type: 'choices', choices: choices(['png', 'gif']), default: 'png' },
+          frame_count: { type: 'number', min: 2, max: 16, step: 1, default: 9, visible_when: { mime_type: 'gif' } },
+          frame_duration_ms: { type: 'number', min: 20, max: 2000, step: 10, default: 200, visible_when: { mime_type: 'gif' } },
+        } },
+      } },
+    } }) }]))
+    const rt = await prepare()
+    const added = await execute(rt, { action: 'node.add', expectedVersion: '18',
+      node: { type: 'image', changes: { title: '图片节点' } } })
+    expect(added).toMatchObject({ status: 'saved', version: '19' })
+    if (added.status !== 'saved') throw new Error(JSON.stringify(added))
+    const nodeId = added.affectedNodeIds[0]
+    api.update.mockResolvedValueOnce(success({ versionNumber: '20' }))
+    expect(await execute(rt, { action: 'node.configure', expectedVersion: '19', nodeId,
+      configuration: { model: 'gpt-image-2.6-sunburst-i2i', modelType: 'reference_image_to_image',
+        params: { gen_count: 1, resolution: '2K' } } })).toMatchObject({ status: 'saved', version: '20' })
+    const png = await execute(rt, { action: 'canvas.read', nodeIds: [nodeId] })
+    expect(png).toMatchObject({ status: 'read', nodes: [{ params: {
+      model: 'gpt-image-2.6-sunburst-i2i', mime_type: 'png', frame_count: 9, frame_duration_ms: 200,
+    }, generation: { images: 1, videos: 0 } }] })
+    if (png.status !== 'read') throw new Error(JSON.stringify(png))
+    expect(png.nodes[0].paramHints.map(field => field.field)).not.toContain('frame_count')
+    api.update.mockResolvedValueOnce(success({ versionNumber: '21' }))
+    expect(await execute(rt, { action: 'node.configure', expectedVersion: '20', nodeId,
+      configuration: { params: { mime_type: 'gif', frame_count: 12, frame_duration_ms: 300 } } }))
+      .toMatchObject({ status: 'saved', version: '21' })
+    expect(await execute(rt, { action: 'canvas.read', nodeIds: [nodeId] })).toMatchObject({ status: 'read',
+      nodes: [{ params: { mime_type: 'gif', frame_count: 12, frame_duration_ms: 300 },
+        paramHints: expect.arrayContaining([expect.objectContaining({ field: 'frame_count', editable: true, min: 2, max: 16, step: 1 })]) }] })
+    expect(await execute(rt, { action: 'node.configure', expectedVersion: '21', nodeId,
+      configuration: { params: { frame_count: 17 } } })).toMatchObject({ status: 'rejected', error: { code: 'INVALID_ARGUMENT' } })
+    expect(api.update).toHaveBeenCalledTimes(3)
+  })
+
   it('reads an empty canvas and performs add/update/delete using exactly one native save each, without a view', async () => {
     const rt = await prepare()
     const read = await execute(rt, { action: 'canvas.read' })

@@ -1,5 +1,5 @@
 /** Observe the built Insight composition after the real profile Loader activates it. */
-export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientModules', 'agents', 'tools']
+export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientModules', 'agents', 'tools', 'systemPrompt']
 
 const requiredBundleNames = [
   '@insight-ai/desktop-integration',
@@ -8,6 +8,7 @@ const requiredBundleNames = [
   'dsh-memory-evolve',
   'dsh-prompt-enhance',
   '@insight-ai/skill-center',
+  '@insight-ai/builtin-skill-extensions',
 ]
 
 /**
@@ -19,6 +20,7 @@ async function observeComposition(ctx) {
   const listedBundles = await ctx.pluginManager.listBundles()
   const plugins = await ctx.pluginManager.listPlugins()
   const registries = await ctx.pluginManager.registries()
+  const prompt = await ctx.systemPrompt.assemble()
   const bundles = requiredBundleNames.map((name) => {
     const bundle = listedBundles.find(candidate => candidate.name === name)
     const row = bundle?.rows[0]
@@ -46,7 +48,7 @@ async function observeComposition(ctx) {
 
   const graph = ctx.clientModules.graph()
   const clientEntries = []
-  for (const id of requiredBundleNames.filter(name => name !== '@insight-ai/desktop-media-upload-plugin')) {
+  for (const id of requiredBundleNames.filter(name => name !== '@insight-ai/desktop-media-upload-plugin' && name !== '@insight-ai/builtin-skill-extensions')) {
     const entry = graph.entries.find(candidate => candidate.id === id)
     if (entry === undefined) {
       clientEntries.push({ id, status: 404, contentType: null })
@@ -64,8 +66,10 @@ async function observeComposition(ctx) {
       registeredProvider: ctx.web.searchProviders.has('insight-enterprise-search'),
     },
     uploadToolRegistered: ctx.tools.get('upload_attachment')?.name === 'upload_attachment',
+    officeToolsRegistered: ['pdf_extract_text', 'office_render_pptx'].every(name => ctx.tools.get(name)?.name === name),
     registry: registries.registry,
     clientEntries,
+    builtinSkillExtensions: prompt.contexts.find(context => context.name === 'insight-builtin-skill-extensions')?.text,
   }
 }
 
@@ -82,7 +86,7 @@ function changeObservation(change) {
 async function observeToolArgumentRetry(ctx) {
   const name = 'insight_retry_probe'
   const good = '{"ops":[{"params":{"gen_count":1}}]}'
-  const malformed = '{"ops":[{"params":{"gen_count":1}}}},{"params":{"gen_count":1}}]}'
+  const malformed = good.replace('}}]', '}]')
   const gateway = 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1/chat/completions'
   const results = []
   let executions = []
@@ -139,7 +143,7 @@ async function observeToolArgumentRetry(ctx) {
         await agent.whenIdle()
         results.push({
           feedbackAtRequest: requests.map(request => request.messages.map(message => JSON.stringify(message.content))
-            .findLast(content => content?.includes('Current runtime context'))?.includes('The previous tool call arguments could not be parsed as JSON.') ?? false),
+            .findLast(content => content?.includes('Current runtime context'))?.includes(`Tool call \\"${name}\\": Expected`) ?? false),
           countAtRequest,
           executions,
           calls: events.filter(event => event.type === 'tool/call').map(event => event.data.callId),

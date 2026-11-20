@@ -27,7 +27,7 @@ import { requireDesktopToolchain } from './desktop-toolchain-preflight.ts'
 import { withMacOSNotarizationProxy } from './macos-notarization-proxy.ts'
 import { INSIGHT_PRODUCT_PACKAGES } from '../../../scripts/insight-package-policy.ts'
 import { resolveDesktopProduct } from '../src/product.ts'
-import { resolveInsightPackaging } from './insight-packaging.mjs'
+import { INSIGHT_PACKAGING_APP_ID, resolveInsightPackaging } from './insight-packaging.mjs'
 
 const APP_ROOT = resolve(import.meta.dirname, '..')
 const REPOSITORY_ROOT = resolve(APP_ROOT, '..', '..')
@@ -219,6 +219,7 @@ interface DesktopPackageInvocation {
   readonly unsigned: boolean
   readonly skipNotarization: boolean
   readonly check: boolean
+  readonly insightRc: boolean
   /** Build identifier to publish under, when this build does not publish the product version. */
   readonly requestedBuildVersion: string | undefined
 }
@@ -252,6 +253,7 @@ export function parseDesktopPackageInvocation(
       unsigned: { type: 'boolean', default: false },
       'skip-notarization': { type: 'boolean', default: false },
       check: { type: 'boolean', default: false },
+      'insight-rc': { type: 'boolean', default: false },
       'build-version': { type: 'string' },
     },
   })
@@ -272,8 +274,20 @@ export function parseDesktopPackageInvocation(
     unsigned: values.unsigned,
     skipNotarization: values['skip-notarization'],
     check: values.check,
+    insightRc: values['insight-rc'],
     requestedBuildVersion,
   }
+}
+
+function packageVariant(environment: NodeJS.ProcessEnv, invocation: DesktopPackageInvocation): NodeJS.ProcessEnv {
+  const selected = Object.fromEntries(Object.entries(environment)
+    .filter(([name]) => name.toUpperCase() !== 'DSH_INSIGHT_RC_BUILD'))
+  if (invocation.insightRc) {
+    selected.DSH_INSIGHT_RC_BUILD = '1'
+    selected.DSH_DESKTOP_PRODUCT = 'insight'
+    if (invocation.unsigned && invocation.target.platform === 'darwin') selected.DSH_DESKTOP_APP_ID = INSIGHT_PACKAGING_APP_ID
+  }
+  return selected
 }
 
 /**
@@ -363,11 +377,12 @@ async function main(): Promise<void> {
   if (invocation.skipNotarization) {
     process.stdout.write('desktop package: skipping notarization and stapling; internal debugging only, not qualified for distribution or update publishing\n')
   }
-  const environment = target.platform === 'darwin' && invocation.unsigned
-    ? localMacOSPackageEnvironment()
-    : loadDesktopPackageEnvironment(target.platform, process.env, APP_ROOT, {
+  const inputEnvironment = packageVariant(process.env, invocation)
+  const environment = packageVariant(target.platform === 'darwin' && invocation.unsigned
+    ? localMacOSPackageEnvironment(inputEnvironment)
+    : loadDesktopPackageEnvironment(target.platform, inputEnvironment, APP_ROOT, {
       unsigned: invocation.unsigned, prepareOnly: invocation.prepareOnly,
-    })
+    }), invocation)
   const runtimeVersion = packageVersion(join(APP_ROOT, 'package.json'), 'desktop package')
   const productVersion = resolveDesktopPackagingProductVersion(environment, runtimeVersion)
   // Release settings come from the selected configuration files, so the version this run publishes is an
@@ -386,6 +401,7 @@ async function main(): Promise<void> {
   const secrets = Object.entries(environment).filter(([name]) => /KEY|SECRET|TOKEN|PASSWORD|APPLE_ID/iu.test(name)).map(([, value]) => value ?? '')
   const run = createPackagingRun(join(APP_ROOT, '.desktop-build', 'packaging-runs'), {
     target: target.name, unsigned: invocation.unsigned, skipNotarization: invocation.skipNotarization,
+    ...(invocation.insightRc ? { insightRc: true } : {}),
     directory: invocation.directory, prepareOnly: invocation.prepareOnly,
     version: buildVersion, productVersion, node: process.version,
     commit: packaged.commit,
@@ -438,16 +454,17 @@ async function main(): Promise<void> {
  * or later signing, and a preparation failure prevents either from starting.
  * Signed Insight builds emit official artifacts; callers own the separate aggregate type checks.
  * @param invocation Validated host, target and packaging mode.
- * @param environment File-owned release configuration.
+ * @param inputEnvironment File-owned release configuration.
  * @param run Persistent stage supervisor; required for signed Windows packaging and enabled for all release commands.
  * @returns Resolves after preparation or complete packaging; any failed stage prevents a release record.
  */
 export async function packageTarget(
   invocation: DesktopPackageInvocation,
-  environment: NodeJS.ProcessEnv,
+  inputEnvironment: NodeJS.ProcessEnv,
   run: ReturnType<typeof createPackagingRun> | undefined,
 ): Promise<void> {
   const { target } = invocation
+  const environment = packageVariant(inputEnvironment, invocation)
   const execute = (args: readonly string[], env: NodeJS.ProcessEnv, cwd: string = APP_ROOT) => runPnpm(args, env, cwd, run)
   const journal = target.platform === 'darwin' ? process.env.DSH_DESKTOP_PACKAGING_RUN_DIR : undefined
   const proxyEvent = (status: string) => { if (journal) recordPackagingEvent(journal, { type: 'notarization-proxy', status }) }
@@ -522,6 +539,9 @@ export async function packageTarget(
     catch (error) { preparationFailure ??= { error }; throw error }
   }
   const pack = async (): Promise<void> => {
+    if (insight !== undefined) {
+      await executePreparation(['--dir', 'packages/insight/canvas', 'run', 'build:web'], buildEnv, REPOSITORY_ROOT)
+    }
     await executePreparation([
       ...(invocation.unsigned
         ? ['exec', 'tsx', 'apps/desktop/scripts/pack-local-packages.ts']
@@ -600,7 +620,7 @@ export async function packageTarget(
     await execute(['exec', 'tsx', 'scripts/smoke-packaged-runtime.ts',
       ...(invocation.unsigned ? ['--unsigned'] : []), ...(invocation.skipNotarization ? ['--skip-notarization'] : [])], targetEnv)
   }
-  if (!invocation.directory && !invocation.unsigned && !invocation.skipNotarization) {
+  if (!invocation.insightRc && !invocation.directory && !invocation.unsigned && !invocation.skipNotarization) {
     writeReleaseRecord(target, electronBuilderEnv, buildPaths.artifacts)
   }
   if (journal) recordPackagingEvent(journal, { type: 'artifacts', directory: artifactsRoot })

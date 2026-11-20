@@ -26,7 +26,7 @@ describe('local attachment service', () => {
     expect(DEFAULT_MAX_MESSAGE_IMAGE_BYTES).toBe(200 * 1024 * 1024)
     expect(DEFAULT_MAX_IMAGE_PIXELS).toBe(64_000_000)
     expect(DEFAULT_MAX_IMAGE_DIMENSION).toBe(65_535)
-    expect(DEFAULT_NORMALIZED_IMAGE_MAX_PIXELS).toBe(8_294_400)
+    expect(DEFAULT_NORMALIZED_IMAGE_MAX_PIXELS).toBe(16_777_216)
     expect(DEFAULT_NORMALIZED_IMAGE_MAX_BYTES).toBe(50 * 1024 * 1024)
     expect(service.imageLimits).toEqual({
       maxImageBytes: DEFAULT_MAX_IMAGE_BYTES,

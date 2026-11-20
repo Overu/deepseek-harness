@@ -33,6 +33,7 @@ const stt = (key, params) => translate(STORE_TAIL_DICT, key, params, getLocale()
 import { spawnSync } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { resolveGit } from './git.js'
 import { extractEntryId, genEntryId, legacyIdFor, stripEntryId } from './sync/entryid.js'
 
 /** Entry delimiter, byte-compatible with Hermes MEMORY.md / USER.md. */
@@ -485,7 +486,9 @@ export function projectLabel(cwd) {
 export function gitBranch(cwd) {
   if (!cwd) return undefined
   try {
-    const result = spawnSync('git', ['branch', '--show-current'], {
+    const git = resolveGit(cwd)
+    if (!git) return undefined
+    const result = spawnSync(git, ['branch', '--show-current'], {
       cwd, encoding: 'utf8', timeout: 1000, stdio: ['ignore', 'pipe', 'ignore'],
     })
     if (result.error || result.status !== 0) return undefined
@@ -505,7 +508,9 @@ export function gitBranch(cwd) {
 export function gitBranchList(cwd) {
   if (!cwd) return []
   try {
-    const result = spawnSync('git', ['branch', '--format=%(refname:short)'], {
+    const git = resolveGit(cwd)
+    if (!git) return []
+    const result = spawnSync(git, ['branch', '--format=%(refname:short)'], {
       cwd, encoding: 'utf8', timeout: 1000, stdio: ['ignore', 'pipe', 'ignore'],
     })
     if (result.error || result.status !== 0) return []

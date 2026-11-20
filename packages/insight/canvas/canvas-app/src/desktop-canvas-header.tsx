@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { shareCanvas } from '../legacy/src/api/workflow'
 import { useFlowStore } from '../legacy/src/store/flowStore'
 import { buildCanvasShareLink, copyCanvasShareLink } from './share-link'
+import DesktopCanvasPoints from './desktop-canvas-points'
 
 interface Props {
   id: string
@@ -34,7 +35,7 @@ export default function DesktopCanvasHeader({ id, name, thumbnailUrl, ready }: P
     setShareLink(null)
     try {
       const canvasData = {
-        nodes: nodes.map(item => {
+        nodes: nodes.map((item) => {
           const nextData = { ...item.data }
           if (item.data.taskInfo) nextData.taskInfo = { ...item.data.taskInfo, status: 'success' }
           if (item.data.storyboardInfo) nextData.storyboardInfo = { ...item.data.storyboardInfo, status: 'success' }
@@ -60,15 +61,18 @@ export default function DesktopCanvasHeader({ id, name, thumbnailUrl, ready }: P
     }
   }
 
-  return <div className="absolute left-0 top-0 z-[10] max-w-full p-4">
-    <div className="flex min-w-0 items-center" style={{ gap: 12 }}>
-      <button type="button" onClick={handleShare} disabled={!ready || sharing}
-        className="h-8 shrink-0 rounded-lg bg-white/25 px-4 text-sm text-white backdrop-blur-md hover:bg-white/45 disabled:cursor-not-allowed disabled:opacity-50">
-        {sharing ? '分享中…' : '分享'}
-      </button>
-      <span className="min-w-0 truncate text-sm text-white" title={name}>{name || '未命名画布'}</span>
+  return <div className="pointer-events-none absolute inset-x-0 top-0 z-[10] p-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="pointer-events-auto flex min-w-0 flex-[1_1_10rem] items-center" style={{ gap: 12 }}>
+        <button type="button" onClick={handleShare} disabled={!ready || sharing}
+          className="h-8 shrink-0 rounded-lg bg-white/25 px-4 text-sm text-white backdrop-blur-md hover:bg-white/45 disabled:cursor-not-allowed disabled:opacity-50">
+          {sharing ? '分享中…' : '分享'}
+        </button>
+        <span className="min-w-0 truncate text-sm text-white" title={name}>{name || '未命名画布'}</span>
+      </div>
+      <div className="pointer-events-auto ml-auto max-w-full"><DesktopCanvasPoints /></div>
     </div>
-    {shareLink && <div className="mt-2 flex max-w-[min(28rem,calc(100vw-2rem))] items-center gap-2 rounded-lg bg-zinc-900/95 p-2 text-white shadow-lg nodrag">
+    {shareLink && <div className="pointer-events-auto mt-2 flex max-w-[min(28rem,calc(100vw-2rem))] items-center gap-2 rounded-lg bg-zinc-900/95 p-2 text-white shadow-lg nodrag">
       <input ref={shareInput} aria-label="画布分享链接" readOnly value={shareLink}
         onFocus={event => event.currentTarget.select()}
         onKeyDown={event => event.stopPropagation()}

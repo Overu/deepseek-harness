@@ -1,4 +1,4 @@
-/** Insight Desktop's approved OSS upload and authenticated image-layer tools. */
+/** Insight Desktop's OSS upload and authenticated image-layer tools. */
 
 import { stat } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -6,8 +6,6 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import type {} from '@deepseek-ai/dsh-user-approval'
-import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {} from '@deepseek-ai/dsh-fs'
 import type {} from '@deepseek-ai/dsh-working-directory'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
@@ -24,7 +22,7 @@ import { registerImageLayeringTools } from './image-layering.ts'
 /** Cordis loader identity for the Insight media upload capability. */
 export const name = 'insight-media-upload'
 /** Host capabilities required before the tool can be registered. */
-export const inject = ['tools', 'attachments', 'insightAccount', 'approval', 'permissionPresets',
+export const inject = ['tools', 'attachments', 'insightAccount',
   'agents', 'sessionProjections', 'jobs', 'fs', 'workingDirectory', 'sandboxPolicy', 'insightPlatformSkills',
   'connection', 'sessionQuery']
 
@@ -83,7 +81,7 @@ function mimeType(name: string): string {
 }
 
 /** Register upload and image-layer tools with the Host-only current-turn projection.
- * @param ctx - Host services for tools, attachments, approval, account, Agent and Session projection.
+ * @param ctx - Host services for tools, attachments, account, Agent and Session projection.
  * @param config - Validated upload-center environment and request deadlines.
  * @returns When the projection and tools have registered under the plugin fiber.
  * @throws Before registration when production has no allowed result-object host.
@@ -111,7 +109,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   const uploaded = new WeakMap<object, { turnSeq: number; urls: Set<string> }>()
   const definition = defineTool({
     name: 'upload_attachment',
-    description: 'Upload one direct-user attachment from the current turn to OSS. Image messages upload their stored normalized encoding; file attachments upload exact bytes. Full access proceeds without a separate approval prompt; other permission presets follow their approval policy. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object; read access is unverified.',
+    description: 'Upload one direct-user attachment from the current turn to OSS when the user task needs a remote file address. This tool transfers the selected attachment without a separate approval prompt. If several attachments are present and the intended one is unclear, ask the user to choose. Image messages upload their stored normalized encoding; file attachments upload exact bytes. Do not use for pasted text, local paths, Canvas assets, or attachments from earlier turns. The returned URL identifies an OSS object; read access is unverified.',
     parameters: {
       attachmentIndex: { type: 'integer', description: '1-based position among direct-user attachments in this turn. Required when there is more than one.' },
     },
@@ -134,27 +132,10 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
         const agent = exec.agent
         if (!agent || !ctx.agents.roots().includes(agent)) throw new UploadFailure('AGENT_REQUIRED', 'Use this tool in the original user conversation.')
         const source = selectUploadSource(agent, args.attachmentIndex, projection)
-        const sourceName = source.kind === 'file' ? source.ref.name : source.name ?? 'image'
-        let approvedPreset: string | undefined
-        const approve = async (): Promise<void> => {
-          const outcome = await ctx.approval.request({ agent, toolName: 'upload_attachment', callId: exec.callId,
-            reason: `Upload ${source.kind === 'image' ? 'the stored normalized image' : 'the file'} ${sourceName} (${String(source.ref.bytes)} bytes) to OSS and disclose its object address.`,
-            displayReason: { en: `Upload ${sourceName} (${String(source.ref.bytes)} bytes${source.kind === 'image' ? ', normalized image' : ''}) to OSS? Its object address will appear in this conversation.`,
-              zh: `将 ${sourceName}（${String(source.ref.bytes)} 字节${source.kind === 'image' ? '，归一化图片' : ''}）上传至 OSS？对象地址会出现在当前对话中。` }, signal })
-          if (outcome !== 'allowed-once') throw new UploadFailure('APPROVAL_DENIED', 'Attachment upload was not approved.')
-        }
-        const authorize = async () => {
-          const preset = ctx.permissionPresets.current(agent.session)
-          if (preset === 'danger-full-access') { approvedPreset = undefined; return }
-          if (approvedPreset === preset) return
-          await approve()
-          approvedPreset = preset
-        }
-        await authorize()
         const turnSeq = uploadTurnSeq(agent, projection)
         if (turnSeq === undefined) throw new UploadFailure('AGENT_REQUIRED', 'The upload turn has ended.')
         const file = await uploadFileForSource(ctx.attachments, source, signal)
-        const result = await uploadAttachment(ctx, baseUrl, file, config, signal, authorize)
+        const result = await uploadAttachment(ctx, baseUrl, file, config, signal)
         if ((source.kind === 'image' || mimeType(file.name).startsWith('image/'))
           && uploadTurnSeq(agent, projection) === turnSeq) {
           const previous = uploaded.get(agent.session)
@@ -201,7 +182,7 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
   })
 }
 
-/** Transfer one approved current-turn file, then return its non-secret OSS address.
+/** Transfer one selected current-turn file, then return its non-secret OSS address.
  * @param ctx - Host attachment reader and account-token owner.
  * @param baseUrl - Fixed upload-center base including its gateway path.
  * @param file - Selected file or a stored normalized image copied to file storage.
@@ -211,16 +192,14 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
  */
 async function uploadAttachment(ctx: Context, baseUrl: string,
   file: import('@deepseek-ai/dsh-attachment').FileAttachmentRef, config: Config,
-  signal: AbortSignal, authorize?: () => Promise<void>): Promise<UploadAttachmentResult> {
+  signal: AbortSignal): Promise<UploadAttachmentResult> {
   let token: string
   try { token = await ctx.insightAccount.getAccessToken(signal) }
   catch { throw new UploadFailure('AUTH_REQUIRED', 'Desktop login is required before uploading an attachment.') }
   if (!token) throw new UploadFailure('AUTH_REQUIRED', 'Desktop login is required before uploading an attachment.')
   const type = mimeType(file.name)
-  await authorize?.()
   const session = await requestUploadSession(baseUrl, token, file,
     AbortSignal.any([signal, AbortSignal.timeout(config.requestTimeoutMs)]))
-  await authorize?.()
   await putOssObject(ctx.attachments, file, session, type, config.ossTimeoutMs, signal)
   return { url: session.uploadUrl, urlAccess: 'unverified', filename: file.name, sizeBytes: file.bytes }
 }

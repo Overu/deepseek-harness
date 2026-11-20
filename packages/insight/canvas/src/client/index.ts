@@ -1,6 +1,7 @@
 import { createCanvasOpener } from './canvas-open.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { CanvasCreatedLinks } from './CanvasCreatedLinks.tsx'
+import { registerCanvasMessageLinks } from './canvas-message-links.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
@@ -107,6 +108,7 @@ export function apply(ctx: Context): void {
     canOpen: address => canvasIdFromAddress(address) !== undefined,
     title: address => `画布 ${canvasIdFromAddress(address) ?? ''}`,
   }), 'desktop-canvas: tab type')
+  registerCanvasMessageLinks(ctx)
   ctx.effect(() => ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({
     name: 'sidebar.right.pane.tab', key: PACKAGE_ID,
     inject: sessionId => ({ references, referenceSessionId: String(sessionId), onCanvasNavigation: (id: string,

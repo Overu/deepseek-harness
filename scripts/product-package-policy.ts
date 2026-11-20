@@ -21,6 +21,7 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/insight/memory-evolve': { category: 'insight-product', reason: 'Fixed private memory source for the Insight distribution.' },
   'packages/insight/prompt-enhance': { category: 'insight-product', reason: 'Fixed private composer enhancement source for the Insight distribution.' },
   'packages/insight/skill-center': { category: 'insight-product', reason: 'Required account platform skill management for the Insight distribution.' },
+  'packages/insight/builtin-skill-extensions': { category: 'insight-product', reason: 'Required built-in skill workflow guidance for the Insight Desktop distribution.' },
   'packages/core/agent-tool-presentation': { category: 'optional', reason: 'Deprecated selector retained for existing executor configurations.' },
   'packages/browser-use/browser-use': { category: 'optional', reason: 'Service definition used by explicitly selected browser providers.' },
   'packages/computer-use/computer-use': { category: 'optional', reason: 'Service definition used by explicitly selected computer providers.' },

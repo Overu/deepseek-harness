@@ -19,19 +19,23 @@ const fixture = vi.hoisted(() => {
       on: vi.fn((name: string, listener: (event: { preventDefault(): void }) => void) => { listeners.set(name, listener) }),
     },
     loadFile: vi.fn(), isDestroyed: vi.fn(), destroy: vi.fn(), show: vi.fn(), focus: vi.fn(),
-    once: vi.fn((name: string, callback: () => void) => { callbacks.set(name, callback) }),
+    once: vi.fn((name: string, callback: () => void) => { callbacks.set(name, callback) }), on: vi.fn(),
   }
   return { handlers, callbacks, listeners, account, manager, window, subscriptions: [] as Array<(value: unknown) => void>,
-    prepareHome: vi.fn(), credentialClear: vi.fn(), authFetch: vi.fn(), appActivate: vi.fn(), appQuit: vi.fn() }
+    prepareHome: vi.fn(), credentialClear: vi.fn(), authFetch: vi.fn(), appActivate: vi.fn(), appQuit: vi.fn(),
+    showMessageBox: vi.fn(), insertMenu: vi.fn(), packaged: true }
 })
 
 vi.mock('electron', () => ({
   app: {
-    get isPackaged() { return true }, getPath: () => '/user-data', getAppPath: () => '/desktop-app',
+    get isPackaged() { return fixture.packaged }, getPath: () => '/user-data', getAppPath: () => '/desktop-app',
     on: (_name: string, callback: () => void) => { fixture.appActivate.mockImplementation(callback) },
     off: vi.fn(), once: vi.fn(), quit: fixture.appQuit,
   },
   BrowserWindow: vi.fn(function () { return fixture.window }),
+  dialog: { showMessageBox: fixture.showMessageBox },
+  Menu: { getApplicationMenu: () => ({ items: [{ submenu: { insert: fixture.insertMenu } }] }), setApplicationMenu: vi.fn() },
+  MenuItem: vi.fn(function (options: object) { return options }),
   ipcMain: {
     handle: (name: string, handler: (event: unknown, ...args: unknown[]) => unknown) => { fixture.handlers.set(name, handler) },
     removeHandler: (name: string) => { fixture.handlers.delete(name) },
@@ -49,14 +53,15 @@ vi.mock('electron', () => ({
   },
 }))
 
-vi.mock('@insight-ai/desktop-integration/desktop', () => ({
+vi.mock('@insight-ai/desktop-integration/desktop', async importOriginal => ({
   AuthApiClient: vi.fn(function () {}),
   AuthSessionManager: vi.fn(function () { return fixture.manager }),
   CredentialStore: vi.fn(function () { return { load: vi.fn(), save: vi.fn(), clear: fixture.credentialClear } }),
   prepareInsightAccountHome: fixture.prepareHome,
-  resolveAuthEnvironment: () => ({ name: 'test', partition: 'persist:insight-test', baseUrl: 'https://example.test' }),
+  resolveAuthEnvironment: (await importOriginal<typeof import('@insight-ai/desktop-integration/desktop')>()).resolveAuthEnvironment,
 }))
 
+vi.mock('../src/insight-developer.ts', () => import('../src/insight-developer-rc.ts'))
 
 const { InsightLoginClosedError, insightLoginInput, prepareInsightDesktop } = await import('../src/insight-startup.ts')
 
@@ -74,6 +79,7 @@ const product = {
 function own() { return { sender: fixture.window.webContents, senderFrame: fixture.window.webContents.mainFrame } }
 
 function reset(): void {
+  fixture.packaged = true
   fixture.handlers.clear(); fixture.callbacks.clear(); fixture.listeners.clear(); fixture.subscriptions.length = 0
   fixture.prepareHome.mockReset(); fixture.credentialClear.mockReset(); fixture.authFetch.mockReset(); fixture.appQuit.mockReset()
   fixture.window.loadFile.mockReset().mockResolvedValue(undefined); fixture.window.isDestroyed.mockReset().mockReturnValue(false)
@@ -90,6 +96,8 @@ function reset(): void {
   fixture.manager.loginSms.mockReset(); fixture.manager.loginPassword.mockReset()
   fixture.manager.resetLocal.mockReset(); fixture.manager.signOut.mockReset().mockResolvedValue(undefined)
   fixture.manager.restore.mockReset().mockResolvedValue(undefined)
+  fixture.showMessageBox.mockReset().mockResolvedValue({ response: 1 })
+  fixture.insertMenu.mockClear()
   fixture.manager.getAccessToken.mockReset().mockResolvedValue('secret-token'); fixture.manager.dispose.mockReset()
 }
 
@@ -111,6 +119,57 @@ async function authenticate(home: { kind: 'ready'; dshHome: string } | { kind: '
 }
 
 describe('Insight desktop login startup', () => {
+  it.each([true, false])('switches from the login screen only when local credentials clear (clears=%s)', async (clears) => {
+    const cleanup = Promise.withResolvers<undefined>()
+    fixture.manager.signOut.mockReturnValueOnce(cleanup.promise)
+    const restart = vi.fn()
+    const pending = prepareInsightDesktop(product, '0.2.0', () => {}, undefined, restart)
+    const stopped = expect(pending).rejects.toThrow(clears ? 'Insight login restarted' : 'credential cleanup failed')
+    await vi.waitFor(() => { expect(fixture.window.show).toHaveBeenCalledOnce() })
+    const menu = fixture.insertMenu.mock.calls[0]?.[1] as { click: () => void }
+    menu.click()
+    await vi.waitFor(() => { expect(fixture.manager.signOut).toHaveBeenCalledOnce() })
+    expect(restart).not.toHaveBeenCalled()
+    if (clears) cleanup.resolve(undefined)
+    else cleanup.reject(new Error('credential cleanup failed'))
+    await stopped
+    if (clears) {
+      expect(restart).toHaveBeenCalledOnce()
+      expect(restart.mock.calls[0]?.[0]).toHaveProperty('args', [...process.argv.slice(1), '--insight-rc-service-environment=test'])
+    }
+    else expect(restart).not.toHaveBeenCalled()
+    expect(fixture.prepareHome).not.toHaveBeenCalled()
+  })
+
+  it('shows test as the default for an unpackaged Insight launch', async () => {
+    fixture.packaged = false
+    fixture.showMessageBox.mockResolvedValueOnce({ response: 0 })
+    const restart = vi.fn()
+    const pending = prepareInsightDesktop(product, '0.2.0', () => {}, undefined, restart)
+    const stopped = expect(pending).rejects.toBeInstanceOf(InsightLoginClosedError)
+    await vi.waitFor(() => { expect(fixture.window.show).toHaveBeenCalledOnce() })
+    const menu = fixture.insertMenu.mock.calls[0]?.[1] as { click: () => void }
+    menu.click()
+    expect(fixture.showMessageBox.mock.lastCall?.[1]).toMatchObject({
+      message: '当前环境：测试', detail: '切换会停止当前任务、退出登录并重启。下次手动打开客户端时恢复测试环境。',
+    })
+    fixture.callbacks.get('closed')!()
+    await stopped
+    expect(restart).not.toHaveBeenCalled()
+  })
+  it('opens a fresh login for the launch override and binds the account Home to it', async () => {
+    const pending = prepareInsightDesktop(product, '0.2.0', () => {}, {
+      name: 'test', baseUrl: 'https://gapi-test.insight-aigc.com', partition: 'insight-auth-test',
+    })
+    await vi.waitFor(() => { expect(fixture.window.show).toHaveBeenCalledOnce() })
+    expect(fixture.manager.restore).not.toHaveBeenCalled()
+    expect(vi.mocked(BrowserWindow).mock.calls[0]?.[0]?.webPreferences?.partition).toBe('insight-auth-test')
+    await authenticate({ kind: 'ready', dshHome: '/target-home' })
+    const context = await pending
+    expect(context.info.environment).toBe('test')
+    expect(fixture.prepareHome).toHaveBeenCalledWith(expect.objectContaining({ environment: 'test' }))
+    context.dismissLogin()
+  })
   it('does not prepare an account Home before authentication', async () => {
     const { pending } = await begin()
     expect(BrowserWindow).toHaveBeenCalledWith(expect.objectContaining({
@@ -207,7 +266,7 @@ describe('Insight desktop login startup', () => {
     const context = await pending
     expect(context.summary).toEqual(fixture.account.summary)
     expect(context.info).toEqual({ productName: '因赛AI', productVersion: '1.0.0', runtimeVersion: '0.2.0',
-      platform: process.platform, environment: 'test' })
+      platform: process.platform, environment: 'production' })
     expect(fixture.window.destroy).not.toHaveBeenCalled()
     context.dismissLogin()
     expect(fixture.window.destroy).toHaveBeenCalledOnce()

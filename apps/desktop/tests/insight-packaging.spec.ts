@@ -8,6 +8,20 @@ const environment = {
 }
 
 describe('Insight packaging settings', () => {
+  it.each([
+    ['1.0.14-rc.4', undefined, true, 'insight'],
+    ['1.0.14-rc.0', undefined, true, 'insight'],
+    ['1.0.14-rc.9007199254740992', undefined, true, 'insight'],
+    ['1.0.14', undefined, false, 'insight'],
+    ['1.0.14-beta.1', undefined, false, 'insight'],
+    ['1.0.14-rc.candidate', undefined, false, 'insight'],
+    ['v1.0.14-rc.4', undefined, false, 'insight'],
+    ['1.0.14', '1', true, 'insight-internal-rc'],
+  ] as const)('selects developer controls for %s with explicit mode %s', (version, internal, developerControls, artifactPrefix) => {
+    expect(resolveInsightPackaging({ ...environment, INSIGHT_DESKTOP_VERSION: version, DSH_INSIGHT_RC_BUILD: internal }, 'win32', 'x64'))
+      .toMatchObject({ developerControls, artifactPrefix })
+  })
+
   it('maps prereleases to the immutable nightly macOS target', () => {
     expect(resolveInsightPackaging(environment, 'darwin', 'arm64', { requireAppId: true, requireNativeTarget: true }))
       .toMatchObject({

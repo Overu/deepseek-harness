@@ -9,6 +9,13 @@ import { expect, it, onTestFinished, vi } from 'vitest'
 import { Config } from '../src/config.ts'
 import * as host from '../src/index.ts'
 
+function provideCatalogServices(ctx: Context): void {
+  vi.stubEnv('DSH_INSIGHT_SERVICE_ENVIRONMENT', 'test')
+  ctx.provide('insightAccount', { getAccessToken: async () => 'fixture-token' } as never)
+  ctx.provide('connection', { requestRejection: () => undefined } as never)
+  ctx.provide('webServer', { register: () => () => {} } as never)
+}
+
 const pagePeer = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
 
 it('defaults the request budget and rejects invalid timer values', () => {
@@ -17,11 +24,15 @@ it('defaults the request budget and rejects invalid timer values', () => {
     presetSkillIds: [],
     legacySkillDirs: [],
     catalogRequestTimeoutMs: 15_000,
+    catalogMaxResponseBytes: 30 * 1024 * 1024,
     packageRequestTimeoutMs: 120_000,
     packageMaxDownloadBytes: 64 * 1024 * 1024,
     packageMaxEntries: 10_000,
     packageMaxExtractedBytes: 256 * 1024 * 1024,
-    packageAllowedOrigins: ['https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com'],
+    packageAllowedOrigins: [
+      'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com',
+      'https://insight-gpt.oss-cn-shenzhen.aliyuncs.com',
+    ],
   })
   for (const value of [0, -1, 1.5, Infinity, NaN, 2_147_483_648]) {
     expect(() => Config({ catalogRequestTimeoutMs: value })).toThrow()
@@ -42,6 +53,7 @@ it('accepts technical preset names and rejects malformed names', () => {
 
 it('rejects an empty Desktop legacy directory instead of scanning the startup directory', async () => {
   const ctx = new Context()
+  provideCatalogServices(ctx)
   onTestFinished(async () => { await ctx.fiber.dispose(); vi.unstubAllEnvs() })
   vi.stubEnv('DSH_INSIGHT_LEGACY_SKILL_DIR', '')
   await expect(host.apply(ctx, Config({}))).rejects.toThrow('absolute host paths')
@@ -49,6 +61,7 @@ it('rejects an empty Desktop legacy directory instead of scanning the startup di
 
 it('projects configured request limits and withdraws its listener on unload', async () => {
   const ctx = new Context()
+  provideCatalogServices(ctx)
   const home = await mkdtemp(join(tmpdir(), 'insight-skill-center-config-'))
   vi.stubEnv('DSH_HOME', home)
   onTestFinished(async () => {

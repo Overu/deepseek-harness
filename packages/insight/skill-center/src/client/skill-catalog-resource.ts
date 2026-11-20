@@ -1,13 +1,14 @@
 /** Read and normalize the published Insight skill catalogue. */
 import type { ResourceProvider } from '@deepseek-ai/dsh-client-resources/client'
 import type { Config } from '../config.ts'
+import { SKILL_CATALOG_PATH } from '../shared/catalog-api.ts'
 import type { InsightSkillId, SkillIdentity } from '../shared/skill-installation.ts'
 import { normalizeSkillId } from '../shared/skill-identity.ts'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 
-/** The original desktop catalogue endpoint. */
-export const SKILL_CATALOG_URL = 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json'
+/** Authenticated catalogue route owned by the skill-center Host plugin. */
+export const SKILL_CATALOG_URL = SKILL_CATALOG_PATH
 
 /** A published skill identifier admitted by the catalogue parser. */
 export type { InsightSkillId } from '../shared/skill-installation.ts'
@@ -23,7 +24,7 @@ export interface SkillCatalogItem extends SkillIdentity {
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface ResourceProtocolMap {
-    /** The enabled Insight skills published to OSS. */
+    /** The installable official Insight skills published to the desktop channel. */
     'insight-skill-catalog': readonly SkillCatalogItem[]
   }
 }
@@ -65,30 +66,32 @@ function sortValue(record: Record<string, unknown>): number {
  * @throws {InvalidCatalogError} when the document lacks the required catalogue structure.
  */
 export function normalizeCatalog(payload: unknown): readonly SkillCatalogItem[] {
-  if (!isRecord(payload) || !Array.isArray(payload.skills)) {
-    throw new InvalidCatalogError('The skill catalogue must contain a skills array.')
+  if (!isRecord(payload) || !Array.isArray(payload.records)) {
+    throw new InvalidCatalogError('The skill catalogue must contain a records array.')
   }
   const skills: Array<SkillCatalogItem & { readonly sort: number }> = []
   const ids = new Set<string>()
-  for (const entry of payload.skills) {
+  for (const entry of payload.records) {
     if (!isRecord(entry) || Number(entry.enabled) !== 1) continue
     let id: InsightSkillId
     try {
-      id = normalizeSkillId(stringField(entry, 'skill_id'))
+      id = normalizeSkillId(stringField(entry, 'skillId'))
     } catch (error) {
       throw new InvalidCatalogError(error instanceof Error ? error.message : String(error))
     }
     if (ids.has(id)) throw new InvalidCatalogError(`The skill catalogue repeats the technical name ${id}.`)
     ids.add(id)
     const name = stringField(entry, 'name').trim() || id
-    const version = stringField(entry, 'version').trim() || '1.0.0'
+    const version = stringField(entry, 'packageVersion').trim()
+    const downloadUrl = stringField(entry, 'packageUrl').trim()
+    if (!version || !downloadUrl) continue
     skills.push({
       id,
       name,
-      summary: stringField(entry, 'skill_desc').trim(),
+      summary: stringField(entry, 'summary').trim(),
       version,
       descriptionMarkdown: stringField(entry, 'description_markdown').trim(),
-      downloadUrl: stringField(entry, 'download_url').trim(),
+      downloadUrl,
       sort: sortValue(entry),
     })
   }
@@ -109,8 +112,8 @@ function isCatalogAddress(address: string): boolean {
 }
 
 /**
- * Supply the OSS catalogue as a resource stream.
- * @param config - Validated request deadline.
+ * Read all desktop-channel API pages through the skill-center Host route.
+ * @param config - Validated deadline for the complete catalogue read.
  * @param fetchImplementation - Fetch implementation, injectable for focused provider tests.
  * @returns the single-read provider; releasing its resource aborts the request.
  */
@@ -126,31 +129,41 @@ export function skillCatalogResourceProvider(
         yield { ok: false, error: new RemoteError('gateway/bad-request', 'Invalid skill catalogue resource address.', {}) }
         return
       }
-      const requestUrl = new URL(SKILL_CATALOG_URL)
-      requestUrl.searchParams.set('_', String(Date.now()))
       const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(config.catalogRequestTimeoutMs)])
-      let payload: unknown
-      try {
-        const response = await fetchImplementation(requestUrl.toString(), { headers: { Accept: 'application/json' }, signal: requestSignal })
-        if (aborted()) return
-        if (!response.ok) {
-          yield { ok: false, error: new RemoteError('gateway/internal', `Skill catalogue request failed with HTTP ${response.status}.`, {}) }
-          return
-        }
-        payload = await response.json()
+      const records: unknown[] = []
+      const read = async (url: string): Promise<unknown> => {
+        const response = await fetchImplementation(url, {
+          headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: requestSignal,
+        })
         requestSignal.throwIfAborted()
-      } catch (error) {
-        if (!aborted()) {
-          yield { ok: false, error: new RemoteError('gateway/internal', error instanceof Error ? error.message : String(error), {}) }
+        if (!response.ok) throw new Error(`Skill catalogue request failed with HTTP ${response.status}.`)
+        const payload: unknown = await response.json()
+        requestSignal.throwIfAborted()
+        if (!isRecord(payload) || (payload.code !== 'SUCCESS' && payload.code !== 200 && payload.code !== 0)) {
+          throw new Error('Skill catalogue API request failed.')
         }
-        return
+        return payload.data
       }
       try {
-        yield { ok: true, value: normalizeCatalog(payload) }
-      } catch (_error) {
-        yield {
-          ok: false,
-          error: new RemoteError('gateway/bad-request', 'The skill catalogue must contain a skills array with distinct technical names.', {}),
+        for (let page = 1; ; page++) {
+          const query = new URLSearchParams({ businessChannel: 'A', source: 'OFFICIAL', page: String(page), pageSize: '50' })
+          const data = await read(`${SKILL_CATALOG_URL}?${query}`)
+          if (!isRecord(data) || !Array.isArray(data.records)
+            || typeof data.total !== 'number' || !Number.isSafeInteger(data.total) || data.total < 0) {
+            throw new InvalidCatalogError('Invalid skill catalogue page.')
+          }
+          const pageRecords: readonly unknown[] = data.records
+          records.push(...pageRecords)
+          if (records.length >= data.total) break
+          if (data.records.length === 0 || page >= 10000) throw new InvalidCatalogError('Incomplete skill catalogue pages.')
+        }
+        yield { ok: true, value: normalizeCatalog({ records }) }
+      } catch (error) {
+        if (!aborted()) {
+          yield { ok: false, error: new RemoteError(
+            error instanceof InvalidCatalogError ? 'gateway/bad-request' : 'gateway/internal',
+            error instanceof Error ? error.message : String(error), {},
+          ) }
         }
       }
     },

@@ -84,18 +84,34 @@ it('rejects a package root whose declared skill name differs', async () => {
   await expect(service.registerPackagedSkillRoot(root, 'invoked-name')).rejects.toThrow('valid root SKILL.md')
 })
 
-it('installs and updates a technical-name record with a callable payload', async () => {
+it.each([
+  origin,
+  'https://insight-gpt.oss-cn-shenzhen.aliyuncs.com',
+])('installs and updates a technical-name record from %s with a callable payload', async (downloadOrigin) => {
   let bytes = archive('First release')
   const { home, ctx, service } = await fixture(async url => response(bytes, requestUrl(url)))
   const signal = new AbortController().signal
-  await collect(service.install(request('1.0.0', 'first'), signal))
+  await collect(service.install({ ...request('1.0.0', 'first'), downloadUrl: `${downloadOrigin}/skill-packages/expert-tool.zip` }, signal))
   expect(await service.listInstalled()).toEqual({ skills: [{ id, version: '1.0.0' }] })
   expect(JSON.parse(await readFile(join(home, 'platform-skills', 'installed', 'expert-tool.json'), 'utf8'))).toMatchObject({ id: 'expert-tool', version: '1.0.0' })
   expect((await ctx.skills.get('expert-tool'))?.content).toContain('First release')
   bytes = archive('Updated release')
-  await collect(service.install(request('1.1.0', 'update'), signal))
+  await collect(service.install({ ...request('1.1.0', 'update'), downloadUrl: `${downloadOrigin}/skill-packages/expert-tool.zip` }, signal))
   expect(await service.listInstalled()).toEqual({ skills: [{ id, version: '1.1.0' }] })
   expect((await ctx.skills.get('expert-tool'))?.content).toContain('Updated release')
+})
+
+it.each([
+  'https://untrusted.example/skill.zip',
+  'https://insight-gpt.oss-cn-shenzhen.aliyuncs.com.untrusted.example/skill.zip',
+  'http://insight-gpt.oss-cn-shenzhen.aliyuncs.com/skill.zip',
+])('rejects an unauthorized download URL %s before making a request', async (downloadUrl) => {
+  const fetcher = vi.fn<typeof fetch>(async url => response(archive('Unused'), requestUrl(url)))
+  const { service } = await fixture(fetcher)
+  await expect(collect(service.install({ ...request('1.0.0', 'rejected'), downloadUrl }, new AbortController().signal)))
+    .rejects.toThrow('Skill installation failed')
+  expect(fetcher).not.toHaveBeenCalled()
+  expect(await service.listInstalled()).toEqual({ skills: [] })
 })
 
 it('records an explicit removal by technical name and reclaims its payload', async () => {

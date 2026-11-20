@@ -55,7 +55,7 @@ test('build audit does not eagerly follow optional UI chunks, while preserving t
 
 test('real Client apply owns the service effect independently of tabs/input slots and does not open a canvas', async () => {
   const result = await build({ entryPoints: [new URL('../src/client/index.ts', import.meta.url).pathname], bundle: true, write: false, format: 'cjs', platform: 'browser', jsx: 'automatic', external: ['react', 'react/*', '@deepseek-ai/*'] })
-  const host = { location: { origin: 'http://127.0.0.1:3000' } }
+  const host = { location: { origin: 'http://127.0.0.1:3000' }, document: new EventTarget() }
   let opened = 0
   const effects = new Map()
   const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, module: { exports: {} }, exports: {}, require: name => name === '@deepseek-ai/dsh-util-crypto' ? { randomUUID: () => crypto.randomUUID() } : ({}) }
@@ -70,7 +70,7 @@ test('real Client apply owns the service effect independently of tabs/input slot
   })
   assert.ok(host.__INSIGHT_CANVAS_RUNTIME_V1__)
   assert.equal(opened, 0)
-  effects.get('desktop-canvas: tab body')(); effects.get('desktop-canvas: session bridge')()
+  effects.get('desktop-canvas: tab body')(); effects.get('desktop-canvas: assistant links')(); effects.get('desktop-canvas: session bridge')()
   assert.ok(host.__INSIGHT_CANVAS_RUNTIME_V1__)
   effects.get('desktop-canvas: client bridge')()
   effects.get('desktop-canvas: service runtime')()
@@ -93,7 +93,7 @@ test('real Client binds the on-screen session without input or canvas mounts, an
   const result = await build({ entryPoints: [new URL('../src/client/index.ts', import.meta.url).pathname], bundle: true, write: false, format: 'cjs', platform: 'browser', jsx: 'automatic', external: ['react', 'react/*', '@deepseek-ai/*'] })
   const effects = new Map(), entries = [], posts = [], mounted = mountedSession()
   let opened = 0, attaches = 0
-  const host = { location: { origin: 'http://127.0.0.1:3000' } }
+  const host = { location: { origin: 'http://127.0.0.1:3000' }, document: new EventTarget() }
   const registration = { protocolVersion: 4, clientId: 'client', connectionId: 'connection',
     bridgeKey: 'k'.repeat(43), sessionBindingProtocol: 'host-session-v1' }
   const transport = async (input, init) => {
@@ -134,11 +134,24 @@ test('real Client binds the on-screen session without input or canvas mounts, an
 })
 
 
-test('real Client registers a scoped results footer and canvas navigation only occurs on an explicit gesture', async () => {
+test('real Client opens assistant canvas links only from the active session and until unload', async () => {
   const result = await build({ entryPoints: [new URL('../src/client/index.ts', import.meta.url).pathname], bundle: true, write: false, format: 'cjs', platform: 'browser', jsx: 'automatic', external: ['react', 'react/*', '@deepseek-ai/*'] })
   const effects = new Map(), entries = [], navigations = [], definitions = []
-  const host = { location: { origin: 'http://127.0.0.1:3000' } }
-  const sandbox = { window: host, URL, crypto, AbortController, AbortSignal, clearTimeout, module: { exports: {} }, exports: {}, require: name => name === '@deepseek-ai/dsh-util-crypto' ? { randomUUID: () => crypto.randomUUID() } : ({}) }
+  const host = { location: { origin: 'http://127.0.0.1:3000' }, document: new EventTarget() }
+  let onScreen
+  class Element {
+    constructor(attributes, parent) { this.attributes = attributes; this.parent = parent }
+    getAttribute(name) { return this.attributes[name] ?? null }
+    closest(selector) {
+      const matches = {
+        'a[href]': 'href' in this.attributes,
+        '[data-chat-flow-kind="assistant-step"]': this.attributes['data-chat-flow-kind'] === 'assistant-step',
+        '[data-conversation-session]': 'data-conversation-session' in this.attributes,
+      }
+      return matches[selector] ? this : this.parent?.closest(selector) ?? null
+    }
+  }
+  const sandbox = { window: host, Element, URL, crypto, AbortController, AbortSignal, clearTimeout, module: { exports: {} }, exports: {}, require: name => name === '@deepseek-ai/dsh-util-crypto' ? { randomUUID: () => crypto.randomUUID() } : ({}) }
   sandbox.exports = sandbox.module.exports
   vm.runInNewContext(result.outputFiles[0].text, sandbox)
   sandbox.module.exports.apply({
@@ -146,7 +159,10 @@ test('real Client registers a scoped results footer and canvas navigation only o
     uiConversation: { events: { register: definition => { definitions.push(definition); return () => {} } } },
     locale: { register: () => () => {} }, sidebarRightTabs: { register: () => () => {} },
     slots: clientSlots(entries),
-    sidebarRight: { mounted: mountedSession(), openResource: (address, options) => navigations.push({ address, options }) },
+    sidebarRight: {
+      mounted: { getSnapshot: () => onScreen, subscribe: () => () => {} },
+      openResource: (address, options) => navigations.push({ address, options }),
+    },
   })
   assert.equal(entries.some(entry => entry.options.name === 'conversation.chat.node' && entry.options.key === 'assistant-step'), false)
   const entry = entries.find(entry => entry.options.name === 'conversation.chat.turnTail')
@@ -166,5 +182,28 @@ test('real Client registers a scoped results footer and canvas navigation only o
   assert.deepEqual(navigations[1], { address: 'dsh-resource://canvas/103490', options: undefined })
   created.options.inject('actual-session').openCreatedCanvas('not-an-id')
   assert.equal(navigations.length, 2)
+
+  function clickLink(href, session = 'actual-session', groupPart = 'response') {
+    const conversation = new Element({ 'data-conversation-session': session })
+    const reply = new Element({ 'data-chat-flow-kind': 'assistant-step', 'data-chat-group-part': groupPart }, conversation)
+    const link = new Element({ href }, reply)
+    const event = new Event('click', { bubbles: true, cancelable: true })
+    Object.defineProperties(event, { target: { value: new Element({}, link) }, button: { value: 0 } })
+    return host.document.dispatchEvent(event)
+  }
+
+  const address = 'dsh-resource://canvas/103334'
+  assert.equal(clickLink(address), true)
+  onScreen = 'actual-session'
+  assert.equal(clickLink(address, 'another-session'), true)
+  assert.equal(clickLink(address, 'actual-session', 'reasoning'), true)
+  assert.equal(clickLink('dsh-resource://canvas/103334?x=1'), true)
+  assert.equal(clickLink('https://example.com'), true)
+  assert.equal(navigations.length, 2)
+  assert.equal(clickLink(address), false)
+  assert.deepEqual(navigations[2], { address, options: undefined })
+
   for (const dispose of [...effects.values()].reverse()) dispose?.()
+  assert.equal(clickLink(address), true)
+  assert.equal(navigations.length, 3)
 })

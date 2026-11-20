@@ -1,0 +1,11 @@
+- insert:
+    - id: canvas-media-schema-fixture
+      name: '../../../packages/insight/canvas/test/fixtures/media-schema-snapshot.ts'
+    - id: insight-media-upload-snapshot-fixture
+      name: '../../../packages/insight/media-upload/tests/fixtures/snapshot.ts'
+
+- id: headless-runner
+  config:
+    task: !!js ctx.headlessStartup.task
+    sessionId: canvas-media-schema-snapshot
+    json: !!js ctx.headlessStartup.json

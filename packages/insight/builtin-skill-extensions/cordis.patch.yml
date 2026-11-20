@@ -1,0 +1,10 @@
+- insert:
+    - id: insight-builtin-skill-extensions
+      name: ./lib/index.js
+      config:
+        pdfMaxInputBytes: 67108864
+        pdfMaxPagesPerCall: 100
+        pdfMaxOutputBytes: 98304
+        pptxRetryMaxInputBytes: 167772160
+        pptxRenderTimeoutMs: 120000
+        pptxRenderGraceMs: 1000

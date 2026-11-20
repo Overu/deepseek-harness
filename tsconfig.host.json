@@ -279,6 +279,7 @@
     { "path": "packages/insight/canvas/tsconfig.host.json" },
     { "path": "packages/insight/media-upload/tsconfig.host.json" },
     { "path": "packages/insight/skill-center/tsconfig.host.json" },
+    { "path": "packages/insight/builtin-skill-extensions/tsconfig.json" },
     { "path": "./packages/experimental/action-cards" },
     { "path": "./packages/experimental/creation-recommendations" },
     { "path": "./packages/experimental/plugin-recommendations" },

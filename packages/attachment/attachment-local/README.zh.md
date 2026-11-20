@@ -43,7 +43,7 @@ kind: "package-reference"
 | `maxMessageImageBytes` | `200 MiB` | 单条提交消息接受的最大编码源图字节总数 |
 | `maxImagePixels` | `64,000,000` | 源图宽度与高度乘积的最大值 |
 | `maxImageDimension` | `65,535` | 源图接受的最大宽度或高度；默认值让 `maxImagePixels` 单独把关，长边由规范化缩小 |
-| `normalizedImageMaxPixels` | `8,294,400`（3840 × 2160） | 已存规范化图片的总像素预算 |
+| `normalizedImageMaxPixels` | `16,777,216`（4096 × 4096） | 已存规范化图片的总像素预算 |
 | `normalizedImageMaxDimension` | `8192` | 应用总像素预算后的最大长边 |
 | `normalizedImageMaxBytes` | `50 MiB` | 编码字节目标。没有候选满足时，存储服务保留质量阶梯中的最小输出。 |
 | `imageCompressionConcurrency` | `2` | 并发规范化与请求变换的 FIFO 上限 |

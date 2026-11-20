@@ -51,7 +51,7 @@ export const DEFAULT_MAX_IMAGE_DIMENSION = 65_535
  * aspect ratios keep their short-edge resolution instead of collapsing under
  * a long-edge rule.
  */
-export const DEFAULT_NORMALIZED_IMAGE_MAX_PIXELS = 3840 * 2160
+export const DEFAULT_NORMALIZED_IMAGE_MAX_PIXELS = 4096 * 4096
 /** Default long-edge cap of the stored normalized image, applied after the total-pixel budget. */
 export const DEFAULT_NORMALIZED_IMAGE_MAX_DIMENSION = 8192
 /** Default encoded-byte target for one stored normalized image. */

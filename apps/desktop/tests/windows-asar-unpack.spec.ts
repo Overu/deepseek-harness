@@ -161,6 +161,37 @@ it('includes the diagnostic worker in the archive selected by the shipping file 
   expect(() => archive.getFile('lib/not-shipped.js')).toThrow()
 })
 
+it.each([
+  ['1.3.0-rc.4', false, true],
+  ['1.3.0', false, false],
+  ['1.3.0-beta.1', false, false],
+  ['1.3.0', true, true],
+] as const)('requires the correct developer controls in %s (internal=%s)', async (version, internal, developerControls) => {
+  const input = await fixture(false)
+  const config = createElectronBuilderConfig({ DSH_DESKTOP_PRODUCT: 'insight', INSIGHT_DESKTOP_VERSION: version,
+    DSH_DESKTOP_UNSIGNED: '1', DSH_INSIGHT_RC_BUILD: internal ? '1' : '0' }, 'win32', 'x64', input.source)
+  expect(config.artifactName).toBe(`${internal ? 'insight-internal-rc' : 'insight'}-\${version}-\${os}-\${arch}-unsigned.\${ext}`)
+  expect(config.directories.output).toMatch(internal
+    ? /[\\/]internal-rc[\\/]unsigned-artifacts$/u : /[\\/]win-x64[\\/]unsigned-artifacts$/u)
+  const destination = join(input.resources, 'app')
+  const entry = join(input.appDir, 'lib', 'main.js')
+  await mkdir(dirname(entry))
+  const pack = async (source: string): Promise<void> => {
+    await writeFile(entry, source)
+    await new AsarPackager({ info: { getWorkspaceRoot: async () => input.root } }, {
+      defaultDestination: destination, resourcePath: input.resources, options: {}, unpackPattern: () => false,
+    }).pack([{ src: input.appDir, destination, files: [entry], metadata: new Map([[entry, await lstat(entry)]]) }])
+  }
+  const flag = 'console.log("--insight-rc-service-environment=")'
+  const menu = 'console.log("开发者选项")'
+  for (const incomplete of [flag, menu, developerControls ? 'export {}' : `${flag}; ${menu}`]) {
+    await pack(incomplete)
+    await expect(config.afterPack(input.context)).rejects.toThrow('does not match its RC build selection')
+  }
+  await pack(developerControls ? `${flag}; ${menu}` : 'export {}')
+  await expect(config.afterPack(input.context)).resolves.toBeUndefined()
+})
+
 it.each([false, true])('unpacks PE files through builder source patterns (external=%s)', async (external) => {
   const input = await fixture(external)
   const files = await prepareWindowsAsarUnpack(input.context, input.source)

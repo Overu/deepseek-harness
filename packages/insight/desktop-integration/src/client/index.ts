@@ -2,9 +2,10 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type { AssistantMessageNode } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { InsightAccountApi } from '../shared/desktop-api.ts'
+import { toolArgumentFailure } from '../shared/tool-argument-failure.ts'
 import { InsightAccountFooter, type InsightAccountFooterInjected } from './AccountFooter.tsx'
 import { InsightAccountSettings, type InsightAccountSettingsInjected } from './AccountSettings.tsx'
 import { InsightAccountSource } from './account-source.ts'
@@ -21,6 +22,38 @@ export const inject = ['slots']
  */
 export function apply(ctx: Context): void {
   registerProductUi(ctx)
+  ctx.inject(['uiConversation', 'locale'], (client) => {
+    const locale = client.get('locale') as { resolveText(text: { en: string; zh: string }): string }
+    client.uiConversation.events.register({
+      kind: 'insight-trajectory-rejected-tool-call',
+      target: 'trajectory',
+      match: (event) => {
+        if (event.type === 'assistant/attempt') return { id: String(event.data.turn), role: 'start' }
+        if (event.type === 'turn/end' && event.data.reason.kind === 'error' && event.data.reason.error.code === 'MALFORMED_RESPONSE') {
+          return { id: String(event.data.turn), role: 'update' }
+        }
+        return null
+      },
+      start: () => null,
+      update: () => null,
+      publication: match => match.event.type === 'assistant/attempt' ? 'none' : 'immediate',
+      buildViewNode: ({ key, id, kind, matches }) => {
+        const end = matches.at(-1)
+        const attempt = matches.at(-2)?.event
+        if (end?.event.type !== 'turn/end' || attempt?.type !== 'assistant/attempt') return null
+        const diagnostic = toolArgumentFailure(attempt.data.stream)
+        if (diagnostic === undefined) return null
+        const { seq, time } = end.event
+        const { turn, step } = attempt.data
+        const text = locale.resolveText({ en: 'Parameter parsing failed. Tool did not run', zh: '参数解析失败，未执行' })
+        const node: AssistantMessageNode = {
+          kind: 'assistant', seq, time, turn, step, interrupted: true,
+          blocks: [{ kind: 'text', text: `${diagnostic.name} · ${text}` }],
+        }
+        return { key, id, kind, target: 'trajectory', anchorSeq: seq, location: end.location, data: { kind: 'node', node } }
+      },
+    })
+  })
 }
 
 function registerProductUi(ctx: Context): void {

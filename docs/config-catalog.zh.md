@@ -4833,13 +4833,40 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-workspace-changes -->
 
+<!-- BEGIN GENERATED config-catalog:@insight-ai/builtin-skill-extensions -->
+<a id="insight-aibuiltin-skill-extensions"></a>
+
+## `@insight-ai/builtin-skill-extensions`
+
+- `inject`: `systemPrompt` · `tools` · `fs` · `workingDirectory` · `sandbox` · `sandboxPolicy` · `subprocess`
+- `source`: [`packages/insight/builtin-skill-extensions/src/index.ts:15`](../packages/insight/builtin-skill-extensions/src/index.ts)
+
+```ts config-catalog
+/** Resource limits for Office tools. */
+export interface Config {
+  /** Maximum PDF input bytes read per call. */
+  readonly pdfMaxInputBytes: number
+  /** Maximum consecutive pages read per call. */
+  readonly pdfMaxPagesPerCall: number
+  /** Maximum UTF-8 bytes in one extraction result. */
+  readonly pdfMaxOutputBytes: number
+  /** Maximum size of a saved PPTX eligible for one render retry, in bytes. */
+  readonly pptxRetryMaxInputBytes: number
+  /** Deadline in milliseconds for the complete visual review command. */
+  readonly pptxRenderTimeoutMs: number
+  /** Grace period in milliseconds before forced termination. */
+  readonly pptxRenderGraceMs: number
+}
+```
+<!-- END GENERATED config-catalog:@insight-ai/builtin-skill-extensions -->
+
 <!-- BEGIN GENERATED config-catalog:@insight-ai/desktop-media-upload-plugin -->
 <a id="insight-aidesktop-media-upload-plugin"></a>
 
 ## `@insight-ai/desktop-media-upload-plugin`
 
-- `inject`: `tools` · `attachments` · `insightAccount` · `approval` · `permissionPresets` · `agents` · `sessionProjections` · `jobs` · `fs` · `workingDirectory` · `sandboxPolicy` · `insightPlatformSkills` · `connection` · `sessionQuery`
-- `source`: [`packages/insight/media-upload/src/index.ts:32`](../packages/insight/media-upload/src/index.ts)
+- `inject`: `tools` · `attachments` · `insightAccount` · `agents` · `sessionProjections` · `jobs` · `fs` · `workingDirectory` · `sandboxPolicy` · `insightPlatformSkills` · `connection` · `sessionQuery`
+- `source`: [`packages/insight/media-upload/src/index.ts:30`](../packages/insight/media-upload/src/index.ts)
 
 ```ts config-catalog
 /** Product environment and bounded network deadlines. */
@@ -4867,18 +4894,20 @@ export interface Config {
 
 ## `@insight-ai/skill-center`
 
-- `inject`: `skills`
+- `inject`: `skills` · `insightAccount` · `webServer` · `connection`
 - `source`: [`packages/insight/skill-center/src/config.ts:6`](../packages/insight/skill-center/src/config.ts)
 
 ```ts config-catalog
-/** Deployment policy for OSS directory requests. */
+/** Deployment policy for skill catalogue requests. */
 export interface Config {
   /** Technical skill names selected for first automatic installation. */
   presetSkillIds: string[]
   /** Absolute previous application skill directories discovered read-only for compatibility. */
   legacySkillDirs: string[]
-  /** Maximum time for the response headers and JSON body, in milliseconds. */
+  /** Maximum time for all catalogue pages, including JSON bodies, in milliseconds. */
   catalogRequestTimeoutMs: number
+  /** Maximum bytes buffered from one catalogue API response by the Host. */
+  catalogMaxResponseBytes: number
   /** Maximum time for downloading one skill archive, in milliseconds. */
   packageRequestTimeoutMs: number
   /** Maximum compressed bytes accepted for one skill archive. */

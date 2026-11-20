@@ -33,7 +33,7 @@ media-upload Host 插件启动时通过因赛技能中心注册包内技能，�
 <a id="call-and-data-flow"></a>
 ## 调用与数据流程
 
-1. **选择图片和层数。** `prepare_image_layering_source` 列出最近三个用户消息轮次的合格图片。多图选择不明时先确认；超过五张时请用户缩减。可选智能分层或 2–17 的整数；未指定时展示智能分层和四个闭区间：2–4、5–8、9–12、13–17。更多层可能产生更高费用。普通 `upload_attachment` 只处理当前轮次附件，且只有有效“完全权限”免单独审批；分层上传依据用户对已选图片的处理请求执行。
+1. **选择图片和层数。** `prepare_image_layering_source` 列出最近三个用户消息轮次的合格图片。多图选择不明时先确认；超过五张时请用户缩减。可选智能分层或 2–17 的整数；未指定时展示智能分层和四个闭区间：2–4、5–8、9–12、13–17。普通 `upload_attachment` 被调用时直接上传选中的当前轮次附件，不再单独弹窗审批；分层上传依据用户对已选图片的处理请求执行。
 2. **逐图提交生成。** `submit_image_layering` 接收 `sourceRef`、可选 `prompt` 及 `numLayers`（智能分层为 `0`）。工具先检查工作区文本写入权限，再上传已存储图片，通过已认证的 `POST /api/skill-proxy/call-insight-api` 转发 `/v1/proxy_async_create`。确认返回的 `taskHandle` 标识一个付费任务。插件不再持久保存创建预留；重复提交可能再次创建并计费。
 3. **独立跟踪任务。** 每个已确认句柄尽可能启动一个 `image-layering` 会话 Job。Job 查询 `/v1/proxy_async_get_result`。非超时查询错误在一次读取后停止该图；明确的请求超时仅允许同一句柄再查一次。没有活跃 Job 时可用 `get_image_layering` 恢复跟踪。一张图失败不会中断其他图。
 4. **保存并展示结果地址。** 每张图片取得完整或部分成功的远端结果后，技能调用 `cache_image_layering_result({taskHandle,imageLabel})`。Host 重新查询同一句柄，校验 HTTPS 结果主机和扩展名，通过会话沙箱文本文件系统把 PSD/图片 URL 写入当前工作区 `generated/image-layering/<句柄哈希>.json`。工具结果同时记录账号范围、原图标签、完整标志及有序文件信息。客户端从工具事件恢复分组文件卡片。此时不下载生成的二进制文件；技能不会把 OSS URL 传给 `present`。
@@ -49,8 +49,8 @@ media-upload Host 插件启动时通过因赛技能中心注册包内技能，�
 | `running` | 远端任务仍待执行或正在运行。 | 等待 Job；没有活跃 Job 时才查询同一句柄。 |
 | `succeeded` | 远端结果包含 PSD 和图片 URL。 | 保存 URL 清单并显示文件卡片。 |
 | `missing_psd` | 远端成功，但没有 PSD，可能仍有图片。 | 把已有图片 URL 保存为不完整结果，并说明缺少 PSD。 |
-| `failed`、`cancelled` | 远端任务失败或取消。 | 停止该图的自动调用，继续其他图。 |
-| `query_unavailable` | 状态查询失败，远端结果未知。 | 非超时错误一次后停止；超时仅允许所述补查；不重新提交。 |
+| `failed`、`cancelled` | 远端任务失败或取消。业务码非零但明确返回 `failed` 时，失败状态仍已确认。 | 确认版权限制时简要说明处理失败并请用户换图；停止该图的自动调用。 |
+| `query_unavailable` | 状态查询失败且任务结果未确认；单靠业务码不能认定版权限制。 | 非超时错误一次后停止；超时仅允许所述补查；重新提交前先核对原任务。 |
 
 <a id="conversation-delivery"></a>
 ## 会话交付
@@ -66,7 +66,7 @@ Host 只接受配置允许的结果主机；`generationResultHosts` 为空时，
 | --- | --- | --- |
 | 上传授权或 OSS PUT | 没有确认的源图 OSS URL。 | 排查登录或服务错误；结果不明的写入不自动重复。 |
 | 付费代理创建 | `SUBMISSION_UNKNOWN` 或没有确认的句柄。 | 有代理审计 ID 时先用它排查；未查明前不重新提交。 |
-| 状态查询或本地 Job | `query_unavailable`、`monitoring_unknown` 或账号失败。 | 保留句柄，按技能的有限重试规则停止该图；其他图片继续。 |
+| 状态查询或本地 Job | 已确认 `failed`、`query_unavailable`、`monitoring_unknown` 或账号失败。 | 确认版权限制时简短提示换图；结果未知时保留句柄，按有限重试规则停止该图，其他图片继续。 |
 | 清单写入 | 远端 URL 已有，但本地清单或结果卡片未记录。 | 修复工作区权限或主机配置后，使用同一句柄重新保存。 |
 | 用户下载 | 卡片已有，但远端文件无法获取或校验。 | 在卡片显示失败并允许再次点击；下载失败不会触发新的付费生成。 |
 
@@ -74,6 +74,8 @@ Host 只接受配置允许的结果主机；`generationResultHosts` 为空时，
 ## 证据与限制
 
 [media-upload 实现](../../packages/insight/media-upload/src/index.ts)、[下载路由](../../packages/insight/media-upload/src/result-download.ts)、[客户端卡片](../../packages/insight/media-upload/src/client/LayeringResultCards.tsx)和[技能指令](../../packages/insight/media-upload/guidance/image-layering/SKILL.md)定义当前流程。源码和聚焦测试覆盖本地行为；远端文件可读、代理路由已部署及最终浏览器下载仍需实机验证。远端任务句柄的服务有效期约 24 小时，不是客户端保证。
+
+Host 在运行日志中记录有界、脱敏的查询失败信息，包括上游消息和代理请求 ID。下载的会话日志 ZIP 不含 Host logger 输出；其中的安全工具和 Job 结果可凭代理请求 ID 与 Host 日志或上游审计关联。测试客户端须保留或单独收集 Host 日志，才能在运行结束后查看原始消息。
 
 ## 开发备注
 

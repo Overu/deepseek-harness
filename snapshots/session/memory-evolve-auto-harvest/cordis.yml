@@ -1,0 +1,8 @@
+# Live counterpart for the standalone memory-evolve skill auto-harvest extension.
+- insert:
+    - id: dsh-memory-evolve
+      name: ../../../packages/insight/memory-evolve/lib/index.js
+      config:
+        injectMemory: false
+        memoryDir: !!js process.cwd() + '/.dsh/memory-evolve'
+        skillDir: !!js process.cwd() + '/skills-output'

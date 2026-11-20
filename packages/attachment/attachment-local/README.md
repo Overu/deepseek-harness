@@ -43,7 +43,7 @@ Mount the plugin with no required configuration. The defaults below define what 
 | `maxMessageImageBytes` | `200 MiB` | Maximum aggregate encoded source bytes in one submitted message |
 | `maxImagePixels` | `64,000,000` | Maximum source width multiplied by height |
 | `maxImageDimension` | `65,535` | Maximum source width or height; the default leaves admission to `maxImagePixels`, and normalization downscales long sides |
-| `normalizedImageMaxPixels` | `8,294,400` (3840 × 2160) | Total-pixel budget of the stored normalized image |
+| `normalizedImageMaxPixels` | `16,777,216` (4096 × 4096) | Total-pixel budget of the stored normalized image |
 | `normalizedImageMaxDimension` | `8192` | Maximum long edge after applying the total-pixel budget |
 | `normalizedImageMaxBytes` | `50 MiB` | Encoded-byte target. The store keeps the smallest quality-ladder output when none fits. |
 | `imageCompressionConcurrency` | `2` | FIFO limit for concurrent normalization and request transforms |

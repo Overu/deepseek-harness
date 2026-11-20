@@ -42,11 +42,13 @@ The [1.0.11 execution record](history/releases/1.0.11.md) identifies the exact s
 
 ## Developing locally
 
-Run `npm run dev:insight` from the repository root. The launcher selects the Insight product and defaults the development product version to 1.0.11. It reuses the Desktop development launcher and uses the Shell-compatible Insight development user-data location.
+Run `pnpm run dev:insight` from the repository root. It uses the Desktop development launcher and the Shell-compatible Insight development user-data location. It includes the internal RC developer menu and defaults to the test environment on an ordinary launch.
 
 The development login flow does not persist credentials. The packaged application restores and validates saved credentials in a hidden window; a valid account and account Home open the workspace, while an invalid credential, offline request, or Home protection failure shows the login or recovery page. Do not treat a local token file as authorization to skip server validation.
 
 Development mode intentionally does not check packaged application updates. Its update entry shows a development-mode notice because a source launch has no packaged update source. Use an installed release to test update discovery, download, or installation.
+
+Build an internal RC with `pnpm run package:desktop:insight-rc` and an explicit `INSIGHT_DESKTOP_VERSION`. It uses the usual target and signing options and writes `insight-internal-rc` artifacts under the target’s `internal-rc/` directory. **因赛 AI → 开发者选项** shows the active service environment in the login window and workspace. Confirming a switch stops any running Host, clears the current login credentials and session, and restarts into the selected environment’s login page. An ordinary launch of the packaged RC defaults to production. The release workflow also includes these controls for canonical `1.x.y-rc.N` product versions, using the usual release filenames and directories. Final and other prerelease versions exclude the controls unless explicitly built as an internal RC. Packaging checks the assembled application against this version selection before release collection.
 
 ## Building GitHub Release artifacts
 

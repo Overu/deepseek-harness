@@ -7,15 +7,52 @@ import { expect, it } from 'vitest'
 import { createSystemMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import { normalizeSkillId } from '../src/shared/skill-identity.ts'
-import { CATALOG_FIXTURE } from './fixtures/catalog.ts'
+import { CATALOG_FIXTURE, catalogApiResponse } from './fixtures/catalog.ts'
 import { compareOrRefreshGolden, launchWebScaffold, webSnapshotMode } from '../../../../apps/web/tests/scaffold.ts'
 import { newEnglishPage, writeComposerDraft } from '../../../../apps/web/tests/support.ts'
 
 const influencerIntegration = normalizeSkillId('influencer-integration')
 
+it('loads the authenticated catalog through its own route without the Canvas bundle', async () => {
+  const scaffold = await launchWebScaffold({
+    extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/catalog-service.overlay.yml', import.meta.url)),
+      fileURLToPath(new URL('fixtures/manual-skills.overlay.yml', import.meta.url)),
+    ],
+    profile: { packages: [{ dir: fileURLToPath(new URL('..', import.meta.url)), enabled: true }] },
+  })
+  try {
+    const browser = await chromium.launch()
+    try {
+      const page = await newEnglishPage(browser)
+      const catalogRequests: string[] = []
+      page.on('request', (request) => {
+        if (new URL(request.url()).pathname.startsWith('/insight-skill-center/api/skills')) catalogRequests.push(request.url())
+      })
+      await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
+      await page.getByRole('button', { name: 'Skill center', exact: true }).click()
+      await page.getByRole('heading', { name: 'Account catalog skill', exact: true }).waitFor()
+      await page.getByRole('article').getByRole('button', { name: 'Install', exact: true }).waitFor()
+      expect(catalogRequests).toHaveLength(1)
+      expect(new URL(catalogRequests[0]!).pathname).toBe('/insight-skill-center/api/skills')
+      const response = await page.request.get(new URL('/insight-skill-center/api/skills?businessChannel=A&source=OFFICIAL&page=1&pageSize=50', page.url()).href)
+      expect(response.status()).toBe(200)
+      expect(await response.json()).toMatchObject({ code: 'SUCCESS', data: { total: 1 } })
+      expect(await response.text()).not.toContain('catalog-fixture-token')
+      const canvas = await page.request.get(new URL('/desktop-canvas/api/legacy/game-ai-editor-center/api/skills', page.url()).href)
+      expect(canvas.status()).toBe(404)
+    } finally {
+      await browser.close()
+    }
+  } finally {
+    await scaffold.close()
+  }
+})
+
 it('installs configured presets before opening the market and respects removal after reload', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/catalog-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/download-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/preset-skills.overlay.yml', import.meta.url)),
     ],
@@ -25,11 +62,11 @@ it('installs configured presets before opening the market and respects removal a
     const browser = await chromium.launch()
     try {
       const page = await newEnglishPage(browser)
-      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: { skills: [{
+      await page.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse({ skills: [{
           ...CATALOG_FIXTURE.skills[0],
-          download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
-        }] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
+          packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
+        }] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await expect.poll(() => scaffold.ctx.insightPlatformSkills.listInstalled()).toEqual({
         skills: [expect.objectContaining({
@@ -61,6 +98,7 @@ it('installs configured presets before opening the market and respects removal a
 it('continues preset installation after a package name mismatch and reports one final failure', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/catalog-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/download-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/partial-preset-skills.overlay.yml', import.meta.url)),
     ],
@@ -71,18 +109,18 @@ it('continues preset installation after a package name mismatch and reports one 
     try {
       const page = await newEnglishPage(browser)
       const skills = [14, 15, 16].map(id => ({
-        ...CATALOG_FIXTURE.skills[0]!, id, skill_id: `preset-${id}`, name: `Preset ${id}`,
-        download_url: `https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/preset-${id}-fixture.zip`,
+        ...CATALOG_FIXTURE.skills[0]!, id, skillId: `preset-${id}`, name: `Preset ${id}`,
+        packageUrl: `https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/preset-${id}-fixture.zip`,
       }))
-      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: { skills }, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await page.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse({ skills }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await expect.poll(async () => (await scaffold.ctx.insightPlatformSkills.listInstalled()).skills.map(skill => skill.id).sort())
         .toEqual(['preset-15', 'preset-16'])
       await page.getByRole('alert').getByText('Preset skill installation did not finish. Try again in skill center', { exact: true }).waitFor()
       expect(await page.getByRole('dialog', { name: 'Installing preset skills' }).count()).toBe(0)
       expect(await scaffold.ctx.insightPlatformSkills.listPendingPresets(skills.map(skill => ({
-        id: normalizeSkillId(skill.skill_id),
+        id: normalizeSkillId(skill.skillId),
       })))).toEqual([{ id: 'preset-14' }])
     } finally {
       await browser.close()
@@ -92,9 +130,10 @@ it('continues preset installation after a package name mismatch and reports one 
   }
 })
 
-it('uses the technical name despite OSS numeric ID changes, absence, or invalid values', async () => {
+it('uses the technical name despite API numeric ID changes, absence, or invalid values', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/catalog-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/download-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/manual-skills.overlay.yml', import.meta.url)),
     ],
@@ -116,20 +155,20 @@ it('uses the technical name despite OSS numeric ID changes, absence, or invalid 
       const page = await newEnglishPage(browser)
       let catalogueId: unknown = 999
       let technicalName = skillName
-      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: { skills: technicalName === skillName ? [{
-          ...CATALOG_FIXTURE.skills[0], id: catalogueId, skill_id: skillName,
-          download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
+      await page.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse({ skills: technicalName === skillName ? [{
+          ...CATALOG_FIXTURE.skills[0], id: catalogueId, skillId: skillName,
+          packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
         }] : [
           {
-            ...CATALOG_FIXTURE.skills[0], id: catalogueId, skill_id: skillName,
-            download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
+            ...CATALOG_FIXTURE.skills[0], id: catalogueId, skillId: skillName,
+            packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
           },
           {
-            ...CATALOG_FIXTURE.skills[0], id: catalogueId, skill_id: technicalName, name: 'Renamed skill', sort: 11,
-            download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
+            ...CATALOG_FIXTURE.skills[0], id: catalogueId, skillId: technicalName, name: 'Renamed skill', sort: 11,
+            packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
           },
-        ] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
+        ] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
       await page.getByRole('button', { name: 'Update', exact: true }).waitFor()
@@ -191,6 +230,7 @@ it('uses the technical name despite OSS numeric ID changes, absence, or invalid 
 it('refreshes skill references in an open historical conversation after installation, update and removal', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/catalog-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/download-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/manual-skills.overlay.yml', import.meta.url)),
     ],
@@ -234,12 +274,12 @@ it('refreshes skill references in an open historical conversation after installa
 
       const market = await newEnglishPage(browser)
       let version = '1.0.0'
-      await market.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: { skills: [{
-          ...CATALOG_FIXTURE.skills[0], version,
-          skill_id: 'browser-installed-expert',
-          download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip',
-        }] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await market.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse({ skills: [{
+          ...CATALOG_FIXTURE.skills[0], packageVersion: version,
+          skillId: 'browser-installed-expert',
+          packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip',
+        }] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       const openMarket = async (): Promise<void> => {
         await market.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
         await market.getByRole('button', { name: 'Skill center', exact: true }).click()
@@ -349,8 +389,8 @@ it('refreshes skill references in an open historical conversation after installa
       }
       expect(await input.textContent()).toBe(draft)
       await page.setViewportSize({ width: 1440, height: 1000 })
-      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: CATALOG_FIXTURE, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await page.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse(CATALOG_FIXTURE, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       await openSkillCenter.click()
       await emptyPicker.waitFor({ state: 'detached' })
       await page.getByRole('region', { name: 'Skill center', exact: true }).waitFor()
@@ -369,6 +409,7 @@ it('refreshes skill references in an open historical conversation after installa
 it('installs, updates and removes a skill through the real Remote API', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/catalog-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('../../../../apps/web/tests/pin-browse-picker.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/download-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/manual-skills.overlay.yml', import.meta.url)),
@@ -380,12 +421,12 @@ it('installs, updates and removes a skill through the real Remote API', async ()
     try {
       const page = await browser.newPage({ locale: 'zh-CN' })
       let version = '1.0.0'
-      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: { skills: [{
-          ...CATALOG_FIXTURE.skills[0], version,
-          skill_id: 'browser-installed-expert',
-          download_url: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip',
-        }] }, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await page.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse({ skills: [{
+          ...CATALOG_FIXTURE.skills[0], packageVersion: version,
+          skillId: 'browser-installed-expert',
+          packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip',
+        }] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       const openMarket = async (): Promise<void> => {
         await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
         await page.getByRole('button', { name: '技能中心', exact: true }).click()
@@ -424,6 +465,7 @@ it('installs, updates and removes a skill through the real Remote API', async ()
 it('browses official and local skills through the real shell in both themes and narrow panels', async () => {
   const scaffold = await launchWebScaffold({
     extraOverlayPath: [
+      fileURLToPath(new URL('fixtures/catalog-service.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('../../../../apps/web/tests/pin-browse-picker.overlay.yml', import.meta.url)),
       fileURLToPath(new URL('fixtures/manual-skills.overlay.yml', import.meta.url)),
     ],
@@ -443,8 +485,8 @@ it('browses official and local skills through the real shell in both themes and 
       const browserErrors: string[] = []
       page.on('pageerror', error => browserErrors.push(String(error)))
       page.on('console', (message) => { browserErrors.push(message.text()) })
-      await page.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: CATALOG_FIXTURE, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await page.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse(CATALOG_FIXTURE, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       const plugins = page.getByRole('button', { name: '插件', exact: true })
       const skills = page.getByRole('button', { name: '技能中心', exact: true })
@@ -577,8 +619,18 @@ it('browses official and local skills through the real shell in both themes and 
         expect(await tabList.locator(':scope > [aria-hidden="true"]').isVisible()).toBe(false)
         expect(await officialTab.evaluate(element => getComputedStyle(element).borderTopWidth)).toBe('0px')
         expect(await region.getByText('达', { exact: true }).evaluate(element => getComputedStyle(element).backgroundImage)).toContain('radial-gradient(')
-        for (const [width, columns] of [[1440, 2], [1000, 2], [390, 1]] as const) {
+        for (const [width, columns] of [[1920, 2], [1440, 2], [1000, 2], [390, 1]] as const) {
           await page.setViewportSize({ width, height: 1000 })
+          await expect.poll(() => hands.evaluate((element) => {
+            if (!(element instanceof HTMLCanvasElement)) throw new Error('Expected the hands canvas')
+            const bounds = element.getBoundingClientRect()
+            const hero = element.parentElement!.getBoundingClientRect()
+            const scale = Math.min(2, devicePixelRatio)
+            return bounds.x === hero.x && bounds.y === hero.y
+              && bounds.width === hero.width && bounds.height === hero.height
+              && element.width === Math.round(bounds.width * scale)
+              && element.height === Math.round(bounds.height * scale)
+          }), { message: `${theme}, viewport ${width}: canvas fills hero and redraws at display resolution` }).toBe(true)
           await expect.poll(() => region.getByRole('article').evaluateAll((elements) => {
             const top = elements[0]!.getBoundingClientRect().top
             return elements.filter(element => Math.abs(element.getBoundingClientRect().top - top) < 1).length
@@ -596,8 +648,8 @@ it('browses official and local skills through the real shell in both themes and 
         }
       }
       const englishPage = await browser.newPage({ viewport: { width: 1000, height: 1000 }, locale: 'en' })
-      await englishPage.route('https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/skills.json?*',
-        route => route.fulfill({ json: CATALOG_FIXTURE, headers: { 'Access-Control-Allow-Origin': '*' } }))
+      await englishPage.route('**/insight-skill-center/api/skills**',
+        route => route.fulfill({ json: catalogApiResponse(CATALOG_FIXTURE, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
       await englishPage.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await englishPage.getByRole('button', { name: 'Skill center', exact: true }).click()
       const englishRegion = englishPage.getByRole('region', { name: 'Skill center', exact: true })

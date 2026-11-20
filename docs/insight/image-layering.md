@@ -33,7 +33,7 @@ The media-upload Host plugin registers its packaged skill with Insight Skill cen
 <a id="call-and-data-flow"></a>
 ## Call and data flow
 
-1. **Select images and layer counts.** `prepare_image_layering_source` lists eligible images from the last three user-message turns. The skill resolves an ambiguous selection before submission and asks the user to reduce a selection above five. It accepts smart layering or an integer from 2–17; when no count is given, it offers smart layering and the inclusive ranges 2–4, 5–8, 9–12, and 13–17. More layers may cost more. Ordinary `upload_attachment` is limited to the current turn and skips its separate approval only under effective Full access; layering uploads the selected images as part of the user's processing request.
+1. **Select images and layer counts.** `prepare_image_layering_source` lists eligible images from the last three user-message turns. The skill resolves an ambiguous selection before submission and asks the user to reduce a selection above five. It accepts smart layering or an integer from 2–17; when no count is given, it offers smart layering and the inclusive ranges 2–4, 5–8, 9–12, and 13–17. More layers may cost more. Ordinary `upload_attachment` transfers a selected current-turn attachment without a separate approval prompt when invoked; layering uploads the selected images as part of the user's processing request.
 2. **Submit a generation task per image.** `submit_image_layering` accepts `sourceRef`, optional `prompt`, and `numLayers` (`0` for smart layering). It checks workspace text-write access, uploads the stored image, and sends the authenticated `/v1/proxy_async_create` request through `POST /api/skill-proxy/call-insight-api`. A confirmed `taskHandle` identifies one paid task. There is no durable creation reservation; a repeated submit may create and charge for another task.
 3. **Track independent tasks.** Each confirmed handle starts an `image-layering` Session Job when available. The Job queries `/v1/proxy_async_get_result`. A non-timeout query error stops that image after one read; an explicit request timeout permits one more read under the same handle. `get_image_layering` can resume tracking when no Job is active. Failure of one image does not stop the others.
 4. **Save and present result links.** After each successful or partly successful remote result, the skill calls `cache_image_layering_result({taskHandle,imageLabel})`. The Host re-queries the same handle, validates allowed HTTPS result hosts and extensions, and writes PSD/image URLs to `generated/image-layering/<handle-hash>.json` in the current workspace through the Session sandboxed text filesystem. The returned tool result also records the account scope, original-image label, completeness flag, and ordered file descriptors. The client replays that result as grouped file cards. No generated binary is fetched at this stage; the skill does not call `present` with an OSS URL.
@@ -49,8 +49,8 @@ The media-upload Host plugin registers its packaged skill with Insight Skill cen
 | `running` | Remote task is pending or running. | Await its Job; query the same handle only when no Job is active. |
 | `succeeded` | Remote result contains PSD and image URLs. | Save the URL manifest and show file cards. |
 | `missing_psd` | Remote success lacks a PSD, though images may exist. | Save available image URLs as incomplete and report the missing PSD. |
-| `failed`, `cancelled` | Remote task failed or was cancelled. | Stop automatic calls for that image; continue other images. |
-| `query_unavailable` | Status read failed; remote outcome is unknown. | Stop after one non-timeout failure or the permitted timeout retry; do not resubmit. |
+| `failed`, `cancelled` | Remote task failed or was cancelled. An explicit `failed` status remains conclusive when the business code is nonzero. | For a confirmed copyright restriction, explain the processing failure and ask for a different image; stop automatic calls for that image. |
+| `query_unavailable` | Status read failed without a confirmed task outcome; a business code alone does not identify a copyright restriction. | Stop after one non-timeout failure or the permitted timeout retry; check the original task before resubmitting. |
 
 <a id="conversation-delivery"></a>
 ## Conversation delivery
@@ -66,7 +66,7 @@ The Host accepts only configured result hosts; an empty `generationResultHosts` 
 | --- | --- | --- |
 | Upload authorization or OSS PUT | No confirmed source OSS URL. | Resolve login or service errors; do not repeat an unknown write automatically. |
 | Paid proxy creation | `SUBMISSION_UNKNOWN` or no confirmed handle. | Use the proxy audit ID when available; do not submit again without resolving the uncertain outcome. |
-| Status query or local Job | `query_unavailable`, `monitoring_unknown`, or account failure. | Preserve the handle; stop this image according to the skill's bounded retry rule while other images continue. |
+| Status query or local Job | Confirmed `failed`, `query_unavailable`, `monitoring_unknown`, or account failure. | A confirmed copyright restriction gets a short replacement-image prompt. For an unknown outcome, preserve the handle and stop according to the bounded retry rule while other images continue. |
 | Manifest write | Remote URL exists, but no local manifest or result card was recorded. | Correct workspace access or host configuration, then retry saving under the same handle. |
 | User download | Card exists, but the remote file cannot be fetched or verified. | Show the card error and allow another click; never recreate a paid generation task for a download failure. |
 
@@ -74,6 +74,8 @@ The Host accepts only configured result hosts; an empty `generationResultHosts` 
 ## Evidence and limits
 
 The [media-upload implementation](../../packages/insight/media-upload/src/index.ts), [download route](../../packages/insight/media-upload/src/result-download.ts), [client cards](../../packages/insight/media-upload/src/client/LayeringResultCards.tsx), and [skill instructions](../../packages/insight/media-upload/guidance/image-layering/SKILL.md) define the current flow. Source and focused tests establish the behavior; a readable remote file, deployed proxy route, and final browser download still require live-environment verification. The remote task handle has an approximate 24-hour service lifetime, not a client guarantee.
+
+The Host records bounded, redacted query-failure details, including the upstream message and proxy request ID, in its runtime logger. A downloaded Session-log ZIP does not include Host logger output; its safe tool and Job results can be matched to the Host log or upstream audit by proxy request ID. The test client must retain or separately collect Host logs to recover the original message after a run.
 
 ## Dev Note
 

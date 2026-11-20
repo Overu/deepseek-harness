@@ -7,6 +7,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { readAsar } from 'app-builder-lib/out/asar/asar.js'
 import {
   resolveDesktopAppId,
   resolveMacOSNotarizationEnvironment,
@@ -68,6 +69,8 @@ export function createElectronBuilderConfig(
   }
   const unsigned = env.DSH_DESKTOP_UNSIGNED === '1'
   const insight = resolveInsightPackaging(env, resolvedPlatform, resolvedArch, { requireNativeTarget: !unsigned })
+  const insightRc = env.DSH_INSIGHT_RC_BUILD === '1'
+  if (insightRc && insight === undefined) throw new Error('desktop package: internal RC requires the Insight product')
   const appId = insight === undefined ? resolveDesktopAppId(env) : insight.appId
   const skipNotarization = env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION === '1'
   if (env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION !== undefined && !['0', '1'].includes(env.DSH_DESKTOP_MACOS_SKIP_NOTARIZATION)) {
@@ -142,7 +145,7 @@ export function createElectronBuilderConfig(
     // The default copyright uses author.name; this line names the product instead.
     copyright: `Copyright © ${new Date().getFullYear()} \${productName}`,
     // Unsigned builds carry their own suffix so a shared file can never pass for a release artifact.
-    artifactName: `${insight === undefined ? 'deepseek-harness' : 'insight'}-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
+    artifactName: `${insight?.artifactPrefix ?? 'deepseek-harness'}-\${version}-\${os}-\${arch}${output.suffix}.\${ext}`,
     directories: { output: output.directory },
     asar: true,
     electronDist: buildPaths.electron,
@@ -235,6 +238,14 @@ export function createElectronBuilderConfig(
     afterPack: async context => {
       const { verifyDesktopRuntime } = await import('../lib/types/runtime-tree.js')
       const resourcesDir = context.packager.getResourcesDir(context.appOutDir)
+      if (insight !== undefined) {
+        const archive = await readAsar(join(resourcesDir, 'app.asar'))
+        const main = await archive.readFile(join('lib', 'main.js'))
+        if (main.includes('--insight-rc-service-environment=') !== insight.developerControls
+          || main.includes('开发者选项') !== insight.developerControls) {
+          throw new Error('desktop package: assembled Insight application does not match its RC build selection')
+        }
+      }
       if (resolvedPlatform === 'darwin' && update !== undefined) {
         await writeMacOSAppUpdateConfig(resourcesDir, resolveMacOSAppUpdateFeed(context.packager.config.publish),
           context.packager.appInfo.updaterCacheDirName)

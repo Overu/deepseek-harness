@@ -45,6 +45,15 @@ interface LayeringResult {
 
 type QueryFailureReason = 'business_error' | 'query_timeout' | 'invalid_response' | 'transport_error'
 
+interface QueryDiagnostic {
+  readonly sessionId: string
+  readonly attempt: number
+}
+
+const COPYRIGHT_FAILURE_MESSAGE = '输出图像可能涉及版权限制，任务无法完成'
+const COPYRIGHT_USER_MESSAGE = '因版权相关限制，这张图片的分层处理失败。请更换一张图片再试。'
+const GENERIC_FAILURE_MESSAGE = '这张图片的分层处理未能完成，请稍后再试。'
+
 /** Stable failures for proxy submission and status reads. */
 export class ImageLayeringFailure extends Error {
   /** @param code - Failure category for callers.
@@ -103,6 +112,46 @@ function safeResultUrl(value: unknown): value is string {
 
 function valueType(value: unknown): string {
   return value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+}
+
+function failureMessage(value: unknown): string {
+  return typeof value === 'string' && value.trim() === COPYRIGHT_FAILURE_MESSAGE
+    ? COPYRIGHT_USER_MESSAGE : GENERIC_FAILURE_MESSAGE
+}
+
+function diagnosticMessage(value: unknown): { text: string | null; type: string; truncated: boolean; redacted: boolean } {
+  if (typeof value !== 'string') return { text: null, type: valueType(value), truncated: false, redacted: false }
+  const clipped = value.slice(0, 1024)
+  const text = clipped.replace(/https?:\/\/[^\s"'<>]+/giu, '[URL]')
+    .replace(/\bBearer\s+[^\s,;]+/giu, 'Bearer [REDACTED]')
+    .replace(/\b(authorization|token|secret|password|cookie|access[_-]?key)\b\s*[:=]\s*[^\s,;]+/giu, '$1=[REDACTED]')
+    .replace(/[\u0000-\u001f\u007f]/gu, ' ')
+  return { text, type: 'string', truncated: value.length > 1024, redacted: text !== clipped }
+}
+
+function diagnosticData(value: unknown): object | null {
+  const data = object(value)
+  if (data) {
+    const entries = Object.entries(data)
+    if (entries.length === 0) return {}
+    return { type: 'object', fieldCount: entries.length, fields: entries.slice(0, 16).map(([key, item]) => ({
+      name: /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/u.test(key) ? key : '[redacted]', type: valueType(item),
+    })) }
+  }
+  if (value === undefined) return null
+  return { type: valueType(value), ...(Array.isArray(value) ? { itemCount: value.length } : {}) }
+}
+
+function logQueryDiagnostic(ctx: Context, trace: QueryDiagnostic | undefined, details: object): void {
+  if (!trace) return
+  try {
+    ctx.logger.warn(`insight-media-upload: image-layering query diagnostic ${JSON.stringify({
+      sessionId: trace.sessionId, queryAttempt: trace.attempt, ...details,
+    })}`)
+  } catch (error) {
+    // A logger failure cannot change the query outcome.
+    void error
+  }
 }
 
 function urlReason(value: unknown): string {
@@ -171,12 +220,15 @@ async function terminalEvent(response: Response): Promise<{ event: Record<string
  * @param body - Operation-specific request fields.
  * @param timeoutMs - Proxy operation deadline.
  * @param signal - Tool, Job, and plugin cancellation.
+ * @param trace - Owner and attempt for Host-only query diagnostics; absent for non-conversation reads.
  * @returns Validated business JSON and audit request ID.
  */
 async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_create' | '/v1/proxy_async_get_result',
-  body: object, timeoutMs: number, signal: AbortSignal): Promise<{ body: Record<string, unknown>; proxyRequestId?: string }> {
+  body: object, timeoutMs: number, signal: AbortSignal, trace?: QueryDiagnostic,
+): Promise<{ body: Record<string, unknown>; proxyRequestId?: string }> {
   const creating = path === '/v1/proxy_async_create'
   let responseRequestId: string | undefined
+  let responseStatus: number | undefined
   const timeoutSignal = AbortSignal.timeout(timeoutMs)
   try {
     const request = createInsightSkillProxyRequest(base, ctx.insightAccount)
@@ -184,9 +236,32 @@ async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_c
       method: 'POST', body: JSON.stringify({ method: 'POST', path, body }),
       signal: AbortSignal.any([signal, timeoutSignal]),
     })
+    responseStatus = response.status
     const requestId = response.headers.get('X-Insight-Proxy-Request-Id')
     responseRequestId = requestId && /^[0-9a-f-]{36}$/iu.test(requestId) ? requestId : undefined
     const { event, proxyRequestId } = await terminalEvent(response)
+    const result = event.type === 'result' ? object(event.body) : undefined
+    const businessCode = typeof result?.code === 'number' && Number.isSafeInteger(result.code)
+      ? result.code : undefined
+    const upstreamOk = typeof event.status === 'number' && event.status >= 200 && event.status < 300
+    const confirmedFailed = !creating && upstreamOk && result?.status === 'failed'
+      && businessCode !== undefined
+    if (!creating && (event.type === 'error' || !upstreamOk || result?.code !== 0 || result.status === 'failed')) {
+      logQueryDiagnostic(ctx, trace, {
+        path, proxyHttpStatus: response.status,
+        upstreamStatus: typeof event.status === 'number' && Number.isSafeInteger(event.status) ? event.status : null,
+        eventType: event.type, proxyRequestId: proxyRequestId ?? null,
+        businessCode: businessCode ?? null, bodyCodeType: valueType(result?.code),
+        bodyStatus: typeof result?.status === 'string' && /^[A-Za-z0-9_-]{1,32}$/u.test(result.status)
+          ? result.status : null,
+        bodyMessage: diagnosticMessage(result?.message), bodyData: diagnosticData(result?.data),
+        proxyErrorCode: event.type === 'error' && typeof event.code === 'string'
+          && /^[A-Z][A-Z0-9_]{0,127}$/u.test(event.code) ? event.code : null,
+        classification: confirmedFailed
+          ? failureMessage(result.message) === COPYRIGHT_USER_MESSAGE ? 'failed/copyright_restriction' : 'failed/other'
+          : 'query_unavailable/business_error',
+      })
+    }
     if (event.type === 'error') {
       const code = typeof event.code === 'string' && /^[A-Z][A-Z0-9_]{0,127}$/u.test(event.code)
         ? event.code : 'SKILL_PROXY_FAILED'
@@ -199,13 +274,10 @@ async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_c
       `${code}${proxyRequestId ? ` (request ${proxyRequestId})` : ''}.`, undefined,
       creating ? undefined : { reason: 'business_error', ...(proxyRequestId ? { proxyRequestId } : {}) })
     }
-    const result = object(event.body)
-    if (typeof event.status !== 'number' || event.status < 200 || event.status >= 300 || result?.code !== 0) {
+    if (!upstreamOk || (result?.code !== 0 && !confirmedFailed)) {
       if (event.status === 401 || event.status === 403) {
         throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in or request access before generating image layers.')
       }
-      const businessCode = typeof result?.code === 'number' && Number.isSafeInteger(result.code)
-        ? result.code : undefined
       throw new ImageLayeringFailure(creating && (typeof event.status !== 'number' || event.status >= 500)
         ? 'SUBMISSION_UNKNOWN' : creating ? 'SUBMISSION_REJECTED' : 'STATUS_UNAVAILABLE',
       `Proxy operation returned upstream HTTP ${String(event.status)}${businessCode === undefined ? '' : `, business code ${businessCode}`}${proxyRequestId ? ` (request ${proxyRequestId})` : ''}.`,
@@ -216,6 +288,15 @@ async function requestProxy(ctx: Context, base: string, path: '/v1/proxy_async_c
   } catch (error) {
     if (error instanceof ImageLayeringFailure) throw error
     if (signal.aborted) throw error
+    if (!creating) logQueryDiagnostic(ctx, trace, {
+      path, proxyHttpStatus: responseStatus ?? null, proxyRequestId: responseRequestId ?? null,
+      classification: timeoutSignal.aborted ? 'query_timeout' : error instanceof InsightSkillProxyError
+        ? 'transport_error' : 'invalid_response',
+      ...(error instanceof InsightSkillProxyError ? {
+        proxyErrorCode: /^[A-Z][A-Z0-9_]{0,127}$/u.test(error.code) ? error.code : null,
+        proxyErrorStatus: error.status,
+      } : {}),
+    })
     if (error instanceof InsightSkillProxyError && (error.code === 'LOGIN_REQUIRED' || error.status === 401 || error.status === 403)) {
       throw new ImageLayeringFailure('AUTH_REQUIRED', 'Sign in or request access before generating image layers.', { cause: error })
     }
@@ -251,8 +332,8 @@ export function parseTaskHandle(value: unknown): string {
   return handles[0]
 }
 
-/** Locate PSD URLs in the query result's image_list or separate psd_url.
- * @param value - Successful proxy business body.
+/** Locate PSD URLs in a successful query or classify an explicit upstream failure.
+ * @param value - Validated proxy query body.
  * @param handle - Original user-bound task handle.
  * @param proxyRequestId - Optional audit identifier for this query.
  * @returns Task state with PSD candidates separated from other images.
@@ -262,7 +343,9 @@ export function parseLayeringResult(value: unknown, handle: string, proxyRequest
   const metadata = proxyRequestId ? { proxyRequestId } : {}
   if (row?.status === 'running' || row?.status === 'pending') return { taskHandle: handle, status: 'running', ...metadata }
   if (row?.status === 'failed') return { taskHandle: handle, status: 'failed',
-    error: 'Upstream generation failed.', ...metadata }
+    error: failureMessage(row.message), ...metadata,
+    ...(typeof row.code === 'number' && Number.isSafeInteger(row.code) && row.code !== 0
+      ? { businessCode: row.code } : {}) }
   if (row?.status === 'cancelled') return { taskHandle: handle, status: 'cancelled',
     error: 'Upstream generation was cancelled.', ...metadata }
   if (row?.status !== 'success') throw new ImageLayeringFailure('STATUS_UNAVAILABLE', 'Upstream task status is unknown.')
@@ -289,7 +372,7 @@ export function parseLayeringResult(value: unknown, handle: string, proxyRequest
     ...(diagnostic ? { diagnostic } : {}) }
 }
 
-/** Register submission and recovery tools beside the approved OSS upload tool.
+/** Register submission and recovery tools beside the general OSS upload tool.
  * @param ctx - Host tool, account, Agent, and Jobs services.
  * @param config - Validated environment and tracking limits.
  * @param uploadedInTurn - Check that the URL came from this turn's successful upload.
@@ -309,13 +392,18 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     if (!agent || !ctx.agents.roots().includes(agent)) throw new Error('Use image layering in the original user conversation.')
     return agent
   }
-  const getResult = async (handle: string, signal: AbortSignal, attempt = 1) => {
+  const getResult = async (handle: string, signal: AbortSignal, attempt = 1, sessionId?: string) => {
     const result = await requestProxy(ctx, base, '/v1/proxy_async_get_result',
-      { task_type: 'async_tencent_multi_layer_get_result', task_id: handle }, config.generationRequestTimeoutMs, signal)
+      { task_type: 'async_tencent_multi_layer_get_result', task_id: handle }, config.generationRequestTimeoutMs, signal,
+      sessionId ? { sessionId, attempt } : undefined)
     let value: LayeringResult
     try { value = parseLayeringResult(result.body, handle, result.proxyRequestId) }
     catch (error) {
       if (!(error instanceof ImageLayeringFailure) || error.code !== 'STATUS_UNAVAILABLE') throw error
+      logQueryDiagnostic(ctx, sessionId ? { sessionId, attempt } : undefined, {
+        path: '/v1/proxy_async_get_result', proxyRequestId: result.proxyRequestId ?? null,
+        classification: 'invalid_response', bodyStatus: diagnosticMessage(result.body.status),
+      })
       throw new ImageLayeringFailure('STATUS_UNAVAILABLE', error.message, { cause: error },
         { reason: 'invalid_response', ...(result.proxyRequestId ? { proxyRequestId: result.proxyRequestId } : {}) })
     }
@@ -326,9 +414,9 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     return { ...value, diagnostic }
   }
   registerResultDownload(ctx, config, getResult)
-  const readStatus = async (handle: string, signal: AbortSignal, deadline?: number): Promise<LayeringResult> => {
+  const readStatus = async (handle: string, signal: AbortSignal, deadline?: number, sessionId?: string): Promise<LayeringResult> => {
     for (let attempt = 1; attempt <= 2; attempt++) {
-      try { return await getResult(handle, signal, attempt) }
+      try { return await getResult(handle, signal, attempt, sessionId) }
       catch (error) {
         if (signal.aborted || !(error instanceof ImageLayeringFailure)
           || (error.code !== 'STATUS_UNAVAILABLE' && error.code !== 'INVALID_RESPONSE')) throw error
@@ -370,7 +458,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
           const deadline = Date.now() + config.generationWatchTimeoutMs
           try {
             while (!signal.aborted && Date.now() < deadline) {
-              const value = await readStatus(handle, signal, deadline)
+              const value = await readStatus(handle, signal, deadline, String(agent.session.id))
               if (value.status === 'query_unavailable') {
                 finish({ status: 'failed', detail: 'Local tracking stopped; remote status is unknown.',
                   result: JSON.stringify(value) }); return
@@ -464,10 +552,10 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
     presentCall: () => ({ card: 'generic', kind: 'other', title: 'Check image layering' }),
     presentResult: (_args, result) => ({ card: 'generic', title: result.isError ? 'Image layering check failed' : 'Image layering status' }),
     execute: async (args, exec): Promise<LayeringResult> => {
-      requireAgent(exec)
+      const agent = requireAgent(exec)
       if (!taskHandle(args.taskHandle)) throw new Error('Invalid taskHandle.')
       const signal = AbortSignal.any([exec.signal, lifetime.signal])
-      const value = await readStatus(args.taskHandle, signal)
+      const value = await readStatus(args.taskHandle, signal, undefined, String(agent.session.id))
       if (!args.watch || value.status !== 'running') return value
       try { return { ...value, jobId: startWatch(exec, args.taskHandle), monitoring: 'running' } }
       catch { return { ...value, monitoring: 'unavailable' } }
@@ -497,7 +585,7 @@ export function registerImageLayeringTools(ctx: Context, config: Config,
       const imageLabel = args.imageLabel.trim()
       if (!imageLabel || imageLabel.length > 200) throw new Error('imageLabel must contain 1 to 200 characters.')
       const signal = AbortSignal.any([exec.signal, lifetime.signal])
-      const value = await getResult(args.taskHandle, signal)
+      const value = await getResult(args.taskHandle, signal, 1, String(agent.session.id))
       if (value.status !== 'succeeded' && value.status !== 'missing_psd') {
         throw new Error('Image-layering result is not ready for URL delivery.')
       }
