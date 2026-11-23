@@ -1,4 +1,6 @@
 /** Fixed Insight Gateway model route backed by the Desktop Main-owned account token. */
+import { randomUUID } from 'node:crypto'
+import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
 import type { Context } from '@deepseek-ai/cordis'
 import { HarnessError, LlmAdapter, LlmError, resolveImageAttachmentAccess } from '@deepseek-ai/dsh-llm'
 import type {
@@ -33,6 +35,8 @@ export const INSIGHT_MODEL_ID = 'deepseek-flash'
 
 /** Historical Gateway IDs accepted when replay opens an existing saved selection. */
 const COMPATIBLE_MODEL_IDS = [INSIGHT_MODEL_ID, 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'] as const
+
+type GatewayTraceId = Branded<'InsightGatewayTraceId'>
 
 /** Fixed diagnostic fields which do not include provider response text or request contents. */
 interface GatewayFailureDiagnostic {
@@ -84,11 +88,12 @@ function diagnosticCause(error: unknown): Pick<GatewayFailureDiagnostic, 'causeC
 }
 
 /** Append only structured, bounded facts to the Session-visible LLM failure text. */
-function diagnosticMessage(message: string, source: GatewayFailureDiagnostic['source'], error?: unknown): string {
+function diagnosticMessage(message: string, source: GatewayFailureDiagnostic['source'], error?: unknown, traceId?: GatewayTraceId): string {
   try {
     const { status, ...cause } = diagnosticCause(error)
     const fields = [
       `source=${source}`,
+      ...traceId === undefined ? [] : [`traceId=${traceId}`],
       ...cause.causeCode === undefined ? [] : [`causeCode=${cause.causeCode}`],
       ...cause.causeErrno === undefined ? [] : [`errno=${cause.causeErrno}`],
       ...cause.causeSyscall === undefined ? [] : [`syscall=${cause.causeSyscall}`],
@@ -97,7 +102,7 @@ function diagnosticMessage(message: string, source: GatewayFailureDiagnostic['so
     return `${message} [Insight Gateway ${fields.join(' ')}]`
   } catch (_error) {
     // Diagnostics must not replace the provider outcome.
-    return message
+    return traceId === undefined ? message : `${message} [Insight Gateway source=${source} traceId=${traceId}]`
   }
 }
 
@@ -211,11 +216,12 @@ export class InsightGatewayAdapter extends LlmAdapter {
   private async * streamWithLifetime(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.assertOpen()
     const signal = this.requestSignal(options.signal)
+    const traceId = brandString<GatewayTraceId>(randomUUID())
     let upstream: AsyncIterator<StreamChunk>
     try {
-      upstream = this.delegate(signal).stream({ ...options, signal })[Symbol.asyncIterator]()
+      upstream = this.delegate(signal, traceId).stream({ ...options, signal })[Symbol.asyncIterator]()
     } catch (error) {
-      throw this.modelFailure('model-request', error, signal)
+      throw this.modelFailure('model-request', error, signal, traceId)
     }
     let close: Promise<void> | undefined
     const active: ActiveGatewayStream = {
@@ -232,12 +238,12 @@ export class InsightGatewayAdapter extends LlmAdapter {
           next = await upstream.next()
         } catch (error) {
           if (!(error instanceof Error && this.accountFailures.has(error))) {
-            throw this.modelFailure('model-stream', error, signal)
+            throw this.modelFailure('model-stream', error, signal, traceId)
           }
           throw error
         }
         if (next.done) return
-        yield this.withFinishDiagnostic(next.value, signal)
+        yield this.withFinishDiagnostic(next.value, signal, traceId)
       }
     } finally {
       try {
@@ -279,10 +285,14 @@ export class InsightGatewayAdapter extends LlmAdapter {
   }
 
   /** Construct an adapter with one request's cancellation and no retained token state. */
-  private delegate(signal: AbortSignal): PiAiAdapter {
+  private delegate(signal: AbortSignal, traceId?: GatewayTraceId): PiAiAdapter {
     return new PiAiAdapter({
       ...this.options,
       profiles: () => this.profiles,
+      ...traceId === undefined ? {} : { prepareHeaders: (_request, headers) => {
+        headers.set('traceid', traceId)
+        return headers
+      } } satisfies Pick<PiAiAdapterOptions, 'prepareHeaders'>,
       resolveApiKey: async () => {
         try {
           return await this.account.getAccessToken(signal)
@@ -312,15 +322,15 @@ export class InsightGatewayAdapter extends LlmAdapter {
   }
 
   /** Preserve an adapter failure's routing fields while adding Session-visible diagnostics. */
-  private modelFailure(source: 'model-request' | 'model-stream', error: unknown, signal: AbortSignal): unknown {
+  private modelFailure(source: 'model-request' | 'model-stream', error: unknown, signal: AbortSignal, traceId: GatewayTraceId): unknown {
     if (signal.aborted || error instanceof LlmError && error.code === 'ABORTED') return error
     try {
       if (error instanceof LlmError) {
         const failure = error.failure
-        return new LlmError(diagnosticMessage(error.message, source, error), error.code, { cause: error, ...failure })
+        return new LlmError(diagnosticMessage(error.message, source, error, traceId), error.code, { cause: error, ...failure })
       }
       const code = error instanceof HarnessError ? error.code : 'UNKNOWN'
-      return new LlmError(diagnosticMessage(error instanceof Error ? error.message : '模型请求失败', source, error), code, {
+      return new LlmError(diagnosticMessage(error instanceof Error ? error.message : '模型请求失败', source, error, traceId), code, {
         cause: error instanceof Error ? error : undefined,
       })
     } catch (_diagnosticError) {
@@ -329,12 +339,12 @@ export class InsightGatewayAdapter extends LlmAdapter {
   }
 
   /** Add a diagnostic to PiAi's in-band terminal error without changing its retry fields. */
-  private withFinishDiagnostic(chunk: StreamChunk, signal: AbortSignal): StreamChunk {
+  private withFinishDiagnostic(chunk: StreamChunk, signal: AbortSignal, traceId: GatewayTraceId): StreamChunk {
     if (signal.aborted || chunk.type !== 'finish' || chunk.reason.kind !== 'error') return chunk
     try {
       const { failure } = chunk.reason
       return { ...chunk, reason: { kind: 'error', failure: {
-        ...failure, message: diagnosticMessage(failure.message, 'model-stream'),
+        ...failure, message: diagnosticMessage(failure.message, 'model-stream', undefined, traceId),
       } } }
     } catch (_diagnosticError) {
       return chunk

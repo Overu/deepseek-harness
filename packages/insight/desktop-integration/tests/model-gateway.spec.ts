@@ -161,7 +161,9 @@ describe('Insight Gateway model adapter', () => {
       if (finish?.type !== 'finish' || finish.reason.kind !== 'error') throw new Error('failed request did not persist its failure')
       const message = 'provider transport failure [Insight Gateway source=model-stream'
         + (mode === 'finish' ? ']' : ' causeCode=ECONNRESET errno=ECONNRESET syscall=connect]')
-      expect(finish.reason.failure).toEqual(mode === 'sdk'
+      expect(finish.reason.failure.message).toMatch(/traceId=[0-9a-f-]{36}/)
+      const diagnostic = { ...finish.reason.failure, message: finish.reason.failure.message.replace(/ traceId=[0-9a-f-]{36}/, '') }
+      expect(diagnostic).toEqual(mode === 'sdk'
         ? { code: 'UNKNOWN', message }
         : { ...failure.failure, message })
       expect(routed).toEqual([finish.reason.failure])
@@ -169,6 +171,56 @@ describe('Insight Gateway model adapter', () => {
       for (const secret of ['private.example', 'secret-token', 'private-cookie']) expect(exported).not.toContain(secret)
     } finally {
       stream.mockRestore()
+    }
+  })
+
+  it('correlates concurrent failures and a successful retry with distinct request trace IDs', async () => {
+    const requests: { traceId: string; result: ReturnType<typeof Promise.withResolvers<Response>> }[] = []
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, init) => {
+      const traceId = new Headers(init?.headers).get('traceid')
+      if (traceId === null) throw new Error('Gateway request must carry a trace ID.')
+      const result = Promise.withResolvers<Response>()
+      requests.push({ traceId, result })
+      const signal = init?.signal
+      const abort = () => { result.reject(new DOMException('Request cancelled', 'AbortError')) }
+      signal?.addEventListener('abort', abort, { once: true })
+      return result.promise.finally(() => { signal?.removeEventListener('abort', abort) })
+    }))
+    try {
+      const { adapter, transport } = await fixture()
+      const run = async () => {
+        const chunks: StreamChunk[] = []
+        for await (const chunk of adapter.stream({
+          provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID, messages: [],
+        })) chunks.push(chunk)
+        return chunks.find(chunk => chunk.type === 'finish')
+      }
+      const first = run()
+      const second = run()
+      await vi.waitFor(() => { expect(accountRequests(transport)).toHaveLength(2) })
+      for (const request of accountRequests(transport)) transport.respond(request.requestId, 'private-token')
+      await vi.waitFor(() => { expect(requests).toHaveLength(2) })
+      const cause = Object.assign(new Error('Connect Timeout Error: private-address'), { code: 'UND_ERR_CONNECT_TIMEOUT' })
+      for (const request of requests) request.result.reject(new TypeError('fetch failed', { cause }))
+      const finishes = await Promise.all([first, second])
+      for (const [index, finish] of finishes.entries()) {
+        expect(finish).toMatchObject({ type: 'finish', reason: { kind: 'error', failure: { code: 'TIMEOUT' } } })
+        if (finish?.type !== 'finish' || finish.reason.kind !== 'error') throw new Error('Timeout did not produce an error finish.')
+        expect(finish.reason.failure.message).toContain(`traceId=${requests[index]!.traceId}`)
+        expect(finish.reason.failure.message).not.toContain('private-address')
+        expect(finish.reason.failure.message).not.toContain('private-token')
+      }
+      const retry = run()
+      await vi.waitFor(() => { expect(accountRequests(transport)).toHaveLength(3) })
+      transport.respond(accountRequests(transport)[2]!.requestId, 'private-token')
+      await vi.waitFor(() => { expect(requests).toHaveLength(3) })
+      requests[2]!.result.resolve(new Response('data: {"id":"successful-retry","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      }))
+      await expect(retry).resolves.toMatchObject({ type: 'finish', reason: { kind: 'stop' } })
+      expect(new Set(requests.map(request => request.traceId)).size).toBe(3)
+    } finally {
+      vi.unstubAllGlobals()
     }
   })
 
@@ -271,7 +323,8 @@ describe('Insight Gateway model adapter', () => {
       const { adapter } = await fixture()
       const pending = adapter.stream({ provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID, messages: [] })
         [Symbol.asyncIterator]().next()
-      await expect(pending).rejects.toMatchObject({ code: 'UNKNOWN', message: 'provider failure' } satisfies Partial<LlmError>)
+      await expect(pending).rejects.toMatchObject({ code: 'UNKNOWN' } satisfies Partial<LlmError>)
+      await expect(pending).rejects.toThrow(/^provider failure \[Insight Gateway source=model-stream traceId=[0-9a-f-]{36}\]$/)
     } finally {
       stream.mockRestore()
     }

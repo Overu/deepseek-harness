@@ -101,6 +101,7 @@ async function observeToolArgumentRetry(ctx) {
   try {
     for (const retrySucceeds of [true, false]) {
       const requests = []
+      const traceIds = []
       const countAtRequest = []
       executions = []
       globalThis.fetch = async (input, init) => {
@@ -114,6 +115,7 @@ async function observeToolArgumentRetry(ctx) {
         let calls
         if (request.tools?.some(tool => tool.function?.name === name)) {
           requests.push(request)
+          traceIds.push(new Headers(init.headers).get('traceid'))
           countAtRequest.push(executions.length)
           calls = replies[requests.length - 1]
         }
@@ -142,6 +144,7 @@ async function observeToolArgumentRetry(ctx) {
           content: [{ type: 'text', text: 'Record one test write.' }] })
         await agent.whenIdle()
         results.push({
+          traceIds,
           feedbackAtRequest: requests.map(request => request.messages.map(message => JSON.stringify(message.content))
             .findLast(content => content?.includes('Current runtime context'))?.includes(`Tool call \\"${name}\\": Expected`) ?? false),
           countAtRequest,

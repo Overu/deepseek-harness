@@ -61,6 +61,8 @@ Main 选择服务环境，并在启动时传给 Host。桌面登录和 Canvas Ho
 
 Host 服务校验请求与响应字段、限制并发令牌请求、应用截止时间，并在调用方取消或 IPC 通道关闭时取消待处理请求。Desktop Main 只接受当前 Host 子进程的请求，关停或替换后丢弃迟到响应。退出会撤销新的账号访问、隐藏工作区、停止账号自有资源、清除认证，并且只在关停完成后重启回登录门。
 
+每次模型尝试都会发送一个全新随机的 `traceid` 请求头。未取消的模型失败会在可被 Session 查看的失败消息中保留同一个 `traceId`，供网关日志关联失败尝试和重试。成功请求的 trace ID 通过请求头提供给网关日志。
+
 未取消的 Gateway 失败会在既有、可被 Session 查看的 LLM 失败消息中保留脱敏诊断。该诊断区分 Main 账号令牌获取失败与模型请求或流失败，并且只在可得时包含结构化的 source、错误码、errno、syscall 或 HTTP 状态；不包含凭据、请求头、提示词、请求和响应正文、URL 或 Session 标识。PiAi 可能丢弃上游原因，因此通用传输失败不一定能进一步定位。
 
 更新发现先校验 Ed25519 签名的投放指针、release 或目标 manifest、updater 元数据、目标身份、版本、大小和 SHA-512，然后 Desktop 适配器才创建 electron-updater custom provider。Desktop Main 在登录与工作区启动期间始终拥有唯一 updater 实例。渲染器只接收状态和固定操作，不接收 feed URL、本地路径、签名密钥或可信产物身份。

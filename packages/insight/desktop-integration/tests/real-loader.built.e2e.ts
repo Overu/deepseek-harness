@@ -259,6 +259,9 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
       text: 'The previous tool call arguments could not be parsed as JSON. Tool call "insight_retry_probe": Expected \',\' or \'}\' after property value in JSON at position 33 (line 1 column 34). No tools ran in that attempt. Regenerate valid JSON according to the tool schema.' }
     await expect(loader.toolArgumentRetry).resolves.toMatchObject([
       {
+        traceIds: [
+          expect.stringMatching(/^[0-9a-f-]{36}$/), expect.stringMatching(/^[0-9a-f-]{36}$/), expect.stringMatching(/^[0-9a-f-]{36}$/),
+        ],
         feedbackAtRequest: [false, true, false],
         countAtRequest: [0, 0, 1],
         executions: [{ ops: [{ params: { gen_count: 1 } }] }],
@@ -268,6 +271,7 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
         turnEnd: { kind: 'completed' },
       },
       {
+        traceIds: [expect.stringMatching(/^[0-9a-f-]{36}$/), expect.stringMatching(/^[0-9a-f-]{36}$/)],
         feedbackAtRequest: [false, true],
         countAtRequest: [0, 0],
         executions: [],
