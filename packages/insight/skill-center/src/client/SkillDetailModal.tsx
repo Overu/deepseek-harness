@@ -55,7 +55,7 @@ export function SkillDetailModal({
           <p className={styles.summary}>{skill.summary}</p>
         </div>
         <section className={styles.instructions} aria-labelledby="skill-detail-description">
-          <h3 id="skill-detail-description" className={styles.descriptionTitle}>{t(official ? 'usage' : 'description')}</h3>
+          <h3 id="skill-detail-description" className={styles.descriptionTitle}>{t('description')}</h3>
           {paragraphs.length === 0
             ? <p className={styles.paragraph}>{t('noDescription')}</p>
             : paragraphs.map(paragraph => <p key={paragraph.id} className={styles.paragraph}>{paragraph.text}</p>)}
@@ -83,10 +83,9 @@ export function SkillDetailModal({
   </>)
 }
 
-/** Drop the source's leading usage heading and retain readable Markdown text lines. */
+/** Retain readable Markdown text lines from the published description. */
 function descriptionParagraphs(markdown: string): readonly { readonly id: string; readonly text: string }[] {
   const lines = markdown.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
-  if (/^#{1,6}\s+使用说明\s*$/.test(lines[0] ?? '')) lines.shift()
   const seen = new Map<string, number>()
   return lines.map((line) => {
     const text = line.replace(/^#{1,6}\s+/, '')

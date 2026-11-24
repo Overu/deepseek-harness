@@ -3,8 +3,8 @@
   - heading "达人整合" [level=2]
   - text: v1.2.0
   - paragraph: 匹配合适的创作者，并整理可执行的达人合作方案。
-  - region "使用说明":
-    - heading "使用说明" [level=3]
+  - region "描述":
+    - heading "描述" [level=3]
     - paragraph: 根据品牌、目标人群和传播目标，梳理达人筛选、合作分层与内容方向。
     - paragraph: 输出可继续完善的整合营销提案。
   - button "安装"

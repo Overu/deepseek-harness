@@ -6,7 +6,7 @@ export function apply(ctx) {
     id: 1, skillId: 'influencer-integration', name: 'Account catalog skill', enabled: 1, sort: 1,
     summary: 'Read through the skill-center Host route.', packageVersion: '1.2.0',
     packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
-    description_markdown: 'Account-authenticated catalogue fixture.',
+    skill_desc: 'Account-authenticated catalogue fixture.',
   }
   ctx.effect(() => {
     process.env.DSH_INSIGHT_SERVICE_ENVIRONMENT = 'test'

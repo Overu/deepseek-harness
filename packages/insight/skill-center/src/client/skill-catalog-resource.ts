@@ -31,12 +31,13 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 
 
 /**
- * Build one stable resource address. Changing the attempt explicitly requests a new read.
+ * Build a resource address scoped to the page or one-time preset initialization.
  * @param attempt - The user-requested read attempt number.
+ * @param reader - The consumer whose subscription owns the read lifetime.
  * @returns the address consumed by the catalogue resource provider.
  */
-export function skillCatalogAddress(attempt: number): string {
-  return `dsh-resource://insight-skill-catalog/catalog?attempt=${attempt}`
+export function skillCatalogAddress(attempt: number, reader: 'page' | 'presets'): string {
+  return `dsh-resource://insight-skill-catalog/catalog?reader=${reader}&attempt=${attempt}`
 }
 
 /** A known-invalid catalogue document. */
@@ -90,7 +91,7 @@ export function normalizeCatalog(payload: unknown): readonly SkillCatalogItem[] 
       name,
       summary: stringField(entry, 'summary').trim(),
       version,
-      descriptionMarkdown: stringField(entry, 'description_markdown').trim(),
+      descriptionMarkdown: stringField(entry, 'skill_desc').trim(),
       downloadUrl,
       sort: sortValue(entry),
     })

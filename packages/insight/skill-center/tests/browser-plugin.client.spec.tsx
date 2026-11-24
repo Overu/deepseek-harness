@@ -13,6 +13,7 @@ import { apply as resourcesApply, inject as resourcesInject } from '@deepseek-ai
 import { CATALOG_FIXTURE, catalogResponse, catalogTransport } from './fixtures/catalog.ts'
 import { SkillInstallProgressModal } from '../src/client/SkillInstallProgressModal.tsx'
 import { zh } from '../src/client/locales.ts'
+import { skillCatalogAddress } from '../src/client/skill-catalog-resource.ts'
 
 usePinnedBrowserLanguages('zh-CN')
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
@@ -117,11 +118,32 @@ it('opens complete details and restores the invoking control after Escape', asyn
   fireEvent.click(trigger)
   const dialog = view.getByRole('dialog', { name })
   expect(within(dialog).getByText('v1.2.0')).toBeTruthy()
-  expect(within(dialog).getByRole('region', { name: '使用说明' })).toBeTruthy()
+  expect(within(dialog).getByRole('region', { name: '描述' })).toBeTruthy()
+  for (const paragraph of CATALOG_FIXTURE.skills[0]!.skill_desc.split('\n')) {
+    expect(within(dialog).getByText(paragraph)).toBeTruthy()
+  }
   expect(within(dialog).getByRole('button', { name: '安装' })).toBeTruthy()
   fireEvent.keyDown(document, { key: 'Escape' })
   expect(view.queryByRole('dialog')).toBeNull()
   expect(document.activeElement).toBe(trigger)
+})
+
+it('reads the latest catalog on every page entry while preset initialization retains its catalog', async () => {
+  const catalog = { skills: [...CATALOG_FIXTURE.skills] }
+  const { runtime, view, fetchImplementation } = await mountMarket(vi.fn(catalogTransport(catalog)))
+  const presets = new AbortController()
+  onTestFinished(() => { presets.abort() })
+  // The shell's preset bootstrap holds its subscription while the main page is closed.
+  act(() => { runtime.ctx.resources.pin(skillCatalogAddress(0, 'presets'), presets.signal) })
+  await waitFor(() => { expect(fetchImplementation).toHaveBeenCalledTimes(2) })
+  view.unmount()
+  for (const [index, name] of ['最新技能', '再次更新的技能'].entries()) {
+    catalog.skills[0] = { ...CATALOG_FIXTURE.skills[0]!, name }
+    const reopened = runtime.renderRoot()
+    await reopened.findByRole('heading', { name })
+    expect(fetchImplementation).toHaveBeenCalledTimes(index + 3)
+    reopened.unmount()
+  }
 })
 
 it('shows discovered custom skills during a partial read and retries on request', async () => {

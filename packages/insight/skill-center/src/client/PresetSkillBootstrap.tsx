@@ -22,7 +22,7 @@ export interface PresetSkillBootstrapInjected {
  */
 export function PresetSkillBootstrap({ useResource, installations, claim, listPendingPresets, waitForInstallation }: PropsRuntime<'shell.overlay'>
   & InjectFace<PresetSkillBootstrapInjected>): ReactNode {
-  const catalogue = useResource<'insight-skill-catalog'>(skillCatalogAddress(0))
+  const catalogue = useResource<'insight-skill-catalog'>(skillCatalogAddress(0, 'presets'))
   const started = useRef(false)
   useEffect(() => {
     if (started.current || catalogue.status === 'loading' || catalogue.status === 'none') return

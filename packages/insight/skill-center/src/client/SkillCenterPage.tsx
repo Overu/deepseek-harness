@@ -49,7 +49,7 @@ export function SkillCenterPage({
   const [customAttempt, setCustomAttempt] = useState(0)
   const [installationAttempt, setInstallationAttempt] = useState(0)
   const installationRevision = useRevision(value => value)
-  const catalogue = useResource<'insight-skill-catalog'>(skillCatalogAddress(attempt))
+  const catalogue = useResource<'insight-skill-catalog'>(skillCatalogAddress(attempt, 'page'))
   const installedResource = useResource<'insight-platform-skills'>(platformSkillInstallationAddress(installationRevision + installationAttempt))
   const custom = useResource<'insight-custom-skills'>(source === 'custom' ? customSkillAddress(customAttempt) : '')
   const text = (key: SkillCenterLocaleKey): string => t(key)

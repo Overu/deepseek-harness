@@ -62,20 +62,38 @@ it('installs configured presets before opening the market and respects removal a
     const browser = await chromium.launch()
     try {
       const page = await newEnglishPage(browser)
+      let description = 'Initial description'
+      let catalogReads = 0
       await page.route('**/insight-skill-center/api/skills**',
-        route => route.fulfill({ json: catalogApiResponse({ skills: [{
-          ...CATALOG_FIXTURE.skills[0],
-          packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
-        }] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
+        (route) => {
+          catalogReads++
+          return route.fulfill({ json: catalogApiResponse({ skills: [{
+            ...CATALOG_FIXTURE.skills[0],
+            skill_desc: description,
+            packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
+          }] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } })
+        })
       await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
       await expect.poll(() => scaffold.ctx.insightPlatformSkills.listInstalled()).toEqual({
         skills: [expect.objectContaining({
           id: influencerIntegration, version: '1.2.0',
         })],
       })
+      expect(catalogReads).toBe(1)
+      description = 'Latest server description'
       await page.getByRole('button', { name: 'Skill center', exact: true }).click()
       await page.getByText('Installed', { exact: true }).waitFor()
+      expect(catalogReads).toBe(2)
       await page.getByRole('button', { name: /View details$/u }).click()
+      await page.getByRole('region', { name: 'Description', exact: true }).getByText(description, { exact: true }).waitFor()
+      await page.keyboard.press('Escape')
+      await page.getByRole('button', { name: 'Plugins', exact: true }).click()
+      description = 'Updated again on re-entry'
+      await page.getByRole('button', { name: 'Skill center', exact: true }).click()
+      await page.getByText('Installed', { exact: true }).waitFor()
+      expect(catalogReads).toBe(3)
+      await page.getByRole('button', { name: /View details$/u }).click()
+      await page.getByRole('region', { name: 'Description', exact: true }).getByText(description, { exact: true }).waitFor()
       await page.getByRole('dialog').getByRole('button', { name: 'Remove', exact: true }).click()
       await page.getByRole('dialog', { name: 'Remove skill', exact: true })
         .getByRole('button', { name: 'Remove', exact: true }).click()
