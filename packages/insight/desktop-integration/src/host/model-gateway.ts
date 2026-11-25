@@ -352,12 +352,24 @@ export class InsightGatewayAdapter extends LlmAdapter {
   }
 }
 
+/** Add the Gateway sampling flag without converting the Canvas parameter schema. */
+function strictCanvasToolPayload(payload: unknown): unknown {
+  if (typeof payload !== 'object' || payload === null || !('tools' in payload) || !Array.isArray(payload.tools)) return payload
+  const tools = payload.tools.map((tool: unknown) => {
+    if (typeof tool !== 'object' || tool === null || !('type' in tool) || tool.type !== 'function' || !('function' in tool)) return tool
+    const definition = tool.function
+    if (typeof definition !== 'object' || definition === null || !('name' in definition) || definition.name !== 'canvas_node_edit') return tool
+    return { ...tool, function: { ...definition, strict: true } }
+  })
+  return { ...payload, tools }
+}
+
 /** Resolve the fixed Gateway profile from the paired product service environment. */
 function gatewayProfiles(environment: AuthEnvironment): ReadonlyMap<string, ResolvedPiAiProviderProfile> {
   const official = resolveAdapterOptions({})
   const flash = official.models.find(model => model.id === INSIGHT_MODEL_ID)
   if (flash === undefined) throw new Error('Insight Gateway requires the DeepSeek Flash capability catalog.')
-  return resolveProfiles({
+  const profiles = resolveProfiles({
     [INSIGHT_MODEL_PROVIDER]: {
       api: 'openai-completions',
       baseURL: desktopServiceEnvironment(environment).modelBaseUrl,
@@ -388,6 +400,24 @@ function gatewayProfiles(environment: AuthEnvironment): ReadonlyMap<string, Reso
       },
     },
   })
+  const profile = profiles.get(INSIGHT_MODEL_PROVIDER)
+  if (profile?.piProvider === undefined) throw new Error('Insight Gateway requires a configured model provider.')
+  const provider = profile.piProvider
+  return new Map([[INSIGHT_MODEL_PROVIDER, {
+    ...profile,
+    piProvider: {
+      ...provider,
+      streamSimple(model, context, options) {
+        return provider.streamSimple(model, context, {
+          ...options,
+          onPayload: async (payload, requestModel) => {
+            const prepared = await options?.onPayload?.(payload, requestModel)
+            return strictCanvasToolPayload(prepared === undefined ? payload : prepared)
+          },
+        })
+      },
+    },
+  }]])
 }
 
 /**

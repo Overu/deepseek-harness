@@ -147,7 +147,7 @@ No direct effect. Account presentation and authentication state stay outside mod
 
 #### What the model sees
 
-When the Gateway returns completed tool arguments that fail JSON parsing, the Host retries the model request once in the same Agent step. The Session records the retry context with the tool name and parser diagnostic when available. A second parse failure ends the step before any tool from either failed attempt runs. Trajectory names the rejected tool and shows that it did not run.
+When the Gateway returns completed tool arguments that fail JSON parsing, the Host retries the model request once in the same Agent step. The Session records the retry context with the tool name and parser diagnostic when available. A second parse failure ends the step before any tool from either failed attempt runs. Trajectory names the rejected tool and shows that it did not run. The outgoing Gateway request marks `canvas_node_edit` with `strict: true` after SDK serialization and preserves its parameter schema and other tool declarations. The Gateway and upstream determine whether that schema is accepted; the Host does not convert it to a strict-compatible schema.
 
 ##### Retry prompt
 

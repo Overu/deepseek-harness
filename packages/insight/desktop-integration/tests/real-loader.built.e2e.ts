@@ -74,6 +74,7 @@ async function launch(): Promise<{
   readonly token: Promise<undefined>
   readonly request: Promise<string>
   readonly toolArgumentRetry: Promise<unknown>
+  readonly recordedCanvasFailure: Promise<unknown>
 }> {
   const root = await mkdtemp(join(tmpdir(), 'dsh-insight-real-loader-'))
   roots.push(root)
@@ -120,7 +121,9 @@ async function launch(): Promise<{
   const token = Promise.withResolvers<undefined>()
   const request = Promise.withResolvers<string>()
   const toolArgumentRetry = Promise.withResolvers<unknown>()
-  void Promise.allSettled([active.promise, composition.promise, token.promise, request.promise, toolArgumentRetry.promise])
+  const recordedCanvasFailure = Promise.withResolvers<unknown>()
+  void Promise.allSettled([active.promise, composition.promise, token.promise, request.promise,
+    toolArgumentRetry.promise, recordedCanvasFailure.promise])
   let output = ''
   const capture = (stream: 'stdout' | 'stderr') => (chunk: string): void => {
     const line = `${stream}: ${chunk}`
@@ -128,20 +131,22 @@ async function launch(): Promise<{
   }
   child.stdout?.setEncoding('utf8').on('data', capture('stdout'))
   child.stderr?.setEncoding('utf8').on('data', capture('stderr'))
-  child.once('error', (error) => { rejectSignals(error, active, composition, token, request, toolArgumentRetry) })
+  child.once('error', (error) => { rejectSignals(error, active, composition, token, request, toolArgumentRetry, recordedCanvasFailure) })
   child.once('close', (code, signal) => {
-    rejectSignals(new Error(`Insight Loader child exited before completion (code ${String(code)}, signal ${String(signal)}): ${output}`), active, composition, token, request, toolArgumentRetry)
+    rejectSignals(new Error(`Insight Loader child exited before completion (code ${String(code)}, signal ${String(signal)}): ${output}`), active, composition, token, request, toolArgumentRetry, recordedCanvasFailure)
   })
   child.on('message', (message: unknown) => {
     if (!record(message) || typeof message.kind !== 'string') return
     if (message.kind === 'insight-loader-active') active.resolve(undefined)
     if (message.kind === 'insight-loader-composition' && compositionRecord(message.observation)) composition.resolve(message.observation)
     if (message.kind === 'insight-loader-tool-argument-retry') toolArgumentRetry.resolve(message.observation)
+    if (message.kind === 'insight-loader-recorded-canvas-failure') recordedCanvasFailure.resolve(message.observation)
     if (message.kind === 'insight-loader-error') {
       const error = new Error(typeof message.message === 'string' ? message.message : 'Insight Loader observer rejected the observation')
       composition.reject(error)
       token.reject(error)
       toolArgumentRetry.reject(error)
+      recordedCanvasFailure.reject(error)
     }
     if (message.kind === 'insight-account-request' && typeof message.requestId === 'string' && message.operation === 'access-token') {
       request.resolve(message.requestId)
@@ -150,7 +155,7 @@ async function launch(): Promise<{
     if (message.kind === 'insight-loader-token') token.resolve(undefined)
   })
   return { child, active: active.promise, composition: composition.promise, token: token.promise, request: request.promise,
-    toolArgumentRetry: toolArgumentRetry.promise }
+    toolArgumentRetry: toolArgumentRetry.promise, recordedCanvasFailure: recordedCanvasFailure.promise }
 }
 
 /** Remove inherited secrets and Node loader settings before starting the fixture child. */
@@ -255,10 +260,12 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
     await expect(loader.token).resolves.toBeUndefined()
 
     loader.child.send('observe-tool-argument-retry')
+    const strictCanvas: unknown = expect.objectContaining({ name: 'canvas_node_edit', strict: true })
     const feedback = { name: 'insight-tool-argument-retry',
       text: 'The previous tool call arguments could not be parsed as JSON. Tool call "insight_retry_probe": Expected \',\' or \'}\' after property value in JSON at position 33 (line 1 column 34). No tools ran in that attempt. Regenerate valid JSON according to the tool schema.' }
     await expect(loader.toolArgumentRetry).resolves.toMatchObject([
       {
+        canvasToolsAtRequest: [strictCanvas, strictCanvas, strictCanvas],
         traceIds: [
           expect.stringMatching(/^[0-9a-f-]{36}$/), expect.stringMatching(/^[0-9a-f-]{36}$/), expect.stringMatching(/^[0-9a-f-]{36}$/),
         ],
@@ -271,6 +278,7 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
         turnEnd: { kind: 'completed' },
       },
       {
+        canvasToolsAtRequest: [strictCanvas, strictCanvas],
         traceIds: [expect.stringMatching(/^[0-9a-f-]{36}$/), expect.stringMatching(/^[0-9a-f-]{36}$/)],
         feedbackAtRequest: [false, true],
         countAtRequest: [0, 0],
@@ -280,6 +288,46 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
         context: [feedback],
         turnEnd: { kind: 'error', error: { code: 'MALFORMED_RESPONSE' } },
       },
+    ])
+
+    loader.child.send('observe-recorded-canvas-failure')
+    const recorded = await loader.recordedCanvasFailure
+    expect(Array.isArray(recorded)).toBe(true)
+    if (!Array.isArray(recorded)) throw new Error('Canvas failure observation must be an array')
+    const parserPosition: unknown = expect.stringContaining('position 393')
+    const parserFeedback: unknown = expect.stringContaining('Tool call "canvas_node_edit": Expected')
+    const summary = recorded.map((entry: unknown) => {
+      if (!record(entry) || !Array.isArray(entry.requests) || !Array.isArray(entry.writes)
+        || !Array.isArray(entry.calls) || !Array.isArray(entry.failures) || !Array.isArray(entry.contexts)
+        || !Array.isArray(entry.endings)) throw new Error('Invalid Canvas failure observation')
+      const failures: unknown[] = entry.failures
+      const requests: unknown[] = entry.requests
+      const calls: unknown[] = entry.calls
+      const contexts: unknown[] = entry.contexts
+      for (const failure of failures) {
+        expect(failure).toMatchObject({ reason: { kind: 'error', failure: { code: 'MALFORMED_RESPONSE',
+          message: parserPosition } } })
+      }
+      for (const request of requests) expect(request).toMatchObject({ strict: true })
+      for (const context of contexts) expect(context).toMatchObject({ name: 'insight-tool-argument-retry',
+        text: parserFeedback })
+      return { scenario: entry.scenario, requests, writes: entry.writes, calls, failures, contexts, endings: entry.endings }
+    })
+    const secondTurnRequests = [{ writes: 0 }, { writes: 1 }, { writes: 2 }, { writes: 2, feedback: true },
+      { writes: 2 }, { writes: 2, feedback: true }, { writes: 3 }]
+    expect(summary).toMatchObject([
+      { scenario: 'recovered', requests: [{ writes: 0 }, { writes: 1 }, { writes: 2 }, { writes: 2, feedback: true }, { writes: 3 }],
+        writes: [{ expectedVersion: '0' }, { expectedVersion: '1' }, { expectedVersion: '2' }],
+        calls: [{ id: 'canvas_call_0' }, { id: 'canvas_call_1' }, { id: 'canvas_call_3' }], failures: [{}], contexts: [{}],
+        endings: [{ kind: 'completed' }] },
+      { scenario: 'failed', requests: [{ writes: 0 }, { writes: 1 }, { writes: 2 }, { writes: 2, feedback: true }],
+        writes: [{ expectedVersion: '0' }, { expectedVersion: '1' }],
+        calls: [{ id: 'canvas_call_0' }, { id: 'canvas_call_1' }], failures: [{}, {}], contexts: [{}],
+        endings: [{ kind: 'error', error: { code: 'MALFORMED_RESPONSE' } }] },
+      { scenario: 'next-turn', requests: secondTurnRequests,
+        writes: [{ expectedVersion: '0' }, { expectedVersion: '1' }, { expectedVersion: '2' }],
+        calls: [{ id: 'canvas_call_0' }, { id: 'canvas_call_1' }, { id: 'canvas_call_5' }], failures: [{}, {}, {}],
+        contexts: [{}, {}], endings: [{ kind: 'error', error: { code: 'MALFORMED_RESPONSE' } }, { kind: 'completed' }] },
     ])
   },
   45_000,

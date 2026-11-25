@@ -145,7 +145,7 @@ GitHub Release 构建和 OSS 发布是相互独立的操作，详见 [Insight �
 
 #### 模型看到什么
 
-当 Gateway 返回的完整工具参数无法解析为 JSON 时，Host 在同一个 Agent 步骤内重新请求模型一次。Session 记录纠错上下文，诊断可用时包含工具名和解析错误。若再次解析失败，该步骤结束，两次失败响应中的工具都不会执行。轨迹显示被拒绝的工具名和未执行状态。
+当 Gateway 返回的完整工具参数无法解析为 JSON 时，Host 在同一个 Agent 步骤内重新请求模型一次。Session 记录纠错上下文，诊断可用时包含工具名和解析错误。若再次解析失败，该步骤结束，两次失败响应中的工具都不会执行。轨迹显示被拒绝的工具名和未执行状态。 发往 Gateway 的请求在 SDK 序列化后为 `canvas_node_edit` 标记 `strict: true`，并保留其参数 schema 和其他工具声明。Gateway 和上游决定是否接受该 schema；Host 不将其转换为兼容严格模式的 schema。
 
 ##### 纠错提示
 

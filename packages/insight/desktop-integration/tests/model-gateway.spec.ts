@@ -126,6 +126,51 @@ function accountRequests(transport: AccountTransport): Extract<InsightAccountHos
 }
 
 describe('Insight Gateway model adapter', () => {
+  it.each(['canvas', 'other', 'none'] as const)('adds only the Canvas strict flag to the %s request', async (kind) => {
+    const tools = [{
+      name: 'canvas_node_edit', description: 'Edit Canvas nodes.',
+      parameters: { type: 'object', properties: { ops: { type: 'array', items: {
+        oneOf: [{ type: 'object', additionalProperties: true }, { type: 'string' }],
+      } } } },
+    }, { name: 'canvas_get', description: 'Read Canvas.', parameters: { type: 'object' } }]
+    const selected = kind === 'canvas' ? tools : kind === 'other' ? tools.slice(1) : undefined
+    const requests: unknown[] = []
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input, init) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url !== 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1/chat/completions') return originalFetch(input, init)
+      if (typeof init?.body !== 'string') throw new Error('Gateway request must carry a JSON string body.')
+      requests.push(JSON.parse(init.body))
+      return new Response('data: {"id":"strict-probe","choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    }))
+    try {
+      const { adapter, transport } = await fixture()
+      const result = (async () => {
+        const chunks: StreamChunk[] = []
+        for await (const chunk of adapter.stream({
+          provider: INSIGHT_MODEL_PROVIDER, model: INSIGHT_MODEL_ID, messages: [],
+          ...selected === undefined ? {} : { tools: selected },
+        })) chunks.push(chunk)
+        return chunks
+      })()
+      await vi.waitFor(() => { expect(accountRequests(transport)).toHaveLength(1) })
+      transport.respond(accountRequests(transport)[0]!.requestId, 'fixture-token')
+      expect(await result).toContainEqual(expect.objectContaining({ type: 'finish', reason: { kind: 'stop' } }))
+      expect(requests).toHaveLength(1)
+      expect(requests[0]).toEqual(expect.objectContaining({
+        ...selected === undefined ? {} : { tools: selected.map(tool => ({
+          type: 'function', function: { ...tool, ...tool.name === 'canvas_node_edit' ? { strict: true } : {} },
+        })) },
+      }))
+      if (selected === undefined) expect(requests[0]).not.toHaveProperty('tools')
+      expect(tools[0]).not.toHaveProperty('strict')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it.each(['transport', 'sdk', 'finish'] as const)('persists %s diagnostics through the real Agent request', async (mode) => {
     const privateCause = Object.assign(new Error('https://private.example/?token=secret-token cookie=private-cookie'), {
       code: 'ECONNRESET', errno: 'ECONNRESET', syscall: 'connect',

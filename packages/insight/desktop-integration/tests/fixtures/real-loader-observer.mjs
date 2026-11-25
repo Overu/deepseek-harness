@@ -1,4 +1,5 @@
 /** Observe the built Insight composition after the real profile Loader activates it. */
+import { readFile } from 'node:fs/promises'
 export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientModules', 'agents', 'tools', 'systemPrompt']
 
 const requiredBundleNames = [
@@ -145,6 +146,7 @@ async function observeToolArgumentRetry(ctx) {
         await agent.whenIdle()
         results.push({
           traceIds,
+          canvasToolsAtRequest: requests.map(request => request.tools?.find(tool => tool.function?.name === 'canvas_node_edit')?.function),
           feedbackAtRequest: requests.map(request => request.messages.map(message => JSON.stringify(message.content))
             .findLast(content => content?.includes('Current runtime context'))?.includes(`Tool call \\"${name}\\": Expected`) ?? false),
           countAtRequest,
@@ -163,6 +165,91 @@ async function observeToolArgumentRetry(ctx) {
   } finally {
     globalThis.fetch = fetch
     unregister()
+  }
+  return results
+}
+
+/** Replay the recorded Canvas argument failure without making a remote Canvas write. */
+async function observeRecordedCanvasFailure(ctx) {
+  const bad = JSON.parse(await readFile(new URL('./canvas-malformed-arguments.json', import.meta.url), 'utf8'))
+  if (bad.length !== 395) throw new Error('Recorded Canvas arguments changed')
+  const corrected = `${bad.slice(0, -2)}}${bad.slice(-2)}`
+  const makeAdd = (version, title) => JSON.stringify({ canvasId: '105214', expectedVersion: version,
+    ops: [{ op: 'add', node: { type: 'text', changes: { title, text: title } } }] })
+  const gateway = 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1/chat/completions'
+  const fetch = globalThis.fetch
+  const results = []
+  try {
+    for (const scenario of ['recovered', 'failed', 'next-turn']) {
+      const handle = await ctx.agents.create({ sessionId: crypto.randomUUID(), meta: { cwd: process.cwd() },
+        agentOptions: { provider: 'yinsai-gateway', model: 'deepseek-flash' } })
+      const { agent } = handle
+      const original = ctx.tools.get('canvas_node_edit')
+      if (!original) throw new Error('Canvas node tool is not registered')
+      const writes = [], requests = [], events = []
+      const unregister = agent.ctx.tools.register({ ...original, async execute(args) {
+        const expectedVersion = String(writes.length)
+        if (args.expectedVersion !== expectedVersion) throw new Error(`unexpected Canvas version ${args.expectedVersion}`)
+        writes.push(args)
+        return JSON.stringify({ status: 'saved', canvasId: args.canvasId, version: String(writes.length) })
+      } })
+      const observe = ctx.on('session/event', (session, event) => {
+        if (session === agent.session) events.push(event)
+      }, { global: true })
+      try {
+        globalThis.fetch = async (input, init) => {
+          if (String(input instanceof Request ? input.url : input) !== gateway) return fetch(input, init)
+          const request = JSON.parse(init.body)
+          if (!request.tools?.some(tool => tool.function?.name === 'canvas_node_edit')) {
+            return new Response('data: {"id":"title","choices":[{"index":0,"delta":{"content":"Canvas test"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', {
+              headers: { 'content-type': 'text/event-stream' },
+            })
+          }
+          const index = requests.length
+          requests.push({ strict: request.tools?.find(tool => tool.function?.name === 'canvas_node_edit')?.function?.strict,
+            feedback: JSON.stringify(request.messages).includes('Tool call \\\"canvas_node_edit\\\": Expected'),
+            writes: writes.length })
+          const responses = [makeAdd('0', 'T1'), makeAdd('1', 'T3'), bad,
+            scenario === 'recovered' ? corrected : bad,
+            ...(scenario === 'next-turn' ? [bad, corrected] : [])]
+          const argumentsText = responses[index]
+          const chunk = (delta, finish_reason) => ({ id: 'chatcmpl-recorded-canvas', model: 'deepseek-flash',
+            object: 'chat.completion.chunk', created: 0, choices: [{ index: 0, delta, finish_reason }] })
+          const frames = argumentsText === undefined
+            ? [chunk({ role: 'assistant', content: 'Done.' }, null), chunk({}, 'stop')]
+            : [chunk({ role: 'assistant', tool_calls: [{ index: 0, id: `canvas_call_${index}`, type: 'function',
+              function: { name: 'canvas_node_edit', arguments: argumentsText.slice(0, -2) } }] }, null),
+            chunk({ tool_calls: [{ index: 0, function: { arguments: argumentsText.slice(-2) } }] }, null),
+            chunk({}, 'tool_calls')]
+          return new Response(frames.map(frame => `data: ${JSON.stringify(frame)}\n\n`).join('') + 'data: [DONE]\n\n', {
+            headers: { 'content-type': 'text/event-stream' },
+          })
+        }
+        const followup = async () => {
+          agent.followup({ id: crypto.randomUUID(), role: 'user', source: { kind: 'user' },
+            content: [{ type: 'text', text: 'Save the Canvas text.' }] })
+          await agent.whenIdle()
+        }
+        await followup()
+        if (scenario === 'next-turn') await followup()
+        results.push({ scenario, requests, writes,
+          calls: events.filter(event => event.type === 'tool/call').map(event => ({ id: event.data.callId, turn: event.data.turn })),
+          failures: events.filter(event => event.type === 'assistant/attempt').map(event => ({
+            turn: event.data.turn, reason: event.data.stream.findLast(item => item.type === 'chunk' && item.chunk.type === 'finish')?.chunk.reason,
+          })),
+          contexts: events.filter(event => event.type === 'user/message' && event.data.source.kind === 'runtime-context')
+            .flatMap(event => event.data.source.sections ?? []).filter(section => section.name === 'insight-tool-argument-retry'),
+          endings: events.filter(event => event.type === 'turn/end').map(event => event.data.reason),
+        })
+      } finally {
+        globalThis.fetch = fetch
+        observe()
+        unregister()
+        await handle.dispose()
+      }
+    }
+  } finally {
+    globalThis.fetch = fetch
   }
   return results
 }
@@ -201,6 +288,12 @@ export function apply(ctx) {
     if (message === 'observe-tool-argument-retry') {
       void observeToolArgumentRetry(ctx).then(
         observation => { process.send?.({ kind: 'insight-loader-tool-argument-retry', observation }) },
+        error => { process.send?.({ kind: 'insight-loader-error', message: String(error) }) },
+      )
+    }
+    if (message === 'observe-recorded-canvas-failure') {
+      void observeRecordedCanvasFailure(ctx).then(
+        observation => { process.send?.({ kind: 'insight-loader-recorded-canvas-failure', observation }) },
         error => { process.send?.({ kind: 'insight-loader-error', message: String(error) }) },
       )
     }
