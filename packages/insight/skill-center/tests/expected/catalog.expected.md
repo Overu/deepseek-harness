@@ -9,6 +9,17 @@
     - tab "自定义技能"
   - paragraph: 共 6 个技能
   - tabpanel "官方技能":
+    - group "技能分类":
+      - button "全部" [pressed]
+      - button "前策"
+      - button "咨询"
+      - button "洞察"
+      - button "策略"
+      - button "创意"
+      - button "达人"
+      - button "传播"
+      - button "办公"
+      - button "其他"
     - article:
       - heading "达人整合" [level=3]:
         - button "达人整合，查看详情": 达人整合

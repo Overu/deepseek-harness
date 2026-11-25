@@ -18,6 +18,7 @@ import { createSkillCenterToastSource, SkillCenterToast } from './SkillCenterToa
 import { en, zh } from './locales.ts'
 import { Config } from '../config.ts'
 import { skillCatalogResourceProvider } from './skill-catalog-resource.ts'
+import { skillCategoryResourceProvider } from './skill-category-resource.ts'
 import { customSkillResourceProvider } from './custom-skill-resource.ts'
 import { platformSkillInstallationResourceProvider } from './skill-installation-resource.ts'
 import type { PlatformSkillInstallRequest, PlatformSkillOperationId, PlatformSkillRemovalRequest, SkillIdentity } from '../shared/skill-installation.ts'
@@ -51,6 +52,7 @@ function registerSkillCenter(ctx: Context): void {
   const panelId = 'insight-skill-center' as MainPanelId
   ctx.effect(() => ctx.locale.register(namespace, { en, zh }))
   ctx.effect(() => ctx.resources.register(skillCatalogResourceProvider(config)))
+  ctx.effect(() => ctx.resources.register(skillCategoryResourceProvider(config)))
   ctx.effect(() => ctx.resources.register(customSkillResourceProvider(ctx.remote.insightSkills)))
   ctx.effect(() => ctx.resources.register(platformSkillInstallationResourceProvider(ctx.remote.insightPlatformSkills)))
   const t = ctx.locale.bind(namespace)

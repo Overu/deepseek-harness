@@ -7,7 +7,7 @@ import { expect, it } from 'vitest'
 import { createSystemMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import { normalizeSkillId } from '../src/shared/skill-identity.ts'
-import { CATALOG_FIXTURE, catalogApiResponse } from './fixtures/catalog.ts'
+import { CATALOG_FIXTURE, CATEGORY_FIXTURE, catalogApiResponse } from './fixtures/catalog.ts'
 import { compareOrRefreshGolden, launchWebScaffold, webSnapshotMode } from '../../../../apps/web/tests/scaffold.ts'
 import { newEnglishPage, writeComposerDraft } from '../../../../apps/web/tests/support.ts'
 
@@ -39,6 +39,16 @@ it('loads the authenticated catalog through its own route without the Canvas bun
       expect(response.status()).toBe(200)
       expect(await response.json()).toMatchObject({ code: 'SUCCESS', data: { total: 1 } })
       expect(await response.text()).not.toContain('catalog-fixture-token')
+      const categories = page.getByRole('group', { name: 'Skill categories', exact: true })
+      await categories.getByRole('button', { name: '达人', exact: true }).waitFor()
+      expect(await categories.getByRole('button').first().textContent()).toBe('All')
+      expect(await categories.getByRole('button', { name: 'All', exact: true }).getAttribute('aria-pressed')).toBe('true')
+      await categories.getByRole('button', { name: '达人', exact: true }).click()
+      expect(await page.getByRole('article').count()).toBe(1)
+      const categoryResponse = await page.request.get(new URL('/insight-skill-center/api/skill-categories?businessChannels=A', page.url()).href)
+      expect(categoryResponse.status()).toBe(200)
+      expect(await categoryResponse.json()).toMatchObject({ code: 'SUCCESS', data: { records: CATEGORY_FIXTURE } })
+      expect(await categoryResponse.text()).not.toContain('catalog-fixture-token')
       const canvas = await page.request.get(new URL('/desktop-canvas/api/legacy/game-ai-editor-center/api/skills', page.url()).href)
       expect(canvas.status()).toBe(404)
     } finally {
@@ -497,7 +507,8 @@ it('browses official and local skills through the real shell in both themes and 
     await writeFile(join(accountSkill, 'SKILL.md'), '---\nname: influencer-integration\ndescription: 整理我的达人整合方案。\n---\n')
     await writeFile(join(accountSkill, 'ui.json'), JSON.stringify({ displayName: '我的达人整合', shortDescription: '个人营销模板' }))
     await writeFile(join(sharedSkill, 'SKILL.md'), '---\nname: shared-brief\ndescription: 整理团队共享的营销简报。\n---\n')
-    const browser = await chromium.launch()
+    // Visible scrollbars let filtering exercise changes in occupied layout space.
+    const browser = await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] })
     try {
       const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: 'zh-CN' })
       const browserErrors: string[] = []
@@ -519,8 +530,47 @@ it('browses official and local skills through the real shell in both themes and 
       await region.getByRole('heading', { name: /找到适合你的/ }).waitFor()
       await expect.poll(() => region.getByRole('article').count()).toBe(6)
       await expect.poll(() => region.getByRole('article').first().getByRole('button', { name: '安装' }).isEnabled()).toBe(true)
+      const categories = region.getByRole('group', { name: '技能分类', exact: true })
+      await categories.getByRole('button', { name: '其他', exact: true }).waitFor()
       await compareOrRefreshGolden(fileURLToPath(new URL('expected/catalog.expected.md', import.meta.url)),
         await region.ariaSnapshot(), webSnapshotMode())
+
+      await categories.getByRole('button', { name: '策略', exact: true }).click()
+      expect(await region.getByRole('article').count()).toBe(2)
+      const categorySearch = region.getByRole('searchbox')
+      await categorySearch.fill('品牌')
+      await categorySearch.press('Enter')
+      expect(await region.getByRole('article').count()).toBe(1)
+      await categories.getByRole('button', { name: '洞察', exact: true }).click()
+      expect(await categorySearch.inputValue()).toBe('品牌')
+      await region.getByText(/没有找到/).waitFor()
+      await categorySearch.fill('')
+      await categorySearch.press('Enter')
+      await categories.getByRole('button', { name: '全部', exact: true }).click()
+      expect(await region.getByRole('article').count()).toBe(6)
+
+      await page.setViewportSize({ width: 1440, height: 800 })
+      const headerGeometry = async () => {
+        await region.evaluate((element) => { element.scrollTop = 0 })
+        return {
+          contentWidth: await region.evaluate(element => element.clientWidth),
+          heading: await region.getByRole('heading', { level: 1 }).boundingBox(),
+          search: await region.getByRole('search').boundingBox(),
+          artwork: await region.locator('canvas[aria-hidden="true"]').boundingBox(),
+        }
+      }
+      const overflows = () => region.evaluate(element => element.scrollHeight > element.clientHeight)
+      await expect.poll(overflows).toBe(true)
+      expect(await region.evaluate(element => element.getBoundingClientRect().width - element.clientWidth)).toBeGreaterThan(0)
+      const fullHeader = await headerGeometry()
+      await categories.getByRole('button', { name: '其他', exact: true }).click()
+      await region.getByText('该分类下暂时没有技能', { exact: true }).waitFor()
+      await expect.poll(overflows).toBe(false)
+      expect(await headerGeometry()).toEqual(fullHeader)
+      await categories.getByRole('button', { name: '全部', exact: true }).click()
+      await expect.poll(overflows).toBe(true)
+      expect(await headerGeometry()).toEqual(fullHeader)
+      await page.setViewportSize({ width: 1440, height: 1000 })
 
       const hands = region.locator('canvas[aria-hidden="true"]')
       const handPoint = (side: 'left' | 'right') => hands.evaluate((element, side) => {
@@ -639,6 +689,10 @@ it('browses official and local skills through the real shell in both themes and 
         expect(await region.getByText('达', { exact: true }).evaluate(element => getComputedStyle(element).backgroundImage)).toContain('radial-gradient(')
         for (const [width, columns] of [[1920, 2], [1440, 2], [1000, 2], [390, 1]] as const) {
           await page.setViewportSize({ width, height: 1000 })
+          expect(await categories.getByRole('button').evaluateAll(elements => elements.every((element) => {
+            const bounds = element.getBoundingClientRect()
+            return bounds.left >= 0 && bounds.right <= window.innerWidth && bounds.height >= 28
+          }))).toBe(true)
           await expect.poll(() => hands.evaluate((element) => {
             if (!(element instanceof HTMLCanvasElement)) throw new Error('Expected the hands canvas')
             const bounds = element.getBoundingClientRect()

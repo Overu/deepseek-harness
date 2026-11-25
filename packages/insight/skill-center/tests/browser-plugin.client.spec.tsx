@@ -10,10 +10,15 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotTestRuntime, usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import * as plugin from '../src/client/index.ts'
 import { apply as resourcesApply, inject as resourcesInject } from '@deepseek-ai/dsh-client-resources/src/client/index.ts'
-import { CATALOG_FIXTURE, catalogResponse, catalogTransport } from './fixtures/catalog.ts'
+import { CATALOG_FIXTURE, CATEGORY_FIXTURE, catalogResponse, catalogTransport } from './fixtures/catalog.ts'
 import { SkillInstallProgressModal } from '../src/client/SkillInstallProgressModal.tsx'
 import { zh } from '../src/client/locales.ts'
 import { skillCatalogAddress } from '../src/client/skill-catalog-resource.ts'
+
+/** Extract the URL from a fetch request input. */
+function requestUrl(input: RequestInfo | URL): string {
+  return typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+}
 
 usePinnedBrowserLanguages('zh-CN')
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
@@ -135,13 +140,14 @@ it('reads the latest catalog on every page entry while preset initialization ret
   onTestFinished(() => { presets.abort() })
   // The shell's preset bootstrap holds its subscription while the main page is closed.
   act(() => { runtime.ctx.resources.pin(skillCatalogAddress(0, 'presets'), presets.signal) })
-  await waitFor(() => { expect(fetchImplementation).toHaveBeenCalledTimes(2) })
+  const catalogCalls = () => fetchImplementation.mock.calls.filter(([url]) => requestUrl(url).includes('/skills?')).length
+  await waitFor(() => { expect(catalogCalls()).toBe(2) })
   view.unmount()
   for (const [index, name] of ['最新技能', '再次更新的技能'].entries()) {
     catalog.skills[0] = { ...CATALOG_FIXTURE.skills[0]!, name }
     const reopened = runtime.renderRoot()
     await reopened.findByRole('heading', { name })
-    expect(fetchImplementation).toHaveBeenCalledTimes(index + 3)
+    expect(catalogCalls()).toBe(index + 3)
     reopened.unmount()
   }
 })
@@ -380,7 +386,8 @@ it('keeps installed skills removable while the catalogue is unavailable', async 
     .unary('insightPlatformSkills/removeSkill', () => { snapshot = installed(); return ok(snapshot) })
     .unary('insightPlatformSkills/cancel', ok({ kind: 'cancelled', operationId: 'operation' } as never))
     .stream('insightPlatformSkills/installSkill', openStream())
-  const fetchImplementation = vi.fn<typeof fetch>().mockResolvedValue(new Response('', { status: 503 }))
+  const fetchImplementation = vi.fn<typeof fetch>((input, init) => requestUrl(input).includes('/skill-categories?')
+    ? catalogTransport(CATALOG_FIXTURE)(input, init) : Promise.resolve(new Response('', { status: 503 })))
   const { view } = await mountMarket(fetchImplementation, false, platform)
   await view.findByRole('button', { name: '重试' })
   const card = view.getByRole('heading', { name: 'retired-platform-skill' }).closest('article')
@@ -410,14 +417,17 @@ it('localizes page controls while preserving catalog text from the API', async (
 
 it('shows a loading state, reports request failure, and retries only after the user requests it', async () => {
   const pending = Promise.withResolvers<Response>()
-  const fetchImplementation = vi.fn<typeof fetch>().mockReturnValueOnce(pending.promise)
-    .mockImplementation(catalogTransport(CATALOG_FIXTURE))
+  let firstCatalog = true
+  const fetchImplementation = vi.fn<typeof fetch>((input, init) => {
+    if (requestUrl(input).includes('/skills?') && firstCatalog) { firstCatalog = false; return pending.promise }
+    return catalogTransport(CATALOG_FIXTURE)(input, init)
+  })
   const { view } = await mountMarket(fetchImplementation, false)
   expect(view.queryAllByRole('article')).toHaveLength(0)
   expect(view.getByRole('status')).toBeTruthy()
   await act(async () => { pending.resolve(new Response('', { status: 503 })) })
   await view.findByRole('button', { name: '重试' })
-  expect(fetchImplementation).toHaveBeenCalledOnce()
+  expect(fetchImplementation.mock.calls.filter(([url]) => requestUrl(url).includes('/skills?'))).toHaveLength(1)
   fireEvent.click(view.getByRole('button', { name: '重试' }))
   await waitFor(() => { expect(view.getAllByRole('article')).toHaveLength(6) })
   expect(fetchImplementation.mock.calls.filter(([url]) => typeof url === 'string' && url.includes('/skills?'))).toHaveLength(2)
@@ -432,14 +442,86 @@ it('distinguishes an empty published catalog from unmatched search results', asy
 
 it('aborts the catalog request and removes its provider when the plugin unloads', async () => {
   const pending = Promise.withResolvers<Response>()
-  const fetchImplementation = vi.fn<typeof fetch>().mockReturnValue(pending.promise)
+  const fetchImplementation = vi.fn<typeof fetch>((input, init) => requestUrl(input).includes('/skill-categories?')
+    ? catalogTransport(CATALOG_FIXTURE)(input, init) : pending.promise)
   const { runtime, feature, view } = await mountMarket(fetchImplementation, false)
-  await waitFor(() => { expect(fetchImplementation).toHaveBeenCalledOnce() })
-  const signal = fetchImplementation.mock.calls[0]?.[1]?.signal
+  await waitFor(() => { expect(fetchImplementation.mock.calls.some(([url]) => requestUrl(url).includes('/skills?'))).toBe(true) })
+  const signal = fetchImplementation.mock.calls.find(([url]) => requestUrl(url).includes('/skills?'))?.[1]?.signal
   expect(signal?.aborted).toBe(false)
   await act(() => feature.dispose())
   expect(signal?.aborted).toBe(true)
   await act(async () => { pending.resolve(Response.json(catalogResponse(CATALOG_FIXTURE))) })
   expect(view.queryAllByRole('article')).toHaveLength(0)
   expect(runtime.slots.entries('main')).toHaveLength(0)
+})
+
+it('filters official skills by configured category and search, retaining multiple scene memberships', async () => {
+  const platform = platformRemote(installed([{ id: 'retired-platform-skill', version: '1.0.0' }]))
+  const { view, locale } = await mountMarket(undefined, true, platform, undefined, 7)
+  const group = await view.findByRole('group', { name: '技能分类' })
+  await waitFor(() => { expect(within(group).getAllByRole('button')).toHaveLength(10) })
+  expect(within(group).getAllByRole('button').map(button => button.textContent)).toEqual([
+    '全部', ...CATEGORY_FIXTURE.map(category => category.name),
+  ])
+  expect(within(group).getByRole('button', { name: '全部' }).getAttribute('aria-pressed')).toBe('true')
+  fireEvent.click(within(group).getByRole('button', { name: '策略' }))
+  expect(view.getByText('共 2 个技能')).toBeTruthy()
+  expect(view.getByRole('heading', { name: '达人整合' })).toBeTruthy()
+  expect(view.queryByRole('heading', { name: 'retired-platform-skill' })).toBeNull()
+  const search = view.getByRole('searchbox')
+  fireEvent.change(search, { target: { value: '达人' } })
+  fireEvent.submit(view.getByRole('search'))
+  expect(view.getByText('共 1 个技能')).toBeTruthy()
+  fireEvent.click(within(group).getByRole('button', { name: '达人' }))
+  expect(view.getByRole('heading', { name: '达人整合' })).toBeTruthy()
+  expect((search as HTMLInputElement).value).toBe('达人')
+  fireEvent.change(search, { target: { value: '' } })
+  fireEvent.submit(view.getByRole('search'))
+  fireEvent.click(within(group).getByRole('button', { name: '办公' }))
+  expect(view.getByText('该分类下暂时没有技能')).toBeTruthy()
+  fireEvent.click(within(group).getByRole('button', { name: '全部' }))
+  expect(view.getByRole('heading', { name: 'retired-platform-skill' })).toBeTruthy()
+  act(() => { locale.setLocale('en') })
+  expect(view.getByRole('group', { name: 'Skill categories' })).toBeTruthy()
+  expect(within(group).getByRole('button', { name: 'All' }).getAttribute('aria-pressed')).toBe('true')
+  expect(within(group).getByRole('button', { name: '策略' })).toBeTruthy()
+  fireEvent.click(view.getByRole('tab', { name: 'Custom skills' }))
+  expect(view.queryByRole('group', { name: 'Skill categories' })).toBeNull()
+})
+
+it('keeps all skills usable and retries a failed category read', async () => {
+  let failed = false
+  const transport = catalogTransport(CATALOG_FIXTURE)
+  const fetchImplementation = vi.fn<typeof fetch>((input, init) => {
+    if (requestUrl(input).includes('/skill-categories?') && !failed) {
+      failed = true
+      return Promise.resolve(new Response('', { status: 503 }))
+    }
+    return transport(input, init)
+  })
+  const { view } = await mountMarket(fetchImplementation)
+  const notice = await view.findByText('暂时无法加载分类，可浏览全部技能或重试')
+  expect(view.getAllByRole('article')).toHaveLength(6)
+  const container = notice.closest('[role="status"]')
+  if (container === null) throw new Error('Category failure notice missing')
+  fireEvent.click(within(container as HTMLElement).getByRole('button', { name: '重试' }))
+  await view.findByRole('button', { name: '策略' })
+  expect(view.queryByText('暂时无法加载分类，可浏览全部技能或重试')).toBeNull()
+})
+
+it('respects source filters and shows only one local All option', async () => {
+  const transport = catalogTransport(CATALOG_FIXTURE)
+  const categories = [
+    { id: 20, businessChannel: 'A', code: 'ALL', name: '全部', filters: {}, sort: 0 },
+    { id: 21, businessChannel: 'A', code: 'CREATOR', name: '创作者', filters: { source: 'CREATOR' }, sort: 10 },
+  ]
+  const fetchImplementation = vi.fn<typeof fetch>((input, init) => requestUrl(input).includes('/skill-categories?')
+    ? Promise.resolve(Response.json({ code: 'SUCCESS', data: { records: categories } })) : transport(input, init))
+  const { view } = await mountMarket(fetchImplementation)
+  const group = await view.findByRole('group', { name: '技能分类' })
+  const creator = await within(group).findByRole('button', { name: '创作者' })
+  expect(within(group).getAllByRole('button', { name: '全部' })).toHaveLength(1)
+  fireEvent.click(creator)
+  expect(view.queryAllByRole('article')).toHaveLength(0)
+  expect(view.getByText('该分类下暂时没有技能')).toBeTruthy()
 })

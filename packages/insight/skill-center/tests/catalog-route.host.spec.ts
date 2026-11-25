@@ -5,9 +5,10 @@ import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { InsightAccountAccessError } from '@insight-ai/desktop-integration/host'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { startSkillCatalogRoute } from '../src/host/catalog-route.ts'
-import { SKILL_CATALOG_PATH } from '../src/shared/catalog-api.ts'
+import { SKILL_CATALOG_PATH, SKILL_CATEGORIES_PATH } from '../src/shared/catalog-api.ts'
 
 const list = `${SKILL_CATALOG_PATH}?businessChannel=A&source=OFFICIAL&page=1&pageSize=50`
+const categories = `${SKILL_CATEGORIES_PATH}?businessChannels=A`
 const json = (value: object) => Response.json(value)
 
 async function fixture(options: {
@@ -18,16 +19,18 @@ async function fixture(options: {
   maxResponseBytes?: number
   gatewayOrigin?: string
 } = {}) {
-  let route: WebRoute | undefined
+  const routes = new Map<string, WebRoute>()
   const token = vi.fn(options.token ?? (() => Promise.resolve('account-token')))
   const transport = vi.fn(options.transport ?? (() => Promise.resolve(json({ code: 'SUCCESS', data: {} }))))
   const dispose = startSkillCatalogRoute({
     connection: { requestRejection: () => options.rejection }, token, transport,
     gatewayOrigin: options.gatewayOrigin ?? 'https://gapi-test.insight-aigc.com',
     timeoutMs: options.timeoutMs ?? 5000, maxResponseBytes: options.maxResponseBytes ?? 1024,
-    register(value) { route = value; return () => { route = undefined } },
+    register(value) { routes.set(value.path, value); return () => { routes.delete(value.path) } },
   })
   const server = createServer((request, response) => {
+    const path = (request.url ?? '').split('?')[0] ?? ''
+    const route = [...routes.values()].find(value => path.startsWith(value.path))
     if (route === undefined) { response.writeHead(404); response.end(); return }
     void route.handler(request, response)
   })
@@ -41,6 +44,43 @@ async function fixture(options: {
 }
 
 describe('skill catalogue route', () => {
+  it('releases the catalogue route if category registration fails', () => {
+    const release = vi.fn()
+    const register = vi.fn<(route: WebRoute) => () => void>()
+      .mockReturnValueOnce(release).mockImplementationOnce(() => { throw new Error('registration failed') })
+    expect(() => startSkillCatalogRoute({
+      connection: { requestRejection: () => undefined }, token: () => Promise.resolve('token'),
+      register, gatewayOrigin: 'https://example.com', timeoutMs: 1000, maxResponseBytes: 1024, transport: fetch,
+    })).toThrow('registration failed')
+    expect(release).toHaveBeenCalledOnce()
+  })
+
+  it('forwards the A-line categories with the account credential', async () => {
+    const { url, token, transport } = await fixture()
+    const response = await fetch(`${url}${categories}`, { headers: { token: 'forged' } })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(token).toHaveBeenCalledOnce()
+    expect(transport).toHaveBeenCalledWith(
+      'https://gapi-test.insight-aigc.com/game-ai-editor-center/api/skill-categories?businessChannels=A',
+      expect.objectContaining({ headers: { token: 'account-token', accept: 'application/json' }, redirect: 'error' }),
+    )
+  })
+
+  it('rejects unauthorized or modified category requests before reading credentials', async () => {
+    const { url, token, transport } = await fixture()
+    for (const path of [SKILL_CATEGORIES_PATH, `${categories}&businessChannels=D`, `${categories}&token=forged`,
+      categories.replace('businessChannels=A', 'businessChannels=D'), `${SKILL_CATEGORIES_PATH}/other?businessChannels=A`]) {
+      expect((await fetch(`${url}${path}`)).status).toBe(400)
+    }
+    expect((await fetch(`${url}${categories}`, { method: 'POST' })).status).toBe(405)
+    expect(token).not.toHaveBeenCalled()
+    expect(transport).not.toHaveBeenCalled()
+    const denied = await fixture({ rejection: 401 })
+    expect((await fetch(`${denied.url}${categories}`)).status).toBe(401)
+    expect(denied.token).not.toHaveBeenCalled()
+  })
+
   it.each(['https://gapi-test.insight-aigc.com', 'https://gapi-dsh.idealead.com'])
   ('forwards the list to the selected environment %s', async (origin) => {
     const { url, token, transport } = await fixture({ gatewayOrigin: origin })

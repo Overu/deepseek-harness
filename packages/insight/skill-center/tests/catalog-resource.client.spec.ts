@@ -23,6 +23,7 @@ describe('skill catalog API', () => {
     expect(normalizeCatalog({ records: [skill] })).toEqual([{
       id: 'runtime-name', name: first.name, summary: 'Published summary', version: '3.0.0',
       downloadUrl: 'https://example.com/current.zip', descriptionMarkdown: 'Published description',
+      sceneCodes: ['INFLUENCER', 'STRATEGY'], source: 'OFFICIAL',
     }])
   })
 
@@ -38,8 +39,17 @@ describe('skill catalog API', () => {
       .toMatchObject([{ descriptionMarkdown: '' }])
   })
 
+  it.each([{ sceneCodes: 'STRATEGY' }, { sceneCodes: ['STRATEGY', 1] }])('rejects malformed scene codes %j', ({ sceneCodes }) => {
+    expect(() => normalizeCatalog({ records: [{ ...first, sceneCodes }] })).toThrow('Invalid skill scene codes.')
+  })
+
+  it.each([undefined, null])('keeps skills with unavailable scene codes in the unfiltered catalogue %j', (sceneCodes) => {
+    expect(normalizeCatalog({ records: [{ ...first, sceneCodes }] })).toMatchObject([{ id: first.skillId, sceneCodes: [] }])
+  })
+
   it.each([null, [], {}, { records: 'broken' }, { records: [{ ...first, skillId: undefined }] },
     { records: [{ ...first, skillId: '../invalid' }] }, { records: [first, first] },
+    { records: [{ ...first, sceneCodes: ['INSIGHT', 1] }] },
   ])('rejects malformed lists and duplicate technical names %j', (payload) => {
     expect(() => normalizeCatalog(payload)).toThrow()
   })

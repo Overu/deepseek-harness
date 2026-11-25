@@ -5,7 +5,7 @@ import type { HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { desktopServiceEnvironment, InsightAccountAccessError } from '@insight-ai/desktop-integration/host'
 import type { Config } from '../config.ts'
-import { SKILL_CATALOG_PATH } from '../shared/catalog-api.ts'
+import { SKILL_CATALOG_PATH, SKILL_CATEGORIES_PATH } from '../shared/catalog-api.ts'
 
 /** Inputs needed by the authenticated read-only catalogue route. */
 interface CatalogRouteDependencies {
@@ -28,13 +28,17 @@ function fail(response: ServerResponse, status: number, code: string): void {
   response.end(JSON.stringify({ code }))
 }
 
-/** Validate catalogue pagination before acquiring account credentials. */
+/** Validate supported catalogue requests before acquiring account credentials. */
 function upstreamPath(request: IncomingMessage): string | undefined {
   const rawUrl = request.url ?? ''
   const rawPath = rawUrl.split(/[?#]/u, 1)[0]
   let url: URL
   try { url = new URL(rawUrl, 'http://localhost') } catch { return undefined }
   if (rawPath !== url.pathname) return undefined
+  if (url.pathname === SKILL_CATEGORIES_PATH) {
+    if ([...url.searchParams.keys()].length !== 1 || url.searchParams.get('businessChannels') !== 'A') return undefined
+    return '/game-ai-editor-center/api/skill-categories?businessChannels=A'
+  }
   if (url.pathname !== SKILL_CATALOG_PATH) return undefined
   const expected = ['businessChannel', 'source', 'page', 'pageSize']
   if ([...url.searchParams.keys()].length !== expected.length
@@ -139,23 +143,30 @@ export function startSkillCatalogRoute(dependencies: CatalogRouteDependencies): 
       response.removeListener('close', onClose)
     }
   }
-  const release = dependencies.register({
-    kind: 'prefix', path: SKILL_CATALOG_PATH,
-    handler: async (request, response) => {
-      if (lifetime.signal.aborted) { fail(response, 503, 'CATALOG_UNAVAILABLE'); return }
-      responses.add(response)
-      const work = handle(request, response)
-      pending.add(work)
-      try { await work } finally { pending.delete(work); responses.delete(response) }
-    },
-  })
+  const routeHandler: WebRoute['handler'] = async (request, response) => {
+    if (lifetime.signal.aborted) { fail(response, 503, 'CATALOG_UNAVAILABLE'); return }
+    responses.add(response)
+    const work = handle(request, response)
+    pending.add(work)
+    try { await work } finally { pending.delete(work); responses.delete(response) }
+  }
+  const releaseCatalog = dependencies.register({ kind: 'prefix', path: SKILL_CATALOG_PATH, handler: routeHandler })
+  let releaseCategories: () => void
+  try {
+    releaseCategories = dependencies.register({ kind: 'prefix', path: SKILL_CATEGORIES_PATH, handler: routeHandler })
+  } catch (error) {
+    releaseCatalog()
+    throw error
+  }
   let disposal: Promise<void> | undefined
   return () => {
     disposal ??= (async () => {
-      try { release() } finally {
-        lifetime.abort()
-        for (const response of responses) response.destroy()
-        await Promise.allSettled([...pending])
+      try { releaseCategories() } finally {
+        try { releaseCatalog() } finally {
+          lifetime.abort()
+          for (const response of responses) response.destroy()
+          await Promise.allSettled([...pending])
+        }
       }
     })()
     return disposal

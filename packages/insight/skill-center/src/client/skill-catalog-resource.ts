@@ -20,6 +20,8 @@ export interface SkillCatalogItem extends SkillIdentity {
   readonly version: string
   readonly descriptionMarkdown: string
   readonly downloadUrl: string
+  readonly sceneCodes?: readonly string[]
+  readonly source?: string
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -86,6 +88,11 @@ export function normalizeCatalog(payload: unknown): readonly SkillCatalogItem[] 
     const version = stringField(entry, 'packageVersion').trim()
     const downloadUrl = stringField(entry, 'packageUrl').trim()
     if (!version || !downloadUrl) continue
+    const sceneCodes: unknown = entry.sceneCodes
+    if (sceneCodes !== undefined && sceneCodes !== null
+      && (!Array.isArray(sceneCodes) || !sceneCodes.every((scene): scene is string => typeof scene === 'string'))) {
+      throw new InvalidCatalogError('Invalid skill scene codes.')
+    }
     skills.push({
       id,
       name,
@@ -93,6 +100,8 @@ export function normalizeCatalog(payload: unknown): readonly SkillCatalogItem[] 
       version,
       descriptionMarkdown: stringField(entry, 'skill_desc').trim(),
       downloadUrl,
+      sceneCodes: sceneCodes ?? [],
+      source: stringField(entry, 'source'),
       sort: sortValue(entry),
     })
   }

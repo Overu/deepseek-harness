@@ -1,6 +1,6 @@
 /** Published and locally maintained skills rendered in the main content column. */
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
-import { SegmentedTabs, type SegmentedTab } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, SegmentedTabs, type SegmentedTab } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-resources/client'
@@ -13,6 +13,7 @@ import { SkillMarketHero } from './SkillMarketHero.tsx'
 import type { SkillCenterToastSource } from './SkillCenterToast.tsx'
 import type { SkillInstallationController } from './skill-installation-controller.ts'
 import { skillCatalogAddress, type SkillCatalogItem } from './skill-catalog-resource.ts'
+import { skillCategoryAddress, type SkillCategoryId } from './skill-category-resource.ts'
 import { customSkillAddress } from './custom-skill-resource.ts'
 import { platformSkillInstallationAddress } from './skill-installation-resource.ts'
 import type { SkillCenterLocaleKey } from './types.ts'
@@ -46,10 +47,13 @@ export function SkillCenterPage({
   const [source, setSource] = useState<SkillSource>('official')
   const [selected, setSelected] = useState<ListedSkill | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [categoryAttempt, setCategoryAttempt] = useState(0)
+  const [categoryId, setCategoryId] = useState<SkillCategoryId | null>(null)
   const [customAttempt, setCustomAttempt] = useState(0)
   const [installationAttempt, setInstallationAttempt] = useState(0)
   const installationRevision = useRevision(value => value)
   const catalogue = useResource<'insight-skill-catalog'>(skillCatalogAddress(attempt, 'page'))
+  const categories = useResource<'insight-skill-categories'>(skillCategoryAddress(categoryAttempt))
   const installedResource = useResource<'insight-platform-skills'>(platformSkillInstallationAddress(installationRevision + installationAttempt))
   const custom = useResource<'insight-custom-skills'>(source === 'custom' ? customSkillAddress(customAttempt) : '')
   const text = (key: SkillCenterLocaleKey): string => t(key)
@@ -66,7 +70,12 @@ export function SkillCenterPage({
       }),
   ]
   const isOfficial = source === 'official'
-  const visibleSkills = filtered(isOfficial ? allSkills : (custom.value?.entries ?? [])
+  const category = categories.value?.find(item => item.id === categoryId)
+  const categorySkills = category === undefined ? allSkills : allSkills.filter(({ catalog, installationKey }) =>
+    installationKey === undefined && catalog !== undefined
+    && (category.filters.scene === undefined || catalog.sceneCodes?.includes(category.filters.scene))
+    && (category.filters.source === undefined || catalog.source === category.filters.source))
+  const visibleSkills = filtered(isOfficial ? categorySkills : (custom.value?.entries ?? [])
     .toSorted((a, b) => a.name.localeCompare(b.name)).map(customListedSkill), value)
   const status = isOfficial ? catalogue.status : custom.value?.complete === false ? 'failed' : custom.status
   const selectedCurrent = selected !== null && selected.source === undefined
@@ -132,10 +141,23 @@ export function SkillCenterPage({
         </div>
         {tabs.map(tab => (
           <div key={tab.value} id={tab.panelId} role="tabpanel" aria-labelledby={tab.id} hidden={source !== tab.value}>
+            {source === tab.value && isOfficial && <>
+              <div className={styles.categories} role="group" aria-label={text('categories')} aria-busy={categories.status === 'loading'}>
+                <Button size="sm" variant={category === undefined ? 'primary' : 'ghost'} aria-pressed={category === undefined}
+                  onClick={() => { setCategoryId(null) }}>{text('allCategories')}</Button>
+                {(categories.value ?? []).map(item => <Button key={item.id} size="sm"
+                  variant={category?.id === item.id ? 'primary' : 'ghost'} aria-pressed={category?.id === item.id}
+                  onClick={() => { setCategoryId(item.id) }}>{item.name}</Button>)}
+              </div>
+              {categories.status === 'failed' && <div className={styles.categoryFailure} role="status">
+                <span>{text('categoryLoadFailed')}</span>
+                <Button size="sm" variant="outline" onClick={() => { setCategoryAttempt(current => current + 1) }}>{text('retry')}</Button>
+              </div>}
+            </>}
             {source === tab.value && <SkillDirectory t={text} query={query} skills={visibleSkills} status={status}
               loadingLabel={text(isOfficial ? 'catalogLoading' : 'customSkillLoading')}
               failureLabel={text(isOfficial ? 'catalogLoadFailed' : 'customSkillLoadFailed')}
-              emptyLabel={text(isOfficial ? 'catalogEmpty' : 'customSkillEmpty')}
+              emptyLabel={text(isOfficial ? category === undefined ? 'catalogEmpty' : 'categoryEmpty' : 'customSkillEmpty')}
               installationStatus={isOfficial ? installedResource.status : undefined} onDetail={setSelected}
               onRetry={() => { (isOfficial ? setAttempt : setCustomAttempt)(current => current + 1) }}
               onInstallationRetry={() => { setInstallationAttempt(current => current + 1) }}

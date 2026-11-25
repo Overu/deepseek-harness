@@ -4,6 +4,7 @@
   height: 100%;
   min-width: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   color: var(--dsw-alias-label-primary);
   background: linear-gradient(145deg, var(--dsw-alias-bg-base) 8%, var(--dsw-alias-bg-layer-1) 58%, var(--dsw-alias-bg-layer-2));
 }
@@ -115,6 +116,24 @@
 .count {
   flex: none;
   margin: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.categoryFailure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   line-height: 20px;

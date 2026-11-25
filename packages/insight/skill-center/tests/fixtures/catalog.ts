@@ -3,6 +3,8 @@ export const CATALOG_FIXTURE = {
   'skills': [
     {
       'id': 1,
+      'source': 'OFFICIAL',
+      'sceneCodes': ['INFLUENCER', 'STRATEGY'],
       'skillId': 'influencer-integration',
       'name': '达人整合',
       'summary': '匹配合适的创作者，并整理可执行的达人合作方案。',
@@ -14,6 +16,8 @@ export const CATALOG_FIXTURE = {
     },
     {
       'id': 2,
+      'source': 'OFFICIAL',
+      'sceneCodes': ['STRATEGY'],
       'skillId': 'insight-prestrategy-analysis',
       'name': '品牌策略分析',
       'summary': '从品类、竞品与用户洞察中形成清晰的品牌策略起点。',
@@ -25,6 +29,8 @@ export const CATALOG_FIXTURE = {
     },
     {
       'id': 3,
+      'source': 'OFFICIAL',
+      'sceneCodes': ['INSIGHT'],
       'skillId': 'category-competitor-insight',
       'name': '品类竞品洞察',
       'summary': '快速归纳品类机会、竞品策略与值得关注的市场信号。',
@@ -36,6 +42,8 @@ export const CATALOG_FIXTURE = {
     },
     {
       'id': 4,
+      'source': 'OFFICIAL',
+      'sceneCodes': ['INFLUENCER'],
       'skillId': 'creator-recommendation',
       'name': '创作者推荐',
       'summary': '根据品牌调性和传播需求，推荐适合合作的创作者组合。',
@@ -47,6 +55,8 @@ export const CATALOG_FIXTURE = {
     },
     {
       'id': 5,
+      'source': 'OFFICIAL',
+      'sceneCodes': ['CREATIVE'],
       'skillId': 'canvas-workflow-builder',
       'name': '创意工作流搭建与评估',
       'summary': '设计从需求拆解到创意交付的 AI 协作流程，并评估其效果。',
@@ -58,6 +68,8 @@ export const CATALOG_FIXTURE = {
     },
     {
       'id': 6,
+      'source': 'OFFICIAL',
+      'sceneCodes': ['COMMUNICATION'],
       'skillId': 'marketing-integrated',
       'name': '整合营销战役规划',
       'summary': '把品牌目标转化为跨渠道、可执行的整合营销战役规划。',
@@ -82,7 +94,22 @@ export function catalogApiResponse(catalog: { readonly skills: readonly unknown[
   return catalogResponse(catalog)
 }
 
+/** Enabled A-line configuration in server order. */
+export const CATEGORY_FIXTURE = [
+  ['PRE_PLANNING', '前策'], ['CONSULTING', '咨询'], ['INSIGHT', '洞察'],
+  ['STRATEGY', '策略'], ['CREATIVE', '创意'], ['INFLUENCER', '达人'],
+  ['COMMUNICATION', '传播'], ['OFFICE', '办公'], ['OTHER', '其他'],
+].map(([code, name], index) => ({
+  id: index + 1, businessChannel: 'A', code, name, filters: { scene: code }, sort: (index + 1) * 10,
+}))
+
 /** Fetch a fresh response body for each list request. */
 export function catalogTransport(catalog: { readonly skills: readonly unknown[] }): typeof fetch {
-  return async input => Response.json(catalogApiResponse(catalog, typeof input === 'string' ? input : input instanceof URL ? input.href : input.url))
+  return async (input) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (new URL(url, 'http://localhost').pathname === '/insight-skill-center/api/skill-categories') {
+      return Response.json({ code: 'SUCCESS', data: { records: CATEGORY_FIXTURE } })
+    }
+    return Response.json(catalogApiResponse(catalog, url))
+  }
 }

@@ -10,6 +10,10 @@ export const zh = {
   tabs: '技能来源',
   officialSkills: '官方技能',
   customSkills: '自定义技能',
+  categories: '技能分类',
+  allCategories: '全部',
+  categoryLoadFailed: '暂时无法加载分类，可浏览全部技能或重试',
+  categoryEmpty: '该分类下暂时没有技能',
   details: '详情',
   customSkillLoading: '正在加载自定义技能',
   customSkillLoadFailed: '暂时无法加载自定义技能，请重试',
@@ -58,6 +62,10 @@ export const zh = {
 
 /** English copy; other languages use the locale registry's English fallback. */
 export const en: Record<keyof typeof zh, string> = {
+  categories: 'Skill categories',
+  allCategories: 'All',
+  categoryLoadFailed: 'Categories could not be loaded. Browse all skills or try again',
+  categoryEmpty: 'No skills in this category yet',
   presetInstalling: 'Installing preset skills',
   presetSuccess: 'Preset skills installed',
   presetFailure: 'Preset skill installation did not finish. Try again in skill center',
