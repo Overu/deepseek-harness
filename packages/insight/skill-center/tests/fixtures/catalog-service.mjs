@@ -8,7 +8,7 @@ export function apply(ctx) {
     id: 1, skillId: 'influencer-integration', name: 'Account catalog skill', enabled: 1, sort: 1,
     summary: 'Read through the skill-center Host route.', packageVersion: '1.2.0',
     packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
-    skill_desc: 'Account-authenticated catalogue fixture.',
+    description: 'Account-authenticated catalogue fixture.',
     source: 'OFFICIAL', sceneCodes: ['INFLUENCER'],
   }
   ctx.effect(() => {

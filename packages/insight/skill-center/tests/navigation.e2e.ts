@@ -79,7 +79,7 @@ it('installs configured presets before opening the market and respects removal a
           catalogReads++
           return route.fulfill({ json: catalogApiResponse({ skills: [{
             ...CATALOG_FIXTURE.skills[0],
-            skill_desc: description,
+            description,
             packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/identity-fixture.zip',
           }] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } })
         })

@@ -19,7 +19,7 @@ async function collect<T>(source: AsyncIterable<T>): Promise<T[]> {
 describe('skill catalog API', () => {
   it('uses the list skillId as the installation technical name and maps published fields', () => {
     const skill = { ...first, skillId: 'runtime-name', skill_id: 'catalog-id', release: { runtimeSkillId: 'other-name' }, summary: 'Published summary', packageVersion: '3.0.0',
-      packageUrl: 'https://example.com/current.zip', skill_desc: 'Published description', description_markdown: 'Old usage instructions', version: '1.0.0', download_url: 'old.zip' }
+      packageUrl: 'https://example.com/current.zip', description: '  Published description  ', skill_desc: 'Version capability description', description_markdown: 'Old usage instructions', version: '1.0.0', download_url: 'old.zip' }
     expect(normalizeCatalog({ records: [skill] })).toEqual([{
       id: 'runtime-name', name: first.name, summary: 'Published summary', version: '3.0.0',
       downloadUrl: 'https://example.com/current.zip', descriptionMarkdown: 'Published description',
@@ -34,8 +34,8 @@ describe('skill catalog API', () => {
     expect(normalizeCatalog({ records: [{ ...first, packageVersion: null }, { ...second, packageUrl: null }] })).toEqual([])
   })
 
-  it.each([undefined, null, 1, '   '])('shows an empty description for unavailable skill_desc %j', (skill_desc) => {
-    expect(normalizeCatalog({ records: [{ ...first, skill_desc, description_markdown: 'Old instructions' }] }))
+  it.each([undefined, null, 1, '   '])('shows an empty description for unavailable description %j', (description) => {
+    expect(normalizeCatalog({ records: [{ ...first, description, skill_desc: 'Version capability description', description_markdown: 'Old instructions' }] }))
       .toMatchObject([{ descriptionMarkdown: '' }])
   })
 

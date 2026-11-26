@@ -98,7 +98,7 @@ export function normalizeCatalog(payload: unknown): readonly SkillCatalogItem[] 
       name,
       summary: stringField(entry, 'summary').trim(),
       version,
-      descriptionMarkdown: stringField(entry, 'skill_desc').trim(),
+      descriptionMarkdown: stringField(entry, 'description').trim(),
       downloadUrl,
       sceneCodes: sceneCodes ?? [],
       source: stringField(entry, 'source'),

@@ -124,7 +124,7 @@ it('opens complete details and restores the invoking control after Escape', asyn
   const dialog = view.getByRole('dialog', { name })
   expect(within(dialog).getByText('v1.2.0')).toBeTruthy()
   expect(within(dialog).getByRole('region', { name: '描述' })).toBeTruthy()
-  for (const paragraph of CATALOG_FIXTURE.skills[0]!.skill_desc.split('\n')) {
+  for (const paragraph of CATALOG_FIXTURE.skills[0]!.description.split('\n')) {
     expect(within(dialog).getByText(paragraph)).toBeTruthy()
   }
   expect(within(dialog).getByRole('button', { name: '安装' })).toBeTruthy()
