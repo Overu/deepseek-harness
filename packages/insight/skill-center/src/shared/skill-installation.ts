@@ -23,6 +23,10 @@ export interface PlatformSkillSnapshot { readonly skills: readonly InstalledPlat
 
 /** Catalogue release selected for installation or update. */
 export interface PlatformSkillInstallRequest extends SkillIdentity {
+  /** Catalogue name saved as the installed skill's UI label. */
+  readonly displayName: string
+  /** Catalogue summary saved as the installed skill's UI description. */
+  readonly shortDescription: string
   readonly version: string
   readonly operationId: PlatformSkillOperationId
   readonly downloadUrl: string

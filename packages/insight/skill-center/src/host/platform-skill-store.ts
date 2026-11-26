@@ -9,6 +9,7 @@ import { open as openZip, validateFileName, type Entry, type ZipFile } from 'yau
 import type { InsightSkillId, InstalledPlatformSkill, PlatformSkillInstallProgress, PlatformSkillInstallRequest, PlatformSkillOperationSettlement, PlatformSkillRemovalRequest, PlatformSkillSnapshot, SkillIdentity } from '../shared/skill-installation.ts'
 import { PLATFORM_SKILL_ID_PATTERN } from '../shared/skill-installation.ts'
 import { matchSkillIdentity, normalizeSkillId } from '../shared/skill-identity.ts'
+import { writeSkillPresentation } from './skill-presentation.ts'
 
 const RECORD = '.json'
 const archiveClosures = new WeakMap<ZipFile, Promise<void>>()
@@ -201,6 +202,9 @@ export class PlatformSkillStore {
       await movePayload(unpacked, payload)
       await readFile(join(payload, 'SKILL.md'), 'utf8')
       await this.validatePayload(payload, input.id, signal)
+      await writeSkillPresentation(payload, {
+        displayName: input.displayName, shortDescription: input.shortDescription,
+      })
       signal.throwIfAborted()
       progress({ kind: 'progress', operationId: input.operationId, phase: 'commit' })
       await this.writeRecord({ id, version: input.version, payload: relative(this.root, payload) })

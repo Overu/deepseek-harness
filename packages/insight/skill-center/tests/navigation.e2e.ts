@@ -302,9 +302,12 @@ it('refreshes skill references in an open historical conversation after installa
 
       const market = await newEnglishPage(browser)
       let version = '1.0.0'
+      let displayName = '达人整合'
+      let shortDescription = '匹配合适的创作者，并整理可执行的达人合作方案。'
       await market.route('**/insight-skill-center/api/skills**',
         route => route.fulfill({ json: catalogApiResponse({ skills: [{
           ...CATALOG_FIXTURE.skills[0], packageVersion: version,
+          name: displayName, summary: shortDescription,
           skillId: 'browser-installed-expert',
           packageUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/install-fixture.zip',
         }] }, route.request().url()), headers: { 'Access-Control-Allow-Origin': '*' } }))
@@ -317,8 +320,9 @@ it('refreshes skill references in an open historical conversation after installa
       await market.getByText('Installed', { exact: true }).waitFor()
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
       const picker = page.getByRole('listbox', { name: '可选技能', exact: true })
-      const installedOption = picker.getByRole('button', { name: /browser-installed-expert/u })
+      let installedOption = picker.getByRole('button', { name: /达人整合$/u })
       await installedOption.waitFor()
+      await picker.getByText(shortDescription, { exact: true }).waitFor()
       await expect.poll(() => installedOption.isEnabled()).toBe(true)
       await page.keyboard.press('Escape')
       await reference.waitFor()
@@ -333,7 +337,7 @@ it('refreshes skill references in an open historical conversation after installa
         '---\nname: browser-installed-expert\ndescription: Same-name user skill\n---\n\nUser-maintained content.\n')
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
       await picker.getByText('已被更高优先级版本覆盖', { exact: true }).waitFor()
-      const platformRow = picker.getByRole('option', { name: /browser-installed-expert/u })
+      const platformRow = picker.getByRole('option', { name: /达人整合/u })
       await expect.poll(() => installedOption.isEnabled()).toBe(true)
       await expect.poll(() => platformRow.getAttribute('aria-selected')).toBe('true')
       await installedOption.click()
@@ -374,12 +378,19 @@ it('refreshes skill references in an open historical conversation after installa
       await writeComposerDraft(page, input, draft)
 
       version = '1.1.0'
+      displayName = '更新后的达人整合'
+      shortDescription = '更新后的合作方案'
       await openMarket()
       await market.getByRole('button', { name: 'Update', exact: true }).click()
       await market.getByText('Installed', { exact: true }).waitFor()
       await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
+      installedOption = picker.getByRole('button', { name: /更新后的达人整合$/u })
       await installedOption.waitFor()
+      await picker.getByText(shortDescription, { exact: true }).waitFor()
       await expect.poll(() => installedOption.isEnabled()).toBe(true)
+      await expect.poll(() => picker.getByRole('option').getAttribute('aria-selected')).toBe('true')
+      await compareOrRefreshGolden(fileURLToPath(new URL('expected/picker-updated.expected.md', import.meta.url)),
+        await picker.ariaSnapshot(), webSnapshotMode())
       await page.keyboard.press('Escape')
       await reference.waitFor()
       await reference.click()
@@ -426,6 +437,16 @@ it('refreshes skill references in an open historical conversation after installa
       await page.locator('[role="treeitem"]').last().click()
       await page.getByText('Historical skill conversation.', { exact: true }).waitFor()
       expect(await input.locator('[data-composer-text-ref]').filter({ hasText: '/browser-installed-expert' }).count()).toBe(0)
+
+      displayName = '重新安装的达人整合'
+      shortDescription = '重新安装时的合作方案'
+      await openMarket()
+      await market.getByRole('button', { name: 'Install', exact: true }).click()
+      await market.getByText('Installed', { exact: true }).waitFor()
+      await page.locator('[data-insight-skill-picker]').getByRole('button').first().click()
+      await picker.getByRole('button', { name: /重新安装的达人整合$/u }).waitFor()
+      await picker.getByText(shortDescription, { exact: true }).waitFor()
+      expect(await picker.getByRole('button', { name: /更新后的达人整合$/u }).count()).toBe(0)
     } finally {
       await browser.close()
     }

@@ -32,13 +32,13 @@ it('owns one manual installation across callers and refreshes after its terminal
   expect(report).toHaveBeenCalledWith('installSuccess')
 })
 
-it('sends the technical name when updating', async () => {
+it.each([false, true])('sends the technical name and catalogue labels when updating is %s', async (updating) => {
   const remoteApi = remote([{ kind: 'cancelled', operationId: 'ignored' }])
   const controller = createSkillInstallationController(remoteApi as never, vi.fn())
-  await controller.install(skill, true)
+  await controller.install(skill, updating)
 
   expect(remoteApi.install).toHaveBeenCalledWith(
-    expect.objectContaining({ id: skillId }),
+    expect.objectContaining({ id: skillId, displayName: skill.name, shortDescription: skill.summary }),
     expect.any(AbortSignal),
   )
 })

@@ -10,6 +10,7 @@ import { strToU8, zipSync } from 'fflate'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import { Config } from '../src/config.ts'
 import { InsightPlatformSkills } from '../src/host/platform-skills.ts'
+import { readSkillPresentation } from '../src/host/skill-presentation.ts'
 import type { InsightSkillId, PlatformSkillInstallProgress, PlatformSkillOperationId } from '../src/types.ts'
 
 const origin = 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com'
@@ -32,7 +33,7 @@ function requestUrl(input: string | URL | Request): string {
 }
 
 function request(version: string, operation: string) {
-  return { id, version, operationId: brandString<PlatformSkillOperationId>(operation), downloadUrl: `${origin}/desktop/skills/expert-tool.zip` }
+  return { id, displayName: '专家技能', shortDescription: '专家技能简介', version, operationId: brandString<PlatformSkillOperationId>(operation), downloadUrl: `${origin}/desktop/skills/expert-tool.zip` }
 }
 
 async function fixture(fetcher: typeof fetch, config: Partial<Config> = {}) {
@@ -99,6 +100,46 @@ it.each([
   await collect(service.install({ ...request('1.1.0', 'update'), downloadUrl: `${downloadOrigin}/skill-packages/expert-tool.zip` }, signal))
   expect(await service.listInstalled()).toEqual({ skills: [{ id, version: '1.1.0' }] })
   expect((await ctx.skills.get('expert-tool'))?.content).toContain('Updated release')
+})
+
+it.each(['first install', 'update', 'reinstall'] as const)('saves catalogue labels during %s', async (operation) => {
+  let bytes = archive('Original instructions')
+  const { home, ctx, service } = await fixture(async url => response(bytes, requestUrl(url)))
+  const signal = new AbortController().signal
+  if (operation !== 'first install') await collect(service.install(request('1.0.0', 'initial'), signal))
+  if (operation === 'reinstall') await service.remove({ id }, signal)
+  bytes = new Uint8Array(zipSync({
+    'release/SKILL.md': strToU8('---\nname: expert-tool\ndescription: Model routing description\n---\n\nNew instructions\n'),
+    'release/ui.json': strToU8(JSON.stringify({ displayName: 'Archive name', shortDescription: 'Archive summary' })),
+  }))
+  const labels = { displayName: '新版专家', shortDescription: '新版技能简介' }
+  await collect(service.install({ ...request('2.0.0', operation), ...labels }, signal))
+
+  const record = JSON.parse(await readFile(join(home, 'platform-skills', 'installed', 'expert-tool.json'), 'utf8')) as { payload: string }
+  const skillPath = join(home, 'platform-skills', record.payload, 'SKILL.md')
+  expect(JSON.parse(await readFile(join(home, 'platform-skills', record.payload, 'ui.json'), 'utf8'))).toEqual(labels)
+  expect(await readSkillPresentation(skillPath, signal)).toEqual(labels)
+  expect((await ctx.skills.get('expert-tool'))?.description).toBe('Model routing description')
+  expect((await ctx.skills.get('expert-tool'))?.content).toBe('New instructions')
+})
+
+it('keeps the installed labels when saving replacement labels fails', async () => {
+  let bytes = archive('Original instructions')
+  const { home, service } = await fixture(async url => response(bytes, requestUrl(url)))
+  const signal = new AbortController().signal
+  await collect(service.install(request('1.0.0', 'initial'), signal))
+  const recordPath = join(home, 'platform-skills', 'installed', 'expert-tool.json')
+  const before = await readFile(recordPath, 'utf8')
+  bytes = new Uint8Array(zipSync({
+    'release/SKILL.md': strToU8('---\nname: expert-tool\ndescription: Expert\n---\n\nNew instructions\n'),
+    'release/ui.json/blocked.txt': strToU8('A directory cannot be replaced by a label file.'),
+  }))
+  await expect(collect(service.install({ ...request('2.0.0', 'failed'), displayName: 'Failed name' }, signal)))
+    .rejects.toThrow('Skill installation failed')
+  expect(await readFile(recordPath, 'utf8')).toBe(before)
+  const record = JSON.parse(before) as { payload: string }
+  expect(await readSkillPresentation(join(home, 'platform-skills', record.payload, 'SKILL.md'), signal))
+    .toEqual({ displayName: '专家技能', shortDescription: '专家技能简介' })
 })
 
 it.each([

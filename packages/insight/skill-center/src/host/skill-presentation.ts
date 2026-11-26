@@ -2,15 +2,35 @@
 import { constants } from 'node:fs'
 import { lstat, open } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import type { InsightSkillInventoryEntry } from '../shared/skill-inventory.ts'
 
 type Presentation = Pick<InsightSkillInventoryEntry, 'displayName' | 'shortDescription'>
 const MAX_BYTES = 8192
+const NAME_LIMIT = 60
+const DESCRIPTION_LIMIT = 160
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f\u0085\u2028\u2029]/gu
 
-function label(value: unknown, limit: number): string | undefined {
+function label(value: unknown, limit: number, allowEmpty = false): string | undefined {
   if (typeof value !== 'string') return undefined
   const text = value.trim()
-  return text.length > 0 && Array.from(text).length <= limit && !/[\u0000-\u001f\u007f\u0085\u2028\u2029]/u.test(text) ? text : undefined
+  return (allowEmpty || text.length > 0) && Array.from(text).length <= limit
+    && !/[\u0000-\u001f\u007f\u0085\u2028\u2029]/u.test(text) ? text : undefined
+}
+
+/**
+ * Replace an unpublished installation's UI labels with single-line catalogue text.
+ * Labels retain at most 60 and 160 Unicode code points; an empty summary clears the description.
+ * @param directory - Private payload directory before its installation record commits.
+ * @param presentation - Catalogue name and summary selected for this installation.
+ * @returns Completion after atomic label replacement; failures reject installation.
+ */
+export async function writeSkillPresentation(directory: string, presentation: Required<Presentation>): Promise<void> {
+  const normalize = (value: string, limit: number): string => Array.from(value.replace(CONTROL_CHARACTERS, ' ').trim()).slice(0, limit).join('')
+  await writeFileAtomic(join(directory, 'ui.json'), `${JSON.stringify({
+    displayName: normalize(presentation.displayName, NAME_LIMIT),
+    shortDescription: normalize(presentation.shortDescription, DESCRIPTION_LIMIT),
+  })}\n`, { mode: 0o600 })
 }
 
 /**
@@ -43,8 +63,8 @@ export async function readSkillPresentation(skillPath: string | undefined, signa
     if (length > MAX_BYTES) return {}
     const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, length)))
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return {}
-    const displayName = label('displayName' in value ? value.displayName : undefined, 60)
-    const shortDescription = label('shortDescription' in value ? value.shortDescription : undefined, 160)
+    const displayName = label('displayName' in value ? value.displayName : undefined, NAME_LIMIT)
+    const shortDescription = label('shortDescription' in value ? value.shortDescription : undefined, DESCRIPTION_LIMIT, true)
     return { ...displayName === undefined ? {} : { displayName }, ...shortDescription === undefined ? {} : { shortDescription } }
   } catch (_unavailablePresentation) {
     // Optional UI metadata must not hide an otherwise discovered skill.

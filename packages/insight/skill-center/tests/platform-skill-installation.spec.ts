@@ -33,7 +33,7 @@ it('makes a committed platform skill callable and removes it from discovery', as
   const id = brandString<InsightSkillId>('expert-tool')
   const signal = new AbortController().signal
   for await (const _ of platform.install({
-    id, version: '1.0.0', operationId: brandString<PlatformSkillOperationId>('install'),
+    id, displayName: '专家技能', shortDescription: '专家技能简介', version: '1.0.0', operationId: brandString<PlatformSkillOperationId>('install'),
     downloadUrl: 'https://insight-desktop-updates.oss-cn-guangzhou.aliyuncs.com/desktop/skills/expert-tool.zip',
   }, signal)) {}
   expect((await ctx.skills.get('expert-tool'))?.content).toContain('Installed release')

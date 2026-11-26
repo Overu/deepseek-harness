@@ -103,7 +103,8 @@ export function createSkillInstallationController(
       let cancelled = false
       try {
         const request: PlatformSkillInstallRequest = {
-          id: skill.id, version: skill.version, downloadUrl: skill.downloadUrl, operationId,
+          id: skill.id, displayName: skill.name, shortDescription: skill.summary,
+          version: skill.version, downloadUrl: skill.downloadUrl, operationId,
         }
         for await (const progress of remote.install(request, controller.signal)) {
           if (progress.kind === 'complete') complete = true
