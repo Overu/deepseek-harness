@@ -88,6 +88,19 @@ Update discovery verifies an Ed25519-signed rollout, release or target manifest,
 
 The Host account service exposes a noncredential hash of the Main-selected account Home. Image-layering tasks bind this scope to their Session record and refuse recovery after an account switch; it does not expose a token or raw account ID.
 
+Use the model picker in the composer or the `/model` command to choose the model for a Session. With no saved preference, the Host selects DeepSeek-V4.1-Flash (`yinsai-gateway/deepseek-flash`). Qwen3.8-Flash-Next is available as `yinsai-gateway/qwen38-flash-next`. Both use the signed-in account. The Host sends the model ID after the slash in the Gateway request. Older Sessions using `deepseek-v4-flash` or `deepseek-v4-flash-vision-exp` still resolve to DeepSeek. The picker lists only the two current models. [Model picker](../../client/ui-model-selection/README.md)
+
+| Qwen reasoning menu | Desktop request to the Gateway | Gateway request to Qwen vLLM |
+| --- | --- | --- |
+| Default | Omit `reasoning_effort` | Omit the field and use the deployment default |
+| Low | `low` | `low` |
+| High | `high` | `medium` |
+| Max | `max` | `xhigh` |
+
+DeepSeek also offers Off, which sends `thinking.type` set to `disabled`. Switching that Session to Qwen Default lets the vLLM deployment choose the effort.
+
+Qwen accepts text and images. The Host rejects a request that would send more than 20 images, counting images from conversation history and tool results. Video input is disabled. The 262,144-token context window includes input and output. The Host caps each response at 32,768 output tokens.
+
 The Host mounts an Insight enterprise search provider through DSH's public Web registry. Each search sends the current Insight account token as `Authorization: Bearer` and `x-api-key` to the enterprise Gateway's `/messages` endpoint. Each search creates an isolated upstream provider whose token request receives that search's cancellation signal. Shutdown unregisters the provider, aborts admitted work, and waits for it before the account service is released.
 
 Installed platform skills call a loopback proxy through an account-local descriptor at `$DSH_HOME/skill-proxy/connection.json`. The descriptor has a one-launch capability and contains no account token. The proxy accepts only capability-authenticated JSON POST requests, forwards only the fixed Insight skill service route, streams NDJSON with backpressure, and removes only the descriptor it owns during shutdown. It uses the bundled primary-runtime Node binary selected by Desktop Main. Admission bounds are eight active requests, 16 MiB buffered request bodies, and a 1,250-second request deadline. A transport or stream failure after forwarding is reported as an unknown outcome and is never retried automatically.
@@ -137,7 +150,7 @@ Nothing directly. The `insightAccount` service supplies an access token only to 
 
 #### Token effect
 
-The fixed `yinsai-gateway/deepseek-flash` provider uses normal Agent request tokens; the account service adds no prompt text. Users do not configure model credentials, and the product composition disables the Models settings page.
+The selected Gateway model uses normal Agent request tokens. The account service adds no prompt text. The product manages model credentials and disables the Models settings page.
 
 #### KV Cache effect
 

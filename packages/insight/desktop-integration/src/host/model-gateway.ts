@@ -1,4 +1,4 @@
-/** Fixed Insight Gateway model route backed by the Desktop Main-owned account token. */
+/** Managed Insight Gateway models backed by the Desktop Main-owned account token. */
 import { randomUUID } from 'node:crypto'
 import { brandString, type Branded } from '@deepseek-ai/dsh-brand'
 import type { Context } from '@deepseek-ai/cordis'
@@ -33,8 +33,13 @@ export const INSIGHT_MODEL_PROVIDER = 'yinsai-gateway'
 /** The default model for every new Insight Desktop conversation. */
 export const INSIGHT_MODEL_ID = 'deepseek-flash'
 
-/** Historical Gateway IDs accepted when replay opens an existing saved selection. */
-const COMPATIBLE_MODEL_IDS = [INSIGHT_MODEL_ID, 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'] as const
+/** Public model ID used by the Gateway to route requests to the Qwen deployment. */
+export const QWEN_MODEL_ID = 'qwen38-flash-next'
+const QWEN_MAX_TOKENS = 32_768
+const QWEN_MAX_IMAGES = 20
+
+/** Includes the two hidden IDs retained for existing DeepSeek sessions. */
+const DEEPSEEK_MODEL_IDS = [INSIGHT_MODEL_ID, 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'] as const
 
 type GatewayTraceId = Branded<'InsightGatewayTraceId'>
 
@@ -167,7 +172,7 @@ export class InsightGatewayAdapter extends LlmAdapter {
     this.assertOpen()
     const signal = this.requestSignal()
     const models = this.delegate(signal).listModels(provider)
-      .then(models => models.filter(model => model.id === INSIGHT_MODEL_ID))
+      .then(models => models.filter(model => model.id === INSIGHT_MODEL_ID || model.id === QWEN_MODEL_ID))
     return await this.track(models)
   }
 
@@ -219,7 +224,8 @@ export class InsightGatewayAdapter extends LlmAdapter {
     const traceId = brandString<GatewayTraceId>(randomUUID())
     let upstream: AsyncIterator<StreamChunk>
     try {
-      upstream = this.delegate(signal, traceId).stream({ ...options, signal })[Symbol.asyncIterator]()
+      const request = options.model === QWEN_MODEL_ID ? qwenRequestOptions(options) : options
+      upstream = this.delegate(signal, traceId).stream({ ...request, signal })[Symbol.asyncIterator]()
     } catch (error) {
       throw this.modelFailure('model-request', error, signal, traceId)
     }
@@ -352,6 +358,16 @@ export class InsightGatewayAdapter extends LlmAdapter {
   }
 }
 
+/** Enforce the vLLM limits on the whole projected request, including images in tool results and history. */
+function qwenRequestOptions(options: GenerateOptions): GenerateOptions {
+  const images = options.messages.reduce((count, message) =>
+    count + message.content.filter(block => block.type === 'image' && !block.offloaded).length, 0)
+  if (images > QWEN_MAX_IMAGES) {
+    throw new LlmError(`Qwen 单次请求最多 ${QWEN_MAX_IMAGES} 张图片，本次包含 ${images} 张（含历史消息和工具结果）。`, 'UNSUPPORTED_CONTENT')
+  }
+  return { ...options, maxTokens: Math.min(options.maxTokens ?? QWEN_MAX_TOKENS, QWEN_MAX_TOKENS) }
+}
+
 /** Add the Gateway sampling flag without converting the Canvas parameter schema. */
 function strictCanvasToolPayload(payload: unknown): unknown {
   if (typeof payload !== 'object' || payload === null || !('tools' in payload) || !Array.isArray(payload.tools)) return payload
@@ -376,14 +392,25 @@ function gatewayProfiles(environment: AuthEnvironment): ReadonlyMap<string, Reso
       compat: {
         thinkingFormat: 'deepseek', maxTokensField: 'max_tokens', supportsDeveloperRole: false, supportsStore: false,
       },
-      models: COMPATIBLE_MODEL_IDS.map(id => ({
-        id,
-        name: flash.name ?? 'DeepSeek-V4.1-Flash',
-        contextWindow: flash.contextWindow ?? official.defaultContextWindow,
-        maxTokens: flash.maxTokens ?? official.maxTokens,
-        input: [...flash.inputModalities ?? ['text']],
-        reasoningEfforts: { off: null, low: 'low', high: 'high', max: 'max' },
-      })),
+      models: [
+        ...DEEPSEEK_MODEL_IDS.map(id => ({
+          id,
+          name: flash.name ?? 'DeepSeek-V4.1-Flash',
+          contextWindow: flash.contextWindow ?? official.defaultContextWindow,
+          maxTokens: flash.maxTokens ?? official.maxTokens,
+          input: [...flash.inputModalities ?? ['text']],
+          reasoningEfforts: { off: null, low: 'low', high: 'high', max: 'max' },
+        })),
+        {
+          id: QWEN_MODEL_ID,
+          name: 'Qwen3.8-Flash-Next',
+          contextWindow: 262_144,
+          maxTokens: QWEN_MAX_TOKENS,
+          input: ['text', 'image'],
+          compat: { thinkingFormat: 'openai', supportsReasoningEffort: true },
+          reasoningEfforts: { low: 'low', high: 'high', max: 'max' },
+        },
+      ],
       streamIdleTimeoutMs: official.streamIdleTimeoutMs,
       maxRequestImageBytes: official.maxInlineRequestImageBytes,
       requestImageMaxBytes: flash.imageMaxBytes ?? official.maxInlineRequestImageBytes,

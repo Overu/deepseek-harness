@@ -71,7 +71,7 @@ async function launch(): Promise<{
   readonly child: ChildProcess
   readonly active: Promise<undefined>
   readonly composition: Promise<CompositionObservation>
-  readonly token: Promise<undefined>
+  readonly modelSelection: Promise<unknown>
   readonly request: Promise<string>
   readonly toolArgumentRetry: Promise<unknown>
   readonly recordedCanvasFailure: Promise<unknown>
@@ -118,11 +118,11 @@ async function launch(): Promise<{
   children.push(child)
   const active = Promise.withResolvers<undefined>()
   const composition = Promise.withResolvers<CompositionObservation>()
-  const token = Promise.withResolvers<undefined>()
+  const modelSelection = Promise.withResolvers<unknown>()
   const request = Promise.withResolvers<string>()
   const toolArgumentRetry = Promise.withResolvers<unknown>()
   const recordedCanvasFailure = Promise.withResolvers<unknown>()
-  void Promise.allSettled([active.promise, composition.promise, token.promise, request.promise,
+  void Promise.allSettled([active.promise, composition.promise, modelSelection.promise, request.promise,
     toolArgumentRetry.promise, recordedCanvasFailure.promise])
   let output = ''
   const capture = (stream: 'stdout' | 'stderr') => (chunk: string): void => {
@@ -131,9 +131,9 @@ async function launch(): Promise<{
   }
   child.stdout?.setEncoding('utf8').on('data', capture('stdout'))
   child.stderr?.setEncoding('utf8').on('data', capture('stderr'))
-  child.once('error', (error) => { rejectSignals(error, active, composition, token, request, toolArgumentRetry, recordedCanvasFailure) })
+  child.once('error', (error) => { rejectSignals(error, active, composition, modelSelection, request, toolArgumentRetry, recordedCanvasFailure) })
   child.once('close', (code, signal) => {
-    rejectSignals(new Error(`Insight Loader child exited before completion (code ${String(code)}, signal ${String(signal)}): ${output}`), active, composition, token, request, toolArgumentRetry, recordedCanvasFailure)
+    rejectSignals(new Error(`Insight Loader child exited before completion (code ${String(code)}, signal ${String(signal)}): ${output}`), active, composition, modelSelection, request, toolArgumentRetry, recordedCanvasFailure)
   })
   child.on('message', (message: unknown) => {
     if (!record(message) || typeof message.kind !== 'string') return
@@ -144,7 +144,7 @@ async function launch(): Promise<{
     if (message.kind === 'insight-loader-error') {
       const error = new Error(typeof message.message === 'string' ? message.message : 'Insight Loader observer rejected the observation')
       composition.reject(error)
-      token.reject(error)
+      modelSelection.reject(error)
       toolArgumentRetry.reject(error)
       recordedCanvasFailure.reject(error)
     }
@@ -152,10 +152,12 @@ async function launch(): Promise<{
       request.resolve(message.requestId)
       child.send({ kind: 'insight-account-response', requestId: message.requestId, result: { ok: true, accessToken: 'loader-fixture-token' } })
     }
-    if (message.kind === 'insight-loader-token') token.resolve(undefined)
+    if (message.kind === 'insight-loader-model-selection') modelSelection.resolve(message.observation)
   })
-  return { child, active: active.promise, composition: composition.promise, token: token.promise, request: request.promise,
-    toolArgumentRetry: toolArgumentRetry.promise, recordedCanvasFailure: recordedCanvasFailure.promise }
+  return {
+    child, active: active.promise, composition: composition.promise, modelSelection: modelSelection.promise,
+    request: request.promise, toolArgumentRetry: toolArgumentRetry.promise, recordedCanvasFailure: recordedCanvasFailure.promise,
+  }
 }
 
 /** Remove inherited secrets and Node loader settings before starting the fixture child. */
@@ -255,10 +257,6 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
     expect(observation.builtinSkillExtensions).toContain('Office skill extensions:')
     for (const entry of observation.clientEntries) expect(entry.contentType?.includes('text/javascript')).toBe(true)
 
-    loader.child.send('request-insight-token')
-    await expect(loader.request).resolves.toMatch(/^[0-9a-f-]{36}$/iu)
-    await expect(loader.token).resolves.toBeUndefined()
-
     loader.child.send('observe-tool-argument-retry')
     const strictCanvas: unknown = expect.objectContaining({ name: 'canvas_node_edit', strict: true })
     const feedback = { name: 'insight-tool-argument-retry',
@@ -329,6 +327,32 @@ it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
         calls: [{ id: 'canvas_call_0' }, { id: 'canvas_call_1' }, { id: 'canvas_call_5' }], failures: [{}, {}, {}],
         contexts: [{}, {}], endings: [{ kind: 'error', error: { code: 'MALFORMED_RESPONSE' } }, { kind: 'completed' }] },
     ])
+  },
+  45_000,
+)
+
+it.skipIf(process.env.DSH_EXAMPLE_MODE !== 'lib' || !builtArtifactsAvailable)(
+  'selects Qwen in the Host, restores its effort and completes a streamed tool conversation',
+  async () => {
+    const loader = await launch()
+    await loader.active
+    loader.child.send('observe-model-selection')
+    const selected = { provider: 'yinsai-gateway', model: 'qwen38-flash-next', reasoningEffort: 'high' }
+    const resultText: unknown = expect.stringContaining('item-7')
+    await expect(loader.modelSelection).resolves.toEqual({
+      catalog: ['deepseek-flash', 'qwen38-flash-next'],
+      selected,
+      restored: selected,
+      requests: [
+        { model: selected.model, effort: 'high' },
+        { model: selected.model, effort: 'high', callId: 'call_qwen_lookup', toolResultId: 'call_qwen_lookup',
+          resultText },
+      ],
+      executions: [{ id: 7 }],
+      finalText: 'Found item seven.',
+      turnEnd: { kind: 'completed' },
+    })
+    await expect(loader.request).resolves.toMatch(/^[0-9a-f-]{36}$/iu)
   },
   45_000,
 )

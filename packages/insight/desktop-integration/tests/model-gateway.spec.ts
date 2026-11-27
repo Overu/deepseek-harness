@@ -1,6 +1,7 @@
 /** Fixed Insight Gateway model registration and Main-token request isolation. */
 import { Context } from '@deepseek-ai/cordis'
-import LlmRuntime, { createUserMessage, expandAssistantStream, LlmError, ProviderRequestId } from '@deepseek-ai/dsh-llm'
+import { AttachmentId, ImageVariantId, type AttachmentStore, type ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
+import LlmRuntime, { createAssistantMessage, createToolResultMessage, createUserMessage, expandAssistantStream, LlmError, ProviderRequestId, ReasoningEffortId, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { StreamChunk } from '@deepseek-ai/dsh-llm'
 import { mountAgentLoopTestDependencies, mountAgentLoopTestHarness } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { SessionId } from '@deepseek-ai/dsh-session'
@@ -8,13 +9,13 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { ShellEnvRegistry } from '@deepseek-ai/dsh-shell-env'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { WebRuntime } from '@deepseek-ai/dsh-web'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { InsightAccount, type InsightAccountTransport } from '../src/host.ts'
 import * as Integration from '../src/host/index.ts'
-import { createInsightModelGatewayAdapter, INSIGHT_MODEL_ID, INSIGHT_MODEL_PROVIDER } from '../src/host/model-gateway.ts'
+import { createInsightModelGatewayAdapter, INSIGHT_MODEL_ID, INSIGHT_MODEL_PROVIDER, QWEN_MODEL_ID } from '../src/host/model-gateway.ts'
 import type { InsightAccountHostMessage, InsightAccountRequestId } from '../src/shared/account-protocol.ts'
 
 const contexts: Context[] = []
@@ -123,6 +124,37 @@ async function prepareIntegrationContext(context: Context): Promise<void> {
 
 function accountRequests(transport: AccountTransport): Extract<InsightAccountHostMessage, { kind: 'insight-account-request' }>[] {
   return transport.sent.filter((message): message is Extract<InsightAccountHostMessage, { kind: 'insight-account-request' }> => message.kind === 'insight-account-request')
+}
+
+/** Consume one runtime stream and require an explicit terminal outcome. */
+async function finishOf(chunks: AsyncIterable<StreamChunk>) {
+  for await (const chunk of chunks) {
+    if (chunk.type === 'finish') return chunk.reason
+  }
+  throw new Error('The model request ended without a finish chunk.')
+}
+
+/** Intercept the final SDK fetch so a wrong destination can never reach the network. */
+function captureChatRequests() {
+  interface ChatBody {
+    model: string
+    messages: { content?: string | { type: string; image_url?: { url: string } }[] }[]
+  }
+  const requests: { url: string; headers: Headers; body: ChatBody }[] = []
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input, init) => {
+    const request = new Request(input, init)
+    const body = await request.json() as ChatBody
+    requests.push({ url: request.url, headers: request.headers, body })
+    const chunk = {
+      id: `reply-${requests.length}`, model: body.model,
+      choices: [{ index: 0, delta: { role: 'assistant', content: 'done' }, finish_reason: 'stop' }],
+    }
+    return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, {
+      headers: { 'content-type': 'text/event-stream' },
+    })
+  }))
+  onTestFinished(() => { vi.unstubAllGlobals() })
+  return requests
 }
 
 describe('Insight Gateway model adapter', () => {
@@ -269,15 +301,123 @@ describe('Insight Gateway model adapter', () => {
     }
   })
 
-  it('advertises only the fixed model after Main supplies the account token', async () => {
+  it('advertises the two managed models and resolves historical DeepSeek IDs without listing them', async () => {
     const { adapter, transport } = await fixture()
     const listed = adapter.listModels(INSIGHT_MODEL_PROVIDER)
     await vi.waitFor(() => { expect(accountRequests(transport)).toHaveLength(1) })
     transport.respond(accountRequests(transport)[0]!.requestId, 'account-token')
-    await expect(listed).resolves.toEqual([expect.objectContaining({
-      provider: INSIGHT_MODEL_PROVIDER,
-      id: INSIGHT_MODEL_ID,
-    })])
+    const models = await listed
+    expect(models.map(({ id, name }) => ({ id, name }))).toEqual([
+      { id: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash' },
+      { id: 'qwen38-flash-next', name: 'Qwen3.8-Flash-Next' },
+    ])
+    const deepseek = await adapter.resolveModel(INSIGHT_MODEL_PROVIDER, INSIGHT_MODEL_ID)
+    expect(deepseek).toMatchObject({ context: { contextWindow: 1_048_576 }, defaultMaxTokens: 256_000, inputModalities: ['text', 'image'] })
+    expect(deepseek.reasoning?.efforts.map(level => level.id)).toEqual(['off', 'low', 'high', 'max'])
+    for (const id of ['deepseek-v4-flash', 'deepseek-v4-flash-vision-exp']) {
+      await expect(adapter.resolveModel(INSIGHT_MODEL_PROVIDER, id)).resolves.toEqual({ ...deepseek, id })
+    }
+    const qwen = await adapter.resolveModel(INSIGHT_MODEL_PROVIDER, QWEN_MODEL_ID)
+    expect(qwen).toMatchObject({ context: { contextWindow: 262_144 }, defaultMaxTokens: 32_768, inputModalities: ['text', 'image'] })
+    expect(qwen.reasoning?.efforts.map(level => level.id)).toEqual(['low', 'high', 'max'])
+    expect(qwen.reasoning).not.toHaveProperty('defaultEffort')
+  })
+
+  it.each([
+    { effort: undefined, maxTokens: undefined, expectedTokens: 32_768 },
+    { effort: 'low', maxTokens: 512, expectedTokens: 512 },
+    { effort: 'high', maxTokens: 65_536, expectedTokens: 32_768 },
+    { effort: 'max', maxTokens: undefined, expectedTokens: 32_768 },
+  ])('sends Qwen effort $effort and output cap $expectedTokens via the authenticated route', async ({ effort, maxTokens, expectedTokens }) => {
+    const requests = captureChatRequests()
+    const { context } = await fixture()
+    vi.spyOn(context.insightAccount, 'getAccessToken').mockResolvedValue('fixture-token')
+    const finish = await finishOf(context.llm.stream({
+      provider: INSIGHT_MODEL_PROVIDER, model: QWEN_MODEL_ID, messages: [],
+      ...effort === undefined ? {} : { reasoningEffort: ReasoningEffortId(effort) },
+      ...maxTokens === undefined ? {} : { maxTokens },
+    }))
+    expect(finish).toEqual({ kind: 'stop' })
+    expect(requests).toHaveLength(1)
+    const request = requests[0]!
+    expect(request.url).toBe('https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1/chat/completions')
+    expect(request.headers.get('authorization')).toBe('Bearer fixture-token')
+    expect(request.headers.get('traceid')).toMatch(/^[0-9a-f-]{36}$/i)
+    expect(request.body).toMatchObject({ model: 'qwen38-flash-next', max_tokens: expectedTokens, stream: true })
+    expect(request.body).not.toHaveProperty('thinking')
+    if (effort === undefined) expect(request.body).not.toHaveProperty('reasoning_effort')
+    else expect(request.body).toHaveProperty('reasoning_effort', effort)
+  })
+
+  it('switches an existing DeepSeek Off conversation to Qwen Default without sending Off', async () => {
+    const requests = captureChatRequests()
+    const { context } = await fixture(true)
+    vi.spyOn(context.insightAccount, 'getAccessToken').mockResolvedValue('fixture-token')
+    const harness = await mountAgentLoopTestHarness(context)
+    const provider = INSIGHT_MODEL_PROVIDER
+    const agent = await harness.create(SessionId('switch-to-qwen'), { provider, model: INSIGHT_MODEL_ID, reasoningEffort: ReasoningEffortId('off') })
+    const message = (text: string) => createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text }] })
+    agent.followup(message('First turn'))
+    await agent.whenIdle()
+    agent.model.select({ provider, model: QWEN_MODEL_ID })
+    agent.followup(message('Second turn'))
+    await agent.whenIdle()
+    expect(requests.map(request => request.body.model)).toEqual([INSIGHT_MODEL_ID, QWEN_MODEL_ID])
+    expect(requests[0]!.body).toHaveProperty('thinking.type', 'disabled')
+    expect(requests[1]!.body).not.toHaveProperty('thinking')
+    expect(requests[1]!.body).not.toHaveProperty('reasoning_effort')
+  })
+
+  it.each([
+    { model: QWEN_MODEL_ID, count: 1, offloaded: 0, allowed: true },
+    { model: QWEN_MODEL_ID, count: 20, offloaded: 0, allowed: true },
+    { model: QWEN_MODEL_ID, count: 21, offloaded: 0, allowed: false },
+    { model: QWEN_MODEL_ID, count: 21, offloaded: 1, allowed: true },
+    { model: INSIGHT_MODEL_ID, count: 21, offloaded: 0, allowed: true },
+  ])('checks $model user and tool images ($count occurrences, $offloaded offloaded)', async ({ model, count, offloaded, allowed }) => {
+    const requests = captureChatRequests()
+    const { context } = await fixture()
+    vi.spyOn(context.insightAccount, 'getAccessToken').mockResolvedValue('fixture-token')
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAX+XDSwAAAABJRU5ErkJggg==', 'base64')
+    const attachment: ImageAttachmentRef = {
+      attachmentId: AttachmentId(`sha256:${'a'.repeat(64)}`), mediaType: 'image/png', bytes: png.length, width: 1, height: 1,
+    }
+    // One durable object may appear several times in the provider's request.
+    const store: Pick<AttachmentStore, 'imageHostPath' | 'readImageRequest'> = {
+      imageHostPath: () => undefined,
+      readImageRequest: async ref => ({
+        variantId: ImageVariantId(`sha256:${'b'.repeat(64)}`), attachment: ref, data: png,
+        mediaType: ref.mediaType, bytes: png.length, width: 1, height: 1, depth: 'uchar', space: 'srgb', hasAlpha: true,
+      }),
+    }
+    context.provide('attachments', store as AttachmentStore)
+    const image = { type: 'image' as const, attachment }
+    const current = createUserMessage({ source: { kind: 'user' }, content: [image] })
+    const callId = ToolCallId('read-image')
+    const messages = count === 1 ? [current] : [
+      createUserMessage({
+        source: { kind: 'user' },
+        content: Array.from({ length: count - 2 }, (_, index) => index < offloaded ? { ...image, offloaded: true as const } : image),
+      }),
+      createAssistantMessage({
+        source: { provider: INSIGHT_MODEL_PROVIDER, model },
+        content: [{ type: 'tool-call', id: callId, name: 'read_image', arguments: '{}' }],
+      }),
+      createToolResultMessage({ callId, isError: false, content: [image] }),
+      current,
+    ]
+    const finish = await finishOf(context.llm.stream({ provider: INSIGHT_MODEL_PROVIDER, model, messages }))
+    if (!allowed) {
+      expect(finish.kind).toBe('error')
+      expect(finish).toHaveProperty('failure.message', expect.stringContaining('最多 20 张图片'))
+      expect(requests).toHaveLength(0)
+      return
+    }
+    expect(finish).toEqual({ kind: 'stop' })
+    expect(requests).toHaveLength(1)
+    const parts = requests[0]!.body.messages.flatMap(message => Array.isArray(message.content) ? message.content : [])
+    const urls = parts.filter(part => part.type === 'image_url').map(part => part.image_url?.url)
+    expect(urls).toEqual(Array.from({ length: count - offloaded }, () => `data:image/png;base64,${png.toString('base64')}`))
   })
 
   it('binds each pending stream token request to its own abort signal', async () => {
