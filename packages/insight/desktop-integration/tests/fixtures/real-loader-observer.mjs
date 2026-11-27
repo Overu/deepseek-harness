@@ -1,6 +1,7 @@
 /** Observe the built Insight composition after the real profile Loader activates it. */
 import { readFile } from 'node:fs/promises'
-export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientModules', 'agents', 'tools', 'systemPrompt']
+export const inject = ['insightAccount', 'llm', 'pluginManager', 'web', 'clientModules', 'agents', 'tools',
+  'systemPrompt', 'sessionController', 'sessions']
 
 const requiredBundleNames = [
   '@insight-ai/desktop-integration',
@@ -80,6 +81,87 @@ function changeObservation(change) {
     application: change.application,
     changed: change.changed,
     errorCode: change.error?.code,
+  }
+}
+
+/** Select Qwen through the Host controller, resume the session and reply through its real Agent loop. */
+async function observeModelSelection(ctx) {
+  const provider = 'yinsai-gateway'
+  const sessionId = crypto.randomUUID()
+  const catalog = (await ctx.llm.listModels(provider)).map(model => model.id).sort()
+  const initialRoute = { provider, model: 'deepseek-flash' }
+  const initial = await ctx.agents.create({ sessionId, meta: { cwd: process.cwd() }, agentOptions: initialRoute })
+  let selected
+  try {
+    selected = (await ctx.sessionController.selectModel({
+      sessionId, provider, model: 'qwen38-flash-next', reasoningEffort: 'high',
+    })).selected
+    await ctx.sessions.flush(initial.agent.session)
+  } finally {
+    await initial.dispose()
+  }
+
+  const resumed = await ctx.agents.resume({ resumeSessionId: sessionId, agentOptions: initialRoute })
+  const { agent } = resumed
+  const name = 'insight_qwen_lookup'
+  const callId = 'call_qwen_lookup'
+  const executions = []
+  const requests = []
+  const unregister = agent.ctx.tools.register({
+    name, description: 'Look up a numbered fixture item.',
+    parameters: { type: 'object', properties: { id: { type: 'integer' } }, required: ['id'] },
+    output: { schema: { type: 'string' }, render: (_args, text) => [{ type: 'text', text }] },
+    async execute(args) {
+      executions.push(args)
+      return `item-${args.id}`
+    },
+  })
+  const originalFetch = globalThis.fetch
+  try {
+    const restored = agent.model.current()
+    globalThis.fetch = async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url !== 'https://gapi-test.insight-aigc.com/insight-harness-llm-gateway/v1/chat/completions') {
+        throw new Error('Unexpected URL in isolated Qwen model fixture')
+      }
+      const body = await request.json()
+      const main = body.tools?.some(tool => tool.function?.name === name)
+      const first = main && requests.length === 0
+      if (main) {
+        const call = body.messages.flatMap(message => message.tool_calls ?? []).find(tool => tool.function.name === name)
+        const result = body.messages.findLast(message => message.role === 'tool')
+        const resultText = Array.isArray(result?.content)
+          ? result.content.filter(block => block.type === 'text').map(block => block.text).join('')
+          : result?.content
+        requests.push({ model: body.model, effort: body.reasoning_effort, callId: call?.id,
+          toolResultId: result?.tool_call_id, resultText })
+      }
+      const frame = (delta, finish_reason = null) => ({
+        id: 'chatcmpl-qwen-fixture', model: body.model, object: 'chat.completion.chunk', created: 0,
+        choices: [{ index: 0, delta, finish_reason }],
+      })
+      const frames = first ? [
+        frame({ role: 'assistant', tool_calls: [{ index: 0, id: callId, type: 'function',
+          function: { name, arguments: '{"id":' } }] }),
+        frame({ tool_calls: [{ index: 0, function: { arguments: '7}' } }] }),
+        frame({}, 'tool_calls'),
+      ] : [frame({ role: 'assistant', content: main ? 'Found item seven.' : 'Fixture title' }), frame({}, 'stop')]
+      return new Response(frames.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join('') + 'data: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    }
+    agent.followup({ id: crypto.randomUUID(), role: 'user', source: { kind: 'user' },
+      content: [{ type: 'text', text: 'Look up item 7.' }] })
+    await agent.whenIdle()
+    const events = agent.session.snapshotEvents()
+    const final = events.findLast(event => event.type === 'assistant/message')?.data.message
+    return { catalog, selected, restored, requests, executions,
+      finalText: final?.content.filter(block => block.type === 'text').map(block => block.text).join(''),
+      turnEnd: events.findLast(event => event.type === 'turn/end')?.data.reason }
+  } finally {
+    globalThis.fetch = originalFetch
+    unregister()
+    await resumed.dispose()
   }
 }
 
@@ -269,12 +351,9 @@ export function apply(ctx) {
       process.emit('SIGTERM')
       return
     }
-    if (message === 'request-insight-token') {
-      void ctx.llm.listModels('yinsai-gateway').then(
-        models => {
-          process.send?.({ kind: models.length === 1 && models[0].id === 'deepseek-flash'
-            ? 'insight-loader-token' : 'insight-loader-error' })
-        },
+    if (message === 'observe-model-selection') {
+      void observeModelSelection(ctx).then(
+        observation => { process.send?.({ kind: 'insight-loader-model-selection', observation }) },
         error => { process.send?.({ kind: 'insight-loader-error', message: String(error) }) },
       )
       return

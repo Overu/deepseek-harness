@@ -86,6 +86,19 @@ Host 服务校验请求与响应字段、限制并发令牌请求、应用截止
 
 Host 账号服务提供 Desktop Main 选定账号 Home 的非凭据哈希。图像分层任务将该范围绑定到 Session 记录，账号切换后拒绝恢复；哈希不暴露令牌或原始账号 ID。
 
+使用输入框的模型选择器或 `/model` 命令切换当前会话的模型。没有已保存的偏好时，Host 选择 DeepSeek-V4.1-Flash（`yinsai-gateway/deepseek-flash`）。Qwen3.8-Flash-Next 的模型路由是 `yinsai-gateway/qwen38-flash-next`。两者均使用已登录账号，Host 在发给 Gateway 的请求中填写斜杠后的模型 ID。使用 `deepseek-v4-flash` 或 `deepseek-v4-flash-vision-exp` 的旧会话仍会调用 DeepSeek。选择器只列出当前两个模型。[模型选择器](../../client/ui-model-selection/README.zh.md)
+
+| Qwen 推理强度菜单 | 桌面发给 Gateway 的值 | Gateway 发给 Qwen vLLM 的值 |
+| --- | --- | --- |
+| Default | 省略 `reasoning_effort` | 省略该字段，采用部署的默认强度 |
+| Low | `low` | `low` |
+| High | `high` | `medium` |
+| Max | `max` | `xhigh` |
+
+DeepSeek 还提供 Off 档，选择后会将 `thinking.type` 设为 `disabled`。在同一会话中切换到 Qwen 的 Default 档后，推理强度由 vLLM 部署决定。
+
+Qwen 支持文本和图片。若一次请求实际要发送的图片超过 20 张，Host 会拒绝该请求，历史消息和工具结果中的图片都计入上限。视频输入已禁用。上下文窗口为 262,144 个 token，包含输入与输出。Host 将单次响应的输出限制为最多 32,768 个 token。
+
 Host 通过 DSH 的公开 Web 注册表挂载 Insight 企业搜索提供方。每次搜索均将当前 Insight 账号令牌通过 `Authorization: Bearer` 和 `x-api-key` 发送至企业 Gateway 的 `/messages` 端点。每次搜索均创建独立的上游提供方，并将该次搜索的取消信号传给令牌请求。停机时先注销提供方，再中止并等待已接收工作结束，最后才释放账号服务。
 
 已安装的平台技能通过 `$DSH_HOME/skill-proxy/connection.json` 中账号隔离的回环代理描述文件调用服务。该描述文件带有单次启动能力令牌，不包含账号令牌。代理仅接受携带能力令牌的 JSON POST 请求，只能转发到固定的 Insight 技能服务路由，以背压方式流式转发 NDJSON，并且停机时只删除自身创建的描述文件。它使用 Desktop Main 选定的主运行时内置 Node 二进制文件；准入上限为 8 个活动请求、16 MiB 请求体缓冲和 1,250 秒请求截止时间。转发后的传输或流失败会报告为结果未知，绝不自动重试。
@@ -135,7 +148,7 @@ GitHub Release 构建和 OSS 发布是相互独立的操作，详见 [Insight �
 
 #### Token 影响
 
-固定的 `yinsai-gateway/deepseek-flash` 提供方使用正常 Agent 请求的 token；账号服务不增加提示词文字。用户无需配置模型凭据，产品组合禁用模型设置页。
+所选 Gateway 模型按常规 Agent 请求消耗 token。账号服务不增加提示词文字。产品统一管理模型凭据，并禁用模型设置页。
 
 #### KV Cache 影响
 
